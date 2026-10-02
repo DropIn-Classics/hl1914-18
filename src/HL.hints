@@ -170,6 +170,8 @@ code CODE:1F10
 code CODE:29A3
 code CODE:07F0
 code CODE:10A6
+; Reached at CODE:114F in a ten-second no-input runner coverage run.
+code CODE:114F
 
 ; Instructions which tasm.py cannot express yet (build.py output).
 raw CODE:000C

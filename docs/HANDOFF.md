@@ -45,6 +45,10 @@ emulation error (2026-10-02).
   far calls cross a segment boundary; the preceding segment's `size=` and
   the following segment's `start=` preserve each relocation's original
   source frame.
+- A ten-second no-input runner coverage run reached the former CODE gap at
+  `CODE:114F` (71 instruction starts; first at that address). A breakpoint
+  there stopped at `t=0.000231`, with `CS:IP=0076:114F`; it is recorded as
+  a verified `code` entry.
 - Not checked: the classification and reachability of the remaining indirect
   CODE gaps. The non-entry relocation frames are conservatively not treated
   as code yet; use runner coverage and verified pointer/table hints next.

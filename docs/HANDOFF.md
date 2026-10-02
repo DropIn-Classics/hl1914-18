@@ -69,6 +69,10 @@ emulation error (2026-10-02).
   but reaches none of the remaining `gaps.py` gaps. The large `C0015`
   frame, in particular, has no verified entry yet; do not classify it from
   the code-like bytes alone.
+- The three relocation sites whose values select `C0015` are segment loads,
+  not direct CALL/JMP targets. `gaps.py` finds no other convincing reference
+  to its only gap start. A run with Escape at five seconds exits the intro
+  and starts `HL.EXE`, but reaches no launcher gap before then.
 - Not checked: the meaning and runtime reachability of the remaining gaps
   and all of `C0015`; obtain a run that enters them or identify a verified
   pointer/table entry next.

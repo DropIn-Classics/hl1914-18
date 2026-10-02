@@ -85,6 +85,11 @@ emulation error (2026-10-02).
   as `code` hints. The normal launcher path with Escape at five seconds did
   not execute the INT 24 handler before starting `HL.EXE` (zero breakpoint
   hits through 30 seconds); it also reached no C0015 gaps.
+- Targeted idle, early-key and late-key launcher runs likewise gave zero
+  hits at all three vector handlers and no C0015 coverage. In the late-key
+  run, after `HL.EXE` loaded at `t=5.109051`, INT 08 and INT 09 pointed to
+  `2B30:06D2` and `2B30:04F4`; those are offsets in `HL.EXE`, not launcher
+  coverage.
 - Not checked: runtime reachability of the remaining launcher gaps and the
   three vector handlers under the events that invoke them; obtain targeted
   runs or identify further verified pointer/table entries next.

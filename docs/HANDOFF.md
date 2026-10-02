@@ -78,15 +78,22 @@ emulation error (2026-10-02).
   not direct CALL/JMP targets. `gaps.py` finds no other convincing reference
   to its only gap start. A run with Escape at five seconds exits the intro
   and starts `HL.EXE`, but reaches no launcher gap before then.
-- Not checked: the meaning and runtime reachability of the remaining gaps
-  and all of `C0015`; obtain a run that enters them or identify a verified
-  pointer/table entry next.
+- Three DOS vector installations give verified `C0015` entries: the
+  `INT 21h/AH=25h` calls at `C0015:004A`, `C0015:059A` and `C0015:0688`
+  install the INT 24, INT 09 and INT 08 handlers at `C0015:055C`,
+  `C0015:04F4` and `C0015:06D2`, respectively. These entries are recorded
+  as `code` hints. The normal launcher path with Escape at five seconds did
+  not execute the INT 24 handler before starting `HL.EXE` (zero breakpoint
+  hits through 30 seconds); it also reached no C0015 gaps.
+- Not checked: runtime reachability of the remaining launcher gaps and the
+  three vector handlers under the events that invoke them; obtain targeted
+  runs or identify further verified pointer/table entries next.
 
 ## Next
 
-1. Finish the `HL14-18.EXE` call graph: find a verified entry into `C0015`
-   and use targeted runner coverage for the remaining gaps, adding only
-   verified pointer/table hints.
+1. Finish the `HL14-18.EXE` call graph: use targeted keyboard, timer and
+   critical-error runs for the three verified `C0015` vector entries, then
+   classify any remaining reached gaps with verified pointer/table hints.
 2. Classify `HL.EXE` indirect code with `gaps.py`, runner coverage and
    verified pointer/table hints, then begin stage 2 names and records.
 3. Analyse `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE` separately; transfer

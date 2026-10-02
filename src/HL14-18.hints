@@ -60,6 +60,14 @@ code C0151:0002
 code C015D:0006
 code C0170:0008
 
+; DOS interrupt-vector targets installed by code in C0015.
+; INT 21h/AH=25h at C0015:004A installs INT 24 at C0015:055C.
+; INT 21h/AH=25h at C0015:059A installs INT 09 at C0015:04F4.
+; INT 21h/AH=25h at C0015:0688 installs INT 08 at C0015:06D2.
+code C0015:04F4
+code C0015:055C
+code C0015:06D2
+
 ; Instructions which tasm.py cannot express yet (build.py output).
 raw C0103:0045
 raw C0108:009B

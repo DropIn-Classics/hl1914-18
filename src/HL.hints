@@ -160,8 +160,28 @@ segment STACK 3E2E STACK stack size=80
 
 relocorder original
 
+; First instruction of each gap reached by a five-second deterministic run.
+code CODE:0487
+code CODE:0550
+code CODE:0675
+code CODE:078A
+code CODE:1072
+code CODE:1F10
+code CODE:29A3
+code CODE:07F0
+code CODE:10A6
+
 ; Instructions which tasm.py cannot express yet (build.py output).
 raw CODE:000C
+raw CODE:1342
+raw CODE:1348
+raw CODE:134C
+raw CODE:1381
+raw CODE:138D
+raw CODE:1397
+raw CODE:139B
+raw CODE:1489
+raw CODE:148D
 raw S02E6:294D
 raw S02E6:2A0B
 raw S063F:01BA

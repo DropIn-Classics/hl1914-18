@@ -36,13 +36,18 @@ emulation error (2026-10-02).
   required.
 - `src/HL.hints` rebuilds the program `IDENTICAL` (51,809 instructions,
   4,748 labels and 70 `raw` instructions from `build.py` output).
+- A five-second deterministic run reached seven initial gaps; recursive
+  descent from their recorded first instructions exposed two more reached
+  gaps in the same coverage. The nine verified `code` entries rebuild
+  identically as 53,218 instructions and 4,938 labels; `build.py` required
+  nine additional `raw` encodings (79 total).
 - Several compiler segments begin within their relocation frame. Four
   far calls cross a segment boundary; the preceding segment's `size=` and
   the following segment's `start=` preserve each relocation's original
   source frame.
-- Not checked: the classification and reachability of indirect code. The
-  non-entry relocation frames are conservatively not treated as code yet;
-  use runner coverage and verified pointer/table hints next.
+- Not checked: the classification and reachability of the remaining indirect
+  CODE gaps. The non-entry relocation frames are conservatively not treated
+  as code yet; use runner coverage and verified pointer/table hints next.
 
 ## `HL14-18.EXE` stage 1
 

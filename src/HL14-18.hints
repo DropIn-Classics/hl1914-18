@@ -38,6 +38,28 @@ relocorder original
 ; Reached at C0170:0000 in the launcher run through its child-program path.
 code C0170:0000
 
+; Direct far-call targets found at relocated segment words in this program.
+code C0173:0304
+code C00A7:0006
+code C00BB:0000
+code C00B9:0008
+code C00E2:0004
+code C00A4:000A
+code C00C9:000E
+code C0103:0008
+code C00F1:0002
+code C00B7:000C
+code C00B2:0004
+code C00BD:0000
+code C00E0:0000
+code C00DA:0008
+code C00F4:007C
+code C0132:0080
+code C013F:0006
+code C0151:0002
+code C015D:0006
+code C0170:0008
+
 ; Instructions which tasm.py cannot express yet (build.py output).
 raw C0103:0045
 raw C0108:009B
@@ -47,3 +69,8 @@ raw C0108:0139
 raw C0108:0162
 raw C0108:0182
 raw C0108:01AA
+raw C00B7:001A
+raw C0173:0330
+raw C0173:0341
+raw C0173:0362
+raw C0173:0383

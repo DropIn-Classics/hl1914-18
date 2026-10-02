@@ -61,13 +61,23 @@ emulation error (2026-10-02).
 - A two-second deterministic runner trace loads `INTRO/INTRO.EXE` and
   reaches `C0170:0000`; that entry is recorded as a `code` hint. The
   rebuilt program remains identical (451 instructions, 66 labels).
-- Not checked: the meaning and reachability of code outside that observed
-  path; inspect the remaining `gaps.py` output and more runs next.
+- Relocated segment words following direct far CALL/JMP opcodes identify
+  17 additional code entries. Adding them and the three required `raw`
+  encodings expands the identical rebuild to 1,464 instructions and 191
+  labels (13 `raw` instructions).
+- A fresh two-second launcher coverage run again loads `INTRO/INTRO.EXE`,
+  but reaches none of the remaining `gaps.py` gaps. The large `C0015`
+  frame, in particular, has no verified entry yet; do not classify it from
+  the code-like bytes alone.
+- Not checked: the meaning and runtime reachability of the remaining gaps
+  and all of `C0015`; obtain a run that enters them or identify a verified
+  pointer/table entry next.
 
 ## Next
 
-1. Finish the `HL14-18.EXE` call graph: use `gaps.py` and runs to classify
-   indirect code, adding only verified pointer/table hints.
+1. Finish the `HL14-18.EXE` call graph: find a verified entry into `C0015`
+   and use targeted runner coverage for the remaining gaps, adding only
+   verified pointer/table hints.
 2. Classify `HL.EXE` indirect code with `gaps.py`, runner coverage and
    verified pointer/table hints, then begin stage 2 names and records.
 3. Analyse `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE` separately; transfer

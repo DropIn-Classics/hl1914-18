@@ -24,7 +24,25 @@ fully classified.
 | Top level (`.LBM`, `.IFF`, `.PAL`, `.DAT`, `.LIB`, `.ADL`, `.SFX`) | Shared pictures, palettes, records, graphics libraries and audio data. |
 
 The headless runner starts `HL.EXE` for two emulated seconds without an
-emulation error (2026-10-02); no main-program analysis hints exist yet.
+emulation error (2026-10-02).
+
+## `HL.EXE` stage 1
+
+- MZ program, entry `0000:0000`, stack `3E2E:0080`, with 146 relocation
+  target frames and 5,837 relocations. Its entry explicitly loads DS with
+  `3CFF`, which is the `DATA` segment.
+- The program has a Borland TLINK 5.0 header and no tail after its MZ
+  image. `linker tlink 50 header=original` and `relocorder original` are
+  required.
+- `src/HL.hints` rebuilds the program `IDENTICAL` (51,809 instructions,
+  4,748 labels and 70 `raw` instructions from `build.py` output).
+- Several compiler segments begin within their relocation frame. Four
+  far calls cross a segment boundary; the preceding segment's `size=` and
+  the following segment's `start=` preserve each relocation's original
+  source frame.
+- Not checked: the classification and reachability of indirect code. The
+  non-entry relocation frames are conservatively not treated as code yet;
+  use runner coverage and verified pointer/table hints next.
 
 ## `HL14-18.EXE` stage 1
 
@@ -50,8 +68,8 @@ emulation error (2026-10-02); no main-program analysis hints exist yet.
 
 1. Finish the `HL14-18.EXE` call graph: use `gaps.py` and runs to classify
    indirect code, adding only verified pointer/table hints.
-2. Stage 1 for `HL.EXE`: segments, hints, build.py and gaps.py until
-   `IDENTICAL` (doskit/docs/METHOD.md).
+2. Classify `HL.EXE` indirect code with `gaps.py`, runner coverage and
+   verified pointer/table hints, then begin stage 2 names and records.
 3. Analyse `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE` separately; transfer
    hints only when this game's own instruction streams demonstrate a
    match.

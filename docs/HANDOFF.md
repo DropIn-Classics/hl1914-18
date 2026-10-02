@@ -23,6 +23,9 @@ fully classified.
 | `INTRO/`, `EXTRO/`, `ZWI/` | Intro, outro and intermediate-scene data, alongside their programs. |
 | Top level (`.LBM`, `.IFF`, `.PAL`, `.DAT`, `.LIB`, `.ADL`, `.SFX`) | Shared pictures, palettes, records, graphics libraries and audio data. |
 
+The headless runner starts `HL.EXE` for two emulated seconds without an
+emulation error (2026-10-02); no main-program analysis hints exist yet.
+
 ## `HL14-18.EXE` stage 1
 
 - MZ program, entry `0000:000B`, stack `0296:0100`; its relocation

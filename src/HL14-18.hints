@@ -1,0 +1,46 @@
+; HL14-18.EXE: launcher program
+; Hints for doskit/tools/disasm.py; numbers are hex.
+
+exe HL14-18.EXE
+linker tlink 50 header=original
+
+; Frames from the program's relocation table; SS:SP = 0296:0100.
+segment CODE  0000 CODE
+segment C0015 0015 CODE start=1 prefix=C0015
+segment C00A4 00A4 CODE prefix=C00A4
+segment C00A7 00A7 CODE prefix=C00A7
+segment C00B2 00B2 CODE prefix=C00B2
+segment C00B7 00B7 CODE prefix=C00B7
+segment C00B9 00B9 CODE prefix=C00B9
+segment C00BB 00BB CODE prefix=C00BB
+segment C00BD 00BD CODE prefix=C00BD
+segment C00C9 00C9 CODE prefix=C00C9
+segment C00DA 00DA CODE prefix=C00DA
+segment C00E0 00E0 CODE prefix=C00E0
+segment C00E2 00E2 CODE prefix=C00E2
+segment C00F1 00F1 CODE prefix=C00F1
+segment C00F4 00F4 CODE prefix=C00F4
+segment C0103 0103 CODE prefix=C0103
+segment C0108 0108 CODE prefix=C0108
+segment C012C 012C CODE prefix=C012C
+segment C0132 0132 CODE prefix=C0132
+segment C013F 013F CODE prefix=C013F
+segment C0151 0151 CODE prefix=C0151
+segment C015D 015D CODE prefix=C015D
+segment C016F 016F CODE prefix=C016F
+segment C0170 0170 CODE prefix=C0170
+segment C0173 0173 CODE prefix=C0173
+segment DATA  01AE DATA
+segment STACK 0296 STACK stack size=100
+
+relocorder original
+
+; Instructions which tasm.py cannot express yet (build.py output).
+raw C0103:0045
+raw C0108:009B
+raw C0108:00ED
+raw C0108:0114
+raw C0108:0139
+raw C0108:0162
+raw C0108:0182
+raw C0108:01AA

@@ -173,6 +173,64 @@ code CODE:10A6
 ; Reached at CODE:114F in a ten-second no-input runner coverage run.
 code CODE:114F
 
+; First instruction starts observed in the 30-second no-input runner coverage run.
+code S066A:000D
+code S1571:02CD
+code S1650:0003
+code S167A:0005
+code S27FE:0013
+code S2B06:0000
+code S2F39:000B
+code S30EF:111F
+code S0C66:0009
+code S0CB6:0001
+code S0E56:0002
+code S1A39:0000
+code S2892:0001
+code S28A5:0001
+code S28D9:000C
+code S28DC:0000
+code S28E0:0000
+code S28E5:0000
+code S2945:000A
+code S2947:0000
+code S2949:0000
+code S294A:0000
+code S2955:0002
+code S2957:0000
+code S2974:0002
+code S297D:0002
+code S298E:000D
+code S2A10:0006
+code S2A1C:0000
+code S2A55:0006
+code S2A62:0000
+code S2A6B:0008
+code S2AAF:0000
+code S2AE4:000C
+code S2AF3:000A
+code S2AFE:000C
+code S2B76:0004
+code S2B81:0004
+code S2B85:0000
+code S2B87:0002
+code S2B8F:000C
+code S2B9B:0000
+code S2BAD:0000
+code S2BB9:0003
+code S2BCD:0008
+code S2BD4:0005
+code S2BDB:0000
+code S2BE7:000A
+code S2BF9:0000
+code S2BFD:0001
+code S2C45:0002
+code S2C8E:0006
+code S2C9E:0002
+code S2CA0:0002
+code S2CBD:0000
+code S2CBE:0002
+
 ; Instructions which tasm.py cannot express yet (build.py output).
 raw CODE:000C
 raw CODE:1342
@@ -184,6 +242,9 @@ raw CODE:1397
 raw CODE:139B
 raw CODE:1489
 raw CODE:148D
+raw S0E56:0006
+raw S2947:0002
+raw S2BD4:0008
 raw S02E6:294D
 raw S02E6:2A0B
 raw S063F:01BA

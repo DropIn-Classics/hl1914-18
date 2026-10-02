@@ -49,6 +49,15 @@ emulation error (2026-10-02).
   `CODE:114F` (71 instruction starts; first at that address). A breakpoint
   there stopped at `t=0.000231`, with `CS:IP=0076:114F`; it is recorded as
   a verified `code` entry.
+- A 30-second no-input coverage run also entered the relocation-frame
+  55 former-DATA relocation-frame segments. Their first observed instruction
+  starts are recorded as `code` entries; the segments remain `DATA`, because
+  changing their linker class moves them before DATA and changes the MZ
+  image. The largest reached groups were `S167A` (2,121 instruction starts),
+  `S30EF` (988), `S2F39` (612), `S27FE` (411), `S066A` (247), `S1650`
+  (216), `S1571` (211) and `S2B06` (206). Three newly reached instructions
+  require `raw` hints because their branch targets cannot be represented by
+  the current assembler (`S0E56:0006`, `S2947:0002`, `S2BD4:0008`).
 - Not checked: the classification and reachability of the remaining indirect
   CODE gaps. The non-entry relocation frames are conservatively not treated
   as code yet; use runner coverage and verified pointer/table hints next.

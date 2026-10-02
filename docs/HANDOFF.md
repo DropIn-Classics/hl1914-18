@@ -37,8 +37,11 @@ fully classified.
   one paragraph too long.
 - The MZ header is Borland TLINK 5.0 (`linker tlink 50 header=original`)
   and its original relocation order is retained.
-- Not checked: the meaning and reachability of code outside the initial
-  call graph; inspect the `gaps.py` output and runs next.
+- A two-second deterministic runner trace loads `INTRO/INTRO.EXE` and
+  reaches `C0170:0000`; that entry is recorded as a `code` hint. The
+  rebuilt program remains identical (451 instructions, 66 labels).
+- Not checked: the meaning and reachability of code outside that observed
+  path; inspect the remaining `gaps.py` output and more runs next.
 
 ## Next
 

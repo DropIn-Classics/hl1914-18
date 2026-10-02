@@ -35,6 +35,9 @@ segment STACK 0296 STACK stack size=100
 
 relocorder original
 
+; Reached at C0170:0000 in the launcher run through its child-program path.
+code C0170:0000
+
 ; Instructions which tasm.py cannot express yet (build.py output).
 raw C0103:0045
 raw C0108:009B

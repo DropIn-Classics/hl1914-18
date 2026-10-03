@@ -6,135 +6,135 @@ linker tlink 50 header=original
 
 ; Frames from the program's relocation table; SS:SP = 3E2E:0080.
 ; Only the entry segment is classified as code until indirect entries are checked.
-segment CODE  0000 CODE
-segment S02E6 02E6 DATA prefix=S02E6
-segment S063F 063F DATA prefix=S063F
-segment S066A 066A DATA start=3 prefix=S066A
-segment S0AE0 0AE0 DATA prefix=S0AE0
-segment S0B15 0B15 DATA start=2 prefix=S0B15
-segment S0C66 0C66 DATA prefix=S0C66
-segment S0CB6 0CB6 DATA prefix=S0CB6
-segment S0E56 0E56 DATA size=2596 prefix=S0E56
+segment CODE  0000 CODE size=2E6F
+segment S02E6 02E6 DATA start=F size=3599 prefix=S02E6
+segment S063F 063F DATA start=9 prefix=S063F
+segment S066A 066A DATA start=3 size=4768 prefix=S066A
+segment S0AE0 0AE0 DATA start=8 prefix=S0AE0
+segment S0B15 0B15 DATA start=2 size=1519 prefix=S0B15
+segment S0C66 0C66 DATA start=9 size=501 prefix=S0C66
+segment S0CB6 0CB6 DATA start=1 size=1A0B prefix=S0CB6
+segment S0E56 0E56 DATA size=2596 start=B prefix=S0E56
 ; The preceding segment's final instruction owns bytes through 10AF:0006.
 segment S10AF 10AF DATA start=7 size=325 prefix=S10AF
 ; The preceding segment's final far call owns bytes through 10E1:0004.
-segment S10E1 10E1 DATA start=5 prefix=S10E1
-segment S1273 1273 DATA prefix=S1273
-segment S131D 131D DATA size=202A prefix=S131D
+segment S10E1 10E1 DATA start=5 size=1925 prefix=S10E1
+segment S1273 1273 DATA start=5 size=AA8 prefix=S1273
+segment S131D 131D DATA size=202A start=8 prefix=S131D
 ; The preceding segment's final far call owns bytes through 151F:0009.
 segment S151F 151F DATA start=A prefix=S151F
-segment S1571 1571 DATA prefix=S1571
-segment S15C5 15C5 DATA prefix=S15C5
-segment S1650 1650 DATA prefix=S1650
-segment S167A 167A DATA prefix=S167A
-segment S1A39 1A39 DATA prefix=S1A39
-segment S1C74 1C74 DATA prefix=S1C74
+segment S1571 1571 DATA size=545 prefix=S1571
+segment S15C5 15C5 DATA start=5 size=8B3 prefix=S15C5
+segment S1650 1650 DATA start=3 size=2A5 prefix=S1650
+segment S167A 167A DATA start=5 size=3BF1 prefix=S167A
+segment S1A39 1A39 DATA start=1 size=23BB prefix=S1A39
+segment S1C74 1C74 DATA start=B prefix=S1C74
 ; The six-word jump table at S1CC6:1845 ends one byte into the next frame.
 segment S1CC6 1CC6 DATA size=1851 prefix=S1CC6
-segment S1E4B 1E4B DATA start=1 prefix=S1E4B
-segment S1FD8 1FD8 DATA prefix=S1FD8
-segment S202F 202F DATA prefix=S202F
+segment S1E4B 1E4B DATA start=1 size=18D2 prefix=S1E4B
+segment S1FD8 1FD8 DATA start=2 prefix=S1FD8
+segment S202F 202F DATA size=109C prefix=S202F
 ; The 13-word jump table at S2138:2CDD ends seven bytes into the next frame.
-segment S2138 2138 DATA size=2CF7 prefix=S2138
-segment S2407 2407 DATA start=7 prefix=S2407
-segment S2474 2474 DATA prefix=S2474
-segment S2487 2487 DATA prefix=S2487
-segment S2532 2532 DATA prefix=S2532
-segment S274D 274D DATA prefix=S274D
-segment S27FE 27FE DATA prefix=S27FE
-segment S288D 288D DATA prefix=S288D
-segment S2892 2892 DATA prefix=S2892
-segment S28A5 28A5 DATA prefix=S28A5
-segment S28D9 28D9 DATA prefix=S28D9
-segment S28DC 28DC DATA prefix=S28DC
-segment S28E0 28E0 DATA prefix=S28E0
-segment S28E5 28E5 DATA prefix=S28E5
-segment S28E8 28E8 DATA prefix=S28E8
-segment S28F5 28F5 DATA prefix=S28F5
-segment S28FA 28FA DATA prefix=S28FA
-segment S2904 2904 DATA prefix=S2904
-segment S290A 290A DATA prefix=S290A
-segment S292E 292E DATA prefix=S292E
-segment S2931 2931 DATA prefix=S2931
-segment S2940 2940 DATA prefix=S2940
-segment S2945 2945 DATA prefix=S2945
-segment S2947 2947 DATA prefix=S2947
-segment S2949 2949 DATA prefix=S2949
-segment S294A 294A DATA prefix=S294A
-segment S2952 2952 DATA prefix=S2952
-segment S2953 2953 DATA prefix=S2953
-segment S2955 2955 DATA prefix=S2955
-segment S2957 2957 DATA prefix=S2957
-segment S2963 2963 DATA prefix=S2963
-segment S2967 2967 DATA prefix=S2967
-segment S2974 2974 DATA prefix=S2974
-segment S297D 297D DATA prefix=S297D
-segment S2982 2982 DATA prefix=S2982
-segment S298E 298E DATA prefix=S298E
+segment S2138 2138 DATA size=2CF7 start=C prefix=S2138
+segment S2407 2407 DATA start=7 size=6D5 prefix=S2407
+segment S2474 2474 DATA start=5 size=13A prefix=S2474
+segment S2487 2487 DATA start=A size=AB8 prefix=S2487
+segment S2532 2532 DATA start=8 size=21B3 prefix=S2532
+segment S274D 274D DATA start=3 prefix=S274D
+segment S27FE 27FE DATA size=8F9 prefix=S27FE
+segment S288D 288D DATA start=9 size=51 prefix=S288D
+segment S2892 2892 DATA start=1 size=13C prefix=S2892
+segment S28A5 28A5 DATA start=C size=34C prefix=S28A5
+segment S28D9 28D9 DATA start=C size=3A prefix=S28D9
+segment S28DC 28DC DATA start=A size=44 prefix=S28DC
+segment S28E0 28E0 DATA start=4 size=54 prefix=S28E0
+segment S28E5 28E5 DATA start=4 prefix=S28E5
+segment S28E8 28E8 DATA size=D6 prefix=S28E8
+segment S28F5 28F5 DATA start=6 prefix=S28F5
+segment S28FA 28FA DATA size=AE prefix=S28FA
+segment S2904 2904 DATA start=E size=66 prefix=S2904
+segment S290A 290A DATA start=6 size=24A prefix=S290A
+segment S292E 292E DATA start=A size=3E prefix=S292E
+segment S2931 2931 DATA start=E size=FC prefix=S2931
+segment S2940 2940 DATA start=C size=5A prefix=S2940
+segment S2945 2945 DATA start=A size=26 prefix=S2945
+segment S2947 2947 DATA start=6 size=22 prefix=S2947
+segment S2949 2949 DATA start=2 size=1A prefix=S2949
+segment S294A 294A DATA start=A size=86 prefix=S294A
+segment S2952 2952 DATA start=6 size=1E prefix=S2952
+segment S2953 2953 DATA start=E size=22 prefix=S2953
+segment S2955 2955 DATA start=2 size=22 prefix=S2955
+segment S2957 2957 DATA start=2 size=C2 prefix=S2957
+segment S2963 2963 DATA start=2 size=44 prefix=S2963
+segment S2967 2967 DATA start=4 size=D2 prefix=S2967
+segment S2974 2974 DATA start=2 size=9C prefix=S2974
+segment S297D 297D DATA start=C size=52 prefix=S297D
+segment S2982 2982 DATA start=2 size=CD prefix=S2982
+segment S298E 298E DATA start=D prefix=S298E
 segment S29C1 29C1 DATA prefix=S29C1
-segment S29F8 29F8 DATA prefix=S29F8
-segment S2A08 2A08 DATA prefix=S2A08
-segment S2A0E 2A0E DATA prefix=S2A0E
-segment S2A10 2A10 DATA prefix=S2A10
-segment S2A1C 2A1C DATA prefix=S2A1C
-segment S2A55 2A55 DATA prefix=S2A55
-segment S2A62 2A62 DATA prefix=S2A62
-segment S2A6B 2A6B DATA prefix=S2A6B
-segment S2A6F 2A6F DATA start=1 prefix=S2A6F
-segment S2A76 2A76 DATA prefix=S2A76
-segment S2A95 2A95 DATA prefix=S2A95
-segment S2AAF 2AAF DATA prefix=S2AAF
-segment S2AE4 2AE4 DATA prefix=S2AE4
-segment S2AF3 2AF3 DATA prefix=S2AF3
-segment S2AFE 2AFE DATA prefix=S2AFE
-segment S2B06 2B06 DATA prefix=S2B06
-segment S2B45 2B45 DATA prefix=S2B45
-segment S2B51 2B51 DATA prefix=S2B51
-segment S2B76 2B76 DATA size=95 prefix=S2B76
+segment S29F8 29F8 DATA size=10A prefix=S29F8
+segment S2A08 2A08 DATA start=A prefix=S2A08
+segment S2A0E 2A0E DATA size=26 prefix=S2A0E
+segment S2A10 2A10 DATA start=6 size=C4 prefix=S2A10
+segment S2A1C 2A1C DATA start=4 size=396 prefix=S2A1C
+segment S2A55 2A55 DATA start=6 size=D8 prefix=S2A55
+segment S2A62 2A62 DATA start=8 size=98 prefix=S2A62
+segment S2A6B 2A6B DATA start=8 prefix=S2A6B
+segment S2A6F 2A6F DATA start=1 size=72 prefix=S2A6F
+segment S2A76 2A76 DATA start=2 size=1FE prefix=S2A76
+segment S2A95 2A95 DATA start=E prefix=S2A95
+segment S2AAF 2AAF DATA size=35C prefix=S2AAF
+segment S2AE4 2AE4 DATA start=C size=FA prefix=S2AE4
+segment S2AF3 2AF3 DATA start=A size=BC prefix=S2AF3
+segment S2AFE 2AFE DATA start=C prefix=S2AFE
+segment S2B06 2B06 DATA size=3F6 prefix=S2B06
+segment S2B45 2B45 DATA start=6 prefix=S2B45
+segment S2B51 2B51 DATA size=254 prefix=S2B51
+segment S2B76 2B76 DATA size=95 start=4 prefix=S2B76
 ; The preceding segment's final far call owns bytes through 2B7F:0004.
-segment S2B7F 2B7F DATA start=5 prefix=S2B7F
-segment S2B81 2B81 DATA prefix=S2B81
-segment S2B85 2B85 DATA prefix=S2B85
-segment S2B87 2B87 DATA prefix=S2B87
-segment S2B8F 2B8F DATA prefix=S2B8F
-segment S2B9B 2B9B DATA prefix=S2B9B
-segment S2BAD 2BAD DATA prefix=S2BAD
-segment S2BB9 2BB9 DATA prefix=S2BB9
-segment S2BC5 2BC5 DATA prefix=S2BC5
-segment S2BCD 2BCD DATA prefix=S2BCD
-segment S2BD4 2BD4 DATA prefix=S2BD4
-segment S2BDB 2BDB DATA prefix=S2BDB
-segment S2BDF 2BDF DATA prefix=S2BDF
-segment S2BE5 2BE5 DATA prefix=S2BE5
-segment S2BE7 2BE7 DATA prefix=S2BE7
-segment S2BF9 2BF9 DATA prefix=S2BF9
-segment S2BFD 2BFD DATA prefix=S2BFD
-segment S2C01 2C01 DATA prefix=S2C01
-segment S2C24 2C24 DATA prefix=S2C24
-segment S2C31 2C31 DATA prefix=S2C31
-segment S2C45 2C45 DATA prefix=S2C45
-segment S2C8E 2C8E DATA prefix=S2C8E
-segment S2C95 2C95 DATA prefix=S2C95
-segment S2C9A 2C9A DATA prefix=S2C9A
-segment S2C9E 2C9E DATA prefix=S2C9E
-segment S2CA0 2CA0 DATA prefix=S2CA0
-segment S2CBD 2CBD DATA prefix=S2CBD
-segment S2CBE 2CBE DATA prefix=S2CBE
-segment S2CC5 2CC5 DATA prefix=S2CC5
-segment S2CC9 2CC9 DATA prefix=S2CC9
-segment S2CCD 2CCD DATA prefix=S2CCD
-segment S2CCF 2CCF DATA prefix=S2CCF
+segment S2B7F 2B7F DATA start=5 size=24 prefix=S2B7F
+segment S2B81 2B81 DATA start=4 size=42 prefix=S2B81
+segment S2B85 2B85 DATA start=2 size=2C prefix=S2B85
+segment S2B87 2B87 DATA start=C size=8C prefix=S2B87
+segment S2B8F 2B8F DATA start=C size=CA prefix=S2B8F
+segment S2B9B 2B9B DATA start=A size=126 prefix=S2B9B
+segment S2BAD 2BAD DATA start=6 size=CA prefix=S2BAD
+segment S2BB9 2BB9 DATA start=A size=C8 prefix=S2BB9
+segment S2BC5 2BC5 DATA start=8 size=88 prefix=S2BC5
+segment S2BCD 2BCD DATA start=8 size=7A prefix=S2BCD
+segment S2BD4 2BD4 DATA start=A size=76 prefix=S2BD4
+segment S2BDB 2BDB DATA start=6 size=4E prefix=S2BDB
+segment S2BDF 2BDF DATA start=E size=6C prefix=S2BDF
+segment S2BE5 2BE5 DATA start=C size=2A prefix=S2BE5
+segment S2BE7 2BE7 DATA start=A size=128 prefix=S2BE7
+segment S2BF9 2BF9 DATA start=8 size=4A prefix=S2BF9
+segment S2BFD 2BFD DATA start=A size=46 prefix=S2BFD
+segment S2C01 2C01 DATA start=6 size=23C prefix=S2C01
+segment S2C24 2C24 DATA start=C prefix=S2C24
+segment S2C31 2C31 DATA size=142 prefix=S2C31
+segment S2C45 2C45 DATA start=2 size=496 prefix=S2C45
+segment S2C8E 2C8E DATA start=6 size=7E prefix=S2C8E
+segment S2C95 2C95 DATA start=E size=58 prefix=S2C95
+segment S2C9A 2C9A DATA start=8 size=42 prefix=S2C9A
+segment S2C9E 2C9E DATA start=2 size=28 prefix=S2C9E
+segment S2CA0 2CA0 DATA start=8 prefix=S2CA0
+segment S2CBD 2CBD DATA size=1E prefix=S2CBD
+segment S2CBE 2CBE DATA start=E size=74 prefix=S2CBE
+segment S2CC5 2CC5 DATA start=4 size=42 prefix=S2CC5
+segment S2CC9 2CC9 DATA start=2 size=44 prefix=S2CC9
+segment S2CCD 2CCD DATA start=4 size=2E prefix=S2CCD
+segment S2CCF 2CCF DATA start=E prefix=S2CCF
 segment S2CD3 2CD3 DATA prefix=S2CD3
-segment S2CD6 2CD6 DATA prefix=S2CD6
-segment S2CE5 2CE5 DATA prefix=S2CE5
-segment S2CEA 2CEA DATA prefix=S2CEA
-segment S2CF7 2CF7 DATA prefix=S2CF7
-segment S2CFA 2CFA DATA prefix=S2CFA
-segment S2D0A 2D0A DATA prefix=S2D0A
+segment S2CD6 2CD6 DATA size=F6 prefix=S2CD6
+segment S2CE5 2CE5 DATA start=6 prefix=S2CE5
+segment S2CEA 2CEA DATA size=D6 prefix=S2CEA
+segment S2CF7 2CF7 DATA start=6 size=32 prefix=S2CF7
+segment S2CFA 2CFA DATA start=2 size=10A prefix=S2CFA
+segment S2D0A 2D0A DATA start=A prefix=S2D0A
 segment S2D0D 2D0D DATA prefix=S2D0D
 segment S2D47 2D47 DATA prefix=S2D47
-segment S2F11 2F11 DATA prefix=S2F11
-segment S2F39 2F39 DATA prefix=S2F39
+segment S2F11 2F11 DATA size=28B prefix=S2F11
+segment S2F39 2F39 DATA start=B prefix=S2F39
 segment S30EF 30EF DATA prefix=S30EF
 segment S3303 3303 DATA prefix=S3303
 segment S3306 3306 DATA prefix=S3306
@@ -218,8 +218,6 @@ code CODE:114F
 code CODE:02D1
 code CODE:0379
 code CODE:2E2E
-; Its jump target is beyond CODE's declared extent; preserve its encoding.
-raw CODE:2E48
 code S0CB6:038A
 code S0CB6:03A7
 code S0CB6:03C4
@@ -289,27 +287,14 @@ code S2F39:000B
 code S30EF:111F
 code S0C66:0009
 code S0CB6:0001
-code S0E56:0002
-code S1A39:0000
 code S2892:0001
-code S28A5:0001
 code S28D9:000C
-code S28DC:0000
-code S28E0:0000
-code S28E5:0000
 code S2945:000A
-code S2947:0000
-code S2949:0000
-code S294A:0000
 code S2955:0002
-code S2957:0000
 code S2974:0002
-code S297D:0002
 code S298E:000D
 code S2A10:0006
-code S2A1C:0000
 code S2A55:0006
-code S2A62:0000
 code S2A6B:0008
 code S2AAF:0000
 code S2AE4:000C
@@ -317,112 +302,17 @@ code S2AF3:000A
 code S2AFE:000C
 code S2B76:0004
 code S2B81:0004
-code S2B85:0000
-code S2B87:0002
 code S2B8F:000C
-code S2B9B:0000
-code S2BAD:0000
-code S2BB9:0003
 code S2BCD:0008
-code S2BD4:0005
-code S2BDB:0000
 code S2BE7:000A
-code S2BF9:0000
-code S2BFD:0001
 code S2C45:0002
 code S2C8E:0006
 code S2C9E:0002
-code S2CA0:0002
 code S2CBD:0000
-code S2CBE:0002
 
-; Instructions which tasm.py cannot express yet (build.py output).
-raw CODE:000C
-raw CODE:1342
-raw CODE:1348
-raw CODE:134C
-raw CODE:1381
-raw CODE:138D
-raw CODE:1397
-raw CODE:139B
-raw CODE:1489
-raw CODE:148D
-raw S0E56:0006
-raw S2947:0002
-raw S2BD4:0008
-raw S02E6:294D
-raw S02E6:2A0B
-raw S063F:01BA
-raw S063F:01C7
-raw S063F:0254
-raw S063F:025B
-raw S063F:0290
-raw S066A:0400
-raw S066A:1A9E
-raw S066A:1AAB
-raw S066A:1ACF
-raw S0CB6:13ED
-raw S0CB6:19A5
-raw S0CB6:19B8
-raw S0CB6:19CB
-raw S0CB6:19DE
-raw S0CB6:19F1
-raw S0E56:2563
-raw S10AF:02DF
-raw S151F:02C8
-raw S2474:010D
-raw S2487:0A9E
-raw S2957:0016
-raw S2A55:00CB
-raw S2A76:0036
-raw S2A76:01B9
-raw S2A76:01C7
-raw S2AAF:0125
-raw S2AAF:0132
-raw S2AAF:0191
-raw S2AAF:01E4
-raw S2B06:018B
-raw S2B06:027A
-raw S2B45:0058
-raw S2B7F:0019
-raw S2B85:0015
-raw S2B87:005C
-raw S2B87:0060
-raw S2BAD:0085
-raw S2BCD:001A
-raw S2BCD:0024
-raw S2BD4:001C
-raw S2BDB:0018
-raw S2BDF:0020
-raw S2BE7:001E
-raw S2BF9:001A
-raw S2C01:0046
-raw S2C01:0129
-raw S2C45:01F2
-raw S2C45:0241
-raw S2CCD:001D
-raw S2D0D:0147
-raw S2D0D:0156
-raw S2D0D:0168
-raw S2D0D:0186
-raw S2D0D:0198
-raw S2D0D:01B5
-raw S2D0D:01C7
-raw S2D0D:01EB
-raw S2D0D:01FD
-raw S2D0D:020D
-raw S2D0D:021F
-raw S2D0D:0240
-raw S2D0D:025D
-raw S2D0D:02DF
-raw S2D0D:02F0
-raw S2F11:016D
-raw S2F11:022B
-raw S2F11:0248
 
 ; First instruction starts observed outside decoded code in 300-second runner
 ; coverage runs with staged and pseudo-random keys on the map screen.
-code S063F:0000
 code S10AF:000A
 code S10E1:0005
 code S1CC6:0AD6
@@ -448,20 +338,7 @@ code S27FE:04AC
 code S27FE:0692
 code S27FE:06D2
 code S27FE:0882
-code S2892:0000
-code S290A:0000
-code S292E:0000
-code S2940:0000
-code S2974:0000
 code S2B51:0002
-code S2BDB:0001
-code S2BDF:0000
-code S2BE5:0000
-code S2BE7:0001
-code S2BF9:0003
-code S2BFD:0000
-code S2C9A:0002
-code S2CFA:0000
 code S30EF:116D
 code S30EF:12D9
 code S30EF:1565
@@ -474,15 +351,6 @@ code S30EF:18EB
 code S30EF:192D
 code S30EF:19B6
 code S30EF:1EE9
-raw S2138:00F4
-raw S2B51:0002
-raw S2BDB:0004
-raw S2BF9:0006
-raw S2D0D:0332
-raw S2D0D:0343
-raw S2D0D:0364
-raw S2D0D:0385
-raw S2D0D:039C
 code S1E4B:095E
 code S27FE:04F4
 code S2B51:0004
@@ -505,7 +373,6 @@ code S30EF:16A6
 code S30EF:183E
 code S30EF:16C2
 code CODE:2E2E
-code S0AE0:0000
 code S0B15:13EC
 code S10AF:0007
 code S1571:0002
@@ -564,52 +431,7 @@ code S2407:0291
 code S2407:03F9
 code S2407:05CD
 code S2407:06A3
-code S28F5:0000
-code S2931:0001
-code S2945:0001
-code S2953:0002
-code S2955:0000
-code S2A6B:0000
-code S2A76:0000
-code S2B81:0000
-code S2CCD:0000
-raw CODE:2E48
-raw S0B15:150D
-raw S2138:0112
-raw S2138:014B
-raw S2138:01CF
-raw S2138:034B
-raw S2138:1547
-raw S2138:155B
-raw S2138:1579
-raw S2138:1590
-raw S2138:15A5
-raw S2138:15BC
-raw S2138:15D4
-raw S2138:15F8
-raw S2138:1954
-raw S2138:1A72
-raw S2138:1AB6
-raw S2138:1B3B
-raw S2138:1BA7
-raw S2138:1BE4
-raw S2138:1E89
-raw S2138:1EC1
-raw S2138:24F1
-raw S2138:2530
-raw S2138:2567
-raw S2138:262A
-raw S2138:2655
-raw S2138:2671
-raw S2138:26B4
-raw S2138:26CC
-raw S2138:26D0
-raw S2138:26DA
-raw S2407:05C8
-raw S2945:0001
-raw S2A6B:0000
 code CODE:2E4A
-code S0C66:0002
 code S1CC6:127B
 code S1CC6:15A1
 code S1CC6:1705
@@ -638,30 +460,6 @@ code S2138:2BBD
 code S2407:00AE
 code S2407:02AA
 code S2407:0412
-raw CODE:2E53
-raw S2138:0217
-raw S2138:09BA
-raw S2138:0B0E
-raw S2138:0B30
-raw S2138:0B4C
-raw S2138:0B73
-raw S2138:0BA2
-raw S2138:0BA6
-raw S2138:0BB0
-raw S2138:0E61
-raw S2138:19C3
-raw S2138:1C5C
-raw S2138:25A8
-raw S2138:25BD
-raw S2138:2730
-raw S2138:2774
-raw S2138:2BBD
-raw S2138:2BF2
-raw S2138:2C13
-raw S2138:2C2E
-raw S2407:00AE
-raw S2407:0417
-code S02E6:0000
 code S1E4B:0534
 code S1E4B:067C
 code S1E4B:13E7
@@ -677,19 +475,6 @@ code S2138:25CB
 code S2138:281B
 code S2138:2C34
 code S2407:00E2
-raw S02E6:0007
-raw S2138:0229
-raw S2138:0256
-raw S2138:0273
-raw S2138:0295
-raw S2138:02BE
-raw S2138:02C2
-raw S2138:02CC
-raw S2138:0E72
-raw S2138:0ED3
-raw S2138:0ED7
-raw S2138:0EDE
-raw S2138:282E
 code S1E4B:0566
 code S202F:086A
 code S202F:0A08
@@ -699,53 +484,18 @@ code S2138:1634
 code S2138:25DF
 code S2138:2902
 code S2407:014D
-raw S2138:02ED
-raw S2138:030E
-raw S2138:032E
-raw S2138:12CC
-raw S2138:1634
-raw S2138:2928
-raw S2138:2939
-raw S2138:294E
-raw S2138:2960
-raw S2138:2974
-raw S2138:298B
-raw S2138:29A3
 code S1E4B:0583
 code S2138:12DB
 code S2138:1643
 code S2138:25F9
 code S2138:29D1
 code S2407:019A
-raw S2138:12DB
-raw S2138:1350
-raw S2138:1656
-raw S2138:16DD
-raw S2138:25F9
 code S2138:1378
 code S2138:1741
 code S2138:2627
 code S2138:2AE3
-raw S2138:1378
-raw S2138:1398
-raw S2138:13FE
-raw S2138:1452
-raw S2138:2AE9
-raw S2138:2B0E
-raw S2138:2B35
-raw S2138:2B4C
-raw S2138:2B60
-raw S2138:2B77
-raw S2138:2B8F
 code S2138:174B
-raw S2138:174B
-raw S2138:177C
-raw S2138:17C5
-raw S2138:184B
-raw S2138:18AD
-raw S2138:18DC
 code S2138:1907
-raw S2138:1907
 
 ; Bounded six-entry dispatch through S1CC6:1845 (JMP WORD PTR CS:[BX+1845]).
 words S1CC6:1845 6 S1CC6
@@ -766,7 +516,6 @@ code S1A39:01CE
 code S2138:01E0
 code S2138:05D6
 code S2138:0DCD
-raw S1A39:01CC
 
 ; The word at CODE:0284 is a variable the entry code writes (it differs from
 ; the file in a run's memory dump), not an instruction. Presumably the call
@@ -784,10 +533,8 @@ code CODE:213D
 code CODE:250D
 code CODE:2ACE
 code S0B15:0002
-code S1650:0001
 code S1A39:0418
 code S1A39:044F
-code S1C74:0000
 code S1CC6:0259
 code S1CC6:05B9
 code S1E4B:0A76
@@ -799,20 +546,11 @@ code S1E4B:17E6
 code S1E4B:1827
 code S202F:08A6
 code S2138:0BCB
-code S2982:0000
-code S298E:0001
 code S2D47:06E4
-code S2F39:0001
-raw S2138:0BD1
-raw S2138:0BF2
-raw S2138:0C12
-raw S2138:0C2F
-raw S2F39:0003
 code S1CC6:02C7
 code S1E4B:0AB0
 code S1E4B:0BCD
 code S2D47:0732
-code S2F39:0005
 code S1E4B:0AD6
 code S1E4B:0BE5
 code S2D47:0743
@@ -848,13 +586,125 @@ code S2138:0EF9
 code S2138:1008
 code S2138:115E
 code S2407:05F3
-code S2487:0000
-code S2532:0001
-code S274D:0000
-code S2C9E:0000
+code S1E4B:076F
+code S1E4B:1042
+code S1E4B:1137
+code S2138:05FF
+code S2138:076F
+code S2138:0F78
+code S2138:1160
+code S1E4B:07A1
+code S1E4B:1074
+code S1E4B:1169
+code S2138:06EA
+code S1E4B:07DE
+code S1E4B:11FD
+code S1E4B:088E
+code S1E4B:122E
+
+; ---- Stage 2: names. Each says what it rests on. ----
+
+; The file routines, one a module (a segment of its own each). Their INT 21h
+; calls were seen in a -dos trace of a start up to the map (open 78 times at
+; S2C8E:0047, close at S2B85:0015, reads at S2B8F, S2C01 and S2C45, the
+; allocation at S2CBE:0037); what the arguments mean is read from the code.
+name S2C8E:0006 file_open
+comment S2C8E:0006 file_open(mode, far name): INT 21h AH=3Dh, AX = handle or 0. Mode 1 takes another path (presumably create; not checked).
+name S2B85:0002 file_close
+comment S2B85:0002 file_close(handle): INT 21h AH=3Eh.
+name S2B8F:000C file_size
+comment S2B8F:000C file_size(far name): opens, reads eight bytes; a packed file's signature is tested, else the size comes from a seek to the end. Presumably DX:AX = the unpacked size (the packed path was not read to its end).
+name S2C01:0006 lib_read
+comment S2C01:0006 Presumably reads one named entry of a library file: opens [BP+0A], reads a dword and seeks there, then reads 0Ch-byte records while the name at [BP+0E] is not empty (read from the code's start only).
+name S2C45:0002 file_load
+comment S2C45:0002 file_load(far buffer or 0/FFFFFFFF, far name, ...): opens, reads eight bytes, unpacks a packed file, else reads it whole; allocates when no buffer is given (read from the code; the unpacking itself was not read).
+name S2CBE:000E mem_alloc
+comment S2CBE:000E mem_alloc(dword size): INT 21h AH=48h for size/16+1 paragraphs; the segment is entered in the table at DATA:0469 (count at DATA:0467) and returned in DX, AX = 0.
+
+; Shows a text of GAME.TXT by its number in one side's status line: its
+; callers pass 3Eh, 52h and 64h where the screen shows the quit question,
+; the F1 line and the thinking time (runs with screenshots).
+name S10AF:000F show_message
+comment S10AF:000F show_message(text number, side)
+
+; Instructions written as DB because the assembler would pick other bytes
+; (build.py output; made anew after the segment bounds were set).
+raw CODE:000C
+raw CODE:1342
+raw CODE:1348
+raw CODE:134C
+raw CODE:1381
+raw CODE:138D
+raw CODE:1397
+raw CODE:139B
+raw CODE:1489
+raw CODE:148D
+raw S02E6:294D
+raw S02E6:2A0B
+raw S063F:01BA
+raw S063F:01C7
+raw S063F:0254
+raw S063F:025B
+raw S063F:0290
+raw S066A:0400
+raw S066A:1A9E
+raw S066A:1AAB
+raw S066A:1ACF
+raw S0CB6:13ED
+raw S0E56:2563
+raw S10AF:02DF
+raw S151F:02C8
+raw S1A39:01CC
+raw S2138:00F4
+raw S2138:0112
+raw S2138:014B
+raw S2138:01CF
+raw S2138:0217
+raw S2138:0229
+raw S2138:0256
+raw S2138:0273
+raw S2138:0295
+raw S2138:02BE
+raw S2138:02C2
+raw S2138:02CC
+raw S2138:02ED
+raw S2138:030E
+raw S2138:032E
+raw S2138:034B
 raw S2138:05F0
+raw S2138:0602
+raw S2138:0624
+raw S2138:0644
+raw S2138:0692
+raw S2138:06BB
+raw S2138:06C1
+raw S2138:06C5
+raw S2138:06CF
+raw S2138:06F0
+raw S2138:072B
+raw S2138:074B
 raw S2138:0768
+raw S2138:09BA
+raw S2138:0B0E
+raw S2138:0B30
+raw S2138:0B4C
+raw S2138:0B73
+raw S2138:0BA2
+raw S2138:0BA6
+raw S2138:0BB0
+raw S2138:0BD1
+raw S2138:0BF2
+raw S2138:0C12
+raw S2138:0C2F
+raw S2138:0E61
+raw S2138:0E72
+raw S2138:0ED3
+raw S2138:0ED7
+raw S2138:0EDE
 raw S2138:0F5C
+raw S2138:0FB2
+raw S2138:0FCB
+raw S2138:0FE7
 raw S2138:1011
 raw S2138:1025
 raw S2138:105E
@@ -868,6 +718,82 @@ raw S2138:1106
 raw S2138:1126
 raw S2138:112C
 raw S2138:115A
+raw S2138:1160
+raw S2138:1195
+raw S2138:11A6
+raw S2138:11C1
+raw S2138:12CC
+raw S2138:12DB
+raw S2138:1350
+raw S2138:1378
+raw S2138:1398
+raw S2138:13FE
+raw S2138:1452
+raw S2138:1547
+raw S2138:155B
+raw S2138:1579
+raw S2138:1590
+raw S2138:15A5
+raw S2138:15BC
+raw S2138:15D4
+raw S2138:15F8
+raw S2138:1634
+raw S2138:1656
+raw S2138:16DD
+raw S2138:174B
+raw S2138:177C
+raw S2138:17C5
+raw S2138:184B
+raw S2138:18AD
+raw S2138:18DC
+raw S2138:1907
+raw S2138:1954
+raw S2138:19C3
+raw S2138:1A72
+raw S2138:1AB6
+raw S2138:1B3B
+raw S2138:1BA7
+raw S2138:1BE4
+raw S2138:1C5C
+raw S2138:1E89
+raw S2138:1EC1
+raw S2138:24F1
+raw S2138:2530
+raw S2138:2567
+raw S2138:25A8
+raw S2138:25BD
+raw S2138:25F9
+raw S2138:262A
+raw S2138:2655
+raw S2138:2671
+raw S2138:26B4
+raw S2138:26CC
+raw S2138:26D0
+raw S2138:26DA
+raw S2138:2730
+raw S2138:2774
+raw S2138:282E
+raw S2138:2928
+raw S2138:2939
+raw S2138:294E
+raw S2138:2960
+raw S2138:2974
+raw S2138:298B
+raw S2138:29A3
+raw S2138:2AE9
+raw S2138:2B0E
+raw S2138:2B35
+raw S2138:2B4C
+raw S2138:2B60
+raw S2138:2B77
+raw S2138:2B8F
+raw S2138:2BBD
+raw S2138:2BF2
+raw S2138:2C13
+raw S2138:2C2E
+raw S2407:00AE
+raw S2407:0417
+raw S2407:05C8
 raw S2407:0619
 raw S2407:062A
 raw S2407:063E
@@ -875,36 +801,32 @@ raw S2407:064E
 raw S2407:0660
 raw S2407:0675
 raw S2407:069D
-code S1E4B:076F
-code S1E4B:1042
-code S1E4B:1137
-code S2138:05FF
-code S2138:076F
-code S2138:0F78
-code S2138:1160
-raw S2138:0602
-raw S2138:0624
-raw S2138:0644
-raw S2138:0692
-raw S2138:06BB
-raw S2138:06C1
-raw S2138:06C5
-raw S2138:06CF
-raw S2138:0FB2
-raw S2138:0FCB
-raw S2138:0FE7
-raw S2138:1160
-raw S2138:1195
-raw S2138:11A6
-raw S2138:11C1
-code S1E4B:07A1
-code S1E4B:1074
-code S1E4B:1169
-code S2138:06EA
-raw S2138:06F0
-raw S2138:072B
-raw S2138:074B
-code S1E4B:07DE
-code S1E4B:11FD
-code S1E4B:088E
-code S1E4B:122E
+raw S2474:010D
+raw S2B45:0058
+raw S2B51:0002
+raw S2D0D:0147
+raw S2D0D:0156
+raw S2D0D:0168
+raw S2D0D:0186
+raw S2D0D:0198
+raw S2D0D:01B5
+raw S2D0D:01C7
+raw S2D0D:01EB
+raw S2D0D:01FD
+raw S2D0D:020D
+raw S2D0D:021F
+raw S2D0D:0240
+raw S2D0D:025D
+raw S2D0D:02DF
+raw S2D0D:02F0
+raw S2D0D:0332
+raw S2D0D:0343
+raw S2D0D:0364
+raw S2D0D:0385
+raw S2D0D:039C
+raw S2F11:016D
+
+
+; First instruction starts observed (in the runs named above) that the removal
+; of the entries below the segment starts left undecoded.
+code S066A:0006

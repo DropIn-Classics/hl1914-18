@@ -283,6 +283,28 @@ emulation error (2026-10-02).
   of `GAME.TXT` by its number in one side's status line (its callers pass
   3Eh for the quit question, 52h for the F1 line, 64h for the thinking
   time, as seen on the screen).
+- Segment bounds (2026-10-04). Most modules of `HL.EXE` begin inside their
+  frame, as in the launcher: a routine's tail lay in the next frame as DB
+  (`file_close` ended in `S2B87`, the create path of `file_open` in
+  `S2C95`), and 60 of the observed `code` entries were such tails at offsets
+  0 to 5 of a frame. Following METHOD.md, each segment whose lowest
+  far-referenced offset (far CALL/JMP or relocated far pointer in the
+  generated source) is 1 to 15 now has that as `start=`, and the segment
+  before it the matching `size=`: 93 segments, among them `CODE size=2E6F`
+  (which is why `CODE:2E48`'s jump to `2E65` needed a `raw`). Segments that
+  already had a `start=` were left as they were. The 60 entries below a
+  start were removed, the `raw` lines made anew from `build.py`'s output
+  (196 instead of 244). `HL.EXE` rebuilds IDENTICAL with 70,990
+  instructions and 6,751 labels, and every start the coverage files hold
+  (57,838) is decoded. Not checked one by one: that each `start=` is the
+  module's true first byte; a far-referenced offset is an upper bound, and a
+  module whose first routine is only called near begins lower (its bytes
+  are then decoded as the tail of the segment before, with the same bytes).
+- Stage 2 has begun with seven names in `src/HL.hints`, each with a comment
+  saying what it rests on: `file_open`, `file_close`, `file_size`,
+  `lib_read`, `file_load`, `mem_alloc` (one module each; their INT 21h calls
+  were seen in a `-dos` trace up to the map, the arguments are read from
+  the code) and `show_message`.
 - Not checked: which of the remaining undecoded bytes are code. The runs
   never ended a game by a victory, saved or loaded; those are the next
   sources of coverage, then bounded tables and pointers in the frames named
@@ -567,7 +589,7 @@ emulation error (2026-10-02).
    repeat ordinary launcher runs for these gaps. The dispatcher and
    conditional EXTRO path are statically mapped; the likely win trigger for
    status 007Bh remains unverified.
-2. `HL.EXE`: 70,890 instructions decode; about 19,000 bytes in frames with
+2. `HL.EXE`: 70,990 instructions decode; about 19,000 bytes in frames with
    code remain. Get coverage of what no run did yet (a won or lost game,
    save and load), compare it with the decoded
    starts of all segments as described above, then begin stage 2 names and

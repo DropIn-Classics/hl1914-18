@@ -245,6 +245,39 @@ emulation error (2026-10-02).
   this branch; treat the static return path as understood and the win
   trigger as unverified.
 
+### Intro and outro first collection (2026-10-03)
+
+- `INTRO/INTRO.EXE` is a 80,032-byte MZ file with a 5,632-byte header, 1,124
+  relocations, entry `0000:0010`, and stack `1222:0080`. Its linker marker is
+  consistent with TLINK 5.0. The relocation table has 68 site frames, all
+  also present among the 71 target frames; `0968`, `0E07` and `0F6C` are
+  target-only. Inferred starts include `S0B1B start=2` and `S0B1F start=5`,
+  but a provisional layout still fails on a far pointer targeting offset
+  zero before a segment's start. No final `src/INTRO.hints` or identical
+  rebuild has been produced yet.
+- A deterministic two-second runner session loaded INTRO at PSP `0077`,
+  completed 12,000,001 instructions over 80 frames without an emulation error,
+  and opened `INTRO.ADL`, `BANG.ANI`, `BANG.PAL`, `BANG.TXT`, `CHR14.LIB`, and
+  `BANG.SFX`. Coverage marked 28 gaps reached under the provisional all-code
+  map. CODE and several relocation frames still have unclassified gaps; the
+  provisional map is not a code/data classification.
+- `EXTRO/EXTRO.EXE` is a 75,136-byte MZ file with a 5,120-byte header, 1,042
+  relocations, entry `0000:0010`, and stack `1110:0080`. Its temporary
+  all-code rebuild has one extra relocation, a stack frame at `1112:0080`,
+  and an image 32 bytes too large; frame drift begins at `04AD`. Its segment
+  starts and sizes remain unresolved, so there is no final hints file or
+  identical rebuild.
+- A normal EXTRO runner session exits with code 0 after 2,370 instructions.
+  Provisional coverage marks eight gaps reached. An `xfer.py` comparison of
+  the temporary INTRO and EXTRO maps reported 20,436 of 29,666 / 28,000
+  instructions matched, 58 data addresses and 37 segments mapped, and no
+  hints carried. Because both inputs have unfinished segment maps and no
+  transferred hints, this is only preliminary alignment evidence; determine
+  similarity from the programs' verified instruction streams.
+- Commands and files used for this collection are local: generated sources,
+  rebuilds and coverage are under ignored `build/`; the temporary EXTRO
+  hints are outside the repository. No game bytes were added.
+
 ## Next
 
 1. For `HL14-18.EXE`, keep the remaining C0015 gaps and vector handlers
@@ -254,9 +287,10 @@ emulation error (2026-10-02).
    status 007Bh remains unverified.
 2. Classify `HL.EXE` indirect code with `gaps.py`, runner coverage and
    verified pointer/table hints, then begin stage 2 names and records.
-3. Analyse `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE` separately; transfer
-   hints only when this game's own instruction streams demonstrate a
-   match.
+3. Analyse `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE` separately. First
+   inventory relocation site frames as well as target frames, then establish
+   segment boundaries until each rebuild is IDENTICAL. Transfer hints only
+   when this game's own instruction streams demonstrate a match.
 
 ## bisle file-tool compatibility probe (2026-10-03)
 

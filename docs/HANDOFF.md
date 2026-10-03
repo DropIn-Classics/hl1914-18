@@ -120,6 +120,12 @@ emulation error (2026-10-02).
   `words S29C1:010E 1 CODE` rebuilds IDENTICAL and decodes 21 bytes through
   `CODE:038E`, where it rejoins known code. `gaps.py` now reports 32 gaps /
   4,807 bytes. This pointer path was not observed in a runner session.
+- Temporary entries at `CODE:03D9`, `03E0`, `03E8` and `03F0` rebuild
+  IDENTICAL and reduce the gap report to 28 / 4,792 bytes. Each begins
+  `POP CX; PUSH CS; PUSH CX`; its following body selects CX=0, 1, 2 or 3
+  before joining at `CODE:03F6`. Existing callers target the adjacent entries
+  `03DC`, `03E3` and `03EB`; no incoming call or pointer to the four gap
+  starts was found. Keep these as unverified candidates, not code hints.
 - A further static pass found 12 bounded indexed indirect-jump tables in
   relocation-frame segments (`S02E6`, `S0CB6`, `S10E1`, `S1CC6`, `S1E4B`,
   `S2138` and `S2D47`). Their bounds and `JMP WORD PTR CS:[BX+table]` forms

@@ -120,6 +120,18 @@ emulation error (2026-10-02).
   `words S29C1:010E 1 CODE` rebuilds IDENTICAL and decodes 21 bytes through
   `CODE:038E`, where it rejoins known code. `gaps.py` now reports 32 gaps /
   4,807 bytes. This pointer path was not observed in a runner session.
+- `S066A:0D15` writes `07AB` to `[BX+6A]` and `CODE` to the adjacent
+  `[BX+6C]`; nearby fields use the same segment:offset layout. The temporary
+  `ptr S066A:0D15 CODE` hint rebuilt IDENTICAL and decoded 24 bytes from
+  `CODE:07AB`, moving that gap start to `07C3`. `CODE:2A70` also writes
+  `2E2E` and `CODE` to the offset and segment halves of the far-call pointer
+  at `DATA:0FD4/0FD6`. With `code CODE:2E2E`, the combined hints rebuild
+  IDENTICAL (57,458 instructions, 5,407 labels, 83 raw encodings) and decode
+  through `CODE:2E49`; the next gap is `2E4A-2E60` (22 bytes). `gaps.py`
+  reports 32 gaps / 4,755 bytes. The instruction at `CODE:2E48` jumps to
+  `2E65`, beyond CODE's declared extent `2E60`; `raw CODE:2E48` preserves the
+  instruction without classifying that target. These dynamically selected
+  paths have not been reached in a runner session.
 - Temporary entries at `CODE:03D9`, `03E0`, `03E8` and `03F0` rebuild
   IDENTICAL and reduce the gap report to 28 / 4,792 bytes. Each begins
   `POP CX; PUSH CS; PUSH CX`; its following body selects CX=0, 1, 2 or 3

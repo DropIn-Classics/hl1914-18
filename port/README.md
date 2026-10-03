@@ -10,6 +10,12 @@ repository.
 Started 2026-10-02 from doskit's template: finds or unpacks the game's
 files and shows a text screen. Nothing of the game is translated yet.
 
+2026-10-03: follows doskit `a4b8166`'s template. When a newer release is
+found, U on the setup screen downloads, verifies and installs it on
+Windows and Linux (`update_install`), and opens the release page on
+macOS; `dist/README.txt` says so. Built on macOS without a warning; the
+update itself was not run, and no Windows or Linux build was made.
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)

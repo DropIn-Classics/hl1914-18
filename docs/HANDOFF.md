@@ -4,8 +4,23 @@ State of 2026-10-03: the repository was made from doskit's template.
 `HL14-18.EXE` now rebuilds identically; its indirect code is not yet
 fully classified.
 
-The `doskit` submodule is now at `f4dc33c` (fast-forwarded from `95ba89e`).
-The update adds `run.py -base LIN` for translating loader image addresses;
+The `doskit` submodule is now at `a4b8166` (fast-forwarded from `f4dc33c`).
+That update adds consent-based package self-updates to the runtime
+(`update.c`: on Windows and Linux the setup screen's U downloads, verifies
+and installs a newer release; on macOS it opens the release page), a
+`pad_in_use()` query, GOG Linux shell installations in `goglist.py`, and a
+`disasm.py` check that refuses a name given at two addresses. The template's
+changes to `port/src/main.c` and `port/dist/README.txt` were applied to this
+port; `port/src/main.c` again differs from the template only in the filled-in
+placeholders. Checked on macOS, with `game/` unpacked by `inno.py -x game`
+from GOG's Windows installer (521 files): `doskit/tests/selftest.py` passed
+(`selftest ok`), `check.py` says `all ok` (all four programs rebuild
+identically, EXTRO's carried block is up to date), `sh port/build.sh` built
+both programs without a warning, and `tools/test_file_formats.py` passed
+its nine synthetic tests. Not checked: the self-update was not run, and the
+Windows and Linux builds of the port were not made.
+
+The earlier update to `f4dc33c` (from `95ba89e`) added `run.py -base LIN` for translating loader image addresses;
 `doskit/tests/selftest.py` passed (`selftest ok`), as did this project's
 `check.py` (`all ok`) and the nine synthetic tests in
 `tools/test_file_formats.py`. Its earlier `xfer.py` retains a source

@@ -318,3 +318,9 @@ code S078D:13B3
 ; PUSH BP at CODE:0298; no run executed 0291 or 0298 (not checked further).
 stop CODE:0291
 code CODE:0298
+; First instruction starts observed outside decoded code in runs that leave the
+; intro with Esc (at 5, 40, 125, 200 and 300 s; some with other keys and mouse
+; buttons before).
+code CODE:02CC
+code CODE:2ADB
+; (not mapped) code S02AF:0001

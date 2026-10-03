@@ -480,6 +480,16 @@ emulation error (2026-10-02).
   are presumptions: no run executed either address. After this the programs
   rebuild IDENTICAL with 68,739 (`HL.EXE`), 17,172 (INTRO) and 14,818
   (EXTRO) instructions.
+- Runs with input (2026-10-03, macOS). INTRO started by itself and left
+  with Esc at 5, 40, 125, 200 and 300 s (some with Enter, Space and mouse
+  buttons before) exits with code 0 a little after the key; the five runs
+  executed 35 starts outside decoded code, now three `code` entries
+  (`CODE:02CC`, `CODE:2AB2`, `S02AF:0001`; INTRO IDENTICAL with 17,207
+  instructions). `xfer.py` carried them (111 carried, 31 not mapped). EXTRO
+  with the launcher's tail and Esc at 5 s, or Space at 150 and Esc at 155 s,
+  ends shortly after the Esc; with Esc at 60, 300 or 400 s it ran to its own
+  end at about 561.7 s (why those were not taken is not checked). The five
+  EXTRO runs executed nothing outside decoded code.
 - `src/INTRO.hints` had 71 lines ending in CRLF among LF lines (the
   repository has `* -text`, so nothing converts them). Commit `bebc4c4`
   rewrote the file with LF throughout, which is why its segment lines show

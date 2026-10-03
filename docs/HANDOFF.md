@@ -253,6 +253,36 @@ emulation error (2026-10-02).
   dumps compared). `HL.EXE` rebuilds IDENTICAL with 69,628 instructions,
   6,674 labels and 203 instructions as DB; 62,129 of the 249,888 bytes
   before DATA are not decoded.
+- 215 further runs, one per code each: 600 s with the F1 pair at random
+  times (player two computer), 400 s with it and rarer keys (function keys,
+  digits, letters; player two human), and 400 s with those and one quit
+  (Esc, scancode 2Ch) into the newspaper. Their screenshots show rounds
+  going on, the computer's moves, the fight pictures and unit information.
+  With all earlier coverage 56,852 distinct starts ran; those outside decoded
+  code are covered by 39 more `code` entries and 41 more `raw`. `HL.EXE`
+  rebuilds IDENTICAL with 70,890 instructions, 6,780 labels and 244
+  instructions as DB; 58,670 of the 249,888 bytes before DATA are not
+  decoded (the five frames without any instruction make up 39,600 of them:
+  `S331F`, `S3812`, `S3B76`, `S39B6`, `S3AEE`).
+- A runner fault, for doskit: one of those runs (`build/n2/e7.keys` and
+  `.mice`, between 200 and 300 s) never ends. The host's stack shows
+  `dos_int21` in `mcb_free`: `mcb_coalesce` walks the chain of memory blocks
+  until a `Z` block and loops for ever when a block's signature is neither
+  `M` nor `Z`. So the guest overwrote a block header (whether by a fault of
+  the game under random input or of the emulation is not checked). The
+  runner should stop with a message there, as DOS halts with a memory
+  allocation error; not changed here (a kit change with its test).
+- MISC, LOAD asks for a saved game's number 0-9 and says `SAVED GAME NOT
+  FOUND` for 1; HISCORE shows four `EMPTY` lines for the map. No run wrote
+  a file into its state folder, so nothing was saved. Keys are compared
+  with a table of scancodes at `S331F:0292` (pointer at `S331F:02D3`); read
+  from a run's memory it holds, besides Esc, Space, the arrows and F1-F10,
+  the letters S, E, N, D, X, C, V, F and the key at 2Ch. No decoded
+  instruction reads the S or E entry through that pointer; which of them
+  saves, and where, is not known. The routine at `S10AF:000F` shows a text
+  of `GAME.TXT` by its number in one side's status line (its callers pass
+  3Eh for the quit question, 52h for the F1 line, 64h for the thinking
+  time, as seen on the screen).
 - Not checked: which of the remaining undecoded bytes are code. The runs
   never ended a game by a victory, saved or loaded; those are the next
   sources of coverage, then bounded tables and pointers in the frames named
@@ -537,9 +567,9 @@ emulation error (2026-10-02).
    repeat ordinary launcher runs for these gaps. The dispatcher and
    conditional EXTRO path are statically mapped; the likely win trigger for
    status 007Bh remains unverified.
-2. `HL.EXE`: 69,628 instructions decode; about 21,000 bytes in frames with
+2. `HL.EXE`: 70,890 instructions decode; about 19,000 bytes in frames with
    code remain. Get coverage of what no run did yet (a won or lost game,
-   save and load, whole rounds with the F1 pair), compare it with the decoded
+   save and load), compare it with the decoded
    starts of all segments as described above, then begin stage 2 names and
    records.
 3. Continue stage 2 for `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE`: everything

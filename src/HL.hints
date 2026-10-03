@@ -179,6 +179,8 @@ words DATA:12CA 1 CODE
 words DATA:12CC 3 CODE
 ; Three initialized far-call slots point to CODE:02D1; the first is rewritten.
 words DATA:0FD4 3 CODE stride=4
+; S29C1:010E contains a near pointer into CODE:0379.
+words S29C1:010E 1 CODE
 ; Bounded 17-entry dispatch at S02E6:0ED2 through S02E6:206C.
 words S02E6:206C 11 S02E6
 ; Bounded five-entry dispatch at S10E1:0B4F through S10E1:0F78.
@@ -210,6 +212,7 @@ code CODE:10A6
 ; Reached at CODE:114F in a ten-second no-input runner coverage run.
 code CODE:114F
 code CODE:02D1
+code CODE:0379
 code S0CB6:038A
 code S0CB6:03A7
 code S0CB6:03C4

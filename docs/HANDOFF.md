@@ -116,6 +116,10 @@ emulation error (2026-10-02).
   and decodes the target. `gaps.py` now reports 32 gaps / 4,828 bytes. The
   indirect calls were not reached in a runner session; the first slot's
   runtime target may differ from its initialized value.
+- The gap xref at `S29C1:010E` resolves to a near pointer to `CODE:0379`.
+  `words S29C1:010E 1 CODE` rebuilds IDENTICAL and decodes 21 bytes through
+  `CODE:038E`, where it rejoins known code. `gaps.py` now reports 32 gaps /
+  4,807 bytes. This pointer path was not observed in a runner session.
 - A further static pass found 12 bounded indexed indirect-jump tables in
   relocation-frame segments (`S02E6`, `S0CB6`, `S10E1`, `S1CC6`, `S1E4B`,
   `S2138` and `S2D47`). Their bounds and `JMP WORD PTR CS:[BX+table]` forms

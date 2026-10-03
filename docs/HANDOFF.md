@@ -102,6 +102,20 @@ emulation error (2026-10-02).
   bytes: 33 bytes at `CODE:123C` decode before the next unknown area. This
   instruction was not reached in the 120-second coverage run, so its dynamic
   value and reachability remain unverified.
+- The adjacent words at `DATA:12CC`, `12CE` and `12D0` each contain `1241`.
+  A temporary `words DATA:12CC 3 CODE` hint rebuilds IDENTICAL and decodes
+  `CODE:1241` as `MOV DX,1283H`, which rejoins at the already decoded
+  `CODE:1244`. The current hints therefore record all four near-code targets
+  at `DATA:12CA..12D0`. These indirect paths were not observed in a runner
+  session. With the three additional table entries, `gaps.py` reports 32 gaps
+  / 4,836 bytes.
+- `CODE:031D` and `CODE:0334..0336` call through far pointers at `DATA:0FD4`,
+  `0FD8` and `0FDC`; all three initially target `CODE:02D1`. `CODE:2A70`
+  writes `2E2E` to the offset half of the first slot, so that slot is mutable.
+  `words DATA:0FD4 3 CODE stride=4` plus `code CODE:02D1` rebuilds IDENTICAL
+  and decodes the target. `gaps.py` now reports 32 gaps / 4,828 bytes. The
+  indirect calls were not reached in a runner session; the first slot's
+  runtime target may differ from its initialized value.
 - A further static pass found 12 bounded indexed indirect-jump tables in
   relocation-frame segments (`S02E6`, `S0CB6`, `S10E1`, `S1CC6`, `S1E4B`,
   `S2138` and `S2D47`). Their bounds and `JMP WORD PTR CS:[BX+table]` forms

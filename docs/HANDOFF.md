@@ -542,6 +542,15 @@ emulation error (2026-10-02).
   ends shortly after the Esc; with Esc at 60, 300 or 400 s it ran to its own
   end at about 561.7 s (why those were not taken is not checked). The five
   EXTRO runs executed nothing outside decoded code.
+- Segment bounds (2026-10-04), as for `HL.EXE` above: 48 segments each of
+  INTRO and EXTRO get `start=` from their lowest far-referenced offset and
+  the segment before the matching `size=`; the three segments of each that
+  already had a `start=` stay. `code` entries below a start are removed,
+  the `raw` lines made anew, `xfer.py` run again (84 hints carried, 7 not
+  mapped). INTRO rebuilds IDENTICAL with 17,288 instructions (26 as DB,
+  before 51), EXTRO with 14,909 (26 as DB, before 60); every start of their
+  coverage files is decoded (10,972 and 8,588). The same caution holds: a
+  far-referenced offset is an upper bound of a module's start.
 - `src/INTRO.hints` had 71 lines ending in CRLF among LF lines (the
   repository has `* -text`, so nothing converts them). Commit `bebc4c4`
   rewrote the file with LF throughout, which is why its segment lines show

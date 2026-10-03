@@ -6,73 +6,73 @@
 exe INTRO/INTRO.EXE
 linker tlink 50 header=original
 segment CODE 0000 CODE size=2AF0
-segment S02AF 02AF CODE size=8E0 prefix=S02AF
-segment S033D 033D CODE size=22D0 prefix=S033D
-segment S056A 056A CODE size=1B50 prefix=S056A
-segment S071F 071F CODE size=2140 prefix=S071F
-segment S0933 0933 CODE size=30 prefix=S0933
-segment S0936 0936 CODE size=30 prefix=S0936
-segment S0939 0939 CODE size=50 prefix=S0939
-segment S093E 093E CODE size=30 prefix=S093E
-segment S0941 0941 CODE size=D5 prefix=S0941
-segment S094E 094E CODE size=B0 start=5 prefix=S094E
-segment S0959 0959 CODE size=10 prefix=S0959
-segment S095A 095A CODE size=60 prefix=S095A
-segment S0960 0960 CODE size=50 prefix=S0960
-segment S0965 0965 CODE size=10 prefix=S0965
-segment S0966 0966 CODE size=20 prefix=S0966
-segment S0968 0968 CODE size=20 prefix=S0968
-segment S096A 096A CODE size=80 prefix=S096A
-segment S0972 0972 CODE size=80 prefix=S0972
-segment S097A 097A CODE size=20 prefix=S097A
-segment S097C 097C CODE size=1C0 prefix=S097C
-segment S0998 0998 CODE size=C0 prefix=S0998
-segment S09A4 09A4 CODE size=40 prefix=S09A4
-segment S09A8 09A8 CODE size=D0 prefix=S09A8
-segment S09B5 09B5 CODE size=A0 prefix=S09B5
-segment S09BF 09BF CODE size=40 prefix=S09BF
-segment S09C3 09C3 CODE size=D0 prefix=S09C3
-segment S09D0 09D0 CODE size=330 prefix=S09D0
-segment S0A03 0A03 CODE size=100 prefix=S0A03
-segment S0A13 0A13 CODE size=60 prefix=S0A13
-segment S0A19 0A19 CODE size=20 prefix=S0A19
-segment S0A1B 0A1B CODE size=C0 prefix=S0A1B
-segment S0A27 0A27 CODE size=D0 prefix=S0A27
-segment S0A34 0A34 CODE size=90 prefix=S0A34
-segment S0A3D 0A3D CODE size=40 prefix=S0A3D
-segment S0A41 0A41 CODE size=1F0 prefix=S0A41
-segment S0A60 0A60 CODE size=190 prefix=S0A60
-segment S0A79 0A79 CODE size=360 prefix=S0A79
-segment S0AAF 0AAF CODE size=3F0 prefix=S0AAF
-segment S0AEE 0AEE CODE size=F0 prefix=S0AEE
-segment S0AFD 0AFD CODE size=B0 prefix=S0AFD
-segment S0B08 0B08 CODE size=70 prefix=S0B08
-segment S0B0F 0B0F CODE size=20 prefix=S0B0F
-segment S0B11 0B11 CODE size=60 prefix=S0B11
-segment S0B17 0B17 CODE size=42 prefix=S0B17
+segment S02AF 02AF CODE size=8EC prefix=S02AF
+segment S033D 033D CODE size=22D5 start=C prefix=S033D
+segment S056A 056A CODE size=1B50 start=5 prefix=S056A
+segment S071F 071F CODE size=2142 prefix=S071F
+segment S0933 0933 CODE size=30 start=2 prefix=S0933
+segment S0936 0936 CODE size=3A prefix=S0936
+segment S0939 0939 CODE size=5A start=A prefix=S0939
+segment S093E 093E CODE size=36 start=A prefix=S093E
+segment S0941 0941 CODE size=D5 start=6 prefix=S0941
+segment S094E 094E CODE size=BA start=5 prefix=S094E
+segment S0959 0959 CODE size=1A start=A prefix=S0959
+segment S095A 095A CODE size=62 start=A prefix=S095A
+segment S0960 0960 CODE size=50 start=2 prefix=S0960
+segment S0965 0965 CODE size=1C prefix=S0965
+segment S0966 0966 CODE size=28 start=C prefix=S0966
+segment S0968 0968 CODE size=20 start=8 prefix=S0968
+segment S096A 096A CODE size=86 prefix=S096A
+segment S0972 0972 CODE size=82 start=6 prefix=S0972
+segment S097A 097A CODE size=20 start=2 prefix=S097A
+segment S097C 097C CODE size=1CC prefix=S097C
+segment S0998 0998 CODE size=CC start=C prefix=S0998
+segment S09A4 09A4 CODE size=4E start=C prefix=S09A4
+segment S09A8 09A8 CODE size=DC start=E prefix=S09A8
+segment S09B5 09B5 CODE size=A6 start=C prefix=S09B5
+segment S09BF 09BF CODE size=4C start=6 prefix=S09BF
+segment S09C3 09C3 CODE size=D7 start=C prefix=S09C3
+segment S09D0 09D0 CODE size=330 start=7 prefix=S09D0
+segment S0A03 0A03 CODE size=10A prefix=S0A03
+segment S0A13 0A13 CODE size=60 start=A prefix=S0A13
+segment S0A19 0A19 CODE size=26 prefix=S0A19
+segment S0A1B 0A1B CODE size=C4 start=6 prefix=S0A1B
+segment S0A27 0A27 CODE size=D6 start=4 prefix=S0A27
+segment S0A34 0A34 CODE size=96 start=6 prefix=S0A34
+segment S0A3D 0A3D CODE size=40 start=6 prefix=S0A3D
+segment S0A41 0A41 CODE size=1FC prefix=S0A41
+segment S0A60 0A60 CODE size=19E start=C prefix=S0A60
+segment S0A79 0A79 CODE size=36A start=E prefix=S0A79
+segment S0AAF 0AAF CODE size=3F4 start=A prefix=S0AAF
+segment S0AEE 0AEE CODE size=F2 start=4 prefix=S0AEE
+segment S0AFD 0AFD CODE size=B4 start=2 prefix=S0AFD
+segment S0B08 0B08 CODE size=78 start=4 prefix=S0B08
+segment S0B0F 0B0F CODE size=26 start=8 prefix=S0B0F
+segment S0B11 0B11 CODE size=6C start=6 prefix=S0B11
+segment S0B17 0B17 CODE size=42 start=C prefix=S0B17
 segment S0B1B 0B1B CODE size=43 start=2 prefix=S0B1B
-segment S0B1F 0B1F CODE size=40 start=3 prefix=S0B1F
-segment S0B23 0B23 CODE size=30 prefix=S0B23
-segment S0B26 0B26 CODE size=130 prefix=S0B26
-segment S0B39 0B39 CODE size=B0 prefix=S0B39
-segment S0B44 0B44 CODE size=120 prefix=S0B44
-segment S0B56 0B56 CODE size=C0 prefix=S0B56
-segment S0B62 0B62 CODE size=C0 prefix=S0B62
-segment S0B6E 0B6E CODE size=120 prefix=S0B6E
-segment S0B80 0B80 CODE size=3E0 prefix=S0B80
-segment S0BBE 0BBE CODE size=70 prefix=S0BBE
-segment S0BC5 0BC5 CODE size=30 prefix=S0BC5
-segment S0BC8 0BC8 CODE size=3A0 prefix=S0BC8
-segment S0C02 0C02 CODE size=20 prefix=S0C02
-segment S0C04 0C04 CODE size=30 prefix=S0C04
-segment S0C07 0C07 CODE size=30 prefix=S0C07
-segment S0C0A 0C0A CODE size=30 prefix=S0C0A
+segment S0B1F 0B1F CODE size=4A start=3 prefix=S0B1F
+segment S0B23 0B23 CODE size=34 start=A prefix=S0B23
+segment S0B26 0B26 CODE size=130 start=4 prefix=S0B26
+segment S0B39 0B39 CODE size=BE prefix=S0B39
+segment S0B44 0B44 CODE size=12A start=E prefix=S0B44
+segment S0B56 0B56 CODE size=CE start=A prefix=S0B56
+segment S0B62 0B62 CODE size=CC start=E prefix=S0B62
+segment S0B6E 0B6E CODE size=12A start=C prefix=S0B6E
+segment S0B80 0B80 CODE size=3E0 start=A prefix=S0B80
+segment S0BBE 0BBE CODE size=7A prefix=S0BBE
+segment S0BC5 0BC5 CODE size=30 start=A prefix=S0BC5
+segment S0BC8 0BC8 CODE size=3A8 prefix=S0BC8
+segment S0C02 0C02 CODE size=2E start=8 prefix=S0C02
+segment S0C04 0C04 CODE size=38 start=E prefix=S0C04
+segment S0C07 0C07 CODE size=3A start=8 prefix=S0C07
+segment S0C0A 0C0A CODE size=30 start=A prefix=S0C0A
 segment S0C0D 0C0D CODE size=100 prefix=S0C0D
-segment S0C1D 0C1D CODE size=50 prefix=S0C1D
-segment S0C22 0C22 CODE size=D0 prefix=S0C22
+segment S0C1D 0C1D CODE size=54 prefix=S0C1D
+segment S0C22 0C22 CODE size=D0 start=4 prefix=S0C22
 segment S0C2F 0C2F CODE size=C0 prefix=S0C2F
-segment S0C3B 0C3B CODE size=1C0 prefix=S0C3B
-segment S0C57 0C57 CODE size=1B00 prefix=S0C57
+segment S0C3B 0C3B CODE size=1CB prefix=S0C3B
+segment S0C57 0C57 CODE size=1B00 start=B prefix=S0C57
 segment S0E07 0E07 DATA size=1650 prefix=S0E07
 segment S0F6C 0F6C DATA size=18A0 prefix=S0F6C
 segment DATA 10F6 DATA size=12C0
@@ -101,70 +101,9 @@ code S02AF:06C5
 code S071F:1177
 code S071F:1937
 code S071F:1EF3
-code S0933:0000
-code S0939:0002
-code S0966:0000
-code S0968:0001
 code S097C:0000
-code S09BF:0000
-code S0A27:0000
-code S0B0F:0000
-code S0B23:0002
-code S0B26:0000
-code S0B44:0000
-code S0B56:0001
-code S0B62:0007
 code S0B6E:000C
-code S0B80:0000
-code S0C04:0002
 
-raw S0965:000E
-raw S0966:001A
-raw S097C:0050
-raw S097C:01BC
-raw S0998:0032
-raw S0A41:0039
-raw S0A41:00DF
-raw S0A60:0045
-raw S0A79:0145
-raw S0A79:0150
-raw S0A79:01A8
-raw S0A79:01FE
-raw S0B17:0039
-raw S0B1B:003A
-raw S0B44:011C
-raw S0B56:0089
-raw S0BC8:0147
-raw S0BC8:0156
-raw S0BC8:0168
-raw S0BC8:0186
-raw S0BC8:0198
-raw S0BC8:01B5
-raw S0BC8:01C7
-raw S0BC8:01EB
-raw S0BC8:01FD
-raw S0BC8:020D
-raw S0BC8:021F
-raw S0BC8:0240
-raw S0BC8:025D
-raw S0BC8:02DF
-raw S0BC8:02F0
-raw S0BC8:0332
-raw S0BC8:0343
-raw S0BC8:0364
-raw S0BC8:0385
-raw S0BC8:039C
-raw S0C07:002C
-raw S0C0A:002B
-raw S0C22:0040
-raw S0C22:004E
-raw S0C22:0072
-raw S0C3B:00AD
-raw S0C3B:016B
-raw S0C3B:0188
-raw S0B6E:0020
-raw S09BF:0000
-raw S0B0F:0000
 
 ; First instruction starts observed outside decoded code in an idle launcher
 ; run that plays the whole intro (stopped at t=397.79, before HL.EXE is loaded).
@@ -176,7 +115,6 @@ code CODE:1105
 code CODE:1F44
 code CODE:1FB4
 code S02AF:0875
-code S056A:0000
 code S056A:12C3
 code S071F:1191
 code S071F:12E3
@@ -186,17 +124,7 @@ code S071F:15E6
 code S071F:1639
 code S071F:1670
 code S071F:1735
-code S093E:0001
-code S0941:0002
-code S095A:0000
-code S09A8:0000
-code S09D0:0000
-code S0A34:0000
-code S0A3D:0000
-code S0B11:0000
 code S0B1F:0005
-code S0B80:0005
-code S0C57:0001
 code S0C57:068B
 code S0C57:0790
 code S0C57:07ED
@@ -206,16 +134,11 @@ code S0C57:0A97
 code S0C57:0AE6
 code S0C57:0B49
 code S0C57:0C1D
-raw S093E:0001
-raw S0941:0002
-raw S0B80:0008
-raw S0C57:0003
 code CODE:1095
 code S056A:12FB
 code S071F:1605
 code S071F:1647
 code S071F:167B
-code S0C57:0005
 code S0C57:06B9
 code S0C57:0792
 code S0C57:094A
@@ -244,3 +167,33 @@ code CODE:0298
 code CODE:02CC
 code CODE:2AB2
 code S02AF:0001
+
+; Instructions written as DB because the assembler would pick other bytes
+; (build.py output; made anew after the segment bounds were set), and first
+; instruction starts observed in the runs named above that were left undecoded.
+raw S0B17:0039
+raw S0B1B:003A
+raw S0BC8:0147
+raw S0BC8:0156
+raw S0BC8:0168
+raw S0BC8:0186
+raw S0BC8:0198
+raw S0BC8:01B5
+raw S0BC8:01C7
+raw S0BC8:01EB
+raw S0BC8:01FD
+raw S0BC8:020D
+raw S0BC8:021F
+raw S0BC8:0240
+raw S0BC8:025D
+raw S0BC8:02DF
+raw S0BC8:02F0
+raw S0BC8:0332
+raw S0BC8:0343
+raw S0BC8:0364
+raw S0BC8:0385
+raw S0C0A:002B
+raw S0C22:0040
+raw S0C22:004E
+raw S0C22:0072
+raw S0C3B:00AD

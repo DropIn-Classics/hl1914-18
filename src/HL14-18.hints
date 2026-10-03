@@ -23,8 +23,8 @@ segment C00DA 00DA CODE prefix=C00DA
 segment C00E0 00E0 CODE prefix=C00E0 size=24
 segment C00E2 00E2 CODE prefix=C00E2 start=4 size=F2
 segment C00F1 00F1 CODE prefix=C00F1 start=2 size=31
-segment C00F4 00F4 CODE prefix=C00F4 start=1
-segment C0103 0103 CODE prefix=C0103 size=5C
+segment C00F4 00F4 CODE prefix=C00F4 start=1 size=F7
+segment C0103 0103 CODE prefix=C0103 start=7 size=5C
 segment C0108 0108 CODE prefix=C0108 start=C
 segment C012C 012C CODE prefix=C012C size=6A
 segment C0132 0132 CODE prefix=C0132 start=A
@@ -71,6 +71,12 @@ code C0170:0008
 code C0015:04F4
 code C0015:055C
 code C0015:06D2
+
+; CS-relative table: C00F4:00A9 reads words until the zero at 00F5.
+; The table ends at 00F7, across the next relocation frame.
+dptr C00F4:00A4 C00F4
+; C0173:030B loads DATA into DS; 0326 reads the far pointer at [BX].
+dptr C0173:0311 DATA
 
 ; Instructions which tasm.py cannot express yet (build.py output).
 raw C0103:0045

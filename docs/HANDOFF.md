@@ -167,6 +167,24 @@ emulation error (2026-10-02).
   game at `t=3.111522`. The launcher does not reach the child-status query
   at `CODE:009A` before that run ends. Thus the later outro branch has not
   been verified by this run.
+- A bounded reference audit (2026-10-03) found no decoded immediate far
+  CALL/JMP or recognized relocated far pointer targeting C0015. Its three
+  segment relocations are at C0015:0027, C0015:062E and C0015:0684;
+  these do not establish callers of the vector-installation routines.
+  The timer's indirect far call at C0015:073C addresses DATA:0E25 plus
+  SI after loading DATA into DS; its table targets remain unverified.
+- The CS-relative word-table loop at C00F4:00A9 advances SI twice and
+  exits on a zero word. Starting at C00F4:00ED, its first zero is at
+  C00F4:00F5, so the table ends at 00F7 across the next relocation frame.
+  C00F4 size=F7 and C0103 start=7 retain the whole table with its reader;
+  no relocation site lies in that table. A dptr records the table address
+  loaded at C00F4:00A4. Another dptr records C0173:0311's DATA pointer:
+  DS is loaded at 030B/030E and LES DI,[BX] consumes it at 0326.
+  The rebuild remains IDENTICAL (1,663 instructions, 238 labels, 13 raw);
+  gap classification against the existing six-second normal coverage still
+  reports 33 gaps, 3,249 bytes, and zero reached gaps.
+  These are static observations; neither table's contents or targets were
+  newly verified by execution.
 - Not checked: runtime reachability of the remaining launcher gaps and the
   three vector handlers under the events that invoke them; obtain targeted
   runs or identify further verified pointer/table entries next.

@@ -4,6 +4,12 @@ State of 2026-10-02: the repository was made from doskit's template.
 `HL14-18.EXE` now rebuilds identically; its indirect code is not yet
 fully classified.
 
+The `doskit` submodule is at `9225bf8`. Its `xfer.py` retains a source
+comment only when the hint directly below it is carried, preventing
+game-specific source comments from leaking into a sibling program's carried
+block. `doskit/tests/selftest.py` and this project's `check.py` passed after
+the update.
+
 ## Start here (next session)
 
 - AGENTS.md and PROVENANCE.md have the rules: read them first.
@@ -58,6 +64,17 @@ emulation error (2026-10-02).
   (216), `S1571` (211) and `S2B06` (206). Three newly reached instructions
   require `raw` hints because their branch targets cannot be represented by
   the current assembler (`S0E56:0006`, `S2947:0002`, `S2BD4:0008`).
+- With those entries recorded, a fresh ten-second no-input coverage run has
+  34 CODE gaps (5,810 of 11,872 bytes) and reaches none of them. The former
+  `114F-126C` gap is reduced to `123C-126C` (237 bytes decoded from the new
+  entry). The apparent references to `CODE:123C`, `CODE:205C` and
+  `CODE:2ACE` are respectively an unrelocated word, a DOS AH=09 text string
+  and an argument, so they are not code-entry evidence.
+- Four 20-second timed menu-key sequences (Escape/Enter, Enter/Space,
+  Down/Enter and function keys) likewise reached none of those gaps. They
+  changed the run state and hashes, but each coverage file still reports the
+  same 34 gaps and 5,810 bytes; further menu-key variants are not a useful
+  source of new code entries.
 - Not checked: the classification and reachability of the remaining indirect
   CODE gaps. The non-entry relocation frames are conservatively not treated
   as code yet; use runner coverage and verified pointer/table hints next.

@@ -1,10 +1,14 @@
 # Handoff
 
-State of 2026-10-02: the repository was made from doskit's template.
+State of 2026-10-03: the repository was made from doskit's template.
 `HL14-18.EXE` now rebuilds identically; its indirect code is not yet
 fully classified.
 
-The `doskit` submodule is at `95ba89e`. Its `xfer.py` retains a source
+The `doskit` submodule is now at `f4dc33c` (fast-forwarded from `95ba89e`).
+The update adds `run.py -base LIN` for translating loader image addresses;
+`doskit/tests/selftest.py` passed (`selftest ok`), as did this project's
+`check.py` (`all ok`) and the nine synthetic tests in
+`tools/test_file_formats.py`. Its earlier `xfer.py` retains a source
 comment only when the hint directly below it is carried, preventing
 game-specific source comments from leaking into a sibling program's carried
 block. `doskit/tests/selftest.py` and this project's `check.py` passed after
@@ -258,7 +262,7 @@ fully successful tool families (`tpwmfiles.py`, `palfiles.py`,
 `tools/`. `PROVENANCE.md` records this scoped exception and source revision;
 these are imported offline analysis tools, not independent History Line
 implementations or runtime code. No partial table/text tools or unverified
-sound/map tools were imported.
+sound/map tools were included in that initial adoption.
 
 Library PNG output now defaults to the game's top-level `00.PAL` and
 colour base zero; Battle Isle's library-specific colour bases were removed.
@@ -285,3 +289,10 @@ The three single-file PNG commands for `00.PAL`, `AHHIMMEL.LBM`, and
 `INTRO/CHR14.LIB` also exit zero, the library using its new default
 palette without `--pal`. Logs are `build/file-tools-probe/adopted-*.log`.
 No visual or original-runtime comparisons were made.
+
+Four additional experimental inspectors are now present:
+`datfiles.py`, `mapfiles.py`, `txtfiles.py`, and `sndfiles.py`. Their probe
+results and limits are listed above. The DAT, map and text tools adapt
+offline parsing techniques; the sound tool is project-specific. These are
+not port parsers, and none has been checked against History Line's original
+loading routines. `tools/test_file_formats.py` uses synthetic data only.

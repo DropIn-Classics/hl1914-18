@@ -265,6 +265,16 @@ inherited, unverified convention. Unknown fields or entries may be
 preserved unchanged, so an identical round trip does not establish complete
 understanding. Tests and limitations are recorded in `docs/HANDOFF.md`.
 
+The later `tools/datfiles.py`, `tools/mapfiles.py`, and `tools/txtfiles.py`
+adapt offline parsing and preview techniques from the same `bisle` revision;
+their History Line layouts were adjusted or extended from observations of
+this game's own files. `tools/sndfiles.py` is a project-specific inspection
+tool and does not import the sibling game's MIDI parser or sound player.
+These additional tools are experimental, not port code, and do not establish
+runtime compatibility. Their coverage, rejected layouts, and limitations
+are recorded in `docs/HANDOFF.md`. Synthetic tests use generated records
+and contain no game data.
+
 If the development method changes in a way that affects provenance, this document must be updated.
 
 Do not rewrite or falsify version-control history in order to create the appearance of cleaner provenance.

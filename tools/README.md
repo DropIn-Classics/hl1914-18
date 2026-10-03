@@ -1,9 +1,10 @@
 # File-analysis tools
 
-These offline tools were imported from `bisle` at the user's request after
-testing them on the installed History Line files. See `../PROVENANCE.md`
-for the explicit scope and `../docs/HANDOFF.md` for results and limitations.
-They require only Python 3 and the existing doskit checkout.
+The TPWM, palette, IFF and library tools were imported from `bisle` at the
+user's request after testing them on installed History Line files. Four
+additional experimental inspectors are described below. See
+`../PROVENANCE.md` for the source scope and `../docs/HANDOFF.md` for results
+and limitations. They require only Python 3 and the doskit checkout.
 
 Run from the project root; without file arguments they discover inputs in
 `game/` (or `$DOSKIT_GAME`):
@@ -35,5 +36,9 @@ On Windows consoles with limited encodings, set `PYTHONIOENCODING=utf-8`
 before running the tools, since library entry names can contain characters
 the console cannot encode. `png.py` is the shared PNG-writing helper.
 
-The map, table, text and sound tools were not imported: their probes had
-rejections or incomplete coverage. These tools are not part of the port.
+`datfiles.py`, `mapfiles.py`, `sndfiles.py`, and `txtfiles.py` are
+experimental History Line inspection tools. They report or reject layouts
+outside their observed coverage; a successful round trip does not establish
+that the game loads or interprets a format the same way. See
+`docs/HANDOFF.md` and `PROVENANCE.md` for probe results and source scope.
+These tools are not part of the port.

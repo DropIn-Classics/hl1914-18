@@ -324,6 +324,33 @@ emulation error (2026-10-02).
   196 instructions as DB; 59,448 distinct starts ran in the runs of
   `build/n2/`. dosrun takes at most 4,096 key and 4,096 mouse events
   (`MAXEV`), which bounds how long a scripted run can be busy.
+- Files opened from the start to the first map, in order (`-dos` trace, all
+  through `file_open`): `LIB\NEWCHAR6.LIB` and `.DAT`, `BB.DAT`, `BB.IFF`,
+  `HLLOGO.IFF` (3.5 s), then at 6.7 s `CODES.DAT`, `MNUTIT.IFF`,
+  `MNUSCORE.IFF`, `MNUFAHN.IFF`, `MNUCHR18/14/8.LIB`, `MNUFAHN.LIB`,
+  `MNUICON.LIB`, `MNUMISC.LIB`, `MNU.ADL`, `MNUHI.ADL`, `MNU.AFX`,
+  `MNUDATA.DAT`; at START `MAP\00.HI`, `S.LIB`, `S.DAT`, `MAP\00.FIN`,
+  `MAP\STATMAP.FIN`, `GAME.TXT`, `AMOK.DAT`, `UNIT.DAT`, `WW1GNDS.DAT`,
+  `MAP\00.SHP`, `MAP\00.COM`, `NEWUNIT.DAT`, a `.LIB` and `.DAT` whose name
+  has only the extension (presumably a prefix that is empty for this map;
+  not checked), `GAME.IFF`, `00.PAL`, `LIB\BIGUNIT.DAT` and `.LIB`,
+  `LIB\UMAPDATA.DAT`, `LIB\UMAPDASA.LIB`, `ONGAME2.ADL`. `file_write`
+  (`S2BC5:0008`) is named as well.
+- Jump tables, second pass (2026-10-04), read from the generated source:
+  20 more bounded tables of compiled switches (`CMP BX,n`, `JBE`/`JA`,
+  `SHL BX,1`, `JMP WORD PTR CS:[BX+table]`) in `S1A39`, `S1CC6`, `S1E4B`,
+  `S202F`, `S2138` and `S2407`; the targets of a switch by value at
+  `S2D47:0CDA` (four values at `0CD2` before them); and two 16-entry
+  dispatches on a byte's upper four bits at `S30EF:173F` and `S30EF:190D`.
+  Nearly all their targets were decoded already; six were not and are
+  `code` entries. `HL.EXE` rebuilds IDENTICAL with 71,755 instructions,
+  6,814 labels and 197 instructions as DB. INTRO and EXTRO had no table
+  hints at all; the same forms give nine tables each (the parser dispatch
+  through `CODE:0D0E`, a switch by seven values, the two 16-entry
+  dispatches, five in the module that is `S2D47` in `HL.EXE`). INTRO
+  rebuilds IDENTICAL with 18,055 instructions, EXTRO with 15,678 (four of
+  its tables carried by `xfer.py`, five in its own part). No table was seen
+  taken entry by entry in a run.
 - Not checked: which of the remaining undecoded bytes are code. No run
   ended a game by a victory or a defeat; that is the next source of
   coverage (20 runs of three emulated hours were started for it), then
@@ -616,7 +643,7 @@ emulation error (2026-10-02).
    repeat ordinary launcher runs for these gaps. The dispatcher and
    conditional EXTRO path are statically mapped; the likely win trigger for
    status 007Bh remains unverified.
-2. `HL.EXE`: 71,250 instructions decode; about 19,000 bytes in frames with
+2. `HL.EXE`: 71,755 instructions decode; about 18,000 bytes in frames with
    code remain. Get coverage of what no run did yet (a won or lost game),
    compare it with the decoded
    starts of all segments as described above, then begin stage 2 names and

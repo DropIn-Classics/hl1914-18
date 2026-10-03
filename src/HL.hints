@@ -861,3 +861,49 @@ code S1E4B:0F2B
 code S1E4B:0E35
 code S1E4B:0F5C
 code S1E4B:0E67
+
+; INT 21h AH=40h in pieces of at most 8000h bytes; called twice by save_game
+; (read from the code; the save run wrote its file through it, not shown by
+; a breakpoint).
+name S2BC5:0008 file_write
+comment S2BC5:0008 file_write(dword handle, far buffer, dword length)
+
+; Bounded jump tables of compiled switches (CMP BX,n / JBE or JA / SHL BX,1 /
+; JMP WORD PTR CS:[BX+table]) in code decoded since the first such pass: n+1
+; near offsets each, read from the generated source. Their targets that no
+; run reached follow as code entries.
+words S1A39:0593 5 S1A39
+words S1CC6:0A0B C S1CC6
+words S1CC6:09F1 D S1CC6
+words S1E4B:06CF 8 S1E4B
+words S1E4B:08E1 6 S1E4B
+words S1E4B:0A1C 5 S1E4B
+words S1E4B:0D6E D S1E4B
+words S1E4B:0FAA 7 S1E4B
+words S1E4B:127E 8 S1E4B
+words S1E4B:1458 6 S1E4B
+words S202F:0B97 8 S202F
+words S2138:2CD5 4 S2138
+words S2138:2CCB 5 S2138
+words S2138:2CC1 5 S2138
+words S2138:2CB5 6 S2138
+words S2138:2CA9 6 S2138
+words S2138:2C9F 5 S2138
+words S2138:2C87 C S2138
+words S2138:2C71 B S2138
+words S2407:06C5 8 S2407
+code S1A39:0452
+code S1A39:04D1
+code S1CC6:0680
+code S2138:019B
+raw S202F:0408
+
+; A switch by value at S2D47:06D0: four values at S2D47:0CD2, then their four
+; near targets (JMP WORD PTR CS:[BX+8]).
+words S2D47:0CDA 4 S2D47
+; S30EF:15C7 and S30EF:175F take a byte's upper four bits as an index into 16
+; near offsets each (SHR BX,3 / AND BX,0FFFEH / ADD BX,table / JMP CS:[BX]).
+words S30EF:173F 10 S30EF
+words S30EF:190D 10 S30EF
+code S30EF:16A3
+code S30EF:183B

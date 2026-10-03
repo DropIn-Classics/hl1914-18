@@ -168,6 +168,21 @@ code CODE:02CC
 code CODE:2AB2
 code S02AF:0001
 
+; Jump tables read from the generated source (not seen taken entry by entry):
+; the bounded parser dispatch through CODE:0D0E (CMP BX,17H), a switch by
+; value with seven values at S056A:146D and their targets after them, the two
+; 16-entry dispatches on a byte's upper four bits in S071F, and in S0C57 two
+; bounded tables (CMP BX,6) and three switches by value (5, 4 and 4 values).
+words CODE:0D0E 18 CODE
+words S056A:147B 7 S056A
+words S071F:1749 10 S071F
+words S071F:1917 10 S071F
+words S0C57:0CC1 5 S0C57
+words S0C57:0CAF 4 S0C57
+words S0C57:0C99 7 S0C57
+words S0C57:0C91 4 S0C57
+words S0C57:0C7B 7 S0C57
+
 ; Instructions written as DB because the assembler would pick other bytes
 ; (build.py output; made anew after the segment bounds were set), and first
 ; instruction starts observed in the runs named above that were left undecoded.

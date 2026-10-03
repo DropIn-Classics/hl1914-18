@@ -138,6 +138,15 @@ raw CODE:2AF5
 raw S02B1:0004
 raw S0943:212E
 
+; Jump tables as in INTRO that xfer.py did not map (read from the generated
+; source: a switch by seven values at S078D:1472, the two 16-entry dispatches
+; in S0943, two switches by value in S0B72).
+words S078D:1480 7 S078D
+words S0943:173F 10 S0943
+words S0943:190D 10 S0943
+words S0B72:0CBB 5 S0B72
+words S0B72:0C8B 4 S0B72
+
 ; ==== carried over from INTRO.hints by tools/xfer.py; check, then keep or edit
 code CODE:0482
 code CODE:052B
@@ -213,6 +222,20 @@ code CODE:0298
 code CODE:02CC
 code CODE:2ADB
 ; (not mapped) code S02AF:0001
+; Jump tables read from the generated source (not seen taken entry by entry):
+; the bounded parser dispatch through CODE:0D0E (CMP BX,17H), a switch by
+; value with seven values at S056A:146D and their targets after them, the two
+; 16-entry dispatches on a byte's upper four bits in S071F, and in S0C57 two
+; bounded tables (CMP BX,6) and three switches by value (5, 4 and 4 values).
+words CODE:0D0E 18 CODE
+; (not mapped) words S056A:147B 7 S056A
+; (not mapped) words S071F:1749 10 S071F
+; (not mapped) words S071F:1917 10 S071F
+; (not mapped) words S0C57:0CC1 5 S0C57
+words S0B72:0CA9 4 S0B72
+words S0B72:0C93 7 S0B72
+; (not mapped) words S0C57:0C91 4 S0C57
+words S0B72:0C75 7 S0B72
 ; (not mapped) raw S0B17:0039
 ; (not mapped) raw S0B1B:003A
 raw S071A:0143

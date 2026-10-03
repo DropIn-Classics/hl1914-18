@@ -387,6 +387,30 @@ emulation error (2026-10-02).
   instructions, 141 data addresses and 37 segments; 55 code/raw hints
   transferred and 20 did not map. This is partial instruction-stream
   similarity, not whole-program identity.
+- Whole-run coverage (2026-10-03, macOS). An idle launcher run plays the
+  whole intro: `INTRO.EXE` loads at `0333` and `HL.EXE` is loaded over it at
+  `0332` at `t=397.794602`. Coverage for INTRO must come from a run stopped
+  before that (`-until 397.79`): a `-cover` file has only addresses, and
+  both `gaps.py --cover` and the comparison used here take every address
+  above the first load, so a longer run counts `HL.EXE`'s instructions as
+  INTRO's (the first attempt did; it produced entries in the middle of
+  instructions and in the data frame `S0E07`, and was thrown away). The
+  clean run executed 10,638 instruction starts; the 825 outside decoded code
+  are now covered by `code` entries. INTRO rebuilds IDENTICAL with 17,173
+  instructions, 2,082 labels and 51 `raw` instructions.
+- EXTRO with the launcher's command tail runs to its own end: exit code 0
+  at `t=561.691638` (3,370,149,828 instructions), 8,531 instruction starts.
+  After `xfer.py` carried INTRO's new hints (107 carried, 30 not mapped),
+  43 starts were outside decoded code; they are `code` entries in EXTRO's
+  own part of the file, above the carried block. EXTRO rebuilds IDENTICAL
+  with 14,819 instructions, 1,892 labels and 60 `raw` instructions.
+- A check against run-time memory guards this method: a `-ram` dump is
+  compared with the file image (relocated words left out), and a start whose
+  bytes changed is not taken as the file's code. No start was dropped for
+  that in INTRO, EXTRO or `HL.EXE`. The only decoded instruction over
+  changed bytes is at INTRO `CODE:0294` and `HL.EXE` `CODE:0284`, each a
+  CS-relative variable the entry code writes; both were decoded before
+  this session and should be made data.
 - Commands and files used for this collection are local: generated sources,
   rebuilds and coverage are under ignored `build/`. Stage-1 `src/INTRO.hints`
   and `src/EXTRO.hints` contain no game bytes.
@@ -435,11 +459,12 @@ emulation error (2026-10-02).
    and load, CODE PULSE, two human players), compare it with the decoded
    starts of all segments as described above, then begin stage 2 names and
    records.
-3. Continue stage 2 for `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE`: name routines
-   and classify remaining gaps from runner coverage and verified pointers.
-   For EXTRO, use the exact launcher command tail to reach its active path;
-   analyze the 5,367 bytes still uncovered in code-class segments. Keep the
-   transferred INTRO hints only where this game's instruction streams match.
+3. Continue stage 2 for `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE`: everything
+   their full idle runs execute is decoded now, so name routines and
+   classify what is left from tables and pointers (and from runs with keys:
+   neither program was given input). Make the variables at INTRO
+   `CODE:0294` and `HL.EXE` `CODE:0284` data. Keep the transferred INTRO
+   hints only where this game's instruction streams match.
 
 ## bisle file-tool compatibility probe (2026-10-03)
 

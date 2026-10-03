@@ -160,6 +160,18 @@ code S0943:168A
 code S0943:16A6
 code S0943:172B
 
+; First instruction starts observed outside decoded code in a run with the
+; launcher's command tail to the program's own end (t=561.69).
+code CODE:02CC
+code CODE:2AF7
+code S049D:0001
+code S04B9:0001
+code S052F:0003
+code S058F:0000
+code S0671:0001
+code S02B1:0002
+raw S02B1:0004
+
 ; ==== carried over from INTRO.hints by tools/xfer.py; check, then keep or edit
 code CODE:0482
 code CODE:052B
@@ -236,3 +248,67 @@ raw S0B56:0182
 raw S06C0:001C
 raw S0514:009E
 ; (not mapped) raw S0B0F:0000
+; First instruction starts observed outside decoded code in an idle launcher
+; run that plays the whole intro (stopped at t=397.79, before HL.EXE is loaded).
+code CODE:076F
+code CODE:0FEC
+code CODE:1075
+code CODE:10EB
+code CODE:1105
+code CODE:1F44
+code CODE:1FB4
+code S02B1:087D
+; (not mapped) code S056A:0000
+code S078D:12C8
+code S0943:1187
+code S0943:12D9
+code S0943:1565
+code S0943:15B0
+code S0943:15DC
+code S0943:162F
+code S0943:1666
+; (not mapped) code S071F:1735
+; (not mapped) code S093E:0001
+code S04A0:0000
+; (not mapped) code S095A:0000
+code S0503:003E
+; (not mapped) code S09D0:0000
+; (not mapped) code S0A34:0000
+; (not mapped) code S0A3D:0000
+; (not mapped) code S0B11:0000
+; (not mapped) code S0B1F:0005
+code S06D2:0001
+code S0B56:01BB
+code S0B72:0685
+code S0B72:078A
+code S0B72:07E7
+code S0B72:0916
+code S0B72:09A1
+code S0B72:0A91
+code S0B72:0AE0
+code S0B72:0B43
+code S0B72:0C17
+; (not mapped) raw S093E:0001
+raw S04A0:0000
+raw S06D2:0004
+raw S0B56:01BD
+code CODE:1095
+code S078D:1300
+code S0943:15FB
+code S0943:163D
+code S0943:1671
+code S0B56:01BF
+code S0B72:06B3
+code S0B72:078C
+code S0B72:0944
+code S0B72:0C38
+code S078D:1327
+code S0943:168A
+code S0B72:0701
+code S0B72:0C3C
+code S078D:1347
+code S0943:16A6
+code S0B72:0712
+code S0B72:0C55
+code S078D:136C
+code S078D:13B3

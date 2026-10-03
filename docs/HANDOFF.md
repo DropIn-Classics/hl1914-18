@@ -127,10 +127,13 @@ emulation error (2026-10-02).
   and INT 09 belonged to the loaded main program/BIOS. A two-second idle
   interrupt trace likewise showed the launcher immediately EXECing the
   intro, before its C0015 installation sites or handlers ran. The runner
-  currently reports failed DOS open/EXEC operations as INT 21h error returns
-  rather than dispatching INT 24, and has no fault injection: a valid
-  runner-only critical-error test of C0015:055C therefore needs a doskit
-  enhancement with tests. These experiments add no C0015 entries.
+  currently reports failed DOS open/EXEC operations as INT 21h error returns.
+  Doskit now has the tested `-criterr AH ERR` runner option: it makes the next
+  matching INT 21h call enter the guest's INT 24 vector, and an `AL=3` (Fail)
+  return gives its caller `ERR` in AX with CF set. The launcher has not yet
+  installed its C0015 INT 24 vector in an observed run, so this option has not
+  yet produced launcher-handler coverage. These experiments add no C0015
+  entries.
 - Not checked: runtime reachability of the remaining launcher gaps and the
   three vector handlers under the events that invoke them; obtain targeted
   runs or identify further verified pointer/table entries next.

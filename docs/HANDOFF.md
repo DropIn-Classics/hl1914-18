@@ -418,6 +418,10 @@ emulation error (2026-10-02).
   are presumptions: no run executed either address. After this the programs
   rebuild IDENTICAL with 68,739 (`HL.EXE`), 17,172 (INTRO) and 14,818
   (EXTRO) instructions.
+- `src/INTRO.hints` had 71 lines ending in CRLF among LF lines (the
+  repository has `* -text`, so nothing converts them). Commit `bebc4c4`
+  rewrote the file with LF throughout, which is why its segment lines show
+  as changed there; no hint changed on those lines.
 - Commands and files used for this collection are local: generated sources,
   rebuilds and coverage are under ignored `build/`. Stage-1 `src/INTRO.hints`
   and `src/EXTRO.hints` contain no game bytes.

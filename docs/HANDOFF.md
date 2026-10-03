@@ -201,3 +201,87 @@ emulation error (2026-10-02).
 3. Analyse `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE` separately; transfer
    hints only when this game's own instruction streams demonstrate a
    match.
+
+## bisle file-tool compatibility probe (2026-10-03)
+
+At the user's request, the unchanged file-tool CLIs from sibling `bisle`
+revision `a88573b7cef03de0521d65518a0a307a6fb45359` were run as black boxes
+on this project's installed History Line data. Their implementation source
+was not read or copied. This is a tool-compatibility experiment, not evidence
+for History Line's runtime interpretation and not permission to derive
+History Line code from Battle Isle's game-specific parsers.
+
+Results from explicit input paths (success means the tool reported
+`written back identical`, rather than merely exiting with status zero):
+
+| Tool | Result on History Line files |
+|---|---|
+| `tpwmfiles.py` | All 489 packed files found in a 544-file recursive scan round-trip identically; zero failures. |
+| `ifffiles.py` | All 66 recursively found `.IFF` / `.LBM` files round-trip identically. |
+| `palfiles.py` | All 33 `.PAL` files round-trip identically. |
+| `libfiles.py` | All 21 `.LIB` files round-trip identically. `NEWCHAR6.LIB` needs UTF-8 stdout on this Windows host; the first failure was an output-encoding error. |
+| `txtfiles.py` | `CHAR6.DAT` and `TITEL.TXT` round-trip identically; `GAME.TXT` is rejected with `text 0 does not end`. Other text layouts are unverified. |
+| `datfiles.py` | Top-level `CODES.DAT` and `AMOK.DAT`, and `LIB/UNIT.DAT`, round-trip identically. Top-level `UNIT.DAT` is rejected with `3519 bytes, not records of 68`; `LIB/GROUND.DAT` with `271792 bytes, not records of 6`. The original top-level directory also lacks the expected `GROUND.DAT`. |
+| `mapfiles.py` | Direct use on `game/MAP` stops at the missing top-level `GROUND.DAT`. With the actual `LIB/GROUND.DAT` and `LIB/UNIT.DAT` copied unchanged into a temporary root beside a copy of `MAP`, 73 maps are tested: `STATMAP` round-trips identically, while all 72 numbered maps fail on trailing `.SHP` data (36 to 228 bytes after the recognized records). No alternative ground file was substituted. |
+| `sndfiles.py` | Directory invocation finds zero files: exit zero is vacuous, and sound compatibility is unverified. |
+
+PNG export also succeeds for `AHHIMMEL.LBM` (one image), `00.PAL`
+(one image), and `INTRO/CHR14.LIB` with explicit `--pal game/00.PAL`
+(47 images); these exports were not visually or semantically verified.
+
+Reproduction: pass each file recognized as packed to
+`python ../bisle/tools/tpwmfiles.py FILE`; run
+`python ../bisle/tools/ifffiles.py FILE` (likewise
+`palfiles.py` and `libfiles.py`) for every matching file recursively under
+`game/`; run `txtfiles.py game`, `datfiles.py game`, `datfiles.py game/LIB`,
+`sndfiles.py game`, and `mapfiles.py game/MAP`. Set
+`PYTHONIOENCODING=utf-8` for the Windows console. For the additional map
+experiment, place unchanged copies of `game/LIB/GROUND.DAT`,
+`game/LIB/UNIT.DAT`, and `game/MAP/` under
+`build/file-tools-probe/staged-game/`, then pass that root's `MAP` directory.
+The local command logs and input/exit metadata are in
+`build/file-tools-probe/`; no game bytes or generated assets are tracked.
+
+Not verified: writer internals (whether any fields pass through unchanged),
+rendered-image correctness, audio playback, interpretation of map suffixes,
+and any of these formats against History Line's original loading routines.
+The successful tools can help inspect local assets immediately; a port
+parser still needs independent evidence from History Line itself. Prioritize
+its `.SHP` reader and the distinct table/text layouts rather than assuming
+all corresponding Battle Isle formats match.
+
+### Adoption requested after the probe
+
+The user then explicitly requested adopting the working tools. The four
+fully successful tool families (`tpwmfiles.py`, `palfiles.py`,
+`ifffiles.py`, `libfiles.py`) and their `png.py` dependency now live under
+`tools/`. `PROVENANCE.md` records this scoped exception and source revision;
+these are imported offline analysis tools, not independent History Line
+implementations or runtime code. No partial table/text tools or unverified
+sound/map tools were imported.
+
+Library PNG output now defaults to the game's top-level `00.PAL` and
+colour base zero; Battle Isle's library-specific colour bases were removed.
+Descriptions no longer present Battle Isle executable observations as
+History Line evidence. Parsing/packing is otherwise retained. Source
+inspection confirms that unknown library entries, entry tails and unknown
+IFF chunks can pass through unchanged; successful round trips therefore
+prove less than complete format reconstruction. See `tools/README.md` for
+directory checks and local export commands.
+
+The first imported picture tool's directory scan also selected 12
+`FX/*.SFX` IFF containers, all rejected with `no BMHD`. Its automatic
+discovery now covers only the tested `.IFF` / `.LBM` picture families;
+explicit other inputs still report their parser errors. The library
+directory scan additionally checks top-level `BB.DAT`, which round-trips
+identically along with the 21 `.LIB` files.
+
+Verification after adoption: all four directory commands in
+`tools/README.md` exit zero: TPWM 489 files, PAL 33, IFF 66, LIB 22;
+each reports zero failures. The TPWM packer comparison reports `isle 5`,
+`moon 421`, and `moon but the last item 63`; the last category is not a
+complete recompression match despite an identical parsed-item round trip.
+The three single-file PNG commands for `00.PAL`, `AHHIMMEL.LBM`, and
+`INTRO/CHR14.LIB` also exit zero, the library using its new default
+palette without `--pal`. Logs are `build/file-tools-probe/adopted-*.log`.
+No visual or original-runtime comparisons were made.

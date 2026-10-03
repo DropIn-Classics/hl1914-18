@@ -236,6 +236,35 @@ Game-specific implementation derived from:
 
 ## Provenance changes
 
+### Explicit exception: imported offline file-analysis tools (2026-10-03)
+
+After a black-box compatibility probe, the user explicitly requested that
+the working tools from the sibling `bisle` project be adopted. This is a
+scoped exception to the other-game code restrictions above for offline
+asset analysis only. It does not permit using Battle Isle code as evidence
+for History Line gameplay or copying these parsers into the compatibility
+runtime without independently establishing the format from History Line.
+
+The imported files are `tools/tpwmfiles.py`, `tools/palfiles.py`,
+`tools/ifffiles.py`, `tools/libfiles.py`, and their standard-library PNG
+helper `tools/png.py`. They originate from `bisle` revision
+`a88573b7cef03de0521d65518a0a307a6fb45359` (the source tool files were
+unmodified locally). These are sibling-project analysis implementations,
+not original game source or game assets. No original game bytes were
+imported. The tools are not claimed to be independently reconstructed
+History Line parsers.
+
+Module descriptions now distinguish History Line file compatibility from
+Battle Isle runtime evidence. The library preview uses History Line's
+top-level `00.PAL` and a neutral default colour base of zero instead of
+Battle Isle's directory and per-library colour bases. The parsing and
+packing algorithms are retained. Automatic picture discovery is limited
+to the verified `.IFF` and `.LBM` families; other IFF containers are not
+assumed to be pictures. Preview palette scaling remains an
+inherited, unverified convention. Unknown fields or entries may be
+preserved unchanged, so an identical round trip does not establish complete
+understanding. Tests and limitations are recorded in `docs/HANDOFF.md`.
+
 If the development method changes in a way that affects provenance, this document must be updated.
 
 Do not rewrite or falsify version-control history in order to create the appearance of cleaner provenance.

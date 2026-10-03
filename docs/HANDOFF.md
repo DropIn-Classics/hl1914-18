@@ -281,8 +281,8 @@ emulation error (2026-10-02).
   transferred and 20 did not map. This is partial instruction-stream
   similarity, not whole-program identity.
 - Commands and files used for this collection are local: generated sources,
-  rebuilds and coverage are under ignored `build/`; the temporary EXTRO
-  hints are outside the repository. No game bytes were added.
+  rebuilds and coverage are under ignored `build/`. Stage-1 `src/INTRO.hints`
+  and `src/EXTRO.hints` contain no game bytes.
 
 ### EXTRO command-tail launch probe (2026-10-03)
 
@@ -305,12 +305,13 @@ emulation error (2026-10-02).
   run with only its leading `0` or with a different identifier exits early
   (2,509 and 2,721 instructions respectively) without attempting file
   opens. The identity-specific check has not been located in the disassembly.
-- EXTRO reads and tokenizes the child PSP command tail in an indirect path
-  decoded at raw image offsets `1DC5`–`1ED0`. These are image offsets under
-  the current segment map, not yet stable named-segment addresses. The exact
-  tail and a mismatched identifier both reach the argument dispatcher; their
-  execution diverges after its indirect dispatch. The specific comparison
-  and branch have not yet been assigned a verified EXTRO code address.
+- EXTRO reads and tokenizes the child PSP command tail starting at
+  `CODE:1DC5` (`MOV ES,[D007B]`) and `CODE:1DC9` (`MOV SI,80H`). Breakpoints
+  at both named addresses hit in the exact-tail run; ES points to PSP segment
+  `0067` at `1DC9`. The exact tail and a mismatched identifier both reach the
+  argument dispatcher; their execution diverges after its indirect dispatch.
+  The specific comparison and branch have not yet been assigned a verified
+  EXTRO code address.
 - All probe logs and coverage are in ignored `build/extro-probe/`. The DOS
   trace is very large because EXTRO polls DOS during its active loop; avoid
   long `-dos` runs when coverage or targeted breakpoints are sufficient.
@@ -324,10 +325,11 @@ emulation error (2026-10-02).
    status 007Bh remains unverified.
 2. Classify `HL.EXE` indirect code with `gaps.py`, runner coverage and
    verified pointer/table hints, then begin stage 2 names and records.
-3. Finish `EXTRO/EXTRO.EXE` stage 1: establish its segment boundaries and
-   classification until its rebuild is IDENTICAL. Then analyse its reached
-   gaps using the exact launcher command tail. Transfer INTRO hints only
-   where this game's own instruction streams demonstrate a match.
+3. Continue stage 2 for `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE`: name routines
+   and classify remaining gaps from runner coverage and verified pointers.
+   For EXTRO, use the exact launcher command tail to reach its active path;
+   analyze the 5,367 bytes still uncovered in code-class segments. Keep the
+   transferred INTRO hints only where this game's instruction streams match.
 
 ## bisle file-tool compatibility probe (2026-10-03)
 

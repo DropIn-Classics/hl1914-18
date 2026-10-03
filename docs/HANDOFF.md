@@ -146,9 +146,54 @@ emulation error (2026-10-02).
   DATA's `start=8`); it was removed pending segment-boundary analysis. The
   separate dispatch at `S1A39:02B3` needs investigation: seeding its target
   `S1A39:01CE` produced an assembler phase error.
-- Not checked: the classification and reachability of the remaining indirect
-  CODE gaps. Other regions of relocation-frame DATA remain unclassified;
-  continue with runner coverage and verified pointer/table hints.
+- Input that reaches gameplay (2026-10-03, macOS): Enter at 3 and 6 s gives
+  the main menu by 8 s; further Enters (9, 12, 16 s) choose START and the
+  country, and the map is shown by 20 s. The menus follow the mouse
+  (`-mouse X,Y,B`, X 0..319 and Y 0..199 as on the screen): the main menu's
+  rows are at Y 48, 73, 97, 122 and 147, EXIT at about 290,185. GAME SETUP's
+  default is player one HUMAN, player two COMPUTER; CONTROLS shows
+  `MOUSE SIDE A`. On the map, random mouse clicks, drags and both buttons
+  drive player one far deeper into the game than keys alone: the game
+  reaches `WAITING FOR ATTACK-MODE` and other screens.
+- `gaps.py` lists gaps of CODE-class segments only, and nearly all of this
+  program's code is in the DATA-class relocation frames. Executed code the
+  hints miss was therefore found by comparing the `-cover` files directly
+  with the decoded instruction starts of every segment (a scratch script
+  over `disasm.generate`, in ignored `build/hl-cov/`; a `gaps.py` option for
+  this belongs in doskit). 18 coverage runs were joined: idle 60 s, the Enter
+  sequence, four 300-second runs with pseudo-random keys on the map, four
+  300-second runs with pseudo-random mouse and keys on the map, and eight
+  runs of up to 180 s that click a main-menu row and then at random. They
+  executed 34,602 distinct instruction starts. Each first start outside
+  decoded code is now a `code` entry (added in rounds, since decoding one
+  entry exposes the next); all 34,602 are decoded.
+- A `words` hint whose target segment is DATA class makes labels but does
+  not seed code. The targets of the recorded jump tables that no run reached
+  are therefore `code` entries of their own (nine in `S1A39`, three in
+  `S2138`).
+- The two tables that changed the image size by 16 bytes end in the next
+  relocation frame: `S1CC6:1845` (six words, bound `CMP BX,5`) by one byte
+  and `S2138:2CDD` (13 words, bound `CMP BX,0CH`) by seven. `size=1851` /
+  `start=1` and `size=2CF7` / `start=7` keep them with their readers, and
+  both are recorded. `S1A39:02B3` is a nine-word table (bound `CMP BX,8`),
+  recorded likewise; the former phase error does not occur any more.
+- State: IDENTICAL with 68,740 instructions, 6,581 labels, 345 `code`
+  entries and 198 `raw` instructions. 98 of the `raw` lines are in `S2138`,
+  the first of them a direct operand below DATA's `start=8`
+  (`MOV WORD PTR [6],1`); presumably the others are alike (not checked one by
+  one), and a `num` hint or the right `ASSUME` would replace them. Others are
+  jumps into the preceding frame and `PUSH` immediates in the long form.
+- Of the 249,888 bytes before DATA, 64,336 are not decoded as instructions.
+  41,192 of those are 23 frames with no instruction at all (the largest
+  `S331F` 19,952, `S3812` 6,720, `S3B76` 6,272, `S39B6` 4,880, `S3AEE`
+  1,776), presumably data; that leaves about 23,000 bytes in frames with
+  code, the largest `CODE` 4,749, `S30EF` 4,686, `S1E4B` 2,812, `S2138`
+  1,903, `S2F39` 1,472, `S202F` 1,315, `S2D47` 1,137 and `S1CC6` 1,089.
+  `gaps.py` still reports 32 CODE gaps (4,749 bytes); no run reached one.
+- Not checked: which of the remaining undecoded bytes are code. The runs
+  never ended a game, saved, loaded, used a CODE PULSE entry or played two
+  human sides; those are the next sources of coverage, then bounded tables
+  and pointers in the frames named above.
 
 ## `HL14-18.EXE` stage 1
 
@@ -385,8 +430,11 @@ emulation error (2026-10-02).
    repeat ordinary launcher runs for these gaps. The dispatcher and
    conditional EXTRO path are statically mapped; the likely win trigger for
    status 007Bh remains unverified.
-2. Classify `HL.EXE` indirect code with `gaps.py`, runner coverage and
-   verified pointer/table hints, then begin stage 2 names and records.
+2. `HL.EXE`: 68,740 instructions decode; about 23,000 bytes in frames with
+   code remain. Get coverage of what no run did yet (a finished game, save
+   and load, CODE PULSE, two human players), compare it with the decoded
+   starts of all segments as described above, then begin stage 2 names and
+   records.
 3. Continue stage 2 for `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE`: name routines
    and classify remaining gaps from runner coverage and verified pointers.
    For EXTRO, use the exact launcher command tail to reach its active path;

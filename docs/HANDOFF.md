@@ -120,6 +120,17 @@ emulation error (2026-10-02).
   run, after `HL.EXE` loaded at `t=5.109051`, INT 08 and INT 09 pointed to
   `2B30:06D2` and `2B30:04F4`; those are offsets in `HL.EXE`, not launcher
   coverage.
+- A six-second launcher input sequence (A, F1, Enter, Space, Escape, Up,
+  Down and Tab) again gave zero hits at the launcher INT 09, INT 24 and INT
+  08 handlers, and no C0015 gap ran. It loaded `INTRO/INTRO.EXE` at
+  `t=0.000007` and, after Escape, `HL.EXE` at `t=3.111522`; by the end INT 08
+  and INT 09 belonged to the loaded main program/BIOS. A two-second idle
+  interrupt trace likewise showed the launcher immediately EXECing the
+  intro, before its C0015 installation sites or handlers ran. The runner
+  currently reports failed DOS open/EXEC operations as INT 21h error returns
+  rather than dispatching INT 24, and has no fault injection: a valid
+  runner-only critical-error test of C0015:055C therefore needs a doskit
+  enhancement with tests. These experiments add no C0015 entries.
 - Not checked: runtime reachability of the remaining launcher gaps and the
   three vector handlers under the events that invoke them; obtain targeted
   runs or identify further verified pointer/table entries next.

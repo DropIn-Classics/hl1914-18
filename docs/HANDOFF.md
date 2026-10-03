@@ -190,6 +190,8 @@ emulation error (2026-10-02).
   code, the largest `CODE` 4,749, `S30EF` 4,686, `S1E4B` 2,812, `S2138`
   1,903, `S2F39` 1,472, `S202F` 1,315, `S2D47` 1,137 and `S1CC6` 1,089.
   `gaps.py` still reports 32 CODE gaps (4,749 bytes); no run reached one.
+- Random input is used up: four further 600-second runs with other seeds
+  raised the executed starts to 36,038 and reached nothing undecoded.
 - Not checked: which of the remaining undecoded bytes are code. The runs
   never ended a game, saved, loaded, used a CODE PULSE entry or played two
   human sides; those are the next sources of coverage, then bounded tables
@@ -408,9 +410,14 @@ emulation error (2026-10-02).
   compared with the file image (relocated words left out), and a start whose
   bytes changed is not taken as the file's code. No start was dropped for
   that in INTRO, EXTRO or `HL.EXE`. The only decoded instruction over
-  changed bytes is at INTRO `CODE:0294` and `HL.EXE` `CODE:0284`, each a
-  CS-relative variable the entry code writes; both were decoded before
-  this session and should be made data.
+  changed bytes was at INTRO `CODE:0294` and `HL.EXE` `CODE:0284`, each a
+  CS-relative variable the entry code writes. A `stop` at the call before
+  it (`CODE:0291` / `CODE:0281`) and a `code` entry at the `PUSH BP` after it
+  (`CODE:0298` / `CODE:0288`) make the word data; `xfer.py` carried the pair
+  to EXTRO. That the call does not return and that a routine begins there
+  are presumptions: no run executed either address. After this the programs
+  rebuild IDENTICAL with 68,739 (`HL.EXE`), 17,172 (INTRO) and 14,818
+  (EXTRO) instructions.
 - Commands and files used for this collection are local: generated sources,
   rebuilds and coverage are under ignored `build/`. Stage-1 `src/INTRO.hints`
   and `src/EXTRO.hints` contain no game bytes.
@@ -462,8 +469,7 @@ emulation error (2026-10-02).
 3. Continue stage 2 for `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE`: everything
    their full idle runs execute is decoded now, so name routines and
    classify what is left from tables and pointers (and from runs with keys:
-   neither program was given input). Make the variables at INTRO
-   `CODE:0294` and `HL.EXE` `CODE:0284` data. Keep the transferred INTRO
+   neither program was given input). Keep the transferred INTRO
    hints only where this game's instruction streams match.
 
 ## bisle file-tool compatibility probe (2026-10-03)

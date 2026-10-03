@@ -759,3 +759,10 @@ code S2138:01E0
 code S2138:05D6
 code S2138:0DCD
 raw S1A39:01CC
+
+; The word at CODE:0284 is a variable the entry code writes (it differs from
+; the file in a run's memory dump), not an instruction. Presumably the call
+; before it at CODE:0281 does not return and the next routine begins with the
+; PUSH BP at CODE:0288; no run executed 0281 or 0288 (not checked further).
+stop CODE:0281
+code CODE:0288

@@ -312,3 +312,9 @@ code S0B72:0712
 code S0B72:0C55
 code S078D:136C
 code S078D:13B3
+; The word at CODE:0294 is a variable the entry code writes (it differs from
+; the file in a run's memory dump), not an instruction. Presumably the call
+; before it at CODE:0291 does not return and the next routine begins with the
+; PUSH BP at CODE:0298; no run executed 0291 or 0298 (not checked further).
+stop CODE:0291
+code CODE:0298

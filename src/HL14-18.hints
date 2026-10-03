@@ -39,6 +39,22 @@ segment STACK 0296 STACK stack size=100
 
 relocorder original
 
+name CODE:000B launcher_entry
+name C016F:0004 trim_dos_memory_block
+name CODE:0042 launch_intro
+name CODE:0069 after_intro
+name CODE:007D launch_game
+name CODE:009A check_game_status
+name CODE:00B9 launch_extro
+name CODE:010C show_error_prompt
+comment C016F:0004 DOS AH=4Ah resizes this process block before child programs run.
+comment CODE:0054 EXEC target is INTRO.EXE at DATA:001F.
+comment CODE:008F EXEC target is HL.EXE at DATA:0039.
+comment CODE:009A AH=4Dh gets the child status; AX is tested against 007Bh.
+comment CODE:00B9 Reached after status 007Bh and successful CHDIR to DATA:0029.
+comment CODE:00D5 EXEC target is EXTRO.EXE at DATA:002F.
+comment CODE:010C Shows an error prompt and waits for a key.
+
 ; The reached C0170:0000 physical alias belongs to the continuation of
 ; C016F:0004; its tail is now decoded in that original CS frame.
 

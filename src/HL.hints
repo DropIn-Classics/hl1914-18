@@ -160,6 +160,14 @@ segment STACK 3E2E STACK stack size=80
 
 relocorder original
 
+name CODE:013A run_main_result_path
+name CODE:0159 exit_with_status
+comment CODE:013A Calls S066A:000D; its AX result is passed into the shutdown path.
+comment CODE:015B DOS AH=4Ch exits with AL from the stack argument.
+comment CODE:0340 Passes the status argument to the exit helper when its checks allow it.
+comment S066A:46F2 If S331F4CA4 bit 20h is set, the routine assigns 007Bh to its local return value.
+comment S063F:0198 Sets S331F4CA4 bit 20h when byte [BX+8] bit 0 is set; record meaning not checked.
+
 ; First instruction of each gap reached by a five-second deterministic run.
 code CODE:0487
 code CODE:0550

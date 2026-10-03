@@ -4,11 +4,16 @@ State of 2026-10-02: the repository was made from doskit's template.
 `HL14-18.EXE` now rebuilds identically; its indirect code is not yet
 fully classified.
 
-The `doskit` submodule is at `9225bf8`. Its `xfer.py` retains a source
+The `doskit` submodule is at `95ba89e`. Its `xfer.py` retains a source
 comment only when the hint directly below it is carried, preventing
 game-specific source comments from leaking into a sibling program's carried
 block. `doskit/tests/selftest.py` and this project's `check.py` passed after
-the update.
+the update. The runner's tested `-criterr AH ERR` option invokes a guest's
+INT 24 handler for a matching INT 21 call; an `AL=3` (Fail) return becomes
+`ERR` in AX with CF set. `-requirements` prints a compact end-of-run report
+of the devices and VGA memory interface used, plus unknown ports and
+unsupported CPU, BIOS and DOS requests; its own `REQ.EXE` test exercises
+each reported category.
 
 ## Start here (next session)
 

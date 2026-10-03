@@ -251,16 +251,19 @@ emulation error (2026-10-02).
   relocations, entry `0000:0010`, and stack `1222:0080`. Its linker marker is
   consistent with TLINK 5.0. The relocation table has 68 site frames, all
   also present among the 71 target frames; `0968`, `0E07` and `0F6C` are
-  target-only. Inferred starts include `S0B1B start=2` and `S0B1F start=5`,
-  but a provisional layout still fails on a far pointer targeting offset
-  zero before a segment's start. No final `src/INTRO.hints` or identical
-  rebuild has been produced yet.
+  target-only. `src/INTRO.hints` now records the full layout and rebuilds
+  IDENTICAL: 16,176 instructions, 1,921 labels, and 47 `raw` instructions.
+  Relocation overhang establishes `S094E start=5`, `S0B1B start=2` and
+  `S0B1F start=3`; far pointers with target offset zero establish several
+  other segment bases. DATA-class treatment of target-only frames `0E07` and
+  `0F6C` remains a working classification.
 - A deterministic two-second runner session loaded INTRO at PSP `0077`,
   completed 12,000,001 instructions over 80 frames without an emulation error,
   and opened `INTRO.ADL`, `BANG.ANI`, `BANG.PAL`, `BANG.TXT`, `CHR14.LIB`, and
-  `BANG.SFX`. Coverage marked 28 gaps reached under the provisional all-code
-  map. CODE and several relocation frames still have unclassified gaps; the
-  provisional map is not a code/data classification.
+  `BANG.SFX`. Coverage marked 28 gaps reached; their first instruction
+  addresses are now `code` hints. CODE and several relocation frames still
+  have unclassified gaps; the two-second run does not settle all code/data
+  roles.
 - `EXTRO/EXTRO.EXE` is a 75,136-byte MZ file with a 5,120-byte header, 1,042
   relocations, entry `0000:0010`, and stack `1110:0080`. Its temporary
   all-code rebuild has one extra relocation, a stack frame at `1112:0080`,
@@ -312,10 +315,10 @@ emulation error (2026-10-02).
    status 007Bh remains unverified.
 2. Classify `HL.EXE` indirect code with `gaps.py`, runner coverage and
    verified pointer/table hints, then begin stage 2 names and records.
-3. Analyse `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE` separately. First
-   inventory relocation site frames as well as target frames, then establish
-   segment boundaries until each rebuild is IDENTICAL. Transfer hints only
-   when this game's own instruction streams demonstrate a match.
+3. Finish `EXTRO/EXTRO.EXE` stage 1: establish its segment boundaries and
+   classification until its rebuild is IDENTICAL. Then analyse its reached
+   gaps using the exact launcher command tail. Transfer INTRO hints only
+   where this game's own instruction streams demonstrate a match.
 
 ## bisle file-tool compatibility probe (2026-10-03)
 

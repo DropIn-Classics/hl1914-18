@@ -266,17 +266,20 @@ emulation error (2026-10-02).
   roles.
 - `EXTRO/EXTRO.EXE` is a 75,136-byte MZ file with a 5,120-byte header, 1,042
   relocations, entry `0000:0010`, and stack `1110:0080`. Its temporary
-  all-code rebuild has one extra relocation, a stack frame at `1112:0080`,
-  and an image 32 bytes too large; frame drift begins at `04AD`. Its segment
-  starts and sizes remain unresolved, so there is no final hints file or
-  identical rebuild.
+  segment map is now in `src/EXTRO.hints` and rebuilds `IDENTICAL`: 14,715
+  instructions, 1,870 labels and, after explicit raw hints, 57 `raw`
+  instructions. Site extents establish `S04AD start=3`, `S0592 start=B` and
+  `S068A start=6`; the rebuilt stack is again `1110:0080` and the relocation
+  sets and order match. Frames `0D22` and `0E5B` remain CODE-class because
+  their roles have not been established.
 - A normal EXTRO runner session exits with code 0 after 2,370 instructions.
-  Provisional coverage marks eight gaps reached. An `xfer.py` comparison of
-  the temporary INTRO and EXTRO maps reported 20,436 of 29,666 / 28,000
-  instructions matched, 58 data addresses and 37 segments mapped, and no
-  hints carried. Because both inputs have unfinished segment maps and no
-  transferred hints, this is only preliminary alignment evidence; determine
-  similarity from the programs' verified instruction streams.
+  With the exact launcher tail, a 30-second run reached 180,000,001
+  instructions and marked its runtime-seeded gaps. Remaining code-class
+  gaps total 5,367 bytes and none ran in that coverage session. A clean
+  `xfer.py` alignment from INTRO mapped 15,395 of 23,576 / 27,996
+  instructions, 141 data addresses and 37 segments; 55 code/raw hints
+  transferred and 20 did not map. This is partial instruction-stream
+  similarity, not whole-program identity.
 - Commands and files used for this collection are local: generated sources,
   rebuilds and coverage are under ignored `build/`; the temporary EXTRO
   hints are outside the repository. No game bytes were added.
@@ -302,6 +305,12 @@ emulation error (2026-10-02).
   run with only its leading `0` or with a different identifier exits early
   (2,509 and 2,721 instructions respectively) without attempting file
   opens. The identity-specific check has not been located in the disassembly.
+- EXTRO reads and tokenizes the child PSP command tail in an indirect path
+  decoded at raw image offsets `1DC5`–`1ED0`. These are image offsets under
+  the current segment map, not yet stable named-segment addresses. The exact
+  tail and a mismatched identifier both reach the argument dispatcher; their
+  execution diverges after its indirect dispatch. The specific comparison
+  and branch have not yet been assigned a verified EXTRO code address.
 - All probe logs and coverage are in ignored `build/extro-probe/`. The DOS
   trace is very large because EXTRO polls DOS during its active loop; avoid
   long `-dos` runs when coverage or targeted breakpoints are sufficient.

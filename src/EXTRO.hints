@@ -1,0 +1,238 @@
+; EXTRO.EXE: outro sequence program
+; The segment layout rebuilds byte-for-byte. Runtime entries below come
+; from a 30-second run with the launcher's exact command tail; other gaps
+; and the roles of target-only frames remain unclassified.
+; Hints for doskit/tools/disasm.py; numbers are hex.
+
+exe EXTRO/EXTRO.EXE
+segment CODE 0000 CODE
+segment S02B1 02B1 CODE prefix=S02B1
+segment S0340 0340 CODE prefix=S0340
+segment S0492 0492 CODE prefix=S0492
+segment S0494 0494 CODE prefix=S0494
+segment S0498 0498 CODE prefix=S0498
+segment S049D 049D CODE prefix=S049D
+segment S04A0 04A0 CODE prefix=S04A0
+segment S04AD 04AD CODE prefix=S04AD start=3
+segment S04B8 04B8 CODE prefix=S04B8
+segment S04B9 04B9 CODE prefix=S04B9
+segment S04BF 04BF CODE prefix=S04BF
+segment S04C3 04C3 CODE prefix=S04C3
+segment S04C5 04C5 CODE prefix=S04C5
+segment S04C7 04C7 CODE prefix=S04C7
+segment S04C8 04C8 CODE prefix=S04C8
+segment S04D1 04D1 CODE prefix=S04D1
+segment S04D9 04D9 CODE prefix=S04D9
+segment S04DB 04DB CODE prefix=S04DB
+segment S04F7 04F7 CODE prefix=S04F7
+segment S0503 0503 CODE prefix=S0503
+segment S0507 0507 CODE prefix=S0507
+segment S0514 0514 CODE prefix=S0514
+segment S051E 051E CODE prefix=S051E
+segment S0522 0522 CODE prefix=S0522
+segment S052F 052F CODE prefix=S052F
+segment S0561 0561 CODE prefix=S0561
+segment S0572 0572 CODE prefix=S0572
+segment S0578 0578 CODE prefix=S0578
+segment S057A 057A CODE prefix=S057A
+segment S0586 0586 CODE prefix=S0586
+segment S058F 058F CODE prefix=S058F
+segment S0592 0592 CODE prefix=S0592 start=B
+segment S05B2 05B2 CODE prefix=S05B2
+segment S05CB 05CB CODE prefix=S05CB
+segment S0601 0601 CODE prefix=S0601
+segment S0640 0640 CODE prefix=S0640
+segment S064E 064E CODE prefix=S064E
+segment S065A 065A CODE prefix=S065A
+segment S0661 0661 CODE prefix=S0661
+segment S0663 0663 CODE prefix=S0663
+segment S0669 0669 CODE prefix=S0669
+segment S066D 066D CODE prefix=S066D
+segment S0671 0671 CODE prefix=S0671
+segment S0675 0675 CODE prefix=S0675
+segment S0678 0678 CODE prefix=S0678
+segment S068A 068A CODE prefix=S068A start=6
+segment S0696 0696 CODE prefix=S0696
+segment S06A8 06A8 CODE prefix=S06A8
+segment S06B4 06B4 CODE prefix=S06B4
+segment S06C0 06C0 CODE prefix=S06C0
+segment S06D2 06D2 CODE prefix=S06D2
+segment S070F 070F CODE prefix=S070F
+segment S0717 0717 CODE prefix=S0717
+segment S071A 071A CODE prefix=S071A
+segment S0754 0754 CODE prefix=S0754
+segment S0756 0756 CODE prefix=S0756
+segment S0759 0759 CODE prefix=S0759
+segment S075C 075C CODE prefix=S075C
+segment S075F 075F CODE prefix=S075F
+segment S076E 076E CODE prefix=S076E
+segment S0774 0774 CODE prefix=S0774
+segment S0780 0780 CODE prefix=S0780
+segment S078D 078D CODE prefix=S078D
+segment S0943 0943 CODE prefix=S0943
+segment S0B56 0B56 CODE prefix=S0B56
+segment S0B72 0B72 CODE prefix=S0B72
+segment S0D22 0D22 CODE prefix=S0D22
+segment S0E5B 0E5B CODE prefix=S0E5B
+segment DATA 0FE4 DATA
+segment STACK 1110 STACK stack size=80
+code CODE:0010
+linker tlink 50 header=original
+relocorder original
+keeptail
+
+; Relocation-site extents establish nonzero starts for these following
+; frames. Runtime code entries below are from the exact-tail coverage run.
+; S0D22 and S0E5B remain CODE-class because their roles are not established.
+
+; TASM encodings which the byte-faithful rebuild needs kept as DB.
+raw CODE:2AF5
+raw S04C3:001C
+raw S04C5:0001
+raw S04C7:0002
+raw S04DB:01BA
+raw S0503:003E
+raw S0592:0054
+raw S0592:0114
+raw S05B2:0017
+raw S05B2:00CB
+raw S05B2:0133
+raw S05CB:0161
+raw S05CB:01B6
+raw S05CB:0212
+raw S0669:0035
+raw S066D:0036
+raw S06D2:0004
+raw S0943:212E
+
+code CODE:2ADB
+code S02B1:087D
+code S0494:0000
+code S0498:0000
+code S04C5:0001
+code S04C7:0000
+code S051E:0000
+code S0561:0000
+code S0586:0000
+code S0661:0000
+code S0663:0000
+code S0675:0000
+code S0696:0000
+code S06A8:0000
+code S06B4:0003
+code S06C0:0008
+code S06D2:0000
+code S0756:0001
+code S078D:12C8
+code S0943:12D9
+code S0943:1565
+code S0B56:0000
+code S0B72:0000
+code S0B72:0685
+code S0B72:0916
+code S0B72:0B43
+code S0B72:0C38
+code CODE:076F
+code CODE:0FEC
+code CODE:1F44
+code S06D2:0001
+code S078D:1300
+code S0943:1187
+code S0943:15C7
+code S0B56:0005
+code S0B72:06B3
+code S0B72:07E7
+code S0B72:0944
+code S0B72:0C3C
+code CODE:1095
+code S078D:1327
+code S0943:15DC
+code S0B72:0701
+code S0B72:0C55
+code S078D:1347
+code S0943:15FB
+code S0B72:0712
+code S078D:136C
+code S0943:163D
+code S078D:13B3
+code S0943:1671
+code S0943:168A
+code S0943:16A6
+code S0943:172B
+
+; ==== carried over from INTRO.hints by tools/xfer.py; check, then keep or edit
+code CODE:0482
+code CODE:052B
+code CODE:0650
+code CODE:0FB8
+code CODE:1DAB
+code CODE:2795
+code S02B1:0092
+code S02B1:068D
+code S02B1:06CD
+code S0943:116D
+code S0943:192D
+code S0943:1EE9
+; (not mapped) code S0933:0000
+; (not mapped) code S0939:0002
+; (not mapped) code S0966:0000
+; (not mapped) code S0968:0001
+; (not mapped) code S097C:0000
+code S0514:009E
+; (not mapped) code S0A27:0000
+; (not mapped) code S0B0F:0000
+code S0671:003E
+; (not mapped) code S0B26:0000
+code S068A:00BC
+; (not mapped) code S0B56:0001
+; (not mapped) code S0B62:0007
+; (not mapped) code S0B6E:000C
+code S06C0:011C
+; (not mapped) code S0C04:0002
+; (not mapped) raw S0965:000E
+; (not mapped) raw S0966:001A
+raw S04DB:004E
+; (not mapped) raw S097C:01BC
+raw S04F7:0030
+raw S0592:0045
+raw S0592:00EB
+raw S05B2:0041
+raw S05CB:0141
+raw S05CB:014C
+raw S05CB:01A4
+raw S05CB:01FA
+; (not mapped) raw S0B17:0039
+; (not mapped) raw S0B1B:003A
+; (not mapped) raw S0B44:011C
+raw S06A8:0085
+raw S071A:0143
+raw S071A:0152
+raw S071A:0164
+raw S071A:0182
+raw S071A:0194
+raw S071A:01B1
+raw S071A:01C3
+raw S071A:01E7
+raw S071A:01F9
+raw S071A:0209
+raw S071A:021B
+raw S071A:023C
+raw S071A:0259
+raw S071A:02DB
+raw S071A:02EC
+raw S071A:032E
+raw S071A:033F
+raw S071A:0360
+raw S071A:0381
+raw S071A:0398
+raw S0759:0028
+; (not mapped) raw S0C0A:002B
+raw S0774:003C
+raw S0774:004A
+raw S0774:006E
+raw S0B56:00A7
+raw S0B56:0165
+raw S0B56:0182
+raw S06C0:001C
+raw S0514:009E
+; (not mapped) raw S0B0F:0000

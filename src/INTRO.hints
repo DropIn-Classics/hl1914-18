@@ -77,15 +77,18 @@ segment S0E07 0E07 DATA size=1650 prefix=S0E07
 segment S0F6C 0F6C DATA size=18A0 prefix=S0F6C
 segment DATA 10F6 DATA size=12C0
 segment STACK 1222 STACK stack size=80
-relocorder original
 
 ; TLink relocation-site overhang fixes the starts after S0941 and S0B17.
 ; Relocated far pointers with target offset zero establish these segment bases.
 ; The other code-class segment maps still have gaps whose code/data roles are
 ; not fully classified by the current two-second coverage run.
-
 ; Verified instruction starts from the deterministic two-second runner
 ; coverage, recorded only at the first address of each reached gap.
+; The assembler choices at the raw hints below are required for an identical
+; rebuild.
+
+relocorder original
+
 code CODE:0482
 code CODE:052B
 code CODE:0650
@@ -115,8 +118,6 @@ code S0B6E:000C
 code S0B80:0000
 code S0C04:0002
 
-; The assembler choices at these addresses are emitted as DB for an identical
-; rebuild (build.py output).
 raw S0965:000E
 raw S0966:001A
 raw S097C:0050

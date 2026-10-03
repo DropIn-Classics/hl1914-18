@@ -126,6 +126,13 @@ emulation error (2026-10-02).
   before joining at `CODE:03F6`. Existing callers target the adjacent entries
   `03DC`, `03E3` and `03EB`; no incoming call or pointer to the four gap
   starts was found. Keep these as unverified candidates, not code hints.
+- Further word-xref checks did not establish targets at `CODE:04A8`, `050C`,
+  `057F` or `05E2`. `S2BAD:008F` is the `A8 04` opcode/immediate of `TEST
+  AL,4`; `S10E1:13B1` contains the displacement/immediate bytes for
+  `MOV BYTE PTR ES:[BX+0CH],5`. The other `050C` and `057F` occurrences are
+  within routine bodies, not a pointer table. `S2D47:072C`, one source for
+  `05E2`, lies in a DB-encoded stream and remains ambiguous. No hints were
+  added from these numeric matches.
 - A further static pass found 12 bounded indexed indirect-jump tables in
   relocation-frame segments (`S02E6`, `S0CB6`, `S10E1`, `S1CC6`, `S1E4B`,
   `S2138` and `S2D47`). Their bounds and `JMP WORD PTR CS:[BX+table]` forms

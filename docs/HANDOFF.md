@@ -166,6 +166,19 @@ emulation error (2026-10-02).
   tails in the preceding frames, not new indirect entries. No DOS vector
   installation occurs before this first EXEC: the injected error uses the
   runner's default vector, so this is not evidence that `C0015:055C` ran.
+- The `-criterr 4B 2` experiment above predates doskit `f4dc33c`; that
+  version accepts only critical error codes 13h..1Fh. Repeating the bounded
+  run with `-criterr 4B 15`, without stopping at a breakpoint, exits normally
+  at `t=0.200112`: `CODE:010C` logs once at `t=0.000010` with AX=`007E`,
+  while `CODE:00E9` logs zero times. Gap classification against its fresh
+  coverage still reports the two CODE gaps (`0000-000B`, `00E9-00F0`) and
+  three C0015 gaps (`0005-04F4`, `056C-06D2`, `0783-08F0`) as unreached.
+  This valid critical-error injection adds no new launcher entry evidence.
+- The same valid `ERR=15h` injection on the observed CHDIR call
+  (`-criterr 3B 15`, call at CODE:0035) exits normally at `t=0.200112`.
+  Breakpoints and logs at the three C0015 vector-installation sites and all
+  three handlers each report zero hits; coverage again marks all three
+  C0015 gaps unreached. This earlier DOS error path also gives no new entry.
 - A six-second normal run with Escape at three seconds loads the intro at
   `t=0.000007`; it exits at `t=3.111517` and the launcher EXECs the main
   game at `t=3.111522`. The launcher does not reach the child-status query
@@ -192,6 +205,31 @@ emulation error (2026-10-02).
 - Not checked: runtime reachability of the remaining launcher gaps and the
   three vector handlers under the events that invoke them; obtain targeted
   runs or identify further verified pointer/table entries next.
+
+### Launcher size and dispatch map (2026-10-03)
+
+- `HL14-18.EXE` is 11,872 bytes (10,848-byte MZ image). Its initial `CODE`
+  segment spans only 0155h bytes and decodes to 162 instructions. The
+  executable has 25 code relocation frames in total; the identical rebuild
+  decodes 1,663 instructions, with DATA spanning 0E80h bytes and STACK 0100h.
+  The size is distributed across linked support modules and data, not just
+  the dispatcher.
+- The dispatcher at CODE:000B calls C016F:0004, which uses DOS AH=4Ah to
+  resize the launcher's memory block, then stores its stack and PSP. It
+  changes to the INTRO directory and executes INTRO.EXE at CODE:0054. After
+  return it changes to `..` and executes HL.EXE at CODE:008F. It checks the
+  child's DOS return status with AH=4Dh; only AX=007Bh proceeds to the
+  EXTRO directory (if its CHDIR succeeds) and executes EXTRO.EXE at
+  CODE:00D5. Other statuses go to the common exit. Runs have observed the
+  first two EXECs; the 007Bh branch and third EXEC have not been reached.
+- The DOS failure routine at CODE:010C calls display helpers and waits for a
+  key. Its two error messages and the three executable names are stored in
+  DATA. Instruction evidence shows BIOS video calls in C0108/C012C, INT 33h
+  mouse calls in C015D, and game-port reads at 201h in C013F. C0015 contains
+  timer setup and interrupt handlers, but most of its 08F0h span remains
+  unclassified; low-level I/O or helper code in other modules is not yet
+  named. Keep the remaining gaps unclassified until an entry or data role is
+  established.
 
 ## Next
 

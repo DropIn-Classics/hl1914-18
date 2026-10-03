@@ -278,6 +278,31 @@ emulation error (2026-10-02).
   rebuilds and coverage are under ignored `build/`; the temporary EXTRO
   hints are outside the repository. No game bytes were added.
 
+### EXTRO command-tail launch probe (2026-10-03)
+
+- The launcher's EXTRO EXEC uses `BX=0008`, `DX=002F` and a parameter block
+  whose command-tail pointer is `CS:0000`. The launcher image encodes a
+  nine-character DOS command tail there. A direct EXTRO run with that same
+  tail took the long path: it opened/read
+  `EXTRO1.ADL`, `EISENBAH.LBM`, `EISEN0.PAL`, `EISENBAH.PAL`, `EISEN2.PAL` and
+  `warend.txt`, then remained active until `-until 40` (240,000,001 total
+  runner instructions). Direct runs without a tail exited after 2,370
+  instructions; `/?` also exited early. Passing the matching tail as one
+  argument or as two arguments produced identical open timing and coverage.
+- A launcher run that skipped HL.EXE but retained the launcher-created
+  EXTRO EXEC context also ran through the 30-second limit and opened the same
+  assets. Thus HL execution and its persistent file state are not required
+  for this behavior. Runs stopped at the time limit, so EXTRO's natural end
+  was not observed. The matching command tail explains the immediate direct
+  exit; which characters EXTRO checks has not yet been isolated.
+- The exact launcher tail is required for the observed long path: a direct
+  run with only its leading `0` or with a different identifier exits early
+  (2,509 and 2,721 instructions respectively) without attempting file
+  opens. The identity-specific check has not been located in the disassembly.
+- All probe logs and coverage are in ignored `build/extro-probe/`. The DOS
+  trace is very large because EXTRO polls DOS during its active loop; avoid
+  long `-dos` runs when coverage or targeted breakpoints are sufficient.
+
 ## Next
 
 1. For `HL14-18.EXE`, keep the remaining C0015 gaps and vector handlers

@@ -774,3 +774,53 @@ raw S1A39:01CC
 ; PUSH BP at CODE:0288; no run executed 0281 or 0288 (not checked further).
 stop CODE:0281
 code CODE:0288
+
+; First instruction starts observed outside decoded code in 300-second runs on
+; all 72 maps (chosen by their codes), player two computer and human, with
+; pseudo-random mouse and keys, and in a run that quits a battle (Esc, then
+; the key at scancode 2C) into the newspaper sequence.
+code CODE:20CD
+code CODE:213D
+code CODE:250D
+code CODE:2ACE
+code S0B15:0002
+code S1650:0001
+code S1A39:0418
+code S1A39:044F
+code S1C74:0000
+code S1CC6:0259
+code S1CC6:05B9
+code S1E4B:0A76
+code S1E4B:0AA6
+code S1E4B:0BC3
+code S1E4B:0D5E
+code S1E4B:1734
+code S1E4B:17E6
+code S1E4B:1827
+code S202F:08A6
+code S2138:0BCB
+code S2982:0000
+code S298E:0001
+code S2D47:06E4
+code S2F39:0001
+raw S2138:0BD1
+raw S2138:0BF2
+raw S2138:0C12
+raw S2138:0C2F
+raw S2F39:0003
+code S1CC6:02C7
+code S1E4B:0AB0
+code S1E4B:0BCD
+code S2D47:0732
+code S2F39:0005
+code S1E4B:0AD6
+code S1E4B:0BE5
+code S2D47:0743
+code S1E4B:0B08
+code S1E4B:0C17
+code S2D47:07BD
+code S1E4B:0C21
+code S1E4B:0C9F
+code S1E4B:0CBB
+code S1E4B:0CEC
+code S1E4B:0D1D

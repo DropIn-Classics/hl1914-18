@@ -226,10 +226,38 @@ emulation error (2026-10-02).
   instructions, 6,586 labels and 198 instructions as DB.
 - Random input is used up: four further 600-second runs with other seeds
   raised the executed starts to 36,038 and reached nothing undecoded.
+- How the game is driven, found by runs with screenshots (2026-10-03, macOS;
+  scratch scripts in ignored `build/n2/`):
+  - Main menu, CODE row (150,73): a click, five letter keys and Enter set
+    the map; START (150,48) then goes to that map without the country
+    choice. The 72 codes are the first five bytes of each ten-byte record of
+    the unpacked `CODES.DAT`, a letter being the byte minus 11h plus `A`
+    (the first record gives the code the menu shows at the start).
+  - GAME SETUP: its third row (150,97) switches player two between COMPUTER
+    and HUMAN (seen on the screenshot); EXIT (290,185) returns.
+  - On the map F1 shows `F1 : MODE CHANGE` and a second F1 confirms it (Enter
+    or Space cancels): both sides get `NEW MODE`, the computer shows
+    `THINKING TIME` and moves its units. A single F1 changes nothing, which
+    is why the earlier random runs stayed in round 0.
+  - F2 music, F3 effects, F4 `HQ FREQUENCY`, F5 and F6 joystick 1 and 2, F9
+    the fight setting; F7, F8 and F10 showed no message on the map.
+  - Esc asks `QUIT PROGRAM ? (Y)`; the key that confirms is the one at
+    scancode 2Ch (the runner's `z`: Y on a German keyboard), not `y`. The
+    battle then ends in the newspaper sequence, which scrolls by itself and
+    which Enter does not skip.
+- 144 further runs of 300 s, one for each code with player two computer and
+  one with player two human, pseudo-random mouse and keys (without the F1
+  pair), and the quit run executed 43,859 distinct starts with the earlier
+  ones' 36,038. The 790 outside decoded code are covered by 40 new `code`
+  entries (five more `raw`); none lay on bytes a run changed (two `-ram`
+  dumps compared). `HL.EXE` rebuilds IDENTICAL with 69,628 instructions,
+  6,674 labels and 203 instructions as DB; 62,129 of the 249,888 bytes
+  before DATA are not decoded.
 - Not checked: which of the remaining undecoded bytes are code. The runs
-  never ended a game, saved, loaded, used a CODE PULSE entry or played two
-  human sides; those are the next sources of coverage, then bounded tables
-  and pointers in the frames named above.
+  never ended a game by a victory, saved or loaded; those are the next
+  sources of coverage, then bounded tables and pointers in the frames named
+  above. Which key saves is not known (the texts say `ONLY IN MAP MODE`,
+  `CHOOSE POSITION 0-9`, `TO SAVE PRESS SPACE BAR`).
 
 ## `HL14-18.EXE` stage 1
 
@@ -499,9 +527,9 @@ emulation error (2026-10-02).
    repeat ordinary launcher runs for these gaps. The dispatcher and
    conditional EXTRO path are statically mapped; the likely win trigger for
    status 007Bh remains unverified.
-2. `HL.EXE`: 68,740 instructions decode; about 23,000 bytes in frames with
-   code remain. Get coverage of what no run did yet (a finished game, save
-   and load, CODE PULSE, two human players), compare it with the decoded
+2. `HL.EXE`: 69,628 instructions decode; about 21,000 bytes in frames with
+   code remain. Get coverage of what no run did yet (a won or lost game,
+   save and load, whole rounds with the F1 pair), compare it with the decoded
    starts of all segments as described above, then begin stage 2 names and
    records.
 3. Continue stage 2 for `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE`: everything

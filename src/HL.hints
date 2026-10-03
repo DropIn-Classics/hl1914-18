@@ -830,3 +830,34 @@ raw S2F11:016D
 ; First instruction starts observed (in the runs named above) that the removal
 ; of the entries below the segment starts left undecoded.
 code S066A:0006
+
+; The battle: CODE:013A calls it, the map is drawn and the keys are compared
+; in it (read from the code; its S and E branches were followed for the
+; names below).
+name S066A:000D game_loop
+; Saving: in a run, a click (the F1 prompt), D and a digit wrote the file
+; 03.DAT into the state folder. The D key (entry 1Ah of the key table) is
+; compared at S066A:3FA7, reached while the other side's state byte is 5 and
+; the key is not F1; the routine's result is the number of the text shown.
+name S1273:0005 save_game
+; Loading: called at the start of game_loop when bit 200h of S331F:4CA4 is
+; set; a run that chose MISC, LOAD and the digit continued the saved battle.
+; That this routine reads the file is read from its code (it calls
+; file_open), not shown by a breakpoint.
+name S1273:0399 load_game
+
+; First instruction starts observed outside decoded code in runs of 1800 s
+; with a mode change every few seconds (rounds 4 and 5 reached).
+code S1CC6:02F7
+code S1CC6:054F
+code S1CC6:0780
+code S1E4B:0DD4
+code S1E4B:0E03
+code S1E4B:0EDC
+code S1E4B:0F22
+code S1E4B:0F9C
+code S1E4B:0E0D
+code S1E4B:0F2B
+code S1E4B:0E35
+code S1E4B:0F5C
+code S1E4B:0E67

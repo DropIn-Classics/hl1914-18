@@ -305,11 +305,29 @@ emulation error (2026-10-02).
   `lib_read`, `file_load`, `mem_alloc` (one module each; their INT 21h calls
   were seen in a `-dos` trace up to the map, the arguments are read from
   the code) and `show_message`.
-- Not checked: which of the remaining undecoded bytes are code. The runs
-  never ended a game by a victory, saved or loaded; those are the next
-  sources of coverage, then bounded tables and pointers in the frames named
-  above. Which key saves is not known (the texts say `ONLY IN MAP MODE`,
-  `CHOOSE POSITION 0-9`, `TO SAVE PRESS SPACE BAR`).
+- Saving and loading (2026-10-04). The save key is D (entry 1Ah of the key
+  table), compared at `S066A:3FA7` in `game_loop` (`S066A:000D`); that
+  branch is reached only while the other side's state byte is 5 and the key
+  is not F1, which is the state a left click on the map brings up (the
+  `F1 : MODE CHANGE` line). In a run a click, D and `3` showed `SAVE STATE
+  OF PLAY`, `CHOOSE POSITION 0-9`, and wrote `03.DAT` (the layer's root);
+  a second run on that state folder with MISC, LOAD and `3` continued the
+  battle with the same line shown. Both runs executed nothing outside
+  decoded code. Named: `game_loop`, `save_game` (`S1273:0005`), `load_game`
+  (`S1273:0399`, called at the start of `game_loop` when bit 200h of
+  `S331F:4CA4` is set; that it reads the file is read from the code). The
+  save file's layout is not looked at yet.
+- 30 runs of 1800 s with a mode change every few seconds reached rounds 4
+  and 5 only (the computer's thinking takes most of the time) and the
+  overview map; their 222 starts outside decoded code are entries now.
+  `HL.EXE` rebuilds IDENTICAL with 71,250 instructions, 6,773 labels and
+  196 instructions as DB; 59,448 distinct starts ran in the runs of
+  `build/n2/`. dosrun takes at most 4,096 key and 4,096 mouse events
+  (`MAXEV`), which bounds how long a scripted run can be busy.
+- Not checked: which of the remaining undecoded bytes are code. No run
+  ended a game by a victory or a defeat; that is the next source of
+  coverage (20 runs of three emulated hours were started for it), then
+  bounded tables and pointers in the frames named above.
 
 ## `HL14-18.EXE` stage 1
 
@@ -598,9 +616,9 @@ emulation error (2026-10-02).
    repeat ordinary launcher runs for these gaps. The dispatcher and
    conditional EXTRO path are statically mapped; the likely win trigger for
    status 007Bh remains unverified.
-2. `HL.EXE`: 70,990 instructions decode; about 19,000 bytes in frames with
-   code remain. Get coverage of what no run did yet (a won or lost game,
-   save and load), compare it with the decoded
+2. `HL.EXE`: 71,250 instructions decode; about 19,000 bytes in frames with
+   code remain. Get coverage of what no run did yet (a won or lost game),
+   compare it with the decoded
    starts of all segments as described above, then begin stage 2 names and
    records.
 3. Continue stage 2 for `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE`: everything

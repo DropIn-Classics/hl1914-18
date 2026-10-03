@@ -131,6 +131,35 @@ emulation error (2026-10-02).
   and decodes the target. `gaps.py` now reports 32 gaps / 4,828 bytes. The
   indirect calls were not reached in a runner session; the first slot's
   runtime target may differ from its initialized value.
+- The gap xref at `S29C1:010E` resolves to a near pointer to `CODE:0379`.
+  `words S29C1:010E 1 CODE` rebuilds IDENTICAL and decodes 21 bytes through
+  `CODE:038E`, where it rejoins known code. `gaps.py` now reports 32 gaps /
+  4,807 bytes. This pointer path was not observed in a runner session.
+- `S066A:0D15` writes `07AB` to `[BX+6A]` and `CODE` to the adjacent
+  `[BX+6C]`; nearby fields use the same segment:offset layout. The temporary
+  `ptr S066A:0D15 CODE` hint rebuilt IDENTICAL and decoded 24 bytes from
+  `CODE:07AB`, moving that gap start to `07C3`. `CODE:2A70` also writes
+  `2E2E` and `CODE` to the offset and segment halves of the far-call pointer
+  at `DATA:0FD4/0FD6`. With `code CODE:2E2E`, the combined hints rebuild
+  IDENTICAL (57,458 instructions, 5,407 labels, 83 raw encodings) and decode
+  through `CODE:2E49`; the next gap is `2E4A-2E60` (22 bytes). `gaps.py`
+  reports 32 gaps / 4,755 bytes. The instruction at `CODE:2E48` jumps to
+  `2E65`, beyond CODE's declared extent `2E60`; `raw CODE:2E48` preserves the
+  instruction without classifying that target. These dynamically selected
+  paths have not been reached in a runner session.
+- Temporary entries at `CODE:03D9`, `03E0`, `03E8` and `03F0` rebuild
+  IDENTICAL and reduce the gap report to 28 / 4,792 bytes. Each begins
+  `POP CX; PUSH CS; PUSH CX`; its following body selects CX=0, 1, 2 or 3
+  before joining at `CODE:03F6`. Existing callers target the adjacent entries
+  `03DC`, `03E3` and `03EB`; no incoming call or pointer to the four gap
+  starts was found. Keep these as unverified candidates, not code hints.
+- Further word-xref checks did not establish targets at `CODE:04A8`, `050C`,
+  `057F` or `05E2`. `S2BAD:008F` is the `A8 04` opcode/immediate of `TEST
+  AL,4`; `S10E1:13B1` contains the displacement/immediate bytes for
+  `MOV BYTE PTR ES:[BX+0CH],5`. The other `050C` and `057F` occurrences are
+  within routine bodies, not a pointer table. `S2D47:072C`, one source for
+  `05E2`, lies in a DB-encoded stream and remains ambiguous. No hints were
+  added from these numeric matches.
 - A further static pass found 12 bounded indexed indirect-jump tables in
   relocation-frame segments (`S02E6`, `S0CB6`, `S10E1`, `S1CC6`, `S1E4B`,
   `S2138` and `S2D47`). Their bounds and `JMP WORD PTR CS:[BX+table]` forms
@@ -190,6 +219,11 @@ emulation error (2026-10-02).
   code, the largest `CODE` 4,749, `S30EF` 4,686, `S1E4B` 2,812, `S2138`
   1,903, `S2F39` 1,472, `S202F` 1,315, `S2D47` 1,137 and `S1CC6` 1,089.
   `gaps.py` still reports 32 CODE gaps (4,749 bytes); no run reached one.
+- The work above was merged with four commits made on another machine in
+  the meantime (the `S29C1:010E` pointer, the `S066A:0D15` and `CODE:2E2E`
+  entries; their paragraphs are in this section with the numbers of their
+  own line of work). The merged hints rebuild IDENTICAL with 68,762
+  instructions, 6,586 labels and 198 instructions as DB.
 - Random input is used up: four further 600-second runs with other seeds
   raised the executed starts to 36,038 and reached nothing undecoded.
 - Not checked: which of the remaining undecoded bytes are code. The runs

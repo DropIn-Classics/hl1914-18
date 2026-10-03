@@ -230,14 +230,28 @@ emulation error (2026-10-02).
   unclassified; low-level I/O or helper code in other modules is not yet
   named. Keep the remaining gaps unclassified until an entry or data role is
   established.
+- Static tracing of the outro condition reaches into the main game's exit
+  path. HL CODE:013A calls the existing `code S066A:000D` entry and passes its
+  returned AX through CODE:L034A and L02D9. When L02D9's `[BP+6]` and SI
+  checks allow termination, it passes `[BP+4]` to L0159, which exits through
+  DOS AH=4Ch with that byte in AL. In the decoded S066A routine, a test of
+  `S331F4CA4 & 20h` conditionally stores 007Bh in its local return value;
+  S063F:0198 sets that flag bit when a referenced record byte at offset 8
+  has bit 0 set. The existing 30-second no-input `HL-30.cover` does not
+  reach S063F:0198, S066A:46F2, or the S066A return sequence. The user
+  suspects this flag/status is set on a game win, which fits the launcher's
+  EXTRO condition; that meaning and an actual exit with status 007Bh are
+  not runtime-verified. Do not keep probing ordinary launcher starts for
+  this branch; treat the static return path as understood and the win
+  trigger as unverified.
 
 ## Next
 
-1. Continue the `HL14-18.EXE` call graph by identifying callers of the
-   C0015 vector-installation routines and verified pointer/table entries.
-   Ordinary launcher input and first-EXEC error injection do not reach
-   those installations; repeat targeted vector runs only with an evidenced
-   path to them. The outro path also needs a verified main-game exit.
+1. For `HL14-18.EXE`, keep the remaining C0015 gaps and vector handlers
+   unclassified until an incoming call or table target is evidenced. Do not
+   repeat ordinary launcher runs for these gaps. The dispatcher and
+   conditional EXTRO path are statically mapped; the likely win trigger for
+   status 007Bh remains unverified.
 2. Classify `HL.EXE` indirect code with `gaps.py`, runner coverage and
    verified pointer/table hints, then begin stage 2 names and records.
 3. Analyse `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE` separately; transfer

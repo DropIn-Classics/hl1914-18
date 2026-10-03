@@ -169,6 +169,31 @@ comment S066A:46F2 If S331F4CA4 bit 20h is set, the routine assigns 007Bh to its
 comment S063F:0198 Sets S331F4CA4 bit 20h when byte [BX+8] bit 0 is set; record meaning not checked.
 
 ; First instruction of each gap reached by a five-second deterministic run.
+; Computed parser dispatch at CODE:0A15 indexes this 24-word near-target table.
+words CODE:0DC8 18 CODE
+; Bounded indexed jump at S0CB6:0383, with seven offsets into S0CB6.
+words S0CB6:0437 7 S0CB6
+; CODE:1B32 sets ES=DATA and jumps through the near pointer at DATA:12CA.
+words DATA:12CA 1 CODE
+; Bounded 17-entry dispatch at S02E6:0ED2 through S02E6:206C.
+words S02E6:206C 11 S02E6
+; Bounded five-entry dispatch at S10E1:0B4F through S10E1:0F78.
+words S10E1:0F78 5 S10E1
+; Bounded five-entry dispatch at S10E1:1564 through S10E1:17CF.
+words S10E1:17CF 5 S10E1
+; Bounded nine-entry dispatch at S1CC6:007B through S1CC6:0A23.
+words S1CC6:0A23 9 S1CC6
+; Bounded seven-entry dispatch at S1E4B:019C through S1E4B:0381.
+words S1E4B:0381 7 S1E4B
+; Four cases select near offsets at S2D47:0CBC through an indexed jump.
+words S2D47:0CBC 4 S2D47
+; Seven cases select near offsets at S2D47:0CA6 through an indexed jump.
+words S2D47:0CA6 7 S2D47
+; Five match cases at S2D47:06A2 dispatch through S2D47:0CEC.
+words S2D47:0CEC 5 S2D47
+; Seven cases select near offsets at S2D47:0CC4 through an indexed jump.
+words S2D47:0CC4 7 S2D47
+
 code CODE:0487
 code CODE:0550
 code CODE:0675
@@ -180,6 +205,63 @@ code CODE:07F0
 code CODE:10A6
 ; Reached at CODE:114F in a ten-second no-input runner coverage run.
 code CODE:114F
+code S0CB6:038A
+code S0CB6:03A7
+code S0CB6:03C4
+code S0CB6:03D1
+code S0CB6:03DE
+code S0CB6:0414
+code S0CB6:0422
+code S02E6:0ED9
+code S02E6:1071
+code S02E6:11B1
+code S02E6:17C3
+code S02E6:189E
+code S02E6:1986
+code S02E6:19AA
+code S10E1:0B56
+code S10E1:0C6A
+code S10E1:0D5B
+code S10E1:0DDC
+code S10E1:0E65
+code S10E1:156B
+code S10E1:15B5
+code S10E1:165F
+code S10E1:172C
+code S1CC6:0082
+code S1CC6:00FE
+code S1CC6:0198
+code S1CC6:0228
+code S1CC6:0443
+code S1CC6:0520
+code S1CC6:07FC
+code S1CC6:09A2
+code S1CC6:09C9
+code S1E4B:01A3
+code S1E4B:01E2
+code S1E4B:0222
+code S1E4B:0265
+code S1E4B:029D
+code S1E4B:02D4
+code S1E4B:030B
+code S2D47:0A2F
+code S2D47:0AC2
+code S2D47:0B19
+code S2D47:0B74
+code S2D47:0C48
+code S2D47:0C67
+code S2D47:0C69
+code S2D47:0C6B
+code S2D47:0C6D
+code S2D47:0C86
+code S2D47:0C8E
+code S2D47:06B6
+code S2D47:07F9
+code S2D47:0818
+code S2D47:093C
+code S2D47:0947
+code S2D47:0975
+code S2D47:09D5
 
 ; First instruction starts observed in the 30-second no-input runner coverage run.
 code S066A:000D

@@ -76,17 +76,50 @@ emulation error (2026-10-02).
 - With those entries recorded, a fresh ten-second no-input coverage run has
   34 CODE gaps (5,810 of 11,872 bytes) and reaches none of them. The former
   `114F-126C` gap is reduced to `123C-126C` (237 bytes decoded from the new
-  entry). The apparent references to `CODE:123C`, `CODE:205C` and
-  `CODE:2ACE` are respectively an unrelocated word, a DOS AH=09 text string
-  and an argument, so they are not code-entry evidence.
+  entry). `CODE:205C` is a DOS AH=09 text string and `CODE:2ACE` is an
+  argument, not code-entry evidence. The word at `DATA:12CA` was initially
+  dismissed as an unrelocated value; a later cross-reference below shows it
+  is an indirect near-code target.
 - Four 20-second timed menu-key sequences (Escape/Enter, Enter/Space,
   Down/Enter and function keys) likewise reached none of those gaps. They
   changed the run state and hashes, but each coverage file still reports the
   same 34 gaps and 5,810 bytes; further menu-key variants are not a useful
   source of new code entries.
+- A 120-second run with staged Enter, Space, direction and Escape inputs
+  reached the map screen (confirmed by screenshots), but its coverage still
+  entered none of the then-unclassified CODE gaps. Static tracing did find a
+  computed parser dispatch at `CODE:0A15`: after limiting the index to
+  `0..17h`, it jumps through 24 near offsets at `CODE:0DC8`. All 24 table
+  values point into the parser's otherwise unclassified handler region. The
+  `words CODE:0DC8 18 CODE` hint seeds those entries; the identical rebuild
+  now decodes 53,795 instructions and 5,072 labels (82 `raw` instructions).
+  At that stage `gaps.py` reported 31 gaps and 4,877 bytes, down from 34 and
+  5,810.
+- `CODE:1B32` loads ES from `CODE:0284` (the DATA segment) and jumps indirectly
+  through `ES:12CA`; the original initialized word at `DATA:12CA` is `123C`,
+  which lies in the remaining CODE gap. `words DATA:12CA 1 CODE` records this
+  target. The build remains IDENTICAL and `gaps.py` now reports 32 gaps / 4,844
+  bytes: 33 bytes at `CODE:123C` decode before the next unknown area. This
+  instruction was not reached in the 120-second coverage run, so its dynamic
+  value and reachability remain unverified.
+- A further static pass found 12 bounded indexed indirect-jump tables in
+  relocation-frame segments (`S02E6`, `S0CB6`, `S10E1`, `S1CC6`, `S1E4B`,
+  `S2138` and `S2D47`). Their bounds and `JMP WORD PTR CS:[BX+table]` forms
+  identify 92 near-code targets. Ten tables are now recorded with their
+  targets: `S0CB6:0437`, `S02E6:206C`, `S10E1:0F78`, `S10E1:17CF`,
+  `S1CC6:0A23`, `S1E4B:0381`, and `S2D47:0CBC`, `0CA6`, `0CEC`, `0CC4`.
+  Each was added with an identical rebuild. The current build decodes 57,418
+  instructions and 5,400 labels (82 `raw` instructions); `gaps.py` reports
+  32 CODE gaps / 4,844 bytes. Two tables remain from this set. The six-entry
+  table at `S1CC6:1845` changed the image size by 16 bytes and was removed.
+  The 13-entry `S2138:2CDD` table also changed the image size by 16 bytes,
+  even with `num` hints preserving its four direct `DS:0006` operands (below
+  DATA's `start=8`); it was removed pending segment-boundary analysis. The
+  separate dispatch at `S1A39:02B3` needs investigation: seeding its target
+  `S1A39:01CE` produced an assembler phase error.
 - Not checked: the classification and reachability of the remaining indirect
-  CODE gaps. The non-entry relocation frames are conservatively not treated
-  as code yet; use runner coverage and verified pointer/table hints next.
+  CODE gaps. Other regions of relocation-frame DATA remain unclassified;
+  continue with runner coverage and verified pointer/table hints.
 
 ## `HL14-18.EXE` stage 1
 

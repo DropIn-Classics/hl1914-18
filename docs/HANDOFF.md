@@ -139,15 +139,45 @@ emulation error (2026-10-02).
   installed its C0015 INT 24 vector in an observed run, so this option has not
   yet produced launcher-handler coverage. These experiments add no C0015
   entries.
+- Segment-boundary review (2026-10-03) found 15 tracked routines whose
+  continuations had been left in the following relocation frame as data,
+  including split instructions and backward branches. Explicit `size=` and
+  `start=` now keep those tails with their original CS frame. The former
+  `code C0170:0000` alias is covered by the continuation of `C016F:0004`
+  instead. None of the extended regions contains a relocation site.
+  CS-relative variables at `C00B2:0059-005A` and `C012C:0064-0069` stay
+  with their routines as well; this avoids four otherwise required `raw`
+  encodings caused by labels outside the segment.
+  The final build reports `IDENTICAL` with 1,663 instructions, 236 labels
+  and 13 `raw` instructions; no additional `raw` hints are needed.
+  Fresh gap classification against both the EXEC-error coverage and the
+  six-second normal coverage reports 33 gaps, 3,249 bytes, and zero reached
+  gaps. The retained CS-relative variables account for two of these gaps;
+  a gap is not by itself evidence of code.
+- A targeted EXEC-error run (`run.py -until 1 -key 0.2 enter -criterr 4B 2
+  -dos -log CODE:010C -cover build/HL14-18-collector-criterr.cover
+  HL14-18.EXE`) reaches `CODE:010C` at `t=0.000010`, with AX=`007E` and
+  CF set. Enter dismisses the prompt and the launcher exits with code zero
+  at `t=0.200112`. The four formerly reported reached gaps are routine
+  tails in the preceding frames, not new indirect entries. No DOS vector
+  installation occurs before this first EXEC: the injected error uses the
+  runner's default vector, so this is not evidence that `C0015:055C` ran.
+- A six-second normal run with Escape at three seconds loads the intro at
+  `t=0.000007`; it exits at `t=3.111517` and the launcher EXECs the main
+  game at `t=3.111522`. The launcher does not reach the child-status query
+  at `CODE:009A` before that run ends. Thus the later outro branch has not
+  been verified by this run.
 - Not checked: runtime reachability of the remaining launcher gaps and the
   three vector handlers under the events that invoke them; obtain targeted
   runs or identify further verified pointer/table entries next.
 
 ## Next
 
-1. Finish the `HL14-18.EXE` call graph: use targeted keyboard, timer and
-   critical-error runs for the three verified `C0015` vector entries, then
-   classify any remaining reached gaps with verified pointer/table hints.
+1. Continue the `HL14-18.EXE` call graph by identifying callers of the
+   C0015 vector-installation routines and verified pointer/table entries.
+   Ordinary launcher input and first-EXEC error injection do not reach
+   those installations; repeat targeted vector runs only with an evidenced
+   path to them. The outro path also needs a verified main-game exit.
 2. Classify `HL.EXE` indirect code with `gaps.py`, runner coverage and
    verified pointer/table hints, then begin stage 2 names and records.
 3. Analyse `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE` separately; transfer

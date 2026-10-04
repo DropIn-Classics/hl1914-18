@@ -1386,8 +1386,48 @@ emulation error (2026-10-02).
     the unit's own field last; `path_len` (`S331F:17F3`) is the number of
     its fields. The six runs call it 10,237 times, 5,421 without a way
     (presumably the computer trying fields; not looked at).
-  - Next there: `S10E1:0F82`, `timer_fire`'s kind 4 (the walk; `S10E1:072C` is called at a pass's end with 40h in word
-    4), `S0CB6:05F1`, `S131D:1745`, and `S1C74:000B`, the computer's
+  - The walk (2026-10-04; `move_step` `S10E1:072C`, `move_target`
+    `S10E1:0F82`, `move_arrive` `S10E1:0AF0`, `order_undo` `S10E1:1514`
+    and the small routines they call, read, nothing stepped; the comments
+    in `src/HL.hints` have the details).
+    - One unit walks at a time, the one in `move_rec` (`S331F:180F`).
+      `move_start` starts a timer of kind 4; when it is due `timer_fire`
+      sets 40h in `game_state`'s word 4 and `game_loop` calls `move_step`
+      at the pass's end: the unit goes one field on along the way (from
+      the list's end, `path_len` counting down), on its own side's map
+      only, and the next timer runs over byte 17h of the kind's record in
+      `unit_dat` passes: how fast a kind walks. Bytes 0Fh and 10h of a
+      unit are the direction it faces on the first and the second side's
+      map (0 up, clockwise to 5; `field_dir`). The field left gets back
+      the unit byte it had (kept in `move_rec`), so a unit walks over its
+      own side's units without wiping them out; the second half of a
+      two-part unit follows onto the field the first half left.
+    - `move_target` says what a move to a field would be, or the text
+      that refuses it: 3 a free field, 2 into a carrier of the side, 5
+      into a site of the side, 4 onto a site of the other side or of
+      nobody. A carrier takes a unit when the unit's word 6 and the
+      carrier's record's word 19h share one of the bits 0FC0h, a place
+      of the seven is free and the load fits: byte 41h of a kind is what
+      it weighs, byte 40h of a carrier's kind what it takes (the guess
+      "load and room" under state 2 above, now read at its use). A
+      carrier that goes into a carrier or site gives its own units over
+      (`row_move`).
+    - `move_arrive` ends the walk: the unit's byte 13h (its order) gets
+      the kind, bytes 15h, 16h, 19h and word 17h what belongs to it (the
+      record's number, the other unit, the place, the record's flags),
+      `unit_marks` 1 and `unit_flags` 200h (4200h inside a carrier or
+      site). A site of the other side is not changed here: presumably the
+      round's end takes it over from byte 13h being 4 (in the part of
+      `attacks_run` not read yet). Kind 1 (the mover takes the unit on
+      the field into its own row) is written by nothing read so far.
+    - `order_undo` takes all that back for a unit that is freed at the
+      round's end (`attacks_run`).
+    - Six runs logging these routines were started (`build/n2/move1.py`,
+      logs `build/n2/m0.log` to `m5.log`) to see how often each is
+      called and with which kinds; the port's translation and its
+      comparison come with them.
+  - Next there: `S0CB6:05F1`, `S131D:1745`, the part of `attacks_run`
+    that reads byte 13h of the units, and `S1C74:000B`, the computer's
     turn.
   - The three routines are translated (`port/src/range.c`) and compared
     with 108 calls of the original from the six long runs

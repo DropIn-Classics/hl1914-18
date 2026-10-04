@@ -1401,3 +1401,103 @@ name S10E1:000F move_done
 ; port's translation.
 name S0B15:0E52 path_find
 name S331F:17F3 path_len
+
+; How a move is carried out (read 2026-10-04; docs/HANDOFF.md, "The walk").
+; move_rec: the one move under way. Byte 0 the unit, byte 1 the unit on the
+; aim's field, byte 2 the unit byte of the map the unit stands on (put back
+; when it goes on; FFh at the start, byte 1Bh of the site's record for a
+; unit moving out of one), byte 3 the same under the second half of a
+; two-part unit, byte 4 a place in a row of seven, far pointer 5 the site's
+; or carrier's record and byte 9 its number, word 0Ah the aim's field, byte
+; 0Ch what the arrival is (1 to 5, see move_arrive). Only one unit walks at
+; a time: move_start sets 80h in game_state's word 4, which field_menu
+; tests.
+name S331F:180F move_rec
+; move_step(): game_loop calls it at a pass's end with 40h in game_state's
+; word 4 (what a timer of kind 4 sets when due). Takes the unit of move_rec
+; one field on along the way path_find left (the word at path_len in the
+; list at 1F40h of its side's work buffer; the side is bit 0 of
+; unit_flags): its field on the side's map gets back what move_rec keeps,
+; the next field's unit byte is kept and becomes the unit, the unit's byte
+; 0Fh (10h for the second side) the direction (field_dir), its unit_pos for
+; the side the field; the second half of a two-part unit (the next record)
+; follows onto the field the first left. carrier_moved for a carrier. With
+; fields left: a timer of kind 4 over the kind's byte 17h passes, path_len
+; one less. On the last field move_target is called first, and afterwards
+; move_arrive, whose text is shown; 8 or 10h set and 80h cleared in
+; game_state's word 4, 100h cleared in unit_flags (both halves). Read;
+; the fields are drawn by S0E56:145A (not read).
+name S10E1:072C move_step
+; move_target(field, side, map): what a move to the field would be, kept in
+; move_rec (byte 0Ch, word 0Ah and what the kind needs); returns 0 or the
+; number of the text that says why not.
+; - A unit on the field (byte 1 of move_rec; the first half for a second
+;   half): text 37h for one of the other side, 39h for one that is no
+;   carrier (1000h), 3Ah when the mover's word 6 and the carrier's record's
+;   word 19h share none of the bits 0FC0h or the carrier has 200h, 3Bh
+;   without a free place in the side's row, when the load (row_load of the
+;   carrier, the mover's kind's byte 41h and, for a mover that is a carrier,
+;   its own row_load) is above the carrier's kind's byte 40h, or when a
+;   carrier moving in has more units than the other has free places less
+;   one. Else kind 2 with the first free place.
+; - A ground with 400h, 100h or 40h in its word 0: the record of sites_400
+;   or sites_100 with that field (site_find), or of sites_40 by bit 0 of
+;   the ground's word. A site not of the side, or with 2 in its word 19h:
+;   kind 4. An own one: kind 5 with the first free place, 3Bh without one
+;   (or for a carrier with too many units, as above).
+; - Else kind 3; text 40h when the ground's byte 2 has no bit of the kind's
+;   byte 5, or for a unit with 10h in unit_flags on a ground with 4000h.
+; Read. Also called by move_aim, by S0B15:13EC (which lists the marked
+; fields it gives 0 for at a far pointer, counted in path_len) and at
+; S1E4B:0621 (the computer's player).
+name S10E1:0F82 move_target
+; move_arrive(side, map): the end of a walk, by byte 0Ch of move_rec; the
+; unit gets that kind in byte 13h (its order), 1 in unit_marks, and the
+; details in bytes 15h (the record's number), 16h (the other unit), 19h
+; (the place) and word 17h (the record's flags, or in kind 1 the other
+; unit's unit_flags). Returns the text (38h but in kind 1).
+; - 3, a field: 200h for 100h and 4000h in unit_flags (unit_mark).
+; - 4, a site of the other side or of nobody: the same; the site is not
+;   changed here.
+; - 2, into a carrier: the unit is put in the place of the side's row, the
+;   carrier's number back on the field, 4200h for 100h in unit_flags; a
+;   carrier's own units go over to the other (row_move).
+; - 5, into a site of the side: the same with the row of the site, the
+;   unit byte of the field becoming F4h and the unit's place the site's
+;   word 0Eh.
+; - 1: the unit on the field (byte 1) goes into the mover's own row and
+;   gets 4200h, the mover takes the field (text 43h with 20h in the other
+;   unit's word 6, else 44h). No routine read so far writes kind 1 to
+;   move_rec; presumably not reached (not checked).
+; Read.
+name S10E1:0AF0 move_arrive
+; field_dir(from, to): the direction of a neighbouring field as map
+; offsets, 0 above and on clockwise to 5. Read.
+name S10E1:144C field_dir
+; order_undo(unit, map, side): takes back what move_arrive did, by the
+; unit's byte 13h: 2 and 5 empty the unit's place in the carrier's or
+; site's row (the table of a site by 4 and 8 in word 17h: sites_40,
+; sites_400, else sites_100), 3 and 4 take the unit (and the other half)
+; off the map, 1 puts the other unit back on the field with its flags and
+; empties the place in the mover's row. Clears 1 in unit_marks, 4200h in
+; unit_flags and byte 13h. attacks_run calls it for a unit that is to be
+; freed (4 and 1 in unit_marks) and for the units in such a carrier. Read.
+name S10E1:1514 order_undo
+; row_count(side, record, used): how many of the seven places of the
+; side's row hold a unit (used not 0) or are free. Read.
+name S10E1:17D9 row_count
+; row_move(side, record, to): each unit of the side's row of the first
+; record goes to the first free place of the other's row, its unit_pos for
+; the side becoming the other's word 0Eh. Read.
+name S10E1:184E row_move
+; row_load(record, side): the sum of byte 41h of the kinds of the units in
+; the side's row. Read.
+name S131D:15FB row_load
+; carrier_moved(unit, side): gives the carrier's place (unit_pos for the
+; side) to the units in the side's row of its record and to the record's
+; word 0Eh. Read.
+name S15C5:0804 carrier_moved
+; site_find(field, table): the number of the first of the table's ten
+; records with the field among its four map offsets (0Eh on), FFFFh for
+; none. Read.
+name S0E56:1726 site_find

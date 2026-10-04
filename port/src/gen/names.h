@@ -192,6 +192,7 @@
     X(S0E56, view_tables, 0x000B) \
     X(S0E56, shp_load, 0x0079) \
     X(S0E56, map_load, 0x0329) \
+    X(S0E56, site_find, 0x1726) \
     X(S0E56, view_to_field, 0x177C) \
     X(S0E56, map_copy, 0x1D9B) \
     X(S0E56, unit_mark, 0x1DDB) \
@@ -200,9 +201,17 @@
     X(S10E1, move_done, 0x000F) \
     X(S10E1, move_aim, 0x02EB) \
     X(S10E1, move_start, 0x05D1) \
+    X(S10E1, move_step, 0x072C) \
+    X(S10E1, move_arrive, 0x0AF0) \
+    X(S10E1, move_target, 0x0F82) \
+    X(S10E1, field_dir, 0x144C) \
+    X(S10E1, order_undo, 0x1514) \
+    X(S10E1, row_count, 0x17D9) \
+    X(S10E1, row_move, 0x184E) \
     X(S1273, save_game, 0x0005) \
     X(S1273, load_game, 0x0399) \
     X(S1273, save_blocks, 0x0662) \
+    X(S131D, row_load, 0x15FB) \
     X(S1571, file_name, 0x02CD) \
     X(S15C5, unit_add, 0x0005) \
     X(S15C5, carrier_find, 0x01F7) \
@@ -212,6 +221,7 @@
     X(S15C5, carrier_add, 0x04AE) \
     X(S15C5, unit_free, 0x0594) \
     X(S15C5, site_free, 0x06EA) \
+    X(S15C5, carrier_moved, 0x0804) \
     X(S1C74, computer_reset, 0x01B4) \
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
@@ -241,6 +251,7 @@
     X(S331F, free_depth, 0x17F2) \
     X(S331F, path_len, 0x17F3) \
     X(S331F, neighbours, 0x17FB) \
+    X(S331F, move_rec, 0x180F) \
     X(S331F, fight_rec, 0x181C) \
     X(S331F, units, 0x189C) \
     X(S331F, unit_exp, 0x189D) \

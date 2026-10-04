@@ -21,7 +21,7 @@ HEADER = 0x1B
 # brackets is a far pointer variable: the block is what it points to.
 BLOCKS = [
     ('[S331F:17B6]', 0x1806, 'the map: two bytes a field from offset 0, as MAP/NN.FIN has them after its four header bytes; the second byte is FFh or the number of the unit on the field'),
-    ('[S331F:17B2]', 0x1806, 'the map a second time; the same over the fields of the map, other bytes after them (not known)'),
+    ('[S331F:17B2]', 0x1806, 'the map a second time: presumably with the units where they are ordered to; other bytes after the fields (not known)'),
     ('[S331F:4D44]', 0xF2, "side one (the pointer is in the side's record at S331F:4D33)"),
     ('[S331F:4D5B]', 0xF2, 'side two (record at S331F:4D4A)'),
     ('[S331F:1893]', 0x82, ''),

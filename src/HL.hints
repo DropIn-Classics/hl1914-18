@@ -979,3 +979,13 @@ name S15C5:0594 unit_free
 name S15C5:024A site_add_400
 name S15C5:032C site_add_100
 name S15C5:040D site_add_40
+
+; From a -ram dump after 300 s of play on a map of 32 by 24 (107 units):
+; three units had 0200h in unit_flags and another offset in word 0Dh than in
+; unit_pos; the map behind map_ptr had their number at unit_pos and FFh at
+; the other offset, the map behind map2_ptr the reverse. So the second map
+; is presumably the map as it will be when the orders given are carried out
+; and word 0Dh where the unit is ordered to. Byte 9 counts the units of a
+; kind and side as 1, 3, 5 and so on in both dumps looked at.
+; (word 0Dh has no label: the code reaches it through a pointer to the record)
+name S331F:18A5 unit_serial

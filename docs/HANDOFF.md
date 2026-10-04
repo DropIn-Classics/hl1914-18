@@ -468,6 +468,21 @@ emulation error (2026-10-02).
   saved game's header repeats). `unit_free` is `S15C5:0594`. Next: the
   loops over the units in `S02E6`, `S1CC6`, `S1FD8` and `S2138`, and a run
   with `-watch` on `unit_count` to see a fight.
+- The second map (2026-10-04, from `build/n2/b7.ram`, a `-ram` dump after
+  300 s of random play on a map of 32 by 24 with 107 units). Three units
+  had 0200h in `unit_flags` and in word 0Dh another map offset than in
+  `unit_pos` (two rows up); the map behind `map_ptr` had the unit's number
+  at `unit_pos` and FFh at the other offset, the map behind `map2_ptr` the
+  reverse, and the two maps differed in those six bytes only. Presumably
+  the second map is the map as it will be once the orders are carried out,
+  and word 0Dh where a unit is ordered to; that the orders
+  are carried out later was not watched. Those units also had their
+  `unit_pos` in word 11h, 3 in byte 13h and 1 in byte 14h; one unit had
+  0100h in `unit_flags` and a field's first-byte offset in word 11h (not
+  known). Byte 9 (`unit_serial`) counts the units of a kind and side as 1,
+  3, 5 and so on. No unit had lost any of its `unit_count` in that dump
+  or in the one of map 00: 300 s of random play do not bring a fight, so
+  what a fight changes is still to be watched.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

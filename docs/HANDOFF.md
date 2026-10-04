@@ -837,6 +837,19 @@ emulation error (2026-10-02).
   load or screen setup (presumably the exit with a message). `mem_alloc`
   is translated (`port/src/mem.c`, on the runtime's `dos_alloc`; the one
   call compared, the same).
+- `/a` and `/b` (2026-10-04, read, not tried in a run): the value they
+  choose is a mask of the sound devices `S2F39:000B` tries, 3 without a
+  switch. Bit 0 (`/a` alone) is the detection at `S30EF:1A7D`, which reads
+  port 388h and makes the timer test: the AdLib. Bit 1 (`/b` alone) is
+  `S30EF:2050`, which hooks an interrupt vector, unmasks its IRQ and sends
+  D1h: presumably the Sound Blaster (no port number of the card looked
+  for). The devices found are kept as the same mask in `S30EF:025E`, and
+  `S3303:0022` is 1 when the second was not found (tested in some twenty
+  places). A switch therefore only takes a device away.
+- Decided with the user (2026-10-04): the port behaves as the game does
+  without a switch and with both devices found (mask 3 in `S30EF:025E`, 0
+  in `S3303:0022`): music and digital effects, always. It does not offer
+  `/a` or `/b`.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where

@@ -175,7 +175,11 @@
     X(S02E6, units_drop_empty, 0x2B28) \
     X(S066A, game_loop, 0x000D) \
     X(S0B15, field_bits_clear, 0x000B) \
+    X(S0B15, buf_neighbours, 0x005B) \
     X(S0B15, field_neighbours, 0x0162) \
+    X(S0B15, move_range, 0x0371) \
+    X(S0B15, attack_range, 0x062F) \
+    X(S0B15, move_costs, 0x0A01) \
     X(S0CB6, view_cursor, 0x0154) \
     X(S0CB6, same_side, 0x0205) \
     X(S0CB6, timer_set, 0x0272) \

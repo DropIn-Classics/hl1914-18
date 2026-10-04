@@ -1296,10 +1296,47 @@ emulation error (2026-10-02).
       (presumably music; not read). The result is the byte at [BP-7].
     The F1 pair of the runs is then presumably what ends a side's half
     (pointer 9, state 5) and the key of entry 0Ch; not looked at.
+  - What a unit reaches (2026-10-04; `move_costs` `S0B15:0A01`,
+    `move_range` `S0B15:0371`, `attack_range` `S0B15:062F` and
+    `buf_neighbours` `S0B15:005B`, read, nothing stepped). All three work
+    in a buffer of 1104h bytes, one a field, 64 fields a row (which is
+    what `field_bits` and the block at `S331F:3B5A` are too).
+    - `move_costs` writes what entering each field costs the unit as a
+      negative byte, B0h for a field it cannot enter. The ground's
+      6-byte record in `ww1gnds_dat`: byte 2 says which kinds may enter
+      (a bit of the kind's byte 5 must be in it), byte 3 is the cost,
+      byte 4 the cost for a unit with 10h in `unit_flags`; a unit with
+      10h in its word 6 pays 2 everywhere it may enter. The mask
+      `field_menu` gives (6 or 3 by the unit's side, none with 1 in the
+      unit's word 6) closes the grounds whose word 0 has one of its bits
+      (presumably the other side's sites). A field with a unit of the
+      other side, or one with 2 in `unit_flags`, is closed, and the six
+      fields around a unit of the other side are marked (9Ah or 9Bh). A
+      field with an own unit keeps its cost, with a carrier of the own
+      side (1000h or 2000h) it costs 2; a kind with 40h in word 0Dh
+      cannot enter any field that holds a unit.
+    - `move_range` puts the range (its fourth argument, byte 0 of the
+      unit in `field_menu`) on the unit's field and spreads it over the
+      neighbours, each getting what is left less its cost; a field
+      beside a unit of the other side gets 0, so a unit can go next to
+      an enemy but not past it. What was reached gets 1 or 2 in
+      `field_bits` by the side. So byte 0 of a unit is what it may spend
+      on a move, in the grounds' costs (this confirms the guess above
+      as far as reading does).
+    - `attack_range` marks with 4 or 8 the units of the other side less
+      than the range away that the mask allows (the bits 3Ch of
+      `unit_flags`, as in `fight_around`; 2 for a unit with 2 in its
+      word 6), without the six fields around the unit when the mask has
+      40h. `field_menu` calls it with the kind's bytes 9 and 8 as ranges;
+      so those are presumably the ranges of the kind's two weapons, one
+      more than the fields they carry.
+    Not looked at: whether the bits 3Ch and the grounds' byte 2 are
+    land, water and air, which the two costs suggest.
   - Next there: `S10E1` (moving: `000F`, `02EB`, `05D1`) and `S0AE0`
-    (`0008`, `02E3`: choosing whom to attack), `S0B15:0371` and `062F`
-    (what a unit reaches), `S0CB6:05F1`, `S131D:1745`, and `S1C74:000B`,
-    the computer's turn.
+    (`0008`, `02E3`: choosing whom to attack), `S0CB6:05F1`,
+    `S131D:1745`, and `S1C74:000B`, the computer's turn. The three
+    routines of `S0B15` above draw nothing and wait for nothing, so
+    they can be translated and compared as the fight was.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -1628,9 +1665,10 @@ emulation error (2026-10-02).
      (the bullet "The loop of `game_loop`, second reading": the states of
      a view, the other caller of `unit_add`, which builds a unit in a
      site, the end of a round and of a battle). Next: its part from
-     the routines a move and an attack are chosen in (`S10E1`, `S0AE0`,
-     `S0B15:0371` and `062F`; `view_step` and `field_menu`, which call
-     them, are read), `S131D:1745` and the computer's turn `S1C74:000B`;
+     the routines a move and an attack are chosen in (`S10E1`, `S0AE0`;
+     `view_step` and `field_menu`, which call them, the round's end in
+     `attacks_run` and `move_range`, `move_costs` and `attack_range` are
+     read), `S131D:1745` and the computer's turn `S1C74:000B`;
      then translate what of a side's part changes state and draws
      nothing (building, repairing, moving out), each with a comparison
      as for the setup; and the libraries' loading (`S0C66:0009`) once

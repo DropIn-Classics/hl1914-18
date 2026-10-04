@@ -1314,3 +1314,38 @@ name S02E6:2B28 units_drop_empty
 ; (when attack_pick has become 1 again); presumably the number of the round
 ; the players see. Not checked.
 name S331F:4CB5 round_count
+; buf_neighbours(column, row): as field_neighbours, but the six entries of
+; neighbours are places in a work buffer of one byte a field and 64 fields a
+; row (column plus row times 64), not map offsets; it ends with S0B15:025F
+; (not read; presumably FFFFh for those beyond the edge). Read.
+name S0B15:005B buf_neighbours
+; move_costs(buffer, unit, side, mask, map): what entering each field costs
+; the unit, as a negative byte in a buffer of 1104h bytes; B0h is a field it
+; cannot enter. From the ground's record in ww1gnds_dat: B0h unless its
+; byte 2 has a bit of the kind's byte 5; else minus its byte 4 for a unit
+; with 10h in unit_flags, minus 2 for one with 10h in its word 6, minus its
+; byte 3 for the others; B0h where the ground's word 0 has a bit of the mask
+; (FFFFh is no mask). Then the units on the map: B0h for one with 2 in
+; unit_flags and for one of the other side, whose six neighbours (not B0h)
+; get 9Ah (around a unit of the second side) or 9Bh; FEh for a unit of the
+; own side with 1000h or 2000h; and B0h for every field with another unit
+; when the kind's word 0Dh has 40h. Read, not stepped.
+name S0B15:0A01 move_costs
+; move_range(field, buffer, unit, range, side, mask, map): where the unit
+; can move. Keeps its nine argument words at S3306:000A, calls move_costs,
+; puts the range on the unit's field and spreads it: a neighbour gets what
+; is left less its cost if that is not below 0, and 0 if it lies beside a
+; unit of the other side (9Ah, 9Bh), so that the move ends there. Only the
+; fields from half the range left of and above the unit's to the range
+; further on are looked at. Every field that was reached gets 1 (first
+; side) or 2 in field_bits; returns their number, the unit's own among
+; them. Read, not stepped.
+name S0B15:0371 move_range
+; attack_range(buffer, field, range, side, unit, mask, map): whom the unit
+; can attack. Marks the fields less than the range away (those around the
+; unit's own are taken out with 40h in the mask) and of them keeps those
+; with a unit of the other side (not one with 2 in unit_flags) whose
+; unit_flags have one of the mask's bits 3Ch, or whose word 6 has 2 with 2
+; in the mask. They get 4 (first side) or 8 in field_bits; returns their
+; number as a byte. Read, not stepped.
+name S0B15:062F attack_range

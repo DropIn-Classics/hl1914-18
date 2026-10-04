@@ -9,7 +9,7 @@ builds a battle's state, the two maps, and the routine that takes a fight's
 losses off (`fight_losses`) are named and described below under "`HL.EXE`
 stage 1" (the bullets dated 2026-10-04); the fight's arithmetic is read and
 agrees with 39 fights of six runs. Nothing of the game is translated in the
-port yet. `master` was pushed at `c384c5c`; the commits after it are local.
+port yet. `master` was pushed at `a6e0117`; the commits after it are local.
 
 The `doskit` submodule is now at `a4b8166` (fast-forwarded from `f4dc33c`).
 That update adds consent-based package self-updates to the runtime
@@ -564,16 +564,9 @@ emulation error (2026-10-02).
   - A's attack is raised by the record's byte 30h per cent, B's defence by
     byte 31h per cent (value plus the upper word of (value x 65536 / 100)
     x per cent). This corrects the first reading above, which gave both to
-    the first unit. The two bytes are written by `S02E6:2635`, which
-    `attacks_run` calls before it fills the record (0, 25, 50, 75, 100,
-    125, 150 and 0, 80 were seen). Read loosely, not checked: it looks at
-    the six fields around the units (`S0B15:0162` lists a field's
-    neighbours at `S331F:17FB`), adds for byte 30h a value of the table at
-    `S331F:0009` for each of five neighbouring places that `S02E6:2834`
-    leaves marked, and for byte 31h 50h for each of two places, at most
-    96h; both are 0 when none of the six fields holds another unit.
-    Presumably units standing around the target help the attack and
-    units beside it the defence.
+    the first unit. The two bytes are written by `fight_percent`
+    (`S02E6:2635`), which `attacks_run` calls before it fills the record;
+    the bullet "The per cent bytes" below has how.
   - Strength of a value v for a unit with count n and e = `unit_exp` + 1 on
     a ground with bonus g: n x v + n x v x (e x 256 / 6 + 1) / 256 +
     g x (v / 2). g is a signed byte of the pairs at `S3AED:0000`, indexed
@@ -624,6 +617,35 @@ emulation error (2026-10-02).
   `unit_pos` is two words, one for each of the two maps (the code adds the
   side times two); the word at 0Dh is therefore the unit's place in the
   second map rather than "where it is ordered to" as written above.
+- The per cent bytes (2026-10-04; `fight_percent`, `S02E6:2635`, read and
+  then worked out from the 39 dumps by `build/n2/percalc.py` and compared
+  with bytes 30h and 31h of the record: all 39 the same). This replaces
+  the loose reading above, which had the zero case wrong.
+  - `field_neighbours` (`S0B15:0162`) writes the map offsets of the six
+    fields around a field to `neighbours` (`S331F:17FB`), clockwise from the
+    one above, FFFFh for one beyond the edge; a field in an odd column lies
+    half a field lower.
+  - Both bytes are 0 when the attacker stands on none of the six fields
+    around the target: only a fight between neighbours has them.
+  - `fight_around(unit, other)` (`S02E6:2834`) marks each field around
+    `other` that holds a unit which is on `unit`'s side (`same_side`,
+    `S0CB6:0205`, bits 0 and 1 of `unit_flags`) and could attack `other`:
+    its kind's word 6 has one of `other`'s `unit_flags` bits 3Ch (or bit 2,
+    if `other`'s own word 6 has bit 2) and not 40h. It returns which of the
+    six fields holds `unit`.
+  - Byte 30h (the attack): for each of the other five fields around the
+    target that is marked for the attacker's side, the byte of
+    `around_percent` (`S331F:0009`) for its place counted round from the
+    attacker (1 to 5) is added. So every further unit that stands at the
+    target and could attack it helps, by its place: the encirclement.
+  - Byte 31h (the defence): 50h for each of the two fields that touch both
+    the attacker and the target, if marked for the target's side (a unit of
+    the target's side there that could attack the attacker); at most 96h.
+  - Not settled by the dumps: which of the two maps `attacks_run` hands
+    over and what its side index is (the two maps and both words of
+    `unit_pos` were the same in all 39). Not met: byte 31h with both fields
+    held (the bound of 96h), a field beyond the edge next to a fight (the
+    first loop then reads the map's byte 0 instead of skipping; read only).
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -932,11 +954,11 @@ emulation error (2026-10-02).
 2. `HL.EXE`: 71,755 instructions decode and play finds no more code. Go on
    with stage 2 where it stands (the bullets of 2026-10-04 above):
    - the fight is confirmed (`build/n2/fights.sh`, `fightcalc.py`); left
-     of it: how exactly `S02E6:2635` and `S02E6:2834` work out the per
-     cent bytes 30h and 31h of `fight_rec` (read loosely only),
-     a fight of a kind with 4 in word 0Fh, `S131D:178D` and the pictures
-     in `S2532`; then `fight_losses` can be the port's first translated
-     routine, with the 39 dumps as its test;
+     of it: a fight of a kind with 4 in word 0Fh, `S131D:178D` and the
+     pictures in `S2532`. The per cent bytes are confirmed too
+     (`fight_percent`, `build/n2/percalc.py`), so `fight_percent` and
+     `fight_losses` can be the port's first translated routines, with the
+     39 dumps as their test;
    - what the three tables filled from the ground are (`site_add_400`,
      `site_add_100`, `site_add_40`) and what byte 18h of their record
      counts; what the units' bytes 0, 3, 0Fh, 10h and word 6 mean, and

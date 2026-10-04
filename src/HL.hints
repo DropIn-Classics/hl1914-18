@@ -1058,3 +1058,38 @@ name S331F:18B0 unit_marks
 ; offset of the field's first byte in the map).
 name S331F:18AD unit_aim
 
+
+; Fills the six words at S331F:17FB with the map offsets of the fields
+; around the field whose offset it is given (FFFFh for one beyond the map's
+; edge): above, upper right, lower right, below, lower left, upper left. A
+; field in an odd column lies half a field lower than its neighbours in the
+; even ones. Read; the per cent bytes of 39 fights agree with it.
+name S0B15:0162 field_neighbours
+name S331F:17FB neighbours
+; Two units' unit_flags, 1 when the second is on the first's side: bit 0 of
+; the first set, the second's bit 0; else bit 1 set, the second's bit 1;
+; else the second's bit 0 clear. Read.
+name S0CB6:0205 same_side
+; fight_around(unit, other, map, side index): looks at the six fields around
+; `other` (field_neighbours) and leaves 1 in `neighbours` for each that holds
+; a unit which could attack `other` (its kind's word 6 has one of `other`'s
+; unit_flags bits 3Ch, or bit 2 if `other`'s word 6 has it, and not 40h) and
+; is on `unit`'s side (same_side), 0 for the rest; returns which of the six
+; holds `unit`.
+name S02E6:2834 fight_around
+; Its argument less 6 until it is 5 or below: a direction around a field.
+name S02E6:2802 dir_wrap
+; fight_percent(attacker, target, map, side index), called by attacks_run:
+; sets the two per cent bytes of fight_rec (30h, 31h). Both are 0 when the
+; attacker is on none of the six fields around the target. Else 30h is the
+; sum, over the other five fields around the target that fight_around marks
+; for the attacker's side, of the byte of the table at S331F:0009 for how
+; many places round from the attacker the field is (1 to 5); 31h is 50h for
+; each of the attacker's two neighbouring fields next to the target that
+; fight_around marks for the target's side, at most 96h. Read, then worked
+; out from the 39 dumps made at fight_losses and compared with the record's
+; bytes: all the same (0 to 150 and 0 or 80 occurred; 31h with both fields
+; held did not). The test for 12Ch after the sum can never hold, the sum is
+; a byte.
+name S02E6:2635 fight_percent
+name S331F:0009 around_percent

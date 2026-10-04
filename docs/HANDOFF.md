@@ -433,6 +433,19 @@ emulation error (2026-10-02).
     and 24 here). Over the map's 768 bytes the two map blocks are the
     same in this file; after them the first has bytes left from elsewhere
     and the second only the values 6, 8, 9, 10 and 11 (not known).
+- Names from the unit records (2026-10-04): `unit_count`, `unit_flags`,
+  `unit_kind`, `unit_pos` (the fields at 2, 4, 8 and 0Bh, as the code
+  addresses them: record number times 1Ah plus the field's address),
+  `carriers` (`S331F:3116`), `map_ptr`, `map2_ptr`, `map_dims`. Read in the
+  code, not seen in a run: `unit_flags` 8000h marks an unused record
+  (`S15C5:0594` writes it, nine places test it); the 14 bytes at the start
+  of a carrier's record are two rows of seven unit numbers, and
+  `S02E6:2556` walks them, subtracts a value from each unit's `unit_count`
+  and, where the count is not above it, sets 4 in the unit's byte 14h and
+  empties the place. Presumably that is damage to what a carrier holds.
+  Much of the code reaches the records through a far pointer (`[BX+4]`),
+  so the names do not show every use. Next there: the routines in `S02E6`,
+  `S1CC6` and `S0E56` that loop over the table.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

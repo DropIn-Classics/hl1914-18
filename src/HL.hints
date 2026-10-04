@@ -918,7 +918,36 @@ name S1273:0662 save_blocks
 ; Where three data files lie in memory: a -ram dump after 300 s of play holds
 ; the unpacked WW1GNDS.DAT (1,050 bytes) and AMOK.DAT (36 bytes) unchanged at
 ; these addresses, and 3,385 of the 3,519 bytes of the unpacked top-level
-; UNIT.DAT (69 records of 33h bytes; the game changes some while it runs).
+; UNIT.DAT (33h records of 45h bytes; the game changes some while it runs).
 name S331F:05A3 ww1gnds_dat
 name S331F:09BD unit_dat
 name S331F:4C7A amok_dat
+
+; The units (docs/HANDOFF.md, the saved game's records): F1h records of 1Ah
+; bytes at S331F:189C, addressed as record number times 1Ah plus a field's
+; address. Names of fields are from one saved file and from the code that
+; reads them; what is not said here is not known.
+;   unit_count  byte 2: S02E6:2556 subtracts a value from it and, when it is
+;               not above that value, sets 4 in byte 14h and takes the
+;               unit out of its carrier's list. Presumably how many are left.
+;   unit_flags  word 4: 8000h marks an unused record (S15C5:0594 writes it,
+;               the loops over the table test it); the low byte was 4 for
+;               side one's units, 5 for side two's, 6 for two others; bits
+;               40h and 80h presumably tie two records together (S15C5:0594
+;               frees the next or the one before with them; not checked).
+;   unit_kind   byte 8: the map file's value halved.
+;   unit_pos    word 0Bh: offset in the map block of the byte that holds the
+;               unit's number.
+name S331F:189E unit_count
+name S331F:18A0 unit_flags
+name S331F:18A4 unit_kind
+name S331F:18A7 unit_pos
+; 46h records of 1Ch bytes: two rows of seven unit numbers (above F0h is
+; none, S02E6:2556 walks them), four map offsets, five bytes, a unit number.
+; The tables at S331F:3A0E, 38F6 and 38BE have the same record.
+name S331F:3116 carriers
+; Far pointers to the two map blocks, and the map's width and height (words
+; at 4CA0 and 4CA2; map_dims is two bytes before them).
+name S331F:17B6 map_ptr
+name S331F:17B2 map2_ptr
+name S331F:4C9E map_dims

@@ -3,6 +3,9 @@
  * memory; the file itself comes from the installed game's folder.
  * port/README.md says how this was compared with the original.
  *
+ * file_size (S2B8F:000C) and the routine at S2B81:0004 that loads a file
+ * and returns its length are translated from reading only.
+ *
  * Not translated: the allocation when no place is given (mem_alloc), the
  * four tries with a message when a file cannot be opened, and the hook
  * around the opening that DATA:04B9 switches on.
@@ -170,4 +173,31 @@ done:
     mem[end + 1] = (uint8_t)(frw(S_LOAD, A_KEPT) >> 8);
     free(file);
     return load_result(at);
+}
+
+/* S2B8F:000C: a file's length, of a packed file the unpacked length its
+ * header gives; -1 when it cannot be opened.  The file's first eight
+ * bytes are left at S2B8F:00C1. */
+int32_t file_size(Far name)
+{
+    size_t size, i;
+    uint8_t *file = host_load(name, &size);
+    uint16_t seg = HL_S2B8F + HL_BASE;
+
+    if (!file)
+        return -1;
+    for (i = 0; i < 8 && i < size; i++)
+        fwb(seg, (uint16_t)(0x00C1 + i), file[i]);
+    free(file);
+    if (frw(seg, 0x00C1) == 0x5054 && frw(seg, 0x00C3) == 0x4D57)
+        return (int32_t)(frw(seg, 0x00C5) | (uint32_t)frw(seg, 0x00C7) << 16);
+    return (int32_t)size;
+}
+
+/* S2B81:0004: file_load, then the file's length (file_size) whatever the
+ * load returned */
+int32_t file_load_size(Far to, Far name, Far work)
+{
+    file_load(to, name, work);
+    return file_size(name);
 }

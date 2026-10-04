@@ -1,7 +1,7 @@
 /* main.c - Battle Isle Historyline 1914-1918: a native compatibility implementation requiring an
  * installed copy of the original game.
  *
- *     history-line [-game DIR | -gog FILE|FOLDER|SETUP.exe]
+ *     history-line [-game DIR | -gog FILE|FOLDER|SETUP.exe] [-map N] [-ram FILE]
  *
  * DIR is the game's unpacked files: -game, else $HISTORY_LINE_GAME, else the first
  * folder `game` holding HL14-18.EXE beside the program, in the current
@@ -21,13 +21,19 @@
  * whether it may look for newer releases and shows one it found
  * (update.h, docs/RELEASE.md point 7).
  *
- * Nothing is ported yet: the program shows where it found the game and
- * waits for Esc.
+ * The game itself does not run yet.  The program loads HL.EXE from the
+ * game's folder into its memory (rmem.h, where dosrun loads it), does
+ * what the original does at its start and for a battle as far as that is
+ * translated (battle.c: its block of memory, the files of map N, 0
+ * without -map, and from them the battle's units and sites), says what
+ * it found and waits for Esc.  -ram writes that memory to FILE as
+ * dosrun's -ram does (for doskit/tools/memcmp.py) and ends the program.
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "cdimage.h"
+#include "hl.h"
 #include "inno.h"
 #include "launcher.h"
 #include "platform.h"
@@ -174,19 +180,54 @@ static int get_game(const char *given, const char *gog, char *out, size_t n)
     return 0;
 }
 
+/* HL.EXE into the program's memory and the translated parts of its
+ * start and of a battle's setup for map `map`; a line about the result
+ * in `line`.  0 if it failed. */
+static int start_game(const char *game, int map, char *line, size_t n)
+{
+    char exe[SYS_PATH], err[256];
+    int r;
+
+    if (!sys_find(game, HL_EXE, exe, sizeof exe)) {
+        snprintf(line, n, "%s was not found.", HL_EXE);
+        return 0;
+    }
+    if (rm_load_exe(exe, HL_SIZE, HL_SHA256, HL_PSP, HL_PARAS, err, sizeof err) != 0) {
+        snprintf(line, n, "%.*s", (int)n - 1, err);
+        return 0;
+    }
+    hl_game_dir = game;
+    r = start_setup();
+    if (r == 0) {
+        SETW(map_number, 0, map);     /* the menu's choice */
+        r = battle_setup();
+    }
+    if (r != 0) {
+        snprintf(line, n, r == 1 ? "No memory for the game." : "A file of the game could not be loaded.");
+        return 0;
+    }
+    snprintf(line, n, "Map %d: %u by %u fields, %u units.", map, NW(map_width, 0), NW(map_height, 0),
+             NB(unit_total, 0));
+    return 1;
+}
+
 int main(int argc, char **argv)
 {
-    const char *given = NULL, *gog = NULL;
-    char game[SYS_PATH];
-    int i;
+    const char *given = NULL, *gog = NULL, *ram = NULL;
+    char game[SYS_PATH], line[300];
+    int i, map = 0, ok;
 
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-game") && i + 1 < argc)
             given = argv[++i];
         else if (!strcmp(argv[i], "-gog") && i + 1 < argc)
             gog = argv[++i];
+        else if (!strcmp(argv[i], "-map") && i + 1 < argc)
+            map = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-ram") && i + 1 < argc)
+            ram = argv[++i];
         else {
-            fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER]\n");
+            fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n");
             return 2;
         }
     }
@@ -198,12 +239,21 @@ int main(int argc, char **argv)
         plat_shutdown();
         return 1;
     }
+    ok = start_game(game, map, line, sizeof line);
+    if (ram) {
+        if (ok && rm_write(ram) != 0)
+            ok = 0;
+        fprintf(stderr, "%s\n", line);
+        plat_shutdown();
+        return !ok;
+    }
     tm_clear(' ', TM_ATTR(TM_LIGHTGREY, TM_BLUE));
     tm_frame(1, 1, 78, 5, TM_ATTR(TM_WHITE, TM_BLUE));
     tm_text(3, 2, "Battle Isle Historyline 1914-1918", TM_ATTR(TM_YELLOW, TM_BLUE));
     tm_text(3, 3, "The game's files:", TM_ATTR(TM_LIGHTGREY, TM_BLUE));
     tm_text(3, 4, game, TM_ATTR(TM_WHITE, TM_BLUE));
-    tm_text(3, 8, "Nothing is ported yet.  Esc ends the program.", TM_ATTR(TM_LIGHTGREY, TM_BLUE));
+    tm_text(3, 7, line, TM_ATTR(TM_WHITE, TM_BLUE));
+    tm_text(3, 8, "The game itself does not run yet.  Esc ends the program.", TM_ATTR(TM_LIGHTGREY, TM_BLUE));
     while (plat_pump()) {
         int b, key = -1;
         while ((b = plat_read_scancode()) >= 0)

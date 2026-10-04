@@ -36,14 +36,27 @@ further tries when a file cannot be opened are not translated. With it
 `map_load` and `shp_load` are whole (`src/map.c`). `src/names.c` has
 `file_name`, which puts a file's name together from the program's tables
 of folders and endings, and `num_text` (a number as decimal text);
-`src/mem.c` has `mem_alloc` on the runtime's DOS blocks. None of this is
-called by the program yet.
+`src/mem.c` has `mem_alloc` on the runtime's DOS blocks.
+
+Then the program's own start (`src/battle.c`, `src/main.c`): it loads
+`HL.EXE` from the game's folder into its memory where dosrun loads it and
+runs `start_setup` and `battle_setup`, the two parts of the original's
+main routine that take its block of memory, load the two files that stay
+at its beginning, share the block out and load a battle's files into its
+units, sites and maps (`file_size` and `file_load_size` in `src/files.c`
+came with it). What draws, sounds or belongs to the menu is left out, so
+the game itself does not run: the program says which map it set up and
+waits for Esc. `-map N` chooses the map (0 without), `-ram FILE` writes
+the memory as dosrun's `-ram` does and ends the program; both are aids
+for this work, not for players. The fight and the taking off of units are
+still called by nothing.
 
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
     port\build.bat            # Windows (MSVC)
     port/build/history-line -game game
+    port/build/history-line-headless -game game -map 5 -ram build/map5.ram
 
 Both scripts define `PORT_VERSION` (a string) for the compiler when
 there is a version: the environment's `PORT_VERSION`, else the tag of the
@@ -168,3 +181,30 @@ anything the game needs before the first release.
   bytes: the returned segment and all memory the same, the block's and the
   following free block's headers included. One call is all the evidence;
   a second block, no room, and `file_load`'s use of it are not covered.
+- The start and a battle's setup (2026-10-04, macOS): the same test takes
+  `start` and `setup` for the two parts of the original's main routine
+  (`start_setup`: its entry to `S066A:0349`, one start; `battle_setup`:
+  `S066A:0417` to `0938`, the six runs' maps; dumps by the scratch scripts
+  `build/n2/start1.py` and `setup1.py`). The original calls routines in
+  between that the port leaves out (the screen, the sound, further files,
+  the map's pictures), so all of memory cannot be the same; the test
+  counts a byte as different when the port's routine wrote it and the
+  original has another value, and apart when only the original wrote it
+  (some 15,000 bytes in the start, 110,000 in a setup, most of them
+  pictures in the block). Different: 0 in all seven. The pointers the
+  routines keep are written to the original's stack frame for the
+  comparison and are the same there. Counted apart besides: the word
+  `file_load` keeps of what lay behind a file, and in `start` the loading
+  routines' own variables and the name buffer (the original loads further
+  files there afterwards).
+  The program's own run (`history-line-headless -game game -map 0 -ram
+  FILE`) against the original's dump at `S066A:0938` of the run on map 0:
+  the block is at the same address, and from `S331F:0000` to `DATA` 750
+  of 40,448 bytes differ, none of them in the units, the sites, the tables
+  of kinds and grounds or the sides' counts (docs/HANDOFF.md lists the
+  places; presumably what the menu and the routines left out set, not
+  looked at one by one). Maps 5, 33 and 71 were run too and give a size
+  and a number of units; they were not compared with anything.
+  Not covered: `file_size` of a file that is not packed or does not exist
+  (both files of the start are packed), the error returns, and a second
+  battle in one start.

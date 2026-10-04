@@ -12,7 +12,9 @@ agrees with 39 fights of six runs. The port has its first translated
 routines (`port/src/fight.c`: `fight_percent`, `fight_losses`), the same as
 the original on those 39 fights, and since then the taking off and making
 of units and sites and the building of a battle's state from a map's files
-(`port/src/units.c`, `port/src/map.c`); nothing calls them yet. `master` was pushed at `83b4613`; the commits after it are local.
+(`port/src/units.c`, `port/src/map.c`). The port's program now loads `HL.EXE`
+into its memory and sets a battle up by itself as far as that is translated
+(`port/src/battle.c`; the bullet "The port's own start" below). `master` was pushed at `83b4613`; the commits after it are local.
 
 The `doskit` submodule is now at `2f6fe29` (fast-forwarded from `a4b8166`,
 eight commits). That update adds first support for LE images (`disasm.py`,
@@ -850,6 +852,59 @@ emulation error (2026-10-02).
   without a switch and with both devices found (mask 3 in `S30EF:025E`, 0
   in `S3303:0022`): music and digital effects, always. It does not offer
   `/a` or `/b`.
+- The port's own start (2026-10-04; `port/src/battle.c`, `port/src/main.c`).
+  Two parts of `game_loop` are translated, without what draws or sounds:
+  - `start_setup`, the entry to `S066A:0349` (before the menu): the block
+    of 445C0h bytes, then two files loaded to its beginning with
+    `file_load_size` (`S2B81:0004`: `file_load`, then `file_size` of the
+    name), the work buffer 7530h bytes behind the place; the names are
+    `file_name(1, 0, S331F:023E, 3)` and the same with ending 5 (the
+    `LIB\NEWCHAR6` pair of the trace above). Their places go to
+    `S331F:17AA` and `17A6` and to 290h and 294h of the record behind
+    `DATA:0092`, and the block's free part begins behind them. `map_number`
+    (`S331F:4CBB`) and word 0 of both sides' records are set to 0.
+  - `battle_setup`, `S066A:0417` to `0938`: the free part is shared out
+    with `ptr_move` (`CODE:04CB`) in this order: 320h bytes (the buffer
+    `save_game` writes), 82h behind `S331F:1893`, 82h behind `1897`, 1806h
+    for `map_ptr`, 1806h for `map2_ptr`, BB8h behind `S331F:17BA` (the
+    file `file_name(1, -1, S331F:024C, 6)` is loaded there; `GAME.TXT` by
+    the trace), then `S02E6:323E` is called with the free end and the
+    block's beginning as work buffer (it loads the map's pictures there,
+    the `S`/`W` libraries; not translated, only its beginning read), and
+    over that same place come F2h for the second side's list of attackers
+    (`sides`+17h+11h), F2h for the first side's, 2710h for each side at
+    0Dh of its record (the first is the work buffer of all loads that
+    follow), 3E8h for each at 9 (the first takes the `.SHP` file). Each
+    side's pointer at 5 is a fixed place in the screen's memory
+    (`A7E8:0004`, `A7D0:0300`; what for is not known). Then `AMOK.DAT`,
+    `UNIT.DAT` and the grounds' file are loaded to their tables, `map_load`
+    and `shp_load` called. `S331F:0262` (the last letter of the grounds'
+    file's name) and `S331F:0149` (of the pictures' name) are `W` when
+    `S37FF:012F` is not 0, else `S`: presumably summer and winter (not
+    checked). With 400h in `S331F:4CA4` a file with ending 9 is loaded to
+    `S39B6:0000` next (not translated, not met).
+  - Compared (`port/tests/load_test.sh`, kinds `start` and `setup`, dumps
+    by `build/n2/start1.py` and `setup1.py`): `start_setup` on the one
+    start, `battle_setup` on the six runs' maps; no byte the port's
+    routines write differs from the original, and the pointers they keep
+    are those of `game_loop`'s frame. The original's routines left out
+    write some 15,000 and 110,000 bytes more (pictures in the block, the
+    table of far pointers at `S331F:02E9` to `05A2`, the screen's records).
+  - `port/build/history-line-headless -game game -map N -ram FILE` does
+    both from `HL.EXE` loaded by `rm_load_exe` (PSP 0066h, 3F80h
+    paragraphs as in dosrun) and writes its memory. For map 0 against the
+    original's dump at `S066A:0938` of run `w0`: the block lies at the same
+    address (`40A6:0002` behind the two files), and of the 40,448 bytes
+    from `S331F:0000` to `DATA` 750 differ: `S331F:0149` to `0157` and
+    `02C7` to `05A2` (the pictures' name and tables), three bytes of
+    `4CA4`, three in the sides' records (`4D49` to `4D60`), 36 in `4E12`
+    to `4E7E`, six in `4F1E` to `4F2D` and one at `9DF6`: what the menu and
+    the routines left out set (not looked at one by one). Units, sites,
+    both tables of kinds and grounds and the sides' counts are the same.
+    Next: `S02E6:323E` and the calls after `0938` (`S274D:0003`,
+    `S02E6:3484`, `S02E6:2B87`, `S0B15:000B`, `S0E56:000B`,
+    `S02E6:29D4`, `S1C74:01B4`, `S0CB6:0CDA`), and what the menu leaves in
+    `4CA4` and the sides' records.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -1171,11 +1226,10 @@ emulation error (2026-10-02).
      sets a battle up (it calls them; which files go where, and what else
      it prepares), call by call and translated as far as it draws nothing, so that the port
      builds a battle's state from the game's folder by itself;
-     `mem_alloc` is translated on the runtime's DOS blocks. Since
-     `game_loop` is the program's main, the port's own start comes first:
-     `rm_load_exe` for `HL.EXE` at PSP 0066h in `port/src/main.c`, then the
-     loads of a battle in the order `game_loop` makes them, checked with
-     `rm_write` and `doskit/tools/memcmp.py` against a dosrun dump; then
+     `mem_alloc` is translated on the runtime's DOS blocks. The
+     port's own start is done up to `S066A:0938` (`port/src/battle.c`,
+     the bullet "The port's own start"); next the rest of `game_loop`'s
+     setup behind it, call by call, and the menu's results; then
      the other
      caller of `unit_add` (in `S066A`, just after a call of the routine
      at `S15C5:01A7`, which finds a unit by its flags; `S131D` calls that

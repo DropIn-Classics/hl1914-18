@@ -14,6 +14,8 @@
  * have the image at 0076h) */
 #define HL_PSP 0x0066u
 #define HL_BASE (HL_PSP + 0x10u)
+/* the paragraphs the program's block has there (its MCB in the dumps) */
+#define HL_PARAS 0x3F80u
 
 /* S_name: the segment a name is in, as loaded; A_name: its offset */
 enum {
@@ -79,9 +81,22 @@ uint16_t shp_load(Far name, Far buf, Far work);
 extern const char *hl_game_dir;     /* the installed game's folder */
 Far ptr_norm(Far p);
 Far file_load(Far to, Far name, Far work);
+int32_t file_size(Far name);
+int32_t file_load_size(Far to, Far name, Far work);
 
 /* mem.c */
 Far mem_alloc(uint32_t size);
+
+/* battle.c */
+/* the far pointers game_loop keeps on its stack: its block's free part
+ * as the battle's setup found it ([BP-8]), the buffer of 320h bytes at
+ * its beginning ([BP-0Ch]), where the map's pictures are loaded
+ * ([BP-10h]), the end of the sides' two lists ([BP-18h]), the work buffer
+ * of the loads ([BP-20h]) and the free end ([BP-4]) */
+typedef struct { Far block, save_buf, gfx, lists_end, work, p; } GameMem;
+extern GameMem game_mem;
+int start_setup(void);
+int battle_setup(void);
 
 /* names.c */
 Far file_name(uint16_t where, int16_t dir, Far name, int16_t ext);

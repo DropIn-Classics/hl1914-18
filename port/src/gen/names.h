@@ -162,6 +162,8 @@
     X(CODE, long_mul, 0x03A1) \
     X(CODE, long_div, 0x03DC) \
     X(CODE, long_shl, 0x048A) \
+    X(CODE, ptr_move, 0x04CB) \
+    X(CODE, ptr_add, 0x0553) \
     X(CODE, rand_seed, 0x07AB) \
     X(S02E6, attacks_run, 0x000F) \
     X(S02E6, unit_destroy, 0x208E) \
@@ -191,6 +193,7 @@
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
     X(S2892, num_text, 0x0001) \
+    X(S2B81, file_load_size, 0x0004) \
     X(S2B85, file_close, 0x0002) \
     X(S2B8F, file_size, 0x000C) \
     X(S2BC5, file_write, 0x0008) \
@@ -232,6 +235,7 @@
     X(S331F, map_height, 0x4CA2) \
     X(S331F, unit_total, 0x4CAC) \
     X(S331F, site_totals, 0x4CAD) \
+    X(S331F, map_number, 0x4CBB) \
     X(S331F, sides, 0x4D33) \
     X(S331F, attack_pick, 0x4DA8) \
     X(S3AEC, fight_rec_ptr, 0x0008) \

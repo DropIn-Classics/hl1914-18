@@ -1,7 +1,7 @@
-/* load_test.c - file_load, map_load, shp_load, file_name, num_text and
- * mem_alloc against the original.
+/* load_test.c - file_load, map_load, shp_load, file_name, num_text,
+ * mem_alloc and battle_setup against the original.
  *
- *     load_test GAMEDIR  (load|map|shp|name|num|alloc) SS:SP AX DX ENTRY.ram EXIT.ram [...]
+ *     load_test GAMEDIR  (load|map|shp|name|num|alloc|start|setup) SS:SP AX DX ENTRY.ram EXIT.ram [...]
  *
  * Each set of six is one call in HL.EXE: the routine, SS:SP (hex) at its
  * entry, AX and DX at its RETF, and dosrun's -ram dumps at both.  The
@@ -10,7 +10,17 @@
  * all memory are compared with the second.  Differences in the stack below
  * the entry's SP, in the routine's own arguments and in the bytes `beside`
  * names are only counted; a call with no place given (the
- * original then allocates) is skipped.  port/tests/load_test.sh builds
+ * original then allocates) is skipped.  `start` is game_loop from its
+ * entry to S066A:0349 (start_setup), `setup` is the part of game_loop
+ * from S066A:0417 to S066A:0938 (battle_setup): SS:BP instead of SS:SP,
+ * the block's place read from game_loop's frame, the pointers it keeps
+ * there written back to the frame before the comparison.  The original
+ * calls routines there that the port leaves out (they load the map's
+ * pictures into the block, with its beginning as their work buffer), so a
+ * byte the port's routine left as it was is counted apart when it
+ * differs, and so is the word file_load keeps of what lay behind a file
+ * (for `start` all that the loading routines keep for themselves: the
+ * routines left out there load further files).  port/tests/load_test.sh builds
  * this.
  */
 #include <stdio.h>
@@ -58,20 +68,33 @@ static int beside(uint32_t a)
         || (a >= 0x424 && a < 0x427) || a == 0xB19 || (a >= 0xD5F && a < 0xD63);
 }
 
+/* What the loading routines keep for themselves: file_load's variables,
+ * file_size's eight bytes and name_buf.  Between game_loop's entry and
+ * the menu the original loads further files in routines the port leaves
+ * out, so these hold the last of those there. */
+static int scratch(uint32_t a)
+{
+    uint32_t load = ((uint32_t)(HL_S2C45 + HL_BASE) << 4) + 0x486, size = ((uint32_t)(HL_S2B8F + HL_BASE) << 4) + 0xC1;
+    uint32_t name = ((uint32_t)S_name_buf << 4) + A_name_buf;
+
+    return (a >= load && a < load + 0x10) || (a >= size && a < size + 8) || (a >= name && a < name + 0x40);
+}
+
 int main(int argc, char **argv)
 {
     int i, bad = 0, calls = 0, skipped = 0;
 
     if (argc < 8 || (argc - 2) % 6) {
-        fprintf(stderr, "usage: load_test GAMEDIR (load|map|shp|name|num|alloc) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: load_test GAMEDIR (load|map|shp|name|num|alloc|start|setup) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     hl_game_dir = argv[1];
     for (i = 2; i < argc; i += 6) {
         const char *what = argv[i++];
         int wide = 1;
-        unsigned ss, sp, ax, dx, d_stack = 0, d_else = 0, d_beside = 0, changed = 0, o;
-        uint32_t a, lo_stack, hi_stack;
+        unsigned ss, sp, ax, dx, d_stack = 0, d_else = 0, d_beside = 0, d_left = 0, changed = 0, o;
+        uint32_t a, lo_stack, hi_stack, kept = ((uint32_t)(HL_S2C45 + HL_BASE) << 4) + 0x494;
+        int left_out = 0;
         Far to, name, work, got;
         char text[80];
 
@@ -102,6 +125,38 @@ int main(int argc, char **argv)
                             | (uint32_t)frw((uint16_t)ss, (uint16_t)(sp + 6)) << 16);
             name.seg = name.off = 0;
             snprintf(text, sizeof text, "%04X:%04X", got.seg, got.off);
+        } else if (!strcmp(what, "start")) {
+            /* game_loop's entry to S066A:0349 (start_setup): SS:SP at the
+             * entry, the frame is two bytes below */
+            uint16_t bp = (uint16_t)(sp - 2);
+            rm_psp = HL_PSP;
+            rm_arena = (uint16_t)(HL_PSP + frw(HL_PSP - 1, 3));
+            got.off = (uint16_t)start_setup();
+            got.seg = 0;
+            wide = 0;
+            name.seg = name.off = 0;
+            fww((uint16_t)ss, (uint16_t)(bp - 4), game_mem.p.off);
+            fww((uint16_t)ss, (uint16_t)(bp - 2), game_mem.p.seg);
+            fww((uint16_t)ss, (uint16_t)(bp - 8), game_mem.block.off);
+            fww((uint16_t)ss, (uint16_t)(bp - 6), game_mem.block.seg);
+            left_out = 2;
+            snprintf(text, sizeof text, "%04X:%04X", game_mem.block.seg, game_mem.block.off);
+        } else if (!strcmp(what, "setup")) {
+            uint16_t bp = (uint16_t)sp;
+            game_mem.block = far_at((uint16_t)ss, (uint16_t)(bp - 8));
+            got.off = (uint16_t)battle_setup();
+            got.seg = 0;
+            wide = 0;
+            name.seg = name.off = 0;
+#define KEEP(o, p) (fww((uint16_t)ss, (uint16_t)(bp - (o)), (p).off), fww((uint16_t)ss, (uint16_t)(bp - (o) + 2), (p).seg))
+            KEEP(0x04, game_mem.p);
+            KEEP(0x0C, game_mem.save_buf);
+            KEEP(0x10, game_mem.gfx);
+            KEEP(0x18, game_mem.lists_end);
+            KEEP(0x20, game_mem.work);
+#undef KEEP
+            left_out = 1;
+            snprintf(text, sizeof text, "%04X:%04X", game_mem.block.seg, game_mem.block.off);
         } else if (!strcmp(what, "map") || !strcmp(what, "shp")) {
             name = to;
             got.off = what[0] == 'm' ? map_load(to, far_at((uint16_t)ss, (uint16_t)(sp + 8)), work)
@@ -121,6 +176,8 @@ int main(int argc, char **argv)
             text[o] = 0;
         }
         i--;
+        if (getenv("LOAD_TEST_OUT"))    /* the port's memory, for memcmp.py */
+            rm_write(getenv("LOAD_TEST_OUT"));
         lo_stack = lin((uint16_t)ss, 0);
         /* with the routine's own arguments, which the original changes
          * (a pointer moved along, a width counted down): 12 bytes, 10 of
@@ -135,11 +192,17 @@ int main(int argc, char **argv)
                 d_stack++;
             else if (beside(a))
                 d_beside++;
+            else if (left_out && (mem[a] == entry[a] || a == kept || a == kept + 1))
+                d_left++;
+            else if (left_out == 2 && scratch(a))
+                d_left++;
             else if (d_else++ < 8)
                 printf(" %05X", (unsigned)a);
         }
         if (got.off != ax || (wide && got.seg != dx))
             printf(" returns %04X:%04X, the original %04X:%04X;", got.seg, got.off, dx, ax);
+        if (left_out)
+            printf(" written by the original only %u,", d_left);
         printf(" different %u, beside %u, stack %u; bytes the port's routine changed %u\n",
                d_else, d_beside, d_stack, changed);
         if (d_else || got.off != ax || (wide && got.seg != dx))

@@ -613,7 +613,15 @@ comment S2C8E:0006 file_open(mode, far name): INT 21h AH=3Dh, AX = handle or 0. 
 name S2B85:0002 file_close
 comment S2B85:0002 file_close(handle): INT 21h AH=3Eh.
 name S2B8F:000C file_size
-comment S2B8F:000C file_size(far name): opens, reads eight bytes; a packed file's signature is tested, else the size comes from a seek to the end. Presumably DX:AX = the unpacked size (the packed path was not read to its end).
+comment S2B8F:000C file_size(far name): opens, reads eight bytes to S2B8F:00C1; DX:AX = for a packed file (its signature) the unpacked length of the header, else the size from a seek to the end, FFFFh:FFFFh when it cannot be opened. The port's translation gives the original's lengths for the two files of the start.
+name S2B81:0004 file_load_size
+comment S2B81:0004 file_load_size(far place, far name, far work buffer): file_load, then DX:AX = file_size(name) whatever the load returned.
+name CODE:04CB ptr_move
+comment CODE:04CB ptr_move: the far pointer at DX:AX moved on by CX:BX bytes, its offset below 10h afterwards (the compiler's helper for a huge pointer).
+name CODE:0553 ptr_add
+comment CODE:0553 ptr_add: DX:AX = the far pointer DX:AX moved on by CX:BX bytes, its offset below 10h.
+name S331F:4CBB map_number
+comment S331F:4CBB map_number: the number of the battle's map, as game_loop puts it into the names of the map's files (set to 0 at the start; the menu sets it, not read).
 name S2C01:0006 lib_read
 comment S2C01:0006 Presumably reads one named entry of a library file: opens [BP+0A], reads a dword and seeks there, then reads 0Ch-byte records while the name at [BP+0E] is not empty (read from the code's start only).
 name S2C45:0002 file_load

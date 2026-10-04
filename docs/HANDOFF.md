@@ -3,8 +3,13 @@
 State of 2026-10-04: all four programs rebuild identically (`HL.EXE` 71,755
 instructions, INTRO 18,055, EXTRO 15,678, the launcher 1,663). Everything
 that runs of the game executed is decoded, including whole battles on all
-72 maps, saving and loading; stage 2 has begun in `HL.EXE` (a dozen names,
-the saved game's layout). Nothing of the game is translated in the port yet.
+72 maps, saving and loading. Stage 2 is under way in `HL.EXE`: the saved
+game's layout, the unit records and the tables beside them, how `map_load`
+builds a battle's state, the two maps, and the routine that takes a fight's
+losses off (`fight_losses`) are named and described below under "`HL.EXE`
+stage 1" (the bullets dated 2026-10-04); the fight's arithmetic is read
+only loosely and not confirmed. Nothing of the game is translated in the
+port yet. `master` was pushed at `c384c5c`; the commits after it are local.
 
 The `doskit` submodule is now at `a4b8166` (fast-forwarded from `f4dc33c`).
 That update adds consent-based package self-updates to the runtime
@@ -531,6 +536,21 @@ emulation error (2026-10-02).
   2Eh is 0, or the kinds' class bits do not meet). The exact arithmetic
   (the calls to the long multiply and divide at `CODE:03A1` and `03DC`)
   was not worked through.
+- `fight_losses` entered (2026-10-04): `-break fight_losses` in the long
+  run `w3` stops first at t=313.4 (`build/n2/h3.ram` is the dump there).
+  The return address on the stack is `S2474:00A9`, so the caller is in
+  `S2474`. The record's pointers are, as read: units 20 and 10, their
+  kinds 12 and 13 in `unit_dat`, two 6-byte records of `ww1gnds_dat`
+  (numbers 167 and 83) at 12h and 16h, so those are the grounds; the map
+  offsets at 1Ah and 1Ch are 1AAh and B6h, word 2Eh is 0, and the far
+  routine at 6Ah is `CODE:07AB`. Not done: reading `S2474` and
+  `CODE:07AB`, and working the losses out by hand from this dump to
+  compare with what the routine stores.
+- Decided with the user (2026-10-04): the hints of the sibling project's
+  programs (`../bisle/src`, among them a data disk of the same year whose
+  packer is the same) are not used here, not even to carry names where
+  instruction streams match. PROVENANCE.md stays as it is; the exception
+  for the offline file tools is the only one. Do not propose it again.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the
@@ -832,13 +852,29 @@ emulation error (2026-10-02).
    conditional EXTRO path are statically mapped; the likely win trigger for
    status 007Bh remains unverified.
 2. `HL.EXE`: 71,755 instructions decode and play finds no more code. Go on
-   with stage 2: the saved game's 24 blocks (`tools/savfiles.py`) name the
-   game's state; find what the fields of the unit records and of `unit_dat` mean, and
-   what the side records and the second map block hold, with `-watch`
-   and `-rwatch` in runs driven as described above, and name the routines of
-   `game_loop`. For doskit: the runner's endless loop in `mcb_coalesce`, the
-   limit of 4,096 input events, and an option of `gaps.py` for coverage of
-   DATA-class segments.
+   with stage 2 where it stands (the bullets of 2026-10-04 above):
+   - confirm `fight_losses`: work the losses out from `build/n2/h3.ram`
+     (made by `-break fight_losses` in the run `w3`; `build/n2/fight.sh`
+     and `units.py` are the scratch scripts) and compare with a `-watch`
+     on both units; read the caller in `S2474` and the routine at
+     `CODE:07AB`; find where a unit with nothing left leaves the map
+     (`unit_free`, called from five places);
+   - what the three tables filled from the ground are (`site_add_400`,
+     `site_add_100`, `site_add_40`) and what byte 18h of their record
+     counts; what the units' bytes 0, 3, 0Fh, 10h and word 6 mean, and
+     the other fields of a kind's record in `unit_dat`;
+   - how orders are carried out (the second map, `unit_flags` 0200h and
+     0100h), then the loops over the units in `S02E6`, `S1CC6`, `S1FD8`
+     and the computer player's in `S2138`, and the routines of
+     `game_loop`;
+   - the saved game's blocks not yet looked at (the two F2h and two 82h
+     blocks, `save_game`'s buffer, `S331F:4CA4`, `3B5A`, the `S39B6`
+     tables).
+   For doskit: the runner's endless loop in `mcb_coalesce`, the limit of
+   4,096 input events, and an option of `gaps.py` for coverage of
+   DATA-class segments. A wait loop on a task's output file must not test
+   the last line: the harness appends its own (one such loop ran for seven
+   hours on 2026-10-04).
 3. Continue stage 2 for `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE`: everything
    their full idle runs execute is decoded now, so name routines and
    classify what is left from tables and pointers (and from runs with keys:

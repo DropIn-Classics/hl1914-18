@@ -42,3 +42,8 @@ outside their observed coverage; a successful round trip does not establish
 that the game loads or interprets a format the same way. See
 `docs/HANDOFF.md` and `PROVENANCE.md` for probe results and source scope.
 These tools are not part of the port.
+
+`savfiles.py FILE [--list]` splits a saved game (`0N.DAT`, in the runner's
+state folder after a save) into its header and 24 blocks and checks that it
+writes back identically. The layout is read from `HL.EXE`'s own `save_game`
+(see `docs/HANDOFF.md`); what most blocks hold is not known yet.

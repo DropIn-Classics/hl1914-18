@@ -8,6 +8,7 @@ import wave
 import datfiles
 import ifffiles
 import mapfiles
+import savfiles
 import sndfiles
 import txtfiles
 
@@ -113,6 +114,22 @@ class AudioTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             with self.assertRaises(ValueError):
                 sndfiles.to_wav(Path(folder) / 'bad.wav', sample)
+
+
+
+class SaveFiles(unittest.TestCase):
+    def test_split_and_written_back(self):
+        blob = bytes((i * 7 + 3) & 255 for i in range(savfiles.SIZE))
+        head, blocks = savfiles.read_save(blob)
+        self.assertEqual(len(blocks), 24)
+        self.assertEqual(head['w0b'], blob[11] | blob[12] << 8)
+        self.assertEqual(blocks[0], blob[0x1B:0x1B + 0x1806])
+        self.assertEqual(savfiles.write_save(head, blocks), blob)
+        with self.assertRaises(ValueError):
+            savfiles.read_save(blob[:-1])
+        blocks[3] = blocks[3][:-1]
+        with self.assertRaises(ValueError):
+            savfiles.write_save(head, blocks)
 
 
 if __name__ == '__main__':

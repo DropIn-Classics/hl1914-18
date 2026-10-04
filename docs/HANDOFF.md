@@ -351,6 +351,28 @@ emulation error (2026-10-02).
   rebuilds IDENTICAL with 18,055 instructions, EXTRO with 15,678 (four of
   its tables carried by `xfer.py`, five in its own part). No table was seen
   taken entry by entry in a run.
+- The saved game's layout (2026-10-04), read from `save_game` and the
+  routine at `S1273:0662` that lists what it writes: a header of 1Bh bytes
+  (0, 7, the bytes at `S331F:1892` and `S331F:189B`, six bytes from
+  `S37FF:0129` which in the file a run wrote are the map's code and a zero,
+  `S37FF:012F`, the word at `S331F:0008`, then of each side's record at
+  `S331F:4D33` and `S331F:4D4A` its word 0 and bytes 2, 3, 4, 15h, 16h),
+  then 24 blocks copied from memory, not packed. The block lengths add up
+  to exactly the 35,411 bytes of that file. `tools/savfiles.py` splits a
+  file by this layout and writes it back identically (checked on that one
+  file; a synthetic test is in `tools/test_file_formats.py`), and its
+  `BLOCKS` table is the list: two blocks of 1806h bytes behind the far
+  pointers at `S331F:17B6` and `17B2`, a block of F2h bytes behind each
+  side record's pointer, 82h bytes behind `S331F:1893` and `1897`, 320h
+  bytes of a buffer, 8Fh bytes of state from `S331F:4CA4`, a 31h-byte
+  record for each side (`S331F:4D92`, `4DC3`), and tables at `S331F:3B5A`,
+  `3A0E`, `38F6`, `38BE`, `3116`, `189C`, `09BD`, `S39B6:0132`, `09AB`,
+  `12FD`, `126B`, `1224` and `S331F:02B5`. This list is the game's own
+  statement of its state and the place to start naming records. The table
+  at `S331F:09BD` is 45h records of 33h bytes, 3,519 bytes: the size of the
+  top-level `UNIT.DAT`, which `datfiles.py` rejects as records of 68;
+  presumably that file is loaded there (not checked by a run). What the
+  other blocks hold is not known.
 - Not checked: which of the remaining undecoded bytes are code. No run
   ended a game by a victory or a defeat; that is the next source of
   coverage (20 runs of three emulated hours were started for it), then

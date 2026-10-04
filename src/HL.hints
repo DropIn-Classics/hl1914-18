@@ -907,3 +907,10 @@ words S30EF:173F 10 S30EF
 words S30EF:190D 10 S30EF
 code S30EF:16A3
 code S30EF:183B
+
+; Fills a list of 24 entries (far pointer, dword length) with what a saved
+; game holds after its header; save_game writes them in order (read from the
+; code; their lengths add up to the size of a file a run wrote; the list is
+; in tools/savfiles.py and docs/HANDOFF.md). Presumably load_game uses it
+; too (it is called from two places; not read).
+name S1273:0662 save_blocks

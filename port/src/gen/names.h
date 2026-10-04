@@ -178,7 +178,9 @@
     X(S0CB6, same_side, 0x0205) \
     X(S0CB6, timer_set, 0x0272) \
     X(S0CB6, timer_fire, 0x035A) \
+    X(S0CB6, view_step, 0x0750) \
     X(S0CB6, view_reset, 0x0CDA) \
+    X(S0CB6, field_menu, 0x0EAA) \
     X(S0E56, view_tables, 0x000B) \
     X(S0E56, shp_load, 0x0079) \
     X(S0E56, map_load, 0x0329) \

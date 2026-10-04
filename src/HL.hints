@@ -1286,3 +1286,15 @@ name S331F:02B5 side_points
 ; them was not looked at).
 name S331F:17BE build_count
 name S331F:17BF build_kinds
+; view_step(view, input record, input bits, far pointer, side): what
+; game_loop calls for a side whose view is in state 0 (byte 17h); by byte
+; 18h it waits for the button (0, 19h) or lets the side choose where a unit
+; moves (16h, 3) or whom it attacks (13h). Returns 0 with the button
+; pressed. Read; docs/HANDOFF.md has the steps.
+name S0CB6:0750 view_step
+; field_menu(view, side, input bits): state 1 of a view, the choice on the
+; cursor's field: makes the bits of what may be chosen (word 1Ch), lets a
+; direction with the button held pick the pointer (byte 1Bh) and, when the
+; button is let go, begins a move or an attack or sets the view's state (3
+; the map, 4 the field's unit, 5 the round's end, 6 into a site). Read.
+name S0CB6:0EAA field_menu

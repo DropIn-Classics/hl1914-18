@@ -1181,9 +1181,69 @@ emulation error (2026-10-02).
     the record behind `DATA:0092` has reached word 0Fh of `game_state`:
     4, the least length of a pass (presumably in ticks; who counts and
     who sets it back to 0 was not looked at).
-  - Next there: `S066A:0F0C` to `1F39` again for where the states are
-    entered (the F1 change of byte 16h, the keys), `S0CB6:0EAA` (state
-    1), `S0CB6:05F1` and `S0CB6:0750`, `S131D:1745`, and `S1C74:000B`,
+  - Where the states are entered (2026-10-04; `view_step`, `S0CB6:0750`,
+    and `field_menu`, `S0CB6:0EAA`, both read, nothing stepped, their
+    callees not read). `game_loop` itself never leaves state 0 for
+    another; it calls `view_step` in state 0 and `field_menu` in state 1.
+    - `field_menu(view, side, input bits)`, state 1, the choice on the
+      cursor's field. On entry (byte 18h 1) it makes word 1Ch of the view,
+      what may be chosen: 2, 4 and 8 always; 200h unless 80h is set in
+      `game_state`'s word 4; for a unit of the side without 2 and 200h in
+      `unit_flags`, 10h with 1 in byte 16h of the view (and 80h clear in
+      word 4) and else 1; 400h for a unit with 1000h or 2000h in
+      `unit_flags` and for a ground with 80h, 200h or 40h in its word 0
+      (with 8 in `game_state`'s word 2 only for a unit of the side, or a
+      ground with 1 for the second side and 4 for the first). While the
+      button is held a direction picks the pointer (byte 1Bh): up 4 (with
+      10h) or 0 (with 1), but text 53h and nothing when the side's count
+      of attackers has reached byte 16h of its record; down 2; left 0Ah
+      (with 400h) or else 9 (with 200h); right 3; no direction 1. When
+      the button is let go the pointer says what is done:
+      - 4, moving: `S0B15:0371(the unit's field, the side's work buffer,
+        unit, byte 0 of the unit, side, mask, map)` with the first half
+        of a unit of two parts; a result above 1 goes to state 0 with 16h
+        in byte 18h and the unit in word 1Eh, else text 54h. (The mask is
+        FFFFh with 1 in the unit's word 6, else 6 or 3 by the unit's
+        side. In the moving out of a site the fourth argument is 4 or 8;
+        so presumably how far the unit goes, and byte 0 of a unit what it
+        has left. Not checked.)
+      - 0, attacking, three kinds of unit: with 4000h in word 6, text 4Ch
+        when byte 0Ah is 0, else `S0E56:18A3(field, map)` and, if that
+        gives something, the ten entries of `neighbours` marked in
+        `field_bits` (4 or 8 by the side), else text 4Bh; with 2000h in
+        word 6, the six fields of `field_neighbours` whose ground has
+        8000h marked, text 6Fh for none; else `S0B15:062F` once for each
+        of the kind's bytes 9 and 8 that is above 1 (with the kind's word
+        6 less 10h, and less 2Ch), text 4Dh when both find nothing. With
+        marks the view goes to state 0 with 13h in byte 18h and pointer 0.
+      - 2 goes to state 4, 0Ah to state 6, 9 to state 5, 3 to state 3
+        with 4 in byte 18h (the pointer 0Bh or 6 by the word at
+        `S331F:0008`), anything else back to state 0.
+      So byte 16h of a view is the side's part of the round: with 1 it
+      moves units, with 2 it attacks, repairs and builds (its being
+      `attack_pick` fits). The F1 pair of the runs presumably changes it;
+      where was not found in what is read.
+    - `view_step(view, input record, input bits, far pointer, side)`,
+      state 0, by byte 18h: 0 a pressed button goes to state 1; 19h waits
+      for byte 8 of the input record and then is 0; 16h, a unit that is to
+      move: the button calls `S10E1:02EB(view, pointer, side)`, then 3,
+      where the button calls `S10E1:05D1(view, side)` and
+      `S10E1:000F(view, pointer, side, result)` and ends with 19h
+      (presumably the aim and then its confirming; not read); 13h, a unit
+      that is to attack: `S0AE0:0008(view, pointer, side)`, then
+      `S0AE0:02E3(view, side)` and 19h. Each of the three has a second
+      step (17h, 18h, 1Ah) entered with 400h in `game_state`'s word 4 and
+      a timer of kind 7 over 4 passes: a second press within them (byte 5
+      of the input record, or 8 in word 0 of the side's record) gives the
+      move up (`S10E1:000F` with 10h) or the attack (effect 1), and when
+      the timer has run out the step goes back (18h calls `S0B15:0371`
+      again with nine words kept at `S3306:000A`). Byte 30h of the view
+      is set when the button was let go before, so that a held button
+      does not count twice.
+  - Next there: `S066A:0F0C` to `1F39` again for the F1 change of byte
+    16h, then `S10E1` (moving: `000F`, `02EB`, `05D1`) and `S0AE0`
+    (`0008`, `02E3`: choosing whom to attack), `S0B15:0371` and `062F`
+    (what a unit reaches), `S0CB6:05F1`, `S131D:1745`, and `S1C74:000B`,
     the computer's turn.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
@@ -1513,8 +1573,9 @@ emulation error (2026-10-02).
      (the bullet "The loop of `game_loop`, second reading": the states of
      a view, the other caller of `unit_add`, which builds a unit in a
      site, the end of a round and of a battle). Next: its part from
-     `S066A:0F0C` to `1F39` again for where the states are entered,
-     `S0CB6:0EAA`, `S131D:1745` and the computer's turn `S1C74:000B`;
+     the routines a move and an attack are chosen in (`S10E1`, `S0AE0`,
+     `S0B15:0371` and `062F`; `view_step` and `field_menu`, which call
+     them, are read), `S131D:1745` and the computer's turn `S1C74:000B`;
      then translate what of a side's part changes state and draws
      nothing (building, repairing, moving out), each with a comparison
      as for the setup; and the libraries' loading (`S0C66:0009`) once

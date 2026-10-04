@@ -1039,9 +1039,152 @@ emulation error (2026-10-02).
     (texts 70h to 72h; `0115` is what `attacks_run` tests before
     `fight_show`). 200h in `game_state`'s word 4 keeps a key from
     repeating.
-  - Next there: the states 1 to 7 of a view from `S066A:1F39` on (orders
-    to a unit, the F1 mode change, the save key), `S0CB6:05F1` and
-    `S0CB6:0750`, and `S1C74:000B`, the computer's turn.
+- The loop of `game_loop`, second reading (2026-10-04; `S066A:1F39` to
+  the loop's end at `S066A:45D7`, some 3,400 lines; read, nothing stepped,
+  nothing translated, none of the routines it calls read but the two
+  named). What a side does in a pass is chosen by byte 17h of its view,
+  with bytes 18h and 19h as steps inside it; byte 1Bh is the picture of
+  the side's pointer (5 the plain one; the table of pictures is behind
+  the far pointer at `S331F:0167`), words 10h and 12h where it is drawn.
+  Where the states are entered from state 0 is in the part read before
+  (`S066A:0F0C` to `1F39`) and was not followed.
+  - State 1 only calls `S0CB6:0EAA(view, side, input bits)` (not read;
+    presumably a unit's order, since nothing else here moves one that
+    stands on the map).
+  - State 3, the whole map small. Entered with 4 in byte 18h: the map is
+    drawn in the middle of the side's half of the screen
+    (`S0E56:09AD(side, x, y, map_ptr)`), a field 2 pixels wide and high
+    when the word at `S331F:0008` is 1 and 4 when it is 2 (so that word,
+    which `battle_setup` sets by the map's size, is the shift of this
+    picture); the cursor becomes the view's corner (bytes 14h and 15h of
+    the view are the corner's column and row halved), 4 is set in word 0
+    of the side's record and byte 18h becomes 5. After that the
+    directions move the corner two fields at a time, within the map less
+    the view's 10 by 8, and the button goes back to state 0 with the
+    view's first field (word 2) set from the corner and the view drawn
+    again. `S2904:000E` with the side's far pointer at 5 of its record is
+    called after each move (presumably it brings back what was under the
+    frame; that pointer is the place in the screen's memory named above).
+  - State 4, what is on the cursor's field. With 0 in byte 18h: a unit
+    there (the second byte of the side's map up to F0h) is shown by
+    `S131D:0483(side, map offset, unit, map)` and byte 18h becomes 6; the
+    second half of a unit of two parts (40h without 80h in `unit_flags`)
+    shows the first. A unit with 2 in its word 6 is shown only to its own
+    side (`same_side`). Without a unit, or with such a foreign one,
+    `S131D:0EE5(side)` is called and byte 18h becomes 7 (what it shows
+    was not looked at). The button goes back to state 0.
+  - State 6 goes into what stands on the cursor's field and becomes state
+    2: by the ground's word 0 in `ww1gnds_dat`, 200h the record of
+    `sites_400` with that field, 80h that of `sites_100` (both found by
+    `S0E56:1726(map offset, table)`), 40h the record of `sites_40` of the
+    side the ground belongs to; without those bits the record of
+    `carriers` named in byte 0Ah of the unit on the field (of the unit
+    before it with 2000h in `unit_flags`). The far pointer to the record
+    is kept at 24h of the view, and word 22h is 1 for a site and 2 for a
+    carrier. (The three bits are not the ones `map_load` adds the records
+    by, 400h, 100h and 40h; not looked at why.)
+  - State 2, inside a site or a carrier. The record's first row of seven
+    unit numbers belongs to the first side and the second to the second
+    (the row is the side times 7); the cursor stands on one of the seven
+    places, 11h pixels apart, odd ones 0Ch higher. Steps in byte 18h:
+    - 9 draws the inside (`S131D:0A1C(side, record)`), puts the cursor on
+      the first place that holds a unit (the fourth without one) and, for
+      a site with 2 in byte 16h of the view, shows the side's
+      `side_points` (`S131D:14D4`); then 0Ah.
+    - 0Ah: the directions step through the places; the place's unit is
+      shown (`S131D:0C50(2, kind, side)`; text 2 for an empty place, 8
+      and 9 for a unit with 400h and 800h in `unit_flags`). A site shows
+      text 25h with byte 16h (the first side) or 17h (the second) of its
+      record and the side's `side_points` (0 for a site with 2 in the
+      record's word 19h, so that bit presumably says the site is
+      nobody's, and bit 0 that it is the second side's); a carrier shows
+      the sum of byte 41h of the kinds in it and byte 40h of its own
+      kind (presumably load and room). The button goes to 0Bh.
+    - 0Bh, what can be done with the place, kept as bits in word 1Ch of
+      the view and chosen with a direction while the button is held, done
+      when it is let go: right (always) leaves, to step 8. Up moves the
+      unit out, for a unit of the side without 100h, 200h and 2 in
+      `unit_flags`, with byte 16h of the view not 2 and 80h clear in
+      `game_state`'s word 4; but when the side's count of attackers (byte
+      15h of its record) has reached byte 16h of the record, a human
+      gets text 53h instead. So that byte, 4, 8, 10h or FFh from the menu,
+      is presumably the number of units a side may send in a round. Down
+      repairs, with 2 in byte 16h of the view and without 4 in the unit's
+      word 6, in a site only. Left builds, on an empty place of a site
+      with 8 in its word 19h (what `site_add_400` gives) that is the
+      side's, with 2 in byte 16h of the view and `build_count` above 0.
+      - Moving out: the place is emptied, the unit's place on the side's
+        map (word 0Bh, or 0Dh for the second side) becomes the record's
+        field (word 0Eh; one field less with 20h in the record's flags,
+        a carrier), `S0B15:0371` is called with the field, the side's
+        work buffer, the unit and masks made of the unit's side and its
+        word 6 (presumably it marks where the unit can go), the unit is
+        put on the map, gets 100h in `unit_flags`, its field 40h or 80h
+        in `field_bits` by the side, and the view goes to state 0 with
+        16h in byte 18h and 3 in 19h (the choosing of an aim, in the
+        part not followed).
+      - Repairing costs 0Fh of `side_points`, 32h for a unit with 4000h
+        in word 6: text 4Ah when the side has less, 50h when
+        `unit_count` already is byte 3 of the kind (the kind's full
+        count), else `unit_count` becomes that, `unit_flags` gets 0A00h
+        and text 51h is shown. (A unit with 4000h in word 6 also gets 2
+        in byte 0Ah and counts as whole only with that.)
+    - 0Ch, the list of kinds to build: `build_kinds`, `build_count` of
+      them, seven shown (`S131D:0B07`), with text 7 and the kind's byte
+      3Fh, its price. The button held with left builds: `S15C5:01A7`
+      with 8000h gives a free unit's number, `unit_add` makes it on the
+      site's field for the site's side (bit 0 of its word 19h), it gets
+      4600h in `unit_flags`, its two records of 9 bytes in the
+      computer's segment (`S39B6:09AB` and `0132`) are emptied, it is put
+      in the place, `unit_total` and the side's count (byte 2 of its
+      record) go up and the price is taken from `side_points`. This is
+      the second caller of `unit_add` the list below named. The price is
+      not compared with what the side has here (not looked at whether
+      the list only offers what it can pay).
+    - 8 leaves: state 0, the cursor back on its field, the view drawn.
+  - State 5, the side has ended its round. The button takes that back
+    (text 34h). While the other side's view is not in state 5, text 32h
+    or 33h is shown (33h with 2 in byte 16h of the view), and a human
+    who plays against the computer sets `game_state`'s word 0Fh to 0 and
+    clears 800h (and sets 80h in word 2 when the computer's record at
+    `S39B6:12FD` has 60h). With both in state 5 the round is carried out when
+    both sides are the computer's or the key of entry 0Ch of the table of
+    keys is pressed: `attacks_run`, then both views put back on their
+    fields and drawn, `S131D:1745` with the side `attack_pick` names (the
+    second with 2 clear there) and 4 set in `S39B6:12FD` and `1309`. `attacks_run` returns a side or a negative value: with a side
+    both views go to state 7, word 22h of that side's view becomes 0Fh
+    and the other's 10h. What takes the views out of state 5 after a
+    round was not found here (presumably `S131D:1745`). The key of entry
+    1Ah saves in this state: `save_game`, whose result is the number of
+    the text shown.
+  - State 7, the battle's end: word 22h of the two views chooses the
+    texts (0Fh: 3Ch for that side and 3Dh for the other, and 4000h in
+    `game_state`; 11h: 41h and 42h, and 2000h; else 42h for both). 10h in
+    `game_state` is set for two humans, and with one side the computer's
+    when the human's view has 0Fh or 11h; it is cleared again when
+    neither 4000h nor 2000h is set. Then `S0CB6:0DA9` (presumably waits)
+    and 2 is cleared in `game_state`, which ends the loop. Behind the
+    loop 10h chooses the call with picture CDh or D0h (by 2000h) and the
+    side whose view has 0Fh. Which of 0Fh and 11h is which end was not
+    looked at (who writes 11h was not found in this part).
+  - The end of a side's part: with 100h in `game_state`'s word 4 and
+    effects on (80h in `game_state`) `S2F39:06E3` plays the effect whose
+    number is word 6 of `game_state`, with 9 for the second side and 0Bh
+    for the first as its first argument; byte 0Ch goes on to the next side.
+  - The end of a pass (`S066A:43A9`): 8 and 10h in `game_state`'s word 4
+    (a text was shown to the first or second side) become timers of kind
+    1 and 2 over 19h passes (`timer_set`), 40h calls `S10E1:072C`; both
+    sides' pointers are drawn (`S2A6B:0008`, not in state 4), then
+    `S2F39:096A`, `S2974:0002`, `S28DC:000A`. Dword 13h of `game_state`
+    counts the passes, and each of the 15 timers that is due is carried
+    out by `timer_fire`. The pass then waits until the count at 22Eh of
+    the record behind `DATA:0092` has reached word 0Fh of `game_state`:
+    4, the least length of a pass (presumably in ticks; who counts and
+    who sets it back to 0 was not looked at).
+  - Next there: `S066A:0F0C` to `1F39` again for where the states are
+    entered (the F1 change of byte 16h, the keys), `S0CB6:0EAA` (state
+    1), `S0CB6:05F1` and `S0CB6:0750`, `S131D:1745`, and `S1C74:000B`,
+    the computer's turn.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -1366,14 +1509,16 @@ emulation error (2026-10-02).
      `mem_alloc` is translated on the runtime's DOS blocks. The
      port's own start is done up to the loop's beginning at `S066A:0EE6`
      (`port/src/battle.c`, the bullets "The port's own start" and "The rest
-     of a battle's setup"). Next: the loop itself from `S066A:45D7` (what
-     a round is, how `game_state`'s byte 0Ch and the sides' state bytes
-     drive it; most of it draws or waits, so first read and name), and
-     the libraries' loading (`S0C66:0009`) once the port is to draw; then
-     the other
-     caller of `unit_add` (in `S066A`, just after a call of the routine
-     at `S15C5:01A7`, which finds a unit by its flags; `S131D` calls that
-     one too; neither read). `attacks_run` around them waits for
+     of a battle's setup"). The loop is read from `S066A:1F39` to its end
+     (the bullet "The loop of `game_loop`, second reading": the states of
+     a view, the other caller of `unit_add`, which builds a unit in a
+     site, the end of a round and of a battle). Next: its part from
+     `S066A:0F0C` to `1F39` again for where the states are entered,
+     `S0CB6:0EAA`, `S131D:1745` and the computer's turn `S1C74:000B`;
+     then translate what of a side's part changes state and draws
+     nothing (building, repairing, moving out), each with a comparison
+     as for the setup; and the libraries' loading (`S0C66:0009`) once
+     the port is to draw. `attacks_run` around them waits for
      the drawing routines; a fight the first side starts is still to be
      seen (a scripted attack by the player), as are a carrier's and a
      two-part unit's end;

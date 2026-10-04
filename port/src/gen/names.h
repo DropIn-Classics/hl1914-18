@@ -176,6 +176,8 @@
     X(S0B15, field_neighbours, 0x0162) \
     X(S0CB6, view_cursor, 0x0154) \
     X(S0CB6, same_side, 0x0205) \
+    X(S0CB6, timer_set, 0x0272) \
+    X(S0CB6, timer_fire, 0x035A) \
     X(S0CB6, view_reset, 0x0CDA) \
     X(S0E56, view_tables, 0x000B) \
     X(S0E56, shp_load, 0x0079) \
@@ -215,10 +217,13 @@
     X(S3310, name_prefix, 0x007D) \
     X(S3310, name_buf, 0x00B9) \
     X(S331F, around_percent, 0x0009) \
+    X(S331F, side_points, 0x02B5) \
     X(S331F, ww1gnds_dat, 0x05A3) \
     X(S331F, unit_dat, 0x09BD) \
     X(S331F, map2_ptr, 0x17B2) \
     X(S331F, map_ptr, 0x17B6) \
+    X(S331F, build_count, 0x17BE) \
+    X(S331F, build_kinds, 0x17BF) \
     X(S331F, free_depth, 0x17F2) \
     X(S331F, neighbours, 0x17FB) \
     X(S331F, fight_rec, 0x181C) \

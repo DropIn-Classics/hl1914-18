@@ -1261,3 +1261,28 @@ name S1C74:01B4 computer_reset
 ; the BIOS's count of timer ticks. Presumably the start of a random
 ; sequence (who reads it was not looked at).
 name S2C95:000E clock_seed
+
+; game_loop's loop from S066A:1F39 to its end (read 2026-10-04, nothing
+; stepped; docs/HANDOFF.md, "The loop of game_loop, second reading", has
+; what the states of a view do). The routines and places named here are
+; used there.
+; timer_set(kind, passes, value): takes the first free of the 15 timers in
+; game_state (byte 19h the kind, dword 28h the pass it is due at: the count
+; of passes at dword 13h plus the passes, word 64h the value); kinds 1 and
+; 2 first free the timers of their own kind. Read.
+name S0CB6:0272 timer_set
+; timer_fire(kind, timer): what a timer does when game_loop finds it due
+; at the end of a pass: 1 and 2 take the first and second side's message
+; off (show_message(-1, side)) and clear 4 and 8 in game_state, 3 and 4
+; set 20h and 40h in game_state's word 4, 5 calls S0E56:145A with the word
+; of the timer's number at S331F:4D08, 6 and 7 clear 200h and 400h in
+; game_state's word 4. Read.
+name S0CB6:035A timer_fire
+; A word for each side: what building a unit (byte 3Fh of its kind) and
+; repairing one (0Fh, or 32h with 4000h in the unit's word 6) is taken
+; from; shown at most as 2710h. Where it comes from was not looked at.
+name S331F:02B5 side_points
+; The number of kinds a site offers to build and their list (who fills
+; them was not looked at).
+name S331F:17BE build_count
+name S331F:17BF build_kinds

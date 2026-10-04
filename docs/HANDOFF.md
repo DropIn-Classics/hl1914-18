@@ -1436,9 +1436,64 @@ emulation error (2026-10-02).
       (port/README.md, "Checked"). A scripted move by the first side
       into a site and into a carrier would close that. The drawing and
       the text of a step change nothing in the game's state.
-  - Next there: `S0CB6:05F1`, `S131D:1745`, the part of `attacks_run`
-    that reads byte 13h of the units, and `S1C74:000B`, the computer's
-    turn.
+  - The orders carried out (2026-10-04; `attacks_run` from `S02E6:0E9C`
+    to `19B8`, after the fights and the freeing of the destroyed and
+    before "A round's end" above; read, nothing stepped). Every unit in
+    use is taken by its byte 13h; A is the side whose attacks were
+    carried out, M the one that moved (as above). Orders 2 and 3 need
+    nothing more.
+    - 4, onto a site of the other side or of nobody (M's unit; the
+      record by word 17h and byte 15h as in `order_undo`): the site is
+      taken. Music and pictures (`S2F39:1058`, A's view put on the site,
+      `S131D:1426`, the picture CBh or CAh through `S1A39:0001`, the
+      libraries loaded again by `S02E6:3484`, 1000h in `game_state`);
+      then A's row of the site is copied to M's, the unit gets the first
+      free place of it (with none, place 0, whose unit is freed); every
+      unit standing in the site changes to M's side (its side bits, a
+      new `unit_serial` from the kind's byte 3Dh or 3Eh, the sides'
+      counts in byte 2, a carrier's record's side bits); the sides'
+      count of the site's sort (byte 3 for `sites_400`, 4 for
+      `sites_100`) goes over, the site's field gets the ground of its
+      new owner from `amok_dat` (bytes 0 and 1 for `sites_400`, 3 and 4
+      for `sites_100`, 6 and 7 for `sites_40`), the record's side bits
+      become M and its byte 18h 5; the unit goes inside (F4h on the
+      field, 4200h, `carrier_moved`). For a record of `sites_40` the
+      routine's result becomes M: taking that site wins the battle,
+      which is the result 0Fh of state 7 and settles that `sites_40` is
+      the headquarters. So `amok_dat` holds the grounds of the three
+      sorts of site by owner.
+    - 5, a carrier into a site of its side: each unit in the site's row
+      for M that has 4 in its word 6 is freed and its `unit_count` times
+      8 added to byte 16h (17h for the second side) of the site's record.
+      So a unit with 4 in word 6 is a load of goods, and those bytes are
+      the site's stock (what text 25h shows). (The bound tested there,
+      2710h, cannot be met by a byte sum; as the code has it.)
+    - 1, the mover took a unit on its field into itself: for a unit that
+      was freed meanwhile the place is emptied, else the unit changes to
+      the mover's side as above. Still no writer of kind 1 found.
+    - 0Bh, a unit with 4000h in word 6 (A's): `S0E56:1A97` gives four
+      fields from `unit_aim` in `neighbours`; when all four have 8000h in
+      their ground's word 0 and no unit, their grounds become the four
+      bytes at `S331F:4C92` and the unit's byte 0Ah goes down by 1.
+    - 0Dh, the same sort of unit: a new record of `sites_100` is made on
+      `unit_aim` for A (`site_add_100`; its number the count at
+      `S331F:4CAE`, which is why `attack_order` bounds it by 0Ah), with
+      stock 0, the grounds of the three other fields from `S331F:4C97`
+      on and of the first from `amok_dat`; byte 0Ah goes down by 1. So
+      such a unit builds, and its byte 0Ah is what it has left to build
+      with; `sites_100` is presumably a depot (not seen on the screen).
+    - 11h, a unit with 2000h in word 6: `S0E56:1B57(its place, unit_aim,
+      map)`, not read.
+    `S331F:4C92` to `4C99` lie inside `amok_dat` (36 bytes from
+    `S331F:4C7A`; its bytes 18h to 1Fh), as does `blast_time` (byte 8):
+    that file is a table of grounds and settings the program uses by
+    place.
+    Not translated: the part draws and waits in between; the state it
+    changes could be translated apart, as was done for `move_step`.
+  - Next there: `S0CB6:05F1`, `S131D:1745`, `S0E56:1A97` and `1B57`, and
+    `S1C74:000B`, the computer's turn; a scripted run of the first side
+    that moves into a site and a carrier and takes a site, to compare
+    `move_arrive`'s other kinds and this part.
   - The three routines are translated (`port/src/range.c`) and compared
     with 108 calls of the original from the six long runs
     (`port/tests/range_test.sh`, dumps by `build/n2/range2.py`,
@@ -1781,8 +1836,9 @@ emulation error (2026-10-02).
      (the bullet "The loop of `game_loop`, second reading": the states of
      a view, the other caller of `unit_add`, which builds a unit in a
      site, the end of a round and of a battle). Next: its part from
-     where byte 13h of the units is read at a round's end (the walk is
-     read and translated, `port/src/move.c`, as is the
+     the scripted run named under "The orders carried out" (the walk is
+     read and translated, `port/src/move.c`, and what a round's end does
+     with the orders is read, as is the
      way, `path_find`; `view_step`, `field_menu`, the routines that
      take an order, `move_aim`, `move_start`, `attack_order`, the round's end in
      `attacks_run` and `move_range`, `move_costs` and `attack_range` are

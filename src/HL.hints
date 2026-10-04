@@ -1349,3 +1349,41 @@ name S0B15:0371 move_range
 ; in the mask. They get 4 (first side) or 8 in field_bits; returns their
 ; number as a byte. Read, not stepped.
 name S0B15:062F attack_range
+; unit_mark(unit, bits, side, set): sets or clears the bits (100h or 200h)
+; in the unit's unit_flags and, on its field, 40h or 80h (for 100h; by the
+; side) or 10h or 20h (for 200h) in field_bits, draws the field
+; (S0E56:145A) and does the same for the other half of a two-part unit.
+; Read as far as that; not stepped.
+name S0E56:1DDB unit_mark
+; attack_order(view, map, side): the button on a field while a unit (word
+; 1Eh of the view) chooses whom to attack. On a field marked 4 or 8 for the
+; side: an ordinary unit gets the field in unit_aim, 2 in unit_marks, 9 in
+; its byte 13h and is put on the side's list of units with an order (text
+; 49h); one with 4000h in word 6 gets 0Bh in byte 13h, or 0Dh on a ground
+; that is the byte at S331F:4C92 (text 46h; 47h and nothing when the byte
+; at S331F:4CAE has reached 0Ah); one with 2000h gets 11h (text 6Eh). Each
+; is marked with 200h (unit_mark). Any other field: text 45h. Returns 1
+; when an order was given. Read, not stepped.
+name S0AE0:0008 attack_order
+; move_aim(view, map, side): the button on a field while a unit chooses
+; where to move. Refuses (12h) a field not marked 1 or 2 for the side, the
+; unit's own, a ground with 4000h in its word 0 for a unit with 10h in
+; unit_flags, one S10E1:0F82 gives a text for, and one S0B15:0E52 finds no
+; way to (text 48h). Else the way's fields (their number at S331F:17F3,
+; the fields at 1F40h in the side's work buffer) are the only ones left
+; marked, the field goes to unit_aim and the result is 1; 8 is added for a
+; two-part unit. Read, not stepped; the two routines it calls not read.
+name S10E1:02EB move_aim
+; move_start(view, side): the button again on the field move_aim took: the
+; unit is put on the side's list of units with an order, unit_aim becomes
+; its own place, 80h is set in game_state's word 4 and a timer of kind 4
+; started (which presumably moves it along the way). Returns 1, or 12h
+; for another field. Read, not stepped.
+name S10E1:05D1 move_start
+; move_done(view, map, side, flags): ends the choosing of a move: clears
+; the side's marks 1 or 2 and draws the view. With 10h in the flags the move
+; is given up: 100h is cleared in unit_flags, 40h or 80h in field_bits, and
+; a unit that was moving out of a site or carrier (byte 19h of the view 3)
+; is taken off the map and put back in its place there, the view going back
+; to state 2. Read, not stepped.
+name S10E1:000F move_done

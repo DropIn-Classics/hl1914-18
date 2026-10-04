@@ -174,6 +174,7 @@
     X(S02E6, defence_sum, 0x29D4) \
     X(S02E6, units_drop_empty, 0x2B28) \
     X(S066A, game_loop, 0x000D) \
+    X(S0AE0, attack_order, 0x0008) \
     X(S0B15, field_bits_clear, 0x000B) \
     X(S0B15, buf_neighbours, 0x005B) \
     X(S0B15, field_neighbours, 0x0162) \
@@ -192,8 +193,12 @@
     X(S0E56, map_load, 0x0329) \
     X(S0E56, view_to_field, 0x177C) \
     X(S0E56, map_copy, 0x1D9B) \
+    X(S0E56, unit_mark, 0x1DDB) \
     X(S0E56, field_distance, 0x241F) \
     X(S10AF, show_message, 0x000F) \
+    X(S10E1, move_done, 0x000F) \
+    X(S10E1, move_aim, 0x02EB) \
+    X(S10E1, move_start, 0x05D1) \
     X(S1273, save_game, 0x0005) \
     X(S1273, load_game, 0x0399) \
     X(S1273, save_blocks, 0x0662) \

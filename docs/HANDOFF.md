@@ -1335,9 +1335,48 @@ emulation error (2026-10-02).
       more than the fields they carry.
     Not looked at: whether the bits 3Ch and the grounds' byte 2 are
     land, water and air, which the two costs suggest.
-  - Next there: `S10E1` (moving: `000F`, `02EB`, `05D1`) and `S0AE0`
-    (`0008`, `02E3`: choosing whom to attack), `S0CB6:05F1`,
-    `S131D:1745`, and `S1C74:000B`, the computer's turn.
+  - How an order is given (2026-10-04; `move_aim` `S10E1:02EB`,
+    `move_start` `S10E1:05D1`, `move_done` `S10E1:000F`, `attack_order`
+    `S0AE0:0008`, `S0AE0:02E3` and `unit_mark` `S0E56:1DDB`, read, nothing
+    stepped; these are what `view_step` calls).
+    - A move takes two presses. The first on a marked field (`move_aim`)
+      finds the way: `S10E1:0F82(field, side, map)` may refuse the field
+      with a text, `S0B15:0E52(work buffer, unit, from, to, side, map)`
+      gives 0 when there is a way (text 48h when not) and leaves the
+      way's fields as words at 1F40h in the side's work buffer (far
+      pointer at 0Dh of its `sides` record), their number at
+      `S331F:17F3`; only those fields stay marked, and `unit_aim` is the
+      field. A unit with 10h in `unit_flags` cannot aim at a ground with
+      4000h in its word 0. The second press on the same field
+      (`move_start`) puts the unit on the side's list, sets 80h in
+      `game_state`'s word 4 and starts a timer of kind 4 (presumably the
+      unit's walk; `timer_fire` and what it calls for kind 4 were not
+      read), `S331F:180F` being the unit. Neither routine was read:
+      `0F82` and `0E52`.
+    - An attack takes one press on a marked field (`attack_order`): the
+      field goes to `unit_aim`, `unit_marks` gets 2, the unit's byte 13h
+      9, and the unit is put on the side's list; the fight is at the
+      round's end (`attacks_run`). The two special kinds of unit get
+      other values in byte 13h and no place on the list: 0Bh or 0Dh for
+      a unit with 4000h in word 6 (0Dh on the ground whose number is the
+      byte at `S331F:4C92`, at most while the byte at `S331F:4CAE` is
+      below 0Ah; presumably it builds something there), 11h for one with
+      2000h. So byte 13h of a unit is its order. `S0AE0:02E3` afterwards
+      clears the marks, takes 100h off the unit and draws the view.
+    - So the list at 11h of a side's record, counted in its byte 15h and
+      bounded by byte 16h (the menu's 4, 8, 10h or FFh), holds the units
+      that were given an order in this half, movers and attackers alike;
+      it is the number of orders a side has, not of attacks. (The names
+      "attackers" above and `attack_pick` are from before this was
+      known.)
+    - `unit_mark` is what puts 100h (a unit being moved) and 200h (a
+      unit that has its order) into `unit_flags`, with 40h/80h and
+      10h/20h in `field_bits` on the unit's field; the round's end
+      clears them.
+  - Next there: `S10E1:0F82`, `S0B15:0E52` (the way), `timer_fire`'s kind
+    4 (the walk; `S10E1:072C` is called at a pass's end with 40h in word
+    4), `S0CB6:05F1`, `S131D:1745`, and `S1C74:000B`, the computer's
+    turn.
   - The three routines are translated (`port/src/range.c`) and compared
     with 108 calls of the original from the six long runs
     (`port/tests/range_test.sh`, dumps by `build/n2/range2.py`,
@@ -1680,8 +1719,9 @@ emulation error (2026-10-02).
      (the bullet "The loop of `game_loop`, second reading": the states of
      a view, the other caller of `unit_add`, which builds a unit in a
      site, the end of a round and of a battle). Next: its part from
-     the routines a move and an attack are chosen in (`S10E1`, `S0AE0`;
-     `view_step` and `field_menu`, which call them, the round's end in
+     how a move is carried out (the way, `S0B15:0E52`, and the walk by
+     the timer of kind 4; `view_step`, `field_menu`, the routines that
+     take an order, `move_aim`, `move_start`, `attack_order`, the round's end in
      `attacks_run` and `move_range`, `move_costs` and `attack_range` are
      read, the three translated in `port/src/range.c` and compared),
      `S131D:1745` and the computer's turn `S1C74:000B`;

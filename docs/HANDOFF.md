@@ -19,7 +19,8 @@ battle's setup" below: the setup is translated up to the loop's beginning,
 but for pictures and sound). Of the loop, the views' states, a round's end
 and what a unit reaches are read (the last bullets under "The loop of
 `game_loop`, second reading"), and the routines that mark where a unit can
-move, whom it can attack and its way are translated (`port/src/range.c`).
+move, whom it can attack and its way are translated (`port/src/range.c`),
+as is the carrying out of a move, field by field (`port/src/move.c`).
 `master`
 was pushed at `dc1970c`; the commits after it are local.
 
@@ -1422,10 +1423,19 @@ emulation error (2026-10-02).
       the field into its own row) is written by nothing read so far.
     - `order_undo` takes all that back for a unit that is freed at the
       round's end (`attacks_run`).
-    - Six runs logging these routines were started (`build/n2/move1.py`,
-      logs `build/n2/m0.log` to `m5.log`) to see how often each is
-      called and with which kinds; the port's translation and its
-      comparison come with them.
+    - Translated (`port/src/move.c`: `move_step`, `move_target`,
+      `move_arrive` and what they call, with `timer_set` and `unit_mark`
+      without their drawing) and compared on 89 calls of the six runs
+      (`port/tests/move_test.sh`, dumps by `build/n2/move1.py` to
+      `move3.py`): 41 of `move_step`, 48 of `move_target`, the same.
+      The runs hold 2,012 steps, 974 of them a walk's end, and 18,607
+      calls of `move_target` (most of them presumably the computer
+      trying fields through `S0B15:13EC`). Every walk dumped ends on a
+      free field: the kinds 1, 2, 4 and 5 of an arrival are read only,
+      and `order_undo` and `row_move` were never called in the runs
+      (port/README.md, "Checked"). A scripted move by the first side
+      into a site and into a carrier would close that. The drawing and
+      the text of a step change nothing in the game's state.
   - Next there: `S0CB6:05F1`, `S131D:1745`, the part of `attacks_run`
     that reads byte 13h of the units, and `S1C74:000B`, the computer's
     turn.
@@ -1771,8 +1781,9 @@ emulation error (2026-10-02).
      (the bullet "The loop of `game_loop`, second reading": the states of
      a view, the other caller of `unit_add`, which builds a unit in a
      site, the end of a round and of a battle). Next: its part from
-     how a move is carried out (the walk by the timer of kind 4; the
-     way, `path_find`, is translated; `view_step`, `field_menu`, the routines that
+     where byte 13h of the units is read at a round's end (the walk is
+     read and translated, `port/src/move.c`, as is the
+     way, `path_find`; `view_step`, `field_menu`, the routines that
      take an order, `move_aim`, `move_start`, `attack_order`, the round's end in
      `attacks_run` and `move_range`, `move_costs` and `attack_range` are
      read, the three translated in `port/src/range.c` and compared),

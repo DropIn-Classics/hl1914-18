@@ -67,6 +67,19 @@ uint8_t attack_range(Far buf, int16_t field, int16_t range, uint16_t side,
 
 int16_t path_find(Far buf, uint16_t unit, int16_t from, int16_t to, uint16_t side, Far map);
 
+/* move.c */
+uint8_t field_dir(int16_t from, int16_t to);
+int16_t row_count(uint16_t side, Far rec, uint16_t used);
+int16_t row_load(Far rec, uint16_t side);
+void row_move(uint16_t side, Far from, Far to);
+void carrier_moved(uint16_t unit, uint16_t side);
+uint16_t site_find(uint16_t field, Far table);
+void timer_set(uint16_t kind, int16_t passes, uint16_t value);
+void unit_mark(uint8_t unit, uint16_t bits, uint16_t side, uint16_t set);
+uint16_t move_target(uint16_t field, uint16_t side, Far map);
+uint16_t move_arrive(uint16_t side, Far map);
+uint16_t move_step(void);
+
 /* units.c */
 void unit_destroy(uint8_t unit, uint8_t put, uint8_t put2, int8_t slot, uint16_t side, Far map);
 void site_free(Far site, uint16_t row);

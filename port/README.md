@@ -67,6 +67,16 @@ Then `src/range.c`: `move_range`, which marks where a unit can move, with
 and `attack_range`, which marks whom it can attack, and `path_find`, the
 way of a unit to a field it can reach. Nothing calls them yet.
 
+Then `src/move.c`, how a move is carried out: `move_step`, which takes
+the walking unit one field on along its way, `move_target`, which says
+what a move to a field would be (a free field, into a carrier, into or
+onto a site) or which text refuses it, and `move_arrive`, which ends the
+walk and gives the unit its order; with them `field_dir`, `row_count`,
+`row_load`, `row_move`, `carrier_moved`, `site_find`, `timer_set` and
+`unit_mark`. What the original draws on the way and the text it shows at
+the end are left out (`move_step` returns the text's number). Nothing
+calls them yet.
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -294,3 +304,33 @@ anything the game needs before the first release.
   ends at 316h records or fields were not met in the calls dumped, as far
   as the results show (they return FFFFh like a way not found, so the
   dumps do not tell them apart).
+- The walk (2026-10-04, macOS): `sh port/tests/move_test.sh` runs
+  `move_target` and `move_step` on calls of the original, each a pair of
+  dosrun `-ram` dumps at the routine's entry and at its end (`S10E1:1444`,
+  `S10E1:0AEF`; the scratch scripts `build/n2/move1.py`, `move2.py` and
+  `move3.py` log the six long runs and make the dumps; local, not in the
+  repository). The runs hold 2,012 calls of `move_step`, 974 of them the
+  end of a walk, and 18,607 of `move_target` (14,795 with result 0, 3,797
+  with 39h, 11 with 3Ah, 4 with 3Bh). Dumped: of each run three steps that
+  end a walk and three that do not, eight calls of `move_target` with one
+  of each result the run has, and five steps of a carrier in run `w2`
+  (`carrier_moved` called): 41 of `move_step` and 48 of `move_target`.
+  The result of `move_target` and the game's state (from segment `S3306`
+  up to `DATA`, both maps and both sides' work buffers) are the same in
+  all 89, and the original writes nothing there that the port's routines
+  do not, although it draws and shows a text. Elsewhere the stack below
+  the entry's SP differs and, in the steps, bytes outside the game's
+  state: `S30EF:022E`, `DATA:0D5F` to `0D62` and a few more seen in the
+  other tests, and `S2A95:000C` in every step that ends a walk
+  (presumably the text shown; not checked).
+  Not covered: every walk dumped ends on a free field (kind 3), so
+  `move_arrive`'s kinds 1, 2, 4 and 5 (into a carrier or site, onto a
+  site of the other side) and with them `row_move` are translated from
+  reading only; of `move_target` one call gave kind 5 and none kind 2 or
+  4 (its refusals 39h, 3Ah and 3Bh were met); no two-part unit walked in
+  the calls dumped, as far as the bytes changed show (not looked at one
+  by one); which side the walks were was not looked at (presumably the
+  computer's, as with `move_range`). `timer_set` was run only for kind 4
+  and `unit_mark` only setting 200h, both inside `move_step`.
+  `order_undo` is not translated; the logs show no call of it nor of
+  `row_move` in the six runs.

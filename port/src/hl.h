@@ -73,4 +73,9 @@ void map_setup(Far file);
 void shp_reset(void);
 void shp_setup(Far file);
 
+/* files.c */
+extern const char *hl_game_dir;     /* the installed game's folder */
+Far ptr_norm(Far p);
+Far file_load(Far to, Far name, Far work);
+
 #endif

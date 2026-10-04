@@ -195,6 +195,7 @@
     X(S2C01, lib_read, 0x0006) \
     X(S2C45, file_load, 0x0002) \
     X(S2C8E, file_open, 0x0006) \
+    X(S2C9E, ptr_norm, 0x0002) \
     X(S2CBE, mem_alloc, 0x000E) \
     X(S331F, around_percent, 0x0009) \
     X(S331F, ww1gnds_dat, 0x05A3) \

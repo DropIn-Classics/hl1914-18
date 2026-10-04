@@ -617,7 +617,17 @@ comment S2B8F:000C file_size(far name): opens, reads eight bytes; a packed file'
 name S2C01:0006 lib_read
 comment S2C01:0006 Presumably reads one named entry of a library file: opens [BP+0A], reads a dword and seeks there, then reads 0Ch-byte records while the name at [BP+0E] is not empty (read from the code's start only).
 name S2C45:0002 file_load
-comment S2C45:0002 file_load(far buffer or 0/FFFFFFFF, far name, ...): opens, reads eight bytes, unpacks a packed file, else reads it whole; allocates when no buffer is given (read from the code; the unpacking itself was not read).
+comment S2C45:0002 file_load(far place or 0/FFFFFFFF, far name, far work buffer of 1000h bytes or 0): opens (up to four tries with a message when DATA:0376 is set), reads eight bytes to S2C45:0486; with a work buffer and the packer's signature there the file is unpacked, else read whole; allocates when no place is given. Returns the place, its offset made 1 to 10h, or 0.
+; The packed file: the signature, the unpacked length as a dword, then
+; groups of a control byte and eight items, bit 7 first: bit clear, one byte
+; as it is; bit set, two bytes: the upper four bits of the first and the
+; second are how far back (12 bits), the lower four plus 3 how many bytes
+; to repeat from there. One byte more than the length is written, and the
+; word behind the data is kept and put back. The file is read through the
+; work buffer 1000h bytes at a time. Compared with the port's translation
+; on the 47 calls of a start up to the first map.
+name S2C9E:0002 ptr_norm
+comment S2C9E:0002 ptr_norm(far pointer): DX:AX = the same place with an offset below 10h.
 name S2CBE:000E mem_alloc
 comment S2CBE:000E mem_alloc(dword size): INT 21h AH=48h for size/16+1 paragraphs; the segment is entered in the table at DATA:0469 (count at DATA:0467) and returned in DX, AX = 0.
 

@@ -29,8 +29,11 @@ routines that make units and sites: `unit_add`, `carrier_find`,
 builds a battle's state from the two files of a map once they are in
 memory: `map_reset` and `map_setup` (the two parts of `map_load` around
 its loading of the file), `map_copy`, `shp_reset` and `shp_setup` (the same
-of `shp_load`). The loading itself is not translated. None of this is
-called by the program yet.
+of `shp_load`). `src/files.c` has `file_load`, which reads a file of the
+installed game into the program's memory and unpacks a packed one, and
+`ptr_norm`; its allocation when no place is given, the message and the
+further tries when a file cannot be opened are not translated. None of
+this is called by the program yet.
 
 ## Build and run
 
@@ -121,3 +124,21 @@ anything the game needs before the first release.
   only; `map_reset`, `shp_reset` and `carrier_find`'s return of FFFFh were
   not run against the original at all (the dumps begin behind the reset
   parts).
+- Loading files (2026-10-04, macOS): `sh port/tests/load_test.sh` runs
+  `file_load` on calls of the original (dumps at its entry and at its
+  RETFs, the returned pointer from the registers logged there; the scratch
+  script `build/n2/load1.py` takes all 47 calls of one run from the start
+  to the first map). The port's routine reads the same file from `game/`
+  (`$DOSKIT_GAME`): in all 47 calls the returned pointer and all of memory
+  are the same as the original's, the work buffer and the routine's own
+  variables in its code segment included, apart from the stack below the
+  entry's SP and the bytes the test's `beside` lists (the BIOS clock,
+  `S30EF:022E`, and in `DATA` `0308`, `03C9`, `03D4` to `03E7`, `0400` to
+  `0413`, `0424` to `0426`, `0B19`, `0D5F` to `0D62`), which `file_load`
+  does not write (read in its code); presumably the interrupt handlers do
+  (not checked). 44 files were packed, one was not, one that does not
+  exist was asked for twice (the routine returns 0).
+  Not covered: a call without a place (the original allocates; the port
+  returns 0 there), a packed file without a work buffer, a file longer
+  than a segment, `DATA:0378` above 0 (the name behind the name), and the
+  failure to read.

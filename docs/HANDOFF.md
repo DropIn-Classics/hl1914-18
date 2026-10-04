@@ -775,6 +775,26 @@ emulation error (2026-10-02).
   - `build/n2/a0.log` to `a5.log` were written anew by this session's
     `add1.py`; whether an earlier session had files of those names is not
     known (`a6.log` to `a9.log`, empty, are older).
+- `file_load` translated (2026-10-04; `port/src/files.c`, compared by
+  `port/tests/load_test.sh` with the original on all 47 calls of run `w0`
+  up to its first map: the returned pointer and all memory the same, but
+  for bytes the original's routine does not write itself, see
+  port/README.md). Its arguments are a place, a name and a work buffer of
+  1000h bytes; the packed format is in the routine's comment in
+  `src/HL.hints` (read from `HL.EXE`'s own unpacker; the offline
+  `tools/tpwmfiles.py` was not consulted for it). 44 of the 47 files were
+  packed, one not (`AMOK.DAT`), and
+  `MAP\00.HI` (asked for twice) does not exist: the routine returns 0.
+  Every call gave a place and a work buffer, so the allocating path and
+  the path without a work buffer are read only. The names the game asks
+  for include `LIB\partS.LIB`, `LIB\unit.LIB`, `LIB\cursor.LIB`,
+  `LIB\exp.LIB`, `LIB\bum.LIB` and `LIB\newshop.LIB` with their `.DAT`:
+  the "`.LIB` and `.DAT` whose name has only the extension" of the list of
+  opened files above was a name cut short in that trace's reading, not an
+  empty prefix. `ptr_norm` (`S2C9E:0002`) is named. `file_open` uses the
+  string behind the name when `DATA:0378` is above 0 and calls a hook
+  around the opening when `DATA:04B9` is set (neither met nor read
+  further).
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -1089,9 +1109,13 @@ emulation error (2026-10-02).
      (`port/src/fight.c`, `port/tests/fight_test.sh`). Next in the port:
      `unit_destroy` and `unit_free` (`port/src/units.c`,
      `port/tests/units_test.sh`) are done, and so is the making of a
-     battle's state from a map's two files (`port/src/map.c`); next there
-     the loading itself (`file_load` and the unpacking, which the offline
-     tools know but the port has to read from `HL.EXE`), then the other
+     battle's state from a map's two files (`port/src/map.c`); the loading
+     itself is translated too (`file_load`, `port/src/files.c`). Next
+     there: `mem_alloc`, then `map_load` and `shp_load` whole (their
+     parts joined with `file_load`) and the routine that calls them
+     (`S066A`, from the list of opened files: which files go where), so
+     that the port builds a battle's state from the game's folder; then
+     the other
      caller of `unit_add` (in `S066A`, just after a call of the routine
      at `S15C5:01A7`, which finds a unit by its flags; `S131D` calls that
      one too; neither read). `attacks_run` around them waits for

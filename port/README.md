@@ -62,6 +62,11 @@ chosen and nothing else is changed (from the map's record in `CODES.DAT`:
 a map for two players has two human sides, a map for one the computer as
 its second side below map 24 and as its first from there on).
 
+Then `src/range.c`: `move_range`, which marks where a unit can move, with
+`move_costs` (what entering each field costs it) and `buf_neighbours`,
+and `attack_range`, which marks whom it can attack. Nothing calls them
+yet.
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -249,3 +254,29 @@ anything the game needs before the first release.
   a view at a map's far edge beyond what these six starting fields give;
   in the program's own run the seed is made of whatever the runtime has at
   the BIOS clock's place.
+- What a unit reaches (2026-10-04, macOS): `sh port/tests/range_test.sh`
+  runs `move_range` and `attack_range` on calls of the original, each a
+  pair of dosrun `-ram` dumps at the routine's entry and at its end
+  (`S0B15:0621`, `S0B15:09F3`), the arguments read from the stack of the
+  first and the result compared with AX as the run's log has it at the
+  end (the scratch scripts `build/n2/range2.py`, `range3.py` and
+  `range4.py` make the dumps from the six long runs, which hold 2,912
+  calls of `move_range` and 619 of `attack_range`, and write the test's
+  argument list; local, not in the repository). 60 calls of `move_range`
+  (the first four of each run and six spread over each run) and 48 of
+  `attack_range` (the first four of each run and the first four that
+  found something): the result and the game's state (from segment `S3306`
+  up to `DATA`, both maps and the work buffer) are the same in all 108.
+  Elsewhere the stack below the entry's SP differs, the argument words
+  the original changes on its stack (the port does not write them back),
+  and the bytes outside the game's state seen in the fights
+  (`S30EF:021E`, `DATA:0D4F` to `0D52` and a few more in `S30EF` and
+  `DATA`, the BIOS's count of ticks): presumably interrupts, not checked.
+  Not covered: every call dumped is the second side's (the computer's; the
+  first side's random play did not get there in the calls taken), so the
+  first side's marks and bits are translated from reading only; no unit
+  with 10h in `unit_flags` or in its word 6 (the other two of
+  `move_costs`' three costs), no kind with 40h in word 0Dh, no
+  `attack_range` with 2 in its mask. 10 of the 60 moves reach only the
+  unit's own field; 12 of the 48 attacks have 40h in the mask, 25 find
+  one to ten units.

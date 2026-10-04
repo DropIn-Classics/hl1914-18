@@ -16,8 +16,11 @@ of units and sites and the building of a battle's state from a map's files
 into its memory and sets a battle up by itself as far as that is translated
 (`port/src/battle.c`; the bullets "The port's own start" and "The rest of a
 battle's setup" below: the setup is translated up to the loop's beginning,
-but for pictures and sound). `master` was pushed at `dc1970c`; the commits
-after it are local.
+but for pictures and sound). Of the loop, the views' states, a round's end
+and what a unit reaches are read (the last bullets under "The loop of
+`game_loop`, second reading"), and the routines that mark where a unit can
+move and whom it can attack are translated (`port/src/range.c`). `master`
+was pushed at `dc1970c`; the commits after it are local.
 
 The `doskit` submodule is now at `2f6fe29` (fast-forwarded from `a4b8166`,
 eight commits). That update adds first support for LE images (`disasm.py`,
@@ -1299,8 +1302,8 @@ emulation error (2026-10-02).
   - What a unit reaches (2026-10-04; `move_costs` `S0B15:0A01`,
     `move_range` `S0B15:0371`, `attack_range` `S0B15:062F` and
     `buf_neighbours` `S0B15:005B`, read, nothing stepped). All three work
-    in a buffer of 1104h bytes, one a field, 64 fields a row (which is
-    what `field_bits` and the block at `S331F:3B5A` are too).
+    in a buffer of 1104h bytes, one a field, 64 fields a row (as
+    `field_bits` is).
     - `move_costs` writes what entering each field costs the unit as a
       negative byte, B0h for a field it cannot enter. The ground's
       6-byte record in `ww1gnds_dat`: byte 2 says which kinds may enter
@@ -1334,9 +1337,21 @@ emulation error (2026-10-02).
     land, water and air, which the two costs suggest.
   - Next there: `S10E1` (moving: `000F`, `02EB`, `05D1`) and `S0AE0`
     (`0008`, `02E3`: choosing whom to attack), `S0CB6:05F1`,
-    `S131D:1745`, and `S1C74:000B`, the computer's turn. The three
-    routines of `S0B15` above draw nothing and wait for nothing, so
-    they can be translated and compared as the fight was.
+    `S131D:1745`, and `S1C74:000B`, the computer's turn.
+  - The three routines are translated (`port/src/range.c`) and compared
+    with 108 calls of the original from the six long runs
+    (`port/tests/range_test.sh`, dumps by `build/n2/range2.py`,
+    `range3.py`, `range4.py`): 60 of `move_range`, 48 of `attack_range`,
+    results and state the same. The runs hold 2,912 and 619 calls, nearly
+    all the computer's: every call dumped is the second side's, with the
+    masks 0, 6 and FFFFh for moves (0 is not one `field_menu` gives; who
+    passes it was not looked at, presumably the computer's player). Not
+    covered: the first side, a unit with 10h in `unit_flags` or word 6, a
+    kind with 40h in word 0Dh, 2 in `attack_range`'s mask (port/README.md,
+    "Checked"). A scripted move and attack by the first side would close
+    the first gap. `field_bits` is the block at `S331F:3B5A` named
+    earlier, so that block of the saved game is the marks of where units
+    can move and whom they can attack, with `attacks_run`'s 80h and 40h.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -1668,7 +1683,8 @@ emulation error (2026-10-02).
      the routines a move and an attack are chosen in (`S10E1`, `S0AE0`;
      `view_step` and `field_menu`, which call them, the round's end in
      `attacks_run` and `move_range`, `move_costs` and `attack_range` are
-     read), `S131D:1745` and the computer's turn `S1C74:000B`;
+     read, the three translated in `port/src/range.c` and compared),
+     `S131D:1745` and the computer's turn `S1C74:000B`;
      then translate what of a side's part changes state and draws
      nothing (building, repairing, moving out), each with a comparison
      as for the setup; and the libraries' loading (`S0C66:0009`) once

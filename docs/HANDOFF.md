@@ -997,6 +997,51 @@ emulation error (2026-10-02).
     0401h, word 2 1 and the first side 2; map 60 `game_state` 0001h, word 2
     2 and no side 2. The port's run gives the same for maps 0, 30 and 60,
     and sets up maps 48 to 71, which have no `.COM` file.
+- The loop of `game_loop`, first reading (2026-10-04; `S066A:0EE9` to
+  `S066A:45D7`, some 4,700 lines of the generated source of which the
+  first 900 were read; nothing stepped, nothing translated).
+  - Shape: while 2 is set in `game_state`, a pass serves both sides one
+    after the other (byte 0Ch of `game_state` is the side, 0 then 1; the
+    pass begins at `S066A:0EE9`, a side at `0F0C`, the pass ends at
+    `43A9`). When the bit is cleared the battle is over: `S066A:45E8`
+    stops the music and calls `S1A39:0001` and `S063F:0009` (presumably the
+    end's screens and the high score; not read), and 20h in `game_state`
+    makes the routine return 7Bh, the status the launcher starts the outro
+    for.
+  - A side's input: its record behind `DATA:00A6` or `DATA:00B6` (which
+    side gets which depends on 2 in `game_state`'s word 2 and on the map's
+    number, 18h to 2Fh exchanged), its view and its record of `sides`. A
+    side of the computer (2 in its word 0) calls `S1C74:000B(side)` instead
+    and shows the text whose number is at `S39B6:1317`; a human's input
+    comes from `S0CB6:05F1(input record, view)` as bits in DI: 1, 2, 4, 8
+    the directions (up, down, left, right, as the cursor's moves use them)
+    and 10h presumably the button. The side's map (`map_ptr` for side 0,
+    `map2_ptr` for side 1) is kept at `S331F:17AE`.
+  - Byte 17h of a view is the state of that side's hand, 0 to 7 (`0` the
+    cursor moves freely: `S0CB6:0750` and then the column and row of the
+    view change by the bits, an odd column's neighbours half a field off).
+    With no direction and state 0 the unit under the cursor is shown
+    (`S10AF:0131(unit, side)`), and for a unit of the side that has an aim
+    (`unit_aim`) with 2 in byte 16h of the view the aim's field is marked
+    in `field_bits` (4 for side 0, 8 for side 1) while `S0E56:145A` draws:
+    so those two bits of `field_bits` are a mark for the drawing.
+  - Keys are compared with the entries of the table behind `S331F:02D3`:
+    entry 0 (Esc) asks to quit (texts 3Eh and 3Fh) and waits; entry 18h
+    confirms: 2 is cleared and 1 set in `game_state` and the dword at
+    `game_state`+8Bh (`defence_sum`'s) becomes 0; entry 1 or a button
+    cancels. Entries 0Dh to 14h are F2 to F9: music (40h in `game_state`,
+    texts 55h/56h), effects (80h, 57h/58h), entry 0Fh (F4) shows text 59h
+    and the two bytes at `S331F:0006` and `0007`, F5 and F6 switch words
+    34h and 36h of the record behind `DATA:009A` (the joysticks, texts 65h
+    to 68h), F7 and F8 work on the record behind `DATA:00C2` (presumably
+    the mouse and its speed in three steps, `S37FF:0113`; texts 69h to
+    6Dh), F9 steps through three settings of `S37FF:0115` and `S37FF:0130`
+    (texts 70h to 72h; `0115` is what `attacks_run` tests before
+    `fight_show`). 200h in `game_state`'s word 4 keeps a key from
+    repeating.
+  - Next there: the states 1 to 7 of a view from `S066A:1F39` on (orders
+    to a unit, the F1 mode change, the save key), `S0CB6:05F1` and
+    `S0CB6:0750`, and `S1C74:000B`, the computer's turn.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where

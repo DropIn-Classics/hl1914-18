@@ -380,6 +380,19 @@ emulation error (2026-10-02).
   `unit_dat`, `ww1gnds_dat` and `amok_dat`. `NEWUNIT.DAT` (9,807 bytes
   unpacked) was not found in that dump as a whole. What the other blocks
   hold is not known.
+- The two blocks of 1806h bytes are the map. The unpacked `MAP\00.FIN` is
+  four header bytes (two big-endian words, 16 and 24 for map 00;
+  presumably width and height) and two bytes a field, 768 bytes; in the
+  file saved at the start of map 00 both blocks begin with those 768
+  bytes, 741 of them equal. 1806h is room for 3,072 fields and six bytes.
+  The 27 bytes that differ are all second bytes of a field, the same in
+  both copies: where the file has another value than FFh (28 of its 384
+  fields), memory has a number from 0 to 27. Presumably the second byte
+  is what stands on the field, a kind in the file and an index in memory;
+  that the tables of 1Ch (28) records in the list above belong to it is a
+  guess from the number alone. Beyond the first 768 bytes the two copies
+  differ (the rest of the 1806h bytes is not empty; not looked at). Pieces of `00.SHP` and `00.COM` were not found in any block
+  as they are in the files.
 - Battles that end (2026-10-04). Nine runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) finished: six of them show the main menu at the end, so their

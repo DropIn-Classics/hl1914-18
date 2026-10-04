@@ -20,8 +20,8 @@ HEADER = 0x1B
 # (where save_game takes the block from, bytes, note).  An address in
 # brackets is a far pointer variable: the block is what it points to.
 BLOCKS = [
-    ('[S331F:17B6]', 0x1806, ''),
-    ('[S331F:17B2]', 0x1806, ''),
+    ('[S331F:17B6]', 0x1806, 'the map: two bytes a field, as MAP/NN.FIN has them after its four header bytes; room for 3,072 fields and 6 bytes'),
+    ('[S331F:17B2]', 0x1806, 'the map a second time (how the two differ is not known)'),
     ('[S331F:4D44]', 0xF2, "side one (the pointer is in the side's record at S331F:4D33)"),
     ('[S331F:4D5B]', 0xF2, 'side two (record at S331F:4D4A)'),
     ('[S331F:1893]', 0x82, ''),

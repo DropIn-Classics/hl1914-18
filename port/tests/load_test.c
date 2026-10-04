@@ -1,7 +1,7 @@
 /* load_test.c - file_load, map_load, shp_load, file_name, num_text,
- * mem_alloc and battle_setup against the original.
+ * mem_alloc, battle_setup and battle_begin against the original.
  *
- *     load_test GAMEDIR  (load|map|shp|name|num|alloc|start|setup) SS:SP AX DX ENTRY.ram EXIT.ram [...]
+ *     load_test GAMEDIR  (load|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram [...]
  *
  * Each set of six is one call in HL.EXE: the routine, SS:SP (hex) at its
  * entry, AX and DX at its RETF, and dosrun's -ram dumps at both.  The
@@ -20,8 +20,10 @@
  * byte the port's routine left as it was is counted apart when it
  * differs, and so is the word file_load keeps of what lay behind a file
  * (for `start` all that the loading routines keep for themselves: the
- * routines left out there load further files).  port/tests/load_test.sh builds
- * this.
+ * routines left out there load further files).  `begin` is the part from
+ * S066A:0938 to S066A:0EE6 (battle_begin), SS:BP likewise, the work buffer
+ * read from the frame; begin_apart says what else is counted apart there.
+ * port/tests/load_test.sh builds this.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,9 +77,22 @@ static int beside(uint32_t a)
 static int scratch(uint32_t a)
 {
     uint32_t load = ((uint32_t)(HL_S2C45 + HL_BASE) << 4) + 0x486, size = ((uint32_t)(HL_S2B8F + HL_BASE) << 4) + 0xC1;
-    uint32_t name = ((uint32_t)S_name_buf << 4) + A_name_buf;
+    uint32_t name = ((uint32_t)S_name_buf << 4) + A_name_buf, open = (uint32_t)(HL_S2C8E + HL_BASE) << 4;
 
-    return (a >= load && a < load + 0x10) || (a >= size && a < size + 8) || (a >= name && a < name + 0x40);
+    return (a >= load && a < load + 0x10) || (a >= size && a < size + 8) || (a >= name && a < name + 0x40)
+        || (a >= open && a < open + 6);
+}
+
+/* In `begin`, besides the loading routines' own and the work buffer (the
+ * original loads further files after the port's one): the value clock_seed
+ * makes of the BIOS's clock, and byte 8 of the two records behind DATA:00A6
+ * and DATA:00B6, which the setup clears and which is FFh again at its end
+ * (presumably an interrupt handler's; not checked). */
+static int begin_apart(uint32_t a)
+{
+    uint32_t data = (uint32_t)(HL_DATA + HL_BASE) << 4;
+
+    return (a >= data + 0xAF1 && a < data + 0xAF5) || a == data + 0x3D0 || a == data + 0x3FC;
 }
 
 int main(int argc, char **argv)
@@ -85,7 +100,7 @@ int main(int argc, char **argv)
     int i, bad = 0, calls = 0, skipped = 0;
 
     if (argc < 8 || (argc - 2) % 6) {
-        fprintf(stderr, "usage: load_test GAMEDIR (load|map|shp|name|num|alloc|start|setup) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: load_test GAMEDIR (load|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     hl_game_dir = argv[1];
@@ -157,6 +172,14 @@ int main(int argc, char **argv)
 #undef KEEP
             left_out = 1;
             snprintf(text, sizeof text, "%04X:%04X", game_mem.block.seg, game_mem.block.off);
+        } else if (!strcmp(what, "begin")) {
+            uint16_t bp = (uint16_t)sp;
+            game_mem.work = far_at((uint16_t)ss, (uint16_t)(bp - 0x20));
+            got.off = (uint16_t)battle_begin();
+            got.seg = 0;
+            wide = 0;
+            name.seg = name.off = 0;
+            left_out = 3;
         } else if (!strcmp(what, "map") || !strcmp(what, "shp")) {
             name = to;
             got.off = what[0] == 'm' ? map_load(to, far_at((uint16_t)ss, (uint16_t)(sp + 8)), work)
@@ -194,7 +217,10 @@ int main(int argc, char **argv)
                 d_beside++;
             else if (left_out && (mem[a] == entry[a] || a == kept || a == kept + 1))
                 d_left++;
-            else if (left_out == 2 && scratch(a))
+            else if (left_out >= 2 && scratch(a))
+                d_left++;
+            else if (left_out == 3 && (begin_apart(a) || (a >= lin(game_mem.work.seg, game_mem.work.off)
+                                                          && a < lin(game_mem.work.seg, game_mem.work.off) + 0x1000)))
                 d_left++;
             else if (d_else++ < 8)
                 printf(" %05X", (unsigned)a);

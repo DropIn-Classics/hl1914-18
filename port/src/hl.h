@@ -96,7 +96,9 @@ Far mem_alloc(uint32_t size);
 typedef struct { Far block, save_buf, gfx, lists_end, work, p; } GameMem;
 extern GameMem game_mem;
 int start_setup(void);
+int menu_result(uint16_t map);
 int battle_setup(void);
+int battle_begin(void);
 
 /* names.c */
 Far file_name(uint16_t where, int16_t dir, Far name, int16_t ext);

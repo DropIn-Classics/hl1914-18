@@ -170,11 +170,17 @@
     X(S02E6, fight_percent, 0x2635) \
     X(S02E6, dir_wrap, 0x2802) \
     X(S02E6, fight_around, 0x2834) \
+    X(S02E6, defence_sum, 0x29D4) \
     X(S066A, game_loop, 0x000D) \
+    X(S0B15, field_bits_clear, 0x000B) \
     X(S0B15, field_neighbours, 0x0162) \
+    X(S0CB6, view_cursor, 0x0154) \
     X(S0CB6, same_side, 0x0205) \
+    X(S0CB6, view_reset, 0x0CDA) \
+    X(S0E56, view_tables, 0x000B) \
     X(S0E56, shp_load, 0x0079) \
     X(S0E56, map_load, 0x0329) \
+    X(S0E56, view_to_field, 0x177C) \
     X(S0E56, map_copy, 0x1D9B) \
     X(S0E56, field_distance, 0x241F) \
     X(S10AF, show_message, 0x000F) \
@@ -190,6 +196,7 @@
     X(S15C5, carrier_add, 0x04AE) \
     X(S15C5, unit_free, 0x0594) \
     X(S15C5, site_free, 0x06EA) \
+    X(S1C74, computer_reset, 0x01B4) \
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
     X(S2892, num_text, 0x0001) \
@@ -200,6 +207,7 @@
     X(S2C01, lib_read, 0x0006) \
     X(S2C45, file_load, 0x0002) \
     X(S2C8E, file_open, 0x0006) \
+    X(S2C95, clock_seed, 0x000E) \
     X(S2C9E, ptr_norm, 0x0002) \
     X(S2CBE, mem_alloc, 0x000E) \
     X(S3310, name_dirs, 0x0029) \
@@ -227,16 +235,22 @@
     X(S331F, sites_40, 0x38BE) \
     X(S331F, sites_100, 0x38F6) \
     X(S331F, sites_400, 0x3A0E) \
+    X(S331F, row_y_odd, 0x3B26) \
+    X(S331F, row_y, 0x3B36) \
+    X(S331F, col_x, 0x3B46) \
+    X(S331F, field_bits, 0x3B5A) \
     X(S331F, blasts, 0x4C5E) \
     X(S331F, amok_dat, 0x4C7A) \
     X(S331F, blast_time, 0x4C82) \
     X(S331F, map_bytes, 0x4C9E) \
     X(S331F, map_width, 0x4CA0) \
     X(S331F, map_height, 0x4CA2) \
+    X(S331F, game_state, 0x4CA4) \
     X(S331F, unit_total, 0x4CAC) \
     X(S331F, site_totals, 0x4CAD) \
     X(S331F, map_number, 0x4CBB) \
     X(S331F, sides, 0x4D33) \
+    X(S331F, views, 0x4D92) \
     X(S331F, attack_pick, 0x4DA8) \
     X(S3AEC, fight_rec_ptr, 0x0008) \
     X(S3AED, ground_bonus, 0x0000) \

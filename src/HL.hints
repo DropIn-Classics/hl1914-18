@@ -1202,3 +1202,62 @@ name S331F:4C82 blast_time
 name S331F:4D33 sides
 ; Three bytes after unit_total that site_free lowers.
 name S331F:4CAD site_totals
+
+; game_loop from S066A:0938 to S066A:0EE6, where it goes into its loop:
+; the rest of a battle's setup (read 2026-10-04; the port's battle_begin
+; is the part of it that draws nothing, compared with the original on six
+; maps). The routines named here are called there.
+; The 8Fh bytes of state the saved game holds. Word 0, bits as read: 1 set
+; by game_loop before the menu, 2 at the end of the setup, 40h and 80h in
+; the setup, 200h a saved game is to be loaded, 400h the map is one for a
+; single player (the menu sets it from byte 6 of the map's record in
+; CODES.DAT and then makes one side the computer's: the second below map
+; 18h, else the first). Word 2: 1 one side is the computer's, 2 none, 4
+; both, 8 an item of the menu (which, was not looked at).
+name S331F:4CA4 game_state
+; A record of 31h bytes for each side, presumably its half of the screen:
+; word 0 the map offset of the field its cursor is on, word 2 that of the
+; view's first field, words 0Ch and 0Eh the cursor's column and row in the
+; view, 10h and 12h where that is on the screen. Byte 16h is attack_pick.
+name S331F:4D92 views
+; view_reset(record): clears a view's record (byte 1Bh 5, bytes 28h to 2Ah
+; 1, 2, 1). Read.
+name S0CB6:0CDA view_reset
+; view_to_field(side, map offset): puts the side's view so that the field
+; is shown, four columns and rows from the view's corner where the map
+; allows (the view is 10 columns by 8 rows: the corner is at most the
+; width less 10 and the height less 8, and even), and the cursor on the
+; field. Read.
+name S0E56:177C view_to_field
+; view_cursor(record, side): from the cursor's column and row in the view
+; its place on the screen (col_x, row_y or row_y_odd for an odd column; A0h
+; further right for the second side) and its map offset. Read.
+name S0CB6:0154 view_cursor
+; Fills the three tables below: a row is 18h high, an odd column's fields
+; lie 0Ch lower, a column is 10h wide.
+name S0E56:000B view_tables
+name S331F:3B36 row_y
+name S331F:3B26 row_y_odd
+name S331F:3B46 col_x
+; field_bits_clear(mask): clears the mask's bits in all 1104h bytes of
+; field_bits (FFh: the whole byte). What the bits are is not known
+; (attacks_run writes 80h or 40h by the side).
+name S0B15:000B field_bits_clear
+name S331F:3B5A field_bits
+; The sum of byte 2 of the kind (the defence of the fight) over all units
+; in use, but for the first half of a unit of two parts and units with 4
+; in their word 6; 64h more with 8 in game_state's word 2; times 4, 3 or 2
+; for 4, 8 or 10h in byte 16h of the first side's record (FFh from the
+; menu when nothing is chosen); at most 7EF4h. The setup keeps it at
+; game_state+8Bh. Presumably what a score is measured against (not
+; checked).
+name S02E6:29D4 defence_sum
+; computer_reset(side): empties what the computer's player keeps for a
+; side in S39B6 (its 0Ch-, 20h- and 49h-byte records and the two tables of
+; 9 bytes a unit). Called in the setup for a side with 2 in word 0 of its
+; record.
+name S1C74:01B4 computer_reset
+; clock_seed(far value): keeps the value at DATA:0AF1, or for 0 one made of
+; the BIOS's count of timer ticks. Presumably the start of a random
+; sequence (who reads it was not looked at).
+name S2C95:000E clock_seed

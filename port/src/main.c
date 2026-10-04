@@ -198,10 +198,12 @@ static int start_game(const char *game, int map, char *line, size_t n)
     }
     hl_game_dir = game;
     r = start_setup();
-    if (r == 0) {
-        SETW(map_number, 0, map);     /* the menu's choice */
+    if (r == 0)
+        r = menu_result((uint16_t)map);
+    if (r == 0)
         r = battle_setup();
-    }
+    if (r == 0)
+        r = battle_begin();
     if (r != 0) {
         snprintf(line, n, r == 1 ? "No memory for the game." : "A file of the game could not be loaded.");
         return 0;

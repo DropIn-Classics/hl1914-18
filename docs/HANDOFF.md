@@ -14,7 +14,10 @@ the original on those 39 fights, and since then the taking off and making
 of units and sites and the building of a battle's state from a map's files
 (`port/src/units.c`, `port/src/map.c`). The port's program now loads `HL.EXE`
 into its memory and sets a battle up by itself as far as that is translated
-(`port/src/battle.c`; the bullet "The port's own start" below). `master` was pushed at `83b4613`; the commits after it are local.
+(`port/src/battle.c`; the bullets "The port's own start" and "The rest of a
+battle's setup" below: the setup is translated up to the loop's beginning,
+but for pictures and sound). `master` was pushed at `dc1970c`; the commits
+after it are local.
 
 The `doskit` submodule is now at `2f6fe29` (fast-forwarded from `a4b8166`,
 eight commits). That update adds first support for LE images (`disasm.py`,
@@ -882,7 +885,7 @@ emulation error (2026-10-02).
     file's name) and `S331F:0149` (of the pictures' name) are `W` when
     `S37FF:012F` is not 0, else `S`: presumably summer and winter (not
     checked). With 400h in `S331F:4CA4` a file with ending 9 is loaded to
-    `S39B6:0000` next (not translated, not met).
+    `S39B6:0000` next (the bullet "The rest of a battle's setup" below).
   - Compared (`port/tests/load_test.sh`, kinds `start` and `setup`, dumps
     by `build/n2/start1.py` and `setup1.py`): `start_setup` on the one
     start, `battle_setup` on the six runs' maps; no byte the port's
@@ -905,6 +908,95 @@ emulation error (2026-10-02).
     `S02E6:3484`, `S02E6:2B87`, `S0B15:000B`, `S0E56:000B`,
     `S02E6:29D4`, `S1C74:01B4`, `S0CB6:0CDA`), and what the menu leaves in
     `4CA4` and the sides' records.
+- The rest of a battle's setup (2026-10-04; `game_loop` from `S066A:0938`
+  to `S066A:0EE6`, where it jumps into its loop; read, and the part that
+  draws nothing translated as `battle_begin` in `port/src/battle.c`).
+  - What the menu leaves (read in `S167A`, around `S167A:23F0` and
+    `S167A:3130`; the values seen in the dumps of maps 0 to 5): byte 6 of
+    the map's ten-byte record in `CODES.DAT` is 2 for a map for two
+    players, which makes both sides human and clears 400h in `game_state`
+    (`S331F:4CA4`); any other map sets 400h and makes one side the
+    computer's, the second below map 18h, else the first. A side of the
+    computer has 2 in word 0 of its record in `sides`. Word 2 of
+    `game_state` gets 1 for one computer side, 2 for none, 4 for both, and
+    8 from another item of the menu (not looked at which). Byte 16h of both
+    sides' records is 4, 8 or 10h by an item with three choices, FFh
+    without (presumably a level; it multiplies `defence_sum`). In the six
+    runs: `game_state` 0401h, its word 2 1, the second side 2, the bytes
+    FFh.
+  - With 400h the file of the map with ending 9 is loaded to `S39B6:0000`:
+    `MAP\NN.COM`, so the `.COM` files are the computer's player's data for
+    a single player's map (48 of the 72 maps have one). On map 0 it changed
+    bytes up to `S39B6:131B`, so it lies over the tables of `S39B6` the
+    saved game holds (what it holds was not looked at).
+  - `S274D:0003(map, free end, work buffer)` is called unless a saved game
+    is to be loaded: nothing for a map above 2Fh, else it loads files and
+    shows texts and a picture (read to its first screen only; presumably
+    the briefing). Left out of the port.
+  - `S02E6:3484` and `S02E6:2B87` load libraries of pictures to the free
+    end through `S0C66:0009` (records at `S331F:0131`, `0159`, `01A9`,
+    `01E5`, `022D`; each record's dword at 0Ah is the length the free end
+    moves on by) and return the new free end, which `game_loop` keeps at
+    `S3303:0028`. `2B87` also loads a file named by the number at
+    `S37FF:0112` (presumably a palette, handed to `S0CB6:187F` with 300h)
+    and makes two blocks of 1194h bytes (`S331F:02D7`, `02DF`). Left out.
+  - State, all translated: `field_bits_clear(FFh)` empties `field_bits`
+    (`S331F:3B5A`); `view_tables` fills `row_y`, `row_y_odd` and `col_x` (a
+    field is 10h wide and 18h high on the screen, odd columns 0Ch lower);
+    the words at `S331F:02B5` and `02B7` are 0; `clock_seed(0)` keeps a
+    value made of the BIOS's tick count at `DATA:0AF1` (who reads it is
+    not known; `rand_state` is another place). In `game_state`: word 4, word
+    11h and dword 13h 0, byte 86h 0, bytes 0Dh and 0Eh the map's width less
+    10 and height less 8, halved (presumably how far a view can go), word
+    0Fh 4, dword 8Bh `defence_sum()`, and 15 entries each of dwords at 28h,
+    bytes at 19h and words at 64h cleared. Both sides' count of attackers
+    (byte 15h) 0, bits 0 and 2 of their word 0 cleared, `computer_reset`
+    for a computer's side, `view_reset` for both `views` (`S331F:4D92`,
+    31h bytes a side), then `view_to_field` puts each side's view on the
+    field one row below the first field of its record of `sites_40`. So
+    `sites_40` is where a side's view begins: presumably its headquarters
+    (not checked on the screen). The view is 10 columns by 8 rows and the
+    second side's cursor lies A0h further right: each side has half the
+    screen. `attack_pick` (byte 16h of a view) becomes 1 for the first side
+    and 2 for the second. Bytes 0 to 5 and 8 of the records behind
+    `DATA:00A6` and `DATA:00B6` are cleared (presumably the two sides'
+    input; byte 8 is FFh again at the end), byte 2 of the four `blasts`
+    becomes FFh, `fight_rec` gets the far pointer at `S331F:013F` (set by
+    the libraries' loading) at 3Eh and seven routines' addresses at 5Ah to
+    72h (`S30EF:1E8B`, `S2AF3:000A`, `S2A6B:0008`, `S2A6F:0002`,
+    `rand_seed`, `S0CB6:0713`, `CODE:0288`), `game_state` gets C0h, its
+    word 2 30h, `free_depth` and the word behind it 0.
+  - With 200h in `game_state` the saved game is loaded here (`load_game`,
+    then `S02E6:323E` and `2B87` again, the bit cleared). Not translated.
+  - Then the views are drawn (`S0E56:0D44` and `S0E56:0F36` for each side
+    with word 2 of its view, `show_message(-1, side)`), bits 4 and 8 of
+    `game_state` cleared, the record behind `DATA:00BE` emptied (word 4,
+    bytes 0 and 2), `S2974:0002`, `S28DC:000A`, `S28E0:0004`, and with 40h
+    in `game_state` `S2F39:0F87` with the far pointer at `S331F:179A`
+    (presumably the music); byte 0Ch of `game_state` 0, bit 2 set, and the
+    loop begins at `S066A:45D7`.
+  - Compared (`port/tests/load_test.sh`, kind `begin`; the original's dumps
+    at `0938` and at `0EE6` of the six runs, `build/n2/begin1.py`): no byte
+    `battle_begin` writes differs. Counted apart: the seed (the clock), the
+    two byte 8 named above, and what the loading routines keep, since the
+    original loads more files after the `.COM`. In the game's state
+    (`S331F` to `DATA`) the original alone writes the libraries' records
+    and three letters of names (`S331F:013B` to `0284`), `02D7` to `02E6`,
+    three far pointers at `179A` and `fight_rec`'s 3Eh.
+  - The port's own run on map 0 against the original's dump at `0EE6`: 803
+    of 40,448 bytes from `S331F:0000` to `DATA` differ, all in those
+    places, in `S331F:02C7` to `05A2` (the pictures' tables), in records
+    of `S37FF` (`0012` to `007E`, `011E`, and the map's code at `0129`,
+    which the menu writes) and one byte at `S3CFE:0006`. `game_state`, the
+    sides' records, the views and the computer's segment are the same.
+  - `menu_result(map)` in the port sets what the menu leaves for a map with
+    nothing else changed, reading byte 6 of the map's record in `CODES.DAT`
+    itself (loaded to the block's free part for that; the name is at
+    `S37FF:009E`). Two runs of the original to `S066A:0938`
+    (`build/n2/mn30`, `mn60`) confirm the reading: map 30 has `game_state`
+    0401h, word 2 1 and the first side 2; map 60 `game_state` 0001h, word 2
+    2 and no side 2. The port's run gives the same for maps 0, 30 and 60,
+    and sets up maps 48 to 71, which have no `.COM` file.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -1227,9 +1319,12 @@ emulation error (2026-10-02).
      it prepares), call by call and translated as far as it draws nothing, so that the port
      builds a battle's state from the game's folder by itself;
      `mem_alloc` is translated on the runtime's DOS blocks. The
-     port's own start is done up to `S066A:0938` (`port/src/battle.c`,
-     the bullet "The port's own start"); next the rest of `game_loop`'s
-     setup behind it, call by call, and the menu's results; then
+     port's own start is done up to the loop's beginning at `S066A:0EE6`
+     (`port/src/battle.c`, the bullets "The port's own start" and "The rest
+     of a battle's setup"). Next: the loop itself from `S066A:45D7` (what
+     a round is, how `game_state`'s byte 0Ch and the sides' state bytes
+     drive it; most of it draws or waits, so first read and name), and
+     the libraries' loading (`S0C66:0009`) once the port is to draw; then
      the other
      caller of `unit_add` (in `S066A`, just after a call of the routine
      at `S15C5:01A7`, which finds a unit by its flags; `S131D` calls that

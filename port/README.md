@@ -51,6 +51,17 @@ the memory as dosrun's `-ram` does and ends the program; both are aids
 for this work, not for players. The fight and the taking off of units are
 still called by nothing.
 
+Then `battle_begin` (`src/battle.c`), the rest of the main routine's setup
+up to where its loop begins: the computer's file of a single player's map
+(`MAP\NN.COM`), the tables and counts of a battle's beginning, the reset
+of the computer's player, and each side's view put on its starting field.
+Left out are the screen shown before a battle, the libraries of pictures,
+the loading of a saved game, what draws the views and the music. The
+menu is not translated: `menu_result` sets what it leaves when a map is
+chosen and nothing else is changed (from the map's record in `CODES.DAT`:
+a map for two players has two human sides, a map for one the computer as
+its second side below map 24 and as its first from there on).
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -208,3 +219,33 @@ anything the game needs before the first release.
   Not covered: `file_size` of a file that is not packed or does not exist
   (both files of the start are packed), the error returns, and a second
   battle in one start.
+- A battle's beginning (2026-10-04, macOS): the same test takes `begin`
+  for `battle_begin` (the main routine from `S066A:0938` to `S066A:0EE6`;
+  the entry dumps are those the `setup` kind ends with, the exit dumps by
+  the scratch script `build/n2/begin1.py`), counted as for `setup`. On the
+  six maps no byte the port's routine writes differs from the original.
+  Counted apart, besides what only the original writes (some 140,000
+  bytes, most of them pictures): the loading routines' own variables and
+  the work buffer (the original loads more files after the port's one),
+  the four bytes `clock_seed` makes of the BIOS's clock, and byte 8 of the
+  two records behind `DATA:00A6` and `DATA:00B6`, which the routine clears
+  and which is FFh again at the end (presumably an interrupt handler
+  writes it; not checked).
+  The program's own run on map 0 against the original's dump at
+  `S066A:0EE6`: 803 of the 40,448 bytes from `S331F:0000` to `DATA`
+  differ, all of them in records and tables of the pictures' libraries,
+  three far pointers at `S331F:179A`, the options' segment `S37FF` and one
+  byte at `S3CFE:0006` (docs/HANDOFF.md has the places); the state of the
+  game, the sides' records, the views and the computer's segment are the
+  same.
+  `menu_result`: two more runs of the original, to `S066A:0938` on maps
+  30 and 60, have the values the port's run sets for those maps (the
+  flags, the sides' word 0 and byte 16h, read from both dumps by hand; no
+  test keeps this). Maps 48 to 71 have no file of the computer; the
+  program sets up 60 and 71, compared with nothing.
+  Not covered: all six runs of `begin` have the second side as the
+  computer's, so `computer_reset(0)`, a map without the computer's file
+  and a level other than FFh in `defence_sum` are from reading only, as is
+  a view at a map's far edge beyond what these six starting fields give;
+  in the program's own run the seed is made of whatever the runtime has at
+  the BIOS clock's place.

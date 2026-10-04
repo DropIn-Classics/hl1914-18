@@ -10,7 +10,9 @@ losses off (`fight_losses`) are named and described below under "`HL.EXE`
 stage 1" (the bullets dated 2026-10-04); the fight's arithmetic is read and
 agrees with 39 fights of six runs. The port has its first translated
 routines (`port/src/fight.c`: `fight_percent`, `fight_losses`), the same as
-the original on those 39 fights; nothing calls them yet. `master` was pushed at `a6e0117`; the commits after it are local.
+the original on those 39 fights, and since then the taking off and making
+of units and sites and the building of a battle's state from a map's files
+(`port/src/units.c`, `port/src/map.c`); nothing calls them yet. `master` was pushed at `83b4613`; the commits after it are local.
 
 The `doskit` submodule is now at `2f6fe29` (fast-forwarded from `a4b8166`,
 eight commits). That update adds first support for LE images (`disasm.py`,
@@ -729,6 +731,50 @@ emulation error (2026-10-02).
   - `build/n2/d0.log` to `d5.log` of an earlier session were overwritten
     by this session's first logging script (scratch files; what they held
     is not known to matter).
+- Making a battle's state, translated (2026-10-04; `port/src/units.c`,
+  `port/src/map.c`, compared with the original by
+  `port/tests/units_test.sh`: 60 calls of `unit_add`, 43 of the three
+  `site_add` routines, and the parts of `map_load` and `shp_load` behind
+  their `file_load` on six maps, all the same; port/README.md has what is
+  not covered).
+  - `shp_load` (`S0E56:0079`) is called after `map_load` and reads the
+    map's `.SHP` file: a byte for each of the 33h kinds (bit 0 sets or
+    clears 2 in the kind's word 0Fh of `unit_dat`), a count, then 12-byte
+    records: the units' flag bits (the side), which table (0 `sites_40`, 1
+    `sites_400`, 2 `sites_100`, else `carriers`), the record's number, a
+    byte for the record's bytes 16h and 17h, one for byte 18h, and seven
+    kinds (above F0h: none). Each unit is made by `unit_add` on the
+    record's first field with 4000h in `unit_flags` (presumably "stands
+    inside") and is written into the same place of both rows of the
+    record. So the 14 bytes at the start of a 1Ch-byte record are what
+    stands inside a site or carrier; why there are two rows is not known.
+    This is where the units beyond those on the map's fields come from
+    (the six runs log 30 to 84 calls of `unit_add`, of which `map_load`
+    makes 23 to 66).
+  - The three tables filled from the ground are named `sites_400`
+    (`S331F:3A0E`), `sites_100` (`38F6`) and `sites_40` (`38BE`). Their
+    flags (word 19h) get 8, 10h and 4, a carrier's 20h, which settles what
+    `site_free` counts down: `site_totals` byte 0 and the sides' byte 3
+    are `sites_400`, byte 1 and the sides' byte 4 `sites_100`, byte 2 the
+    carriers. `map_load` does not set `site_totals` byte 2 to 0 (read; the
+    comparison begins behind that part). Bytes 16h and 17h of a record
+    start as 1Eh, 14h and 32h (for a carrier its kind's byte 40h) and are
+    then set from the `.SHP` record; byte 18h as 0Fh, 0Ah, 14h and 0.
+  - The four map offsets of a record: `sites_400` the field, the one two
+    columns to its left and the two between them; `sites_100` the field,
+    the one below and the two beside that; `sites_40` and a carrier the
+    one field four times. So the first two are things of four fields.
+  - `sites_40` has one record for each side, the side being the record's
+    number; `map_load` calls `site_add_40` for a field of no side (2) too,
+    which then writes the place of the first record of `sites_100` (read;
+    whether a map has such a field was not looked at).
+  - `unit_add` takes the kind's serial number for the side from the kind's
+    byte 3Dh or 3Eh and adds 2 there (which is why `map_load` sets both to
+    1, and why the saved table differs from `UNIT.DAT` in them); bytes 0Fh
+    and 10h of a unit start as 3 for side 0 and 0 otherwise.
+  - `build/n2/a0.log` to `a5.log` were written anew by this session's
+    `add1.py`; whether an earlier session had files of those names is not
+    known (`a6.log` to `a9.log`, empty, are older).
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -1042,7 +1088,13 @@ emulation error (2026-10-02).
      (`fight_percent`, `build/n2/percalc.py`), and both are translated in the port
      (`port/src/fight.c`, `port/tests/fight_test.sh`). Next in the port:
      `unit_destroy` and `unit_free` (`port/src/units.c`,
-     `port/tests/units_test.sh`). `attacks_run` around them waits for
+     `port/tests/units_test.sh`) are done, and so is the making of a
+     battle's state from a map's two files (`port/src/map.c`); next there
+     the loading itself (`file_load` and the unpacking, which the offline
+     tools know but the port has to read from `HL.EXE`), then the other
+     caller of `unit_add` (in `S066A`, just after a call of the routine
+     at `S15C5:01A7`, which finds a unit by its flags; `S131D` calls that
+     one too; neither read). `attacks_run` around them waits for
      the drawing routines; a fight the first side starts is still to be
      seen (a scripted attack by the player), as are a carrier's and a
      two-part unit's end;

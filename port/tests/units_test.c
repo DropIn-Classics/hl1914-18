@@ -1,6 +1,8 @@
-/* units_test.c - unit_destroy and unit_free against the original.
+/* units_test.c - unit_destroy, unit_free, unit_add and the three site_add
+ * routines and the parts of map_load and shp_load behind the loading against
+ * the original.
  *
- *     units_test (destroy|free) SS:SP ENTRY.ram EXIT.ram [...]
+ *     units_test (destroy|free|add|site400|site100|site40|map|shp) SS:SP ENTRY.ram EXIT.ram [...]
  *
  * Each set of four is one call in HL.EXE: which routine, SS:SP (hex) at its
  * entry, dosrun's -ram dump at the entry and the one at the routine's end
@@ -43,7 +45,7 @@ int main(int argc, char **argv)
     int i, bad = 0, calls = 0;
 
     if (argc < 5 || (argc - 1) % 4) {
-        fprintf(stderr, "usage: units_test (destroy|free) SS:SP ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: units_test (destroy|free|add|site400|site100|site40|map|shp) SS:SP ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     for (i = 1; i < argc; i += 4) {
@@ -66,8 +68,23 @@ int main(int argc, char **argv)
                          frw((uint16_t)ss, (uint16_t)(arg + 8)), map);
         } else if (!strcmp(argv[i], "free"))
             unit_free(frb((uint16_t)ss, arg), frw((uint16_t)ss, (uint16_t)(arg + 2)));
+        else if (!strcmp(argv[i], "add"))
+            unit_add(frb((uint16_t)ss, arg), frb((uint16_t)ss, (uint16_t)(arg + 2)),
+                     frw((uint16_t)ss, (uint16_t)(arg + 4)), frw((uint16_t)ss, (uint16_t)(arg + 6)));
+        else if (!strcmp(argv[i], "site400"))
+            site_add_400(frw((uint16_t)ss, arg), frw((uint16_t)ss, (uint16_t)(arg + 2)),
+                         frw((uint16_t)ss, (uint16_t)(arg + 4)));
+        else if (!strcmp(argv[i], "site100"))
+            site_add_100(frw((uint16_t)ss, arg), frw((uint16_t)ss, (uint16_t)(arg + 2)),
+                         frw((uint16_t)ss, (uint16_t)(arg + 4)));
+        else if (!strcmp(argv[i], "site40"))
+            site_add_40(frw((uint16_t)ss, arg), frw((uint16_t)ss, (uint16_t)(arg + 2)));
+        else if (!strcmp(argv[i], "map"))   /* SS:BP at S0E56:0411, the file loaded */
+            map_setup(far_at((uint16_t)ss, (uint16_t)(sp + 0x0A)));
+        else if (!strcmp(argv[i], "shp"))   /* SS:BP at S0E56:013A, the file loaded */
+            shp_setup(far_at((uint16_t)ss, (uint16_t)(sp + 0x0A)));
         else {
-            fprintf(stderr, "%s: destroy or free\n", argv[i]);
+            fprintf(stderr, "%s: destroy, free, add, site400, site100, site40, map or shp\n", argv[i]);
             return 2;
         }
         printf("%s %s", argv[i], argv[i + 3]);

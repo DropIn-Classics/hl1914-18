@@ -171,13 +171,16 @@
     X(S066A, game_loop, 0x000D) \
     X(S0B15, field_neighbours, 0x0162) \
     X(S0CB6, same_side, 0x0205) \
+    X(S0E56, shp_load, 0x0079) \
     X(S0E56, map_load, 0x0329) \
+    X(S0E56, map_copy, 0x1D9B) \
     X(S0E56, field_distance, 0x241F) \
     X(S10AF, show_message, 0x000F) \
     X(S1273, save_game, 0x0005) \
     X(S1273, load_game, 0x0399) \
     X(S1273, save_blocks, 0x0662) \
     X(S15C5, unit_add, 0x0005) \
+    X(S15C5, carrier_find, 0x01F7) \
     X(S15C5, site_add_400, 0x024A) \
     X(S15C5, site_add_100, 0x032C) \
     X(S15C5, site_add_40, 0x040D) \
@@ -211,6 +214,9 @@
     X(S331F, unit_aim, 0x18AD) \
     X(S331F, unit_marks, 0x18B0) \
     X(S331F, carriers, 0x3116) \
+    X(S331F, sites_40, 0x38BE) \
+    X(S331F, sites_100, 0x38F6) \
+    X(S331F, sites_400, 0x3A0E) \
     X(S331F, blasts, 0x4C5E) \
     X(S331F, amok_dat, 0x4C7A) \
     X(S331F, blast_time, 0x4C82) \

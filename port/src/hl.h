@@ -59,5 +59,18 @@ void fight_losses(void);
 void unit_destroy(uint8_t unit, uint8_t put, uint8_t put2, int8_t slot, uint16_t side, Far map);
 void site_free(Far site, uint16_t row);
 void unit_free(uint8_t unit, uint16_t row);
+uint16_t carrier_find(uint16_t mask);
+void site_add_400(uint16_t n, uint16_t field, uint16_t flags);
+void site_add_100(uint16_t n, uint16_t field, uint16_t flags);
+void site_add_40(uint16_t field, uint16_t side);
+void carrier_add(int16_t n, uint16_t field, uint16_t kind, uint16_t flags, uint16_t unit);
+void unit_add(uint8_t unit, uint8_t kind, uint16_t field, uint16_t flags);
+
+/* map.c */
+void map_copy(Far from, Far to);
+void map_reset(void);
+void map_setup(Far file);
+void shp_reset(void);
+void shp_setup(Far file);
 
 #endif

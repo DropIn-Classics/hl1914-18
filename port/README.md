@@ -23,8 +23,14 @@ program's memory (`src/hl.h`, the names from `src/gen/names.h`, which
 `field_distance`. They are compiled into the program but nothing calls
 them yet: the program still only finds the game's files.
 
-Then `src/units.c`: `unit_destroy`, `unit_free` and `site_free`, likewise
-not called by the program yet.
+Then `src/units.c`: `unit_destroy`, `unit_free` and `site_free`, and the
+routines that make units and sites: `unit_add`, `carrier_find`,
+`carrier_add`, `site_add_400`, `site_add_100`, `site_add_40`. `src/map.c`
+builds a battle's state from the two files of a map once they are in
+memory: `map_reset` and `map_setup` (the two parts of `map_load` around
+its loading of the file), `map_copy`, `shp_reset` and `shp_setup` (the same
+of `shp_load`). The loading itself is not translated. None of this is
+called by the program yet.
 
 ## Build and run
 
@@ -91,3 +97,27 @@ anything the game needs before the first release.
   of two parts and no carrier was freed: `site_free`, the two-part paths
   of both routines and `unit_free`'s two early returns are translated from
   reading only.
+- Making units and sites (2026-10-04, macOS): the same test takes `add`,
+  `site400`, `site100` and `site40` for calls of `unit_add` and the three
+  `site_add` routines (dumps at the entry and at the RETF, by the scratch
+  script `build/n2/add1.py` from the first 60 s of the six runs, which load
+  six different maps: up to ten calls of each routine a run, spread over
+  the run's calls), and `map` and `shp` for `map_setup` and `shp_setup`:
+  the first dump is taken at `S0E56:0411` or `S0E56:013A`, where the
+  original has loaded the file, the second at the routine's RETF, and the
+  file's place in memory is read from the original's stack frame
+  (`build/n2/map1.py`). 60 calls of `unit_add`, 21 of `site_add_400`, 10
+  of `site_add_100`, 12 of `site_add_40`, and both setups on each of the
+  six maps: nothing differs in the game's state (as above; it includes the
+  units, the four tables of sites, the sides' counts, `unit_dat` and both
+  maps). Elsewhere up to 19 bytes differ in the two setups, at `0040:006C`
+  (the BIOS clock), `S30EF:022E` and in `DATA` (`0308`, `03C6` and on,
+  `0B19`, `0D5F` to `0D62`; segment and offset worked out from the dumps'
+  linear addresses): presumably what the timer and sound interrupts write
+  while the original's routine runs (not checked), and in `shp_setup` the
+  caller's pointer argument, which the original moves along the file.
+  Not covered: none of the six maps has a two-part unit or a kind with 2
+  in word 0Dh on a field, so those paths of `map_setup` are from reading
+  only; `map_reset`, `shp_reset` and `carrier_find`'s return of FFFFh were
+  not run against the original at all (the dumps begin behind the reset
+  parts).

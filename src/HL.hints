@@ -964,8 +964,23 @@ name S331F:4CA2 map_height
 ; halved it is the kind (below 33h), its bit 0 the side; unit_add is called
 ; with the next number from unit_total, and for a kind with 40h and 80h in
 ; unit_dat's word 0Dh twice, the second a row further down with the kind
-; plus one. What the three tables are in the game is not known.
+; plus one. What the three tables are in the game is not known. The part
+; behind file_load was compared with the port's translation on six maps
+; (none of them with a two-part unit or a kind with 2 in word 0Dh).
 name S0E56:0329 map_load
+; (from, to): copies map_bytes bytes; map_load ends with it, map to map2.
+name S0E56:1D9B map_copy
+; shp_load(name, buffer, ...): called after map_load; loads the map's .SHP
+; file with file_load and makes the units that stand in sites. The file: a
+; byte for each of the 33h kinds (bit 0 sets or clears 2 in the kind's word
+; 0Fh in unit_dat), a count, then records of 12 bytes: the units' flag bits
+; (the side), the table (0 sites_40, 1 sites_400, 2 sites_100, else
+; carriers), the record's number, a byte for the record's bytes 16h and
+; 17h, one for its byte 18h, seven kinds (above F0h none). Each unit is
+; made by unit_add on the record's first field, gets 4000h in unit_flags,
+; is counted in its side's record and stands in both rows of the record.
+; Compared with the port's translation on the first load of six runs.
+name S0E56:0079 shp_load
 name S331F:4CAC unit_total
 ; unit_add(number, kind, map offset, flag bits): fills the unit's record from
 ; the kind's record in unit_dat (byte 0 to 0, 3 to 2, 4 to 3, 3Dh to 9, word
@@ -974,11 +989,25 @@ name S331F:4CAC unit_total
 name S15C5:0005 unit_add
 name S15C5:04AE carrier_add
 name S15C5:0594 unit_free
-; (table number, map offset, side): a record at S331F:3A0E, 38F6, 38BE. Byte
-; 18h starts as 0Fh, 0Ah and 14h there.
+; (record number, map offset, side): a record at S331F:3A0E, 38F6, 38BE
+; (site_add_40 takes the map offset first, and the side is its record's
+; number and, with 4, its flags; map_load calls it with side 2 as well,
+; which is the place of the first record of sites_100). Byte 18h starts as 0Fh, 0Ah and 14h there, bytes 16h and 17h
+; as 1Eh, 14h and 32h, and the flags (word 19h) get 8, 10h and 4; carrier_add
+; gives 20h. The four map offsets: site_add_400 the field, the one two
+; columns left and the two between them; site_add_100 the field, the one
+; below and the two beside that; site_add_40 the field four times.
 name S15C5:024A site_add_400
 name S15C5:032C site_add_100
 name S15C5:040D site_add_40
+; The three tables those routines fill: 10, 10 and 2 records of 1Ch bytes
+; (sites_40: one for each side).
+name S331F:3A0E sites_400
+name S331F:38F6 sites_100
+name S331F:38BE sites_40
+; (mask): the number of the first record of carriers whose flags have a bit
+; of the mask, FFFFh for none; unit_add asks for 8000h, an unused one.
+name S15C5:01F7 carrier_find
 
 ; From a -ram dump after 300 s of play on a map of 32 by 24 (107 units):
 ; three units had 0200h in unit_flags and another offset in word 0Dh than in

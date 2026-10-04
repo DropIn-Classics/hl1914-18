@@ -798,8 +798,10 @@ emulation error (2026-10-02).
 - `map_load` and `shp_load` whole, `file_name`, `num_text` (2026-10-04;
   `port/src/map.c`, `port/src/names.c`, compared by
   `port/tests/load_test.sh`: 47 calls the same, port/README.md has the
-  limits). Read in the routine of `S066A` that sets a battle up (around
-  `S066A:07C6` to `0938`; not named, most of it not read):
+  limits). A battle is set up by the first part of `game_loop` itself
+  (`S066A:000D`; about a thousand lines of the generated source before
+  the loop, with calls for pictures, sound and memory between the loads;
+  most of it not read). Read there, around `S066A:07C6` to `0938`:
   - `map_load(name, place, work buffer)` gets `map_ptr` itself as the
     place, normalises it and afterwards sets `map_ptr` four bytes behind
     it (the file's header), so `map_ptr` moves on by four with every map
@@ -1139,9 +1141,9 @@ emulation error (2026-10-02).
      battle's state from a map's two files (`port/src/map.c`); the loading
      itself is translated too (`file_load`, `port/src/files.c`). `map_load`
      and `shp_load` are whole, with `file_name` and `num_text`
-     (`port/src/names.c`). Next there: the routine of `S066A` that sets a
-     battle up (it calls them; which files go where, and what else it
-     prepares), translated as far as it draws nothing, so that the port
+     (`port/src/names.c`). Next there: the first part of `game_loop`, which
+     sets a battle up (it calls them; which files go where, and what else
+     it prepares), call by call and translated as far as it draws nothing, so that the port
      builds a battle's state from the game's folder by itself;
      `mem_alloc` needs a decision first on how the port keeps DOS memory
      (the comparison wants the same segments as dosrun's allocator gives);

@@ -1002,5 +1002,59 @@ name S331F:189D unit_exp
 ; kinds' records in unit_dat (at 0Ah and 0Eh); two losses are bounded by the
 ; units' counts and subtracted. For a kind with 4 in its word 0Fh the result
 ; goes to the unit's byte 3 instead, and unit_count becomes 0 when that
-; reaches 0. How the losses are worked out (the 900 lines before) is not read.
+; reaches 0.
+; How the losses are worked out was read and then checked: 39 fights of six
+; long runs, memory dumped at this address and at S2487:0AB1 (the end), the
+; losses worked out from the first dump and compared with the second; all 39
+; the same (docs/HANDOFF.md has the arithmetic). Not met in those fights: a
+; kind with 4 in word 0Fh, a loss of 12 or more before the bounds.
 name S2487:000A fight_losses
+
+; The helpers fight_losses calls, read from their code: DX:AX times CX:BX,
+; a signed division of two long values on the stack (towards zero; the
+; entries after it are the unsigned one and the remainders), DX:AX shifted
+; left by CL. The fight's results agree with them.
+name CODE:03A1 long_mul
+name CODE:03DC long_div
+name CODE:048A long_shl
+; Stores its argument at DATA:11F6 and 0 at DATA:11F8; the bytes after it
+; (not decoded, not seen run) multiply that long value and return 15 bits of
+; it. Presumably the seed and the random number routine. fight_losses calls
+; this through the fight record's pointer at 6Ah and draws no number itself.
+name CODE:07AB rand_seed
+; Called by fight_losses with row and column of both fields when the
+; attacker's reach is above 1; in the 39 fights its result was the distance
+; in fields that the losses agree with.
+name S0E56:241F field_distance
+
+; The record a fight is worked out from (S02E6:000F fills it, S3AEC:0008
+; points to it): far pointers to the units at 0 and 4, their numbers at 8
+; and 9, far pointers to their kinds at 0Ah and 0Eh and to their fields'
+; records in ww1gnds_dat at 12h and 16h, the fields' map offsets at 1Ah and
+; 1Ch, column and row of both at 26h to 2Ch, word 2Eh set when the target is
+; one of the attacker's six neighbouring fields, per cent at 30h and 31h.
+name S331F:181C fight_rec
+; Carries out one side's attacks (read; its fights were seen through
+; fight_losses, the rest not stepped). It walks the side's list of attacking
+; units (far pointer at 11h of the side's record, their number in byte 15h),
+; takes the target field from the unit's word 11h, fills fight_rec, shows the
+; fight (fight_show) unless S37FF:0115 is set, raises the units' unit_exp and
+; in the end calls unit_free for every unit with 4 in unit_marks.
+name S02E6:000F attacks_run
+; Called by attacks_run when fight pictures are on; calls fight_losses (the
+; return address a breakpoint there showed) and then S2532:0008 with the
+; counts before and after. Presumably that one draws the fight; not read.
+name S2474:0005 fight_show
+; Called by attacks_run for a unit whose count is 0 after a fight: notes the
+; field in one of the 7-byte records at S331F:4C5E, writes the given byte
+; (FFh there) as the field's unit and sets 4 in the unit's unit_marks; the
+; same for the other half of a two-part unit. Read, not stepped.
+name S02E6:208E unit_destroy
+; Byte 14h of a unit: 4 is set by unit_destroy and by S02E6:2556, and
+; attacks_run frees the units that have it. 1 was seen in units ordered to
+; move; what else the byte holds is not known.
+name S331F:18B0 unit_marks
+; Word 11h of a unit: attacks_run takes the field to attack from it (the
+; offset of the field's first byte in the map).
+name S331F:18AD unit_aim
+

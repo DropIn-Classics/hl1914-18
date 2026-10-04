@@ -7,8 +7,8 @@ that runs of the game executed is decoded, including whole battles on all
 game's layout, the unit records and the tables beside them, how `map_load`
 builds a battle's state, the two maps, and the routine that takes a fight's
 losses off (`fight_losses`) are named and described below under "`HL.EXE`
-stage 1" (the bullets dated 2026-10-04); the fight's arithmetic is read
-only loosely and not confirmed. Nothing of the game is translated in the
+stage 1" (the bullets dated 2026-10-04); the fight's arithmetic is read and
+agrees with 39 fights of six runs. Nothing of the game is translated in the
 port yet. `master` was pushed at `c384c5c`; the commits after it are local.
 
 The `doskit` submodule is now at `a4b8166` (fast-forwarded from `f4dc33c`).
@@ -546,6 +546,76 @@ emulation error (2026-10-02).
   routine at 6Ah is `CODE:07AB`. Not done: reading `S2474` and
   `CODE:07AB`, and working the losses out by hand from this dump to
   compare with what the routine stores.
+- The fight confirmed (2026-10-04). `build/n2/fights.sh` played the long
+  runs `w0` to `w5` again to 2400 s (5, 10, 9, 35, 2 and 25 fights) and
+  dumped memory at `fight_losses` and at its end (`S2487:0AB1`) for the
+  first eight fights of each; `build/n2/fightcalc.py` works the losses out
+  from the first dump as written here and compares with the second: all 39
+  the same. The first unit of the record (A) is the attacker, the second
+  (B) the target. All values are long, divisions go towards zero.
+  - Count of each: `unit_count` (byte 3 for a kind with 4 in word 0Fh), 0
+    taken as 1, above 6 as 6.
+  - Attack of each: the byte of its own kind chosen by the other unit's
+    `unit_flags`: 0Ah with 10h, else 0Ch with 8, else 0Bh. A's reach is its
+    kind's byte 8 in the first case, else byte 9; with a reach above 1, A's
+    attack is lowered by attack x (distance - 1) x 3 / (reach x 4), the
+    distance from `field_distance`. B's attack is not lowered. Defence of
+    each is its kind's byte 2.
+  - A's attack is raised by the record's byte 30h per cent, B's defence by
+    byte 31h per cent (value plus the upper word of (value x 65536 / 100)
+    x per cent). This corrects the first reading above, which gave both to
+    the first unit. Who sets the two bytes is not read (0, 25, 50, 75, 100,
+    125, 150 and 0, 80 were seen).
+  - Strength of a value v for a unit with count n and e = `unit_exp` + 1 on
+    a ground with bonus g: n x v + n x v x (e x 256 / 6 + 1) / 256 +
+    g x (v / 2). g is a signed byte of the pairs at `S3AED:0000`, indexed
+    by byte 5 of the field's record in `ww1gnds_dat`: the first of the pair
+    for an attack, the second for a defence. For B's defence the middle
+    term is divided by 512, not 256.
+  - Loss of B = (A's attack strength - B's defence strength) / (B's defence
+    x (8 - e of A) / 2), loss of A the same with the units exchanged. The e
+    in this divisor is bounded: for A below 1 it is 2 and above 7 it is 6,
+    for B up to 1 it is 2 and from 7 on it is 6 (the two tests differ, as
+    the code has them).
+  - Bounds, in this order: a loss of 0 or less becomes 1 when the other's
+    defence strength / its count + its defence / 2 is below the attack
+    strength; a loss of 7 to 11 becomes 6; a loss is at most twice the
+    count of the unit that causes it, at least 0 and at most the count of
+    the unit that takes it.
+  - A takes no loss at all (the four cases of the first reading) when B's
+    kind has 80h in word 6, when the record's word 2Eh is 0, when it is not
+    0 and B's kind has 40h in word 6, or when B's kind's word 6 (bits 3Ch)
+    and A's kind's word 0Dh share no bit. Word 2Eh is set by `attacks_run`
+    when the target is one of the attacker's six neighbouring fields: only
+    a neighbour hits back.
+  - No random number enters: `fight_losses` only calls `rand_seed`
+    (`CODE:07AB`) with a word made of the two unit pointers and the dword
+    at `S331F:4CB7`; presumably the pictures of the fight draw from it.
+  - Not met in the 39 fights, so read only: a kind with 4 in word 0Fh, a
+    loss of 12 or more before the bounds, a divisor of 0 (the divide
+    routine would then divide by zero).
+- Around the fight (2026-10-04; read in `attacks_run`, `S02E6:000F`, not
+  stepped). Each side's record (17h bytes at `S331F:4D33`) has a far
+  pointer at 11h to a list of its attacking units and their number in byte
+  15h; presumably that list is the F2h block of the saved game. For each,
+  the target field is the unit's word 11h (`unit_aim`) and the target the
+  unit on it; the record at `S331F:181C` (`fight_rec`) is filled, and with
+  `S37FF:0115` 0 `fight_show` (`S2474:0005`) is called, which calls
+  `fight_losses` and then `S2532:0008` with the counts before and after;
+  otherwise `S131D:178D` is called with 0 and calls `fight_losses` itself
+  (presumably the F9 setting; not tried). A unit whose count is 0 then goes
+  to `unit_destroy` (`S02E6:208E`): its field's unit byte becomes FFh at
+  once, the field is noted in one of four 7-byte records at `S331F:4C5E`
+  with a count-down from the byte at `S331F:4C82` (presumably the
+  explosion), and 4 is set in the unit's byte 14h (`unit_marks`). A
+  carrier (1000h) that lost something passes the loss to `S02E6:2556`.
+  `unit_exp` of a unit rises by 1 when the other lost something (unless
+  the other unit's word 6 has 20h) and by 1 more when the other has
+  nothing left, up to 6. At the end `unit_free` is called for every unit
+  with 4 in `unit_marks`, and for the units a freed carrier holds.
+  `unit_pos` is two words, one for each of the two maps (the code adds the
+  side times two); the word at 0Dh is therefore the unit's place in the
+  second map rather than "where it is ordered to" as written above.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -853,12 +923,12 @@ emulation error (2026-10-02).
    status 007Bh remains unverified.
 2. `HL.EXE`: 71,755 instructions decode and play finds no more code. Go on
    with stage 2 where it stands (the bullets of 2026-10-04 above):
-   - confirm `fight_losses`: work the losses out from `build/n2/h3.ram`
-     (made by `-break fight_losses` in the run `w3`; `build/n2/fight.sh`
-     and `units.py` are the scratch scripts) and compare with a `-watch`
-     on both units; read the caller in `S2474` and the routine at
-     `CODE:07AB`; find where a unit with nothing left leaves the map
-     (`unit_free`, called from five places);
+   - the fight is confirmed (`build/n2/fights.sh`, `fightcalc.py`); left
+     of it: who sets the per cent bytes 30h and 31h of `fight_rec`
+     (`S02E6:2635` is called just before the record is filled; not read),
+     a fight of a kind with 4 in word 0Fh, `S131D:178D` and the pictures
+     in `S2532`; then `fight_losses` can be the port's first translated
+     routine, with the 39 dumps as its test;
    - what the three tables filled from the ground are (`site_add_400`,
      `site_add_100`, `site_add_40`) and what byte 18h of their record
      counts; what the units' bytes 0, 3, 0Fh, 10h and word 6 mean, and

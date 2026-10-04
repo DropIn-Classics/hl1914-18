@@ -914,3 +914,11 @@ code S30EF:183B
 ; in tools/savfiles.py and docs/HANDOFF.md). Presumably load_game uses it
 ; too (it is called from two places; not read).
 name S1273:0662 save_blocks
+
+; Where three data files lie in memory: a -ram dump after 300 s of play holds
+; the unpacked WW1GNDS.DAT (1,050 bytes) and AMOK.DAT (36 bytes) unchanged at
+; these addresses, and 3,385 of the 3,519 bytes of the unpacked top-level
+; UNIT.DAT (69 records of 33h bytes; the game changes some while it runs).
+name S331F:05A3 ww1gnds_dat
+name S331F:09BD unit_dat
+name S331F:4C7A amok_dat

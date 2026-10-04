@@ -1,8 +1,10 @@
 # Handoff
 
-State of 2026-10-03: the repository was made from doskit's template.
-`HL14-18.EXE` now rebuilds identically; its indirect code is not yet
-fully classified.
+State of 2026-10-04: all four programs rebuild identically (`HL.EXE` 71,755
+instructions, INTRO 18,055, EXTRO 15,678, the launcher 1,663). Everything
+that runs of the game executed is decoded, including whole battles on all
+72 maps, saving and loading; stage 2 has begun in `HL.EXE` (a dozen names,
+the saved game's layout). Nothing of the game is translated in the port yet.
 
 The `doskit` submodule is now at `a4b8166` (fast-forwarded from `f4dc33c`).
 That update adds consent-based package self-updates to the runtime
@@ -370,13 +372,25 @@ emulation error (2026-10-02).
   `12FD`, `126B`, `1224` and `S331F:02B5`. This list is the game's own
   statement of its state and the place to start naming records. The table
   at `S331F:09BD` is 45h records of 33h bytes, 3,519 bytes: the size of the
-  top-level `UNIT.DAT`, which `datfiles.py` rejects as records of 68;
-  presumably that file is loaded there (not checked by a run). What the
-  other blocks hold is not known.
-- Not checked: which of the remaining undecoded bytes are code. No run
-  ended a game by a victory or a defeat; that is the next source of
-  coverage (20 runs of three emulated hours were started for it), then
-  bounded tables and pointers in the frames named above.
+  top-level `UNIT.DAT`, which `datfiles.py` rejects as records of 68. A
+  `-ram` dump after 300 s of play confirms it: 3,385 of the unpacked file's
+  3,519 bytes are at `S331F:09BD` (the game changes some while it runs),
+  and the unpacked `WW1GNDS.DAT` (1,050 bytes) and `AMOK.DAT` (36 bytes)
+  lie unchanged at `S331F:05A3` and `S331F:4C7A`; the three are named
+  `unit_dat`, `ww1gnds_dat` and `amok_dat`. `NEWUNIT.DAT` (9,807 bytes
+  unpacked) was not found in that dump as a whole. What the other blocks
+  hold is not known.
+- Battles that end (2026-10-04). Nine runs of three emulated hours (a
+  click and the F1 pair every 15 s after ten busy minutes; an hour of host
+  time each) finished: six of them show the main menu at the end, so their
+  battle was over before; whether by a victory or a defeat was not looked
+  at. A tenth hung in the runner's `mcb_coalesce` as described above
+  (`build/n2/w8.keys`). The nine executed 54,369 distinct starts and
+  nothing outside decoded code: coverage by play has stopped finding code.
+- Not checked: which of the remaining undecoded bytes are code (about
+  18,000 in frames with code, the largest `S30EF` 4,680 and `CODE` 4,469).
+  What is left needs reading: pointers and tables in those frames, and
+  whether the launcher's status 7Bh (the last battle won) can be reached.
 
 ## `HL14-18.EXE` stage 1
 
@@ -665,11 +679,14 @@ emulation error (2026-10-02).
    repeat ordinary launcher runs for these gaps. The dispatcher and
    conditional EXTRO path are statically mapped; the likely win trigger for
    status 007Bh remains unverified.
-2. `HL.EXE`: 71,755 instructions decode; about 18,000 bytes in frames with
-   code remain. Get coverage of what no run did yet (a won or lost game),
-   compare it with the decoded
-   starts of all segments as described above, then begin stage 2 names and
-   records.
+2. `HL.EXE`: 71,755 instructions decode and play finds no more code. Go on
+   with stage 2: the saved game's 24 blocks (`tools/savfiles.py`) name the
+   game's state; find what each holds (the side records, the unit table
+   `unit_dat`, the map layers behind `S331F:17B6` and `17B2`) with `-watch`
+   and `-rwatch` in runs driven as described above, and name the routines of
+   `game_loop`. For doskit: the runner's endless loop in `mcb_coalesce`, the
+   limit of 4,096 input events, and an option of `gaps.py` for coverage of
+   DATA-class segments.
 3. Continue stage 2 for `INTRO/INTRO.EXE` and `EXTRO/EXTRO.EXE`: everything
    their full idle runs execute is decoded now, so name routines and
    classify what is left from tables and pointers (and from runs with keys:

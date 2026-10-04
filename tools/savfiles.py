@@ -30,7 +30,7 @@ BLOCKS = [
     ('S331F:4CA4', 0x8F, 'state words (the flag words 4CA4 and 4CA8 are in it)'),
     ('S331F:4D92', 0x31, 'side one, 31h-byte record'),
     ('S331F:4DC3', 0x31, 'side two, 31h-byte record'),
-    ('S331F:4C9E', 6, 'two bytes, then the map\'s width and height as words'),
+    ('S331F:4C9E', 6, 'three words: the length of the map in bytes, its width, its height'),
     ('S331F:3B5A', 0x1104, ''),
     ('S331F:3A0E', 0x0A * 0x1C, '0Ah records of 1Ch bytes, as S331F:3116'),
     ('S331F:38F6', 0x0A * 0x1C, '0Ah records of 1Ch bytes, as S331F:3116'),

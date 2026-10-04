@@ -946,8 +946,36 @@ name S331F:18A7 unit_pos
 ; none, S02E6:2556 walks them), four map offsets, five bytes, a unit number.
 ; The tables at S331F:3A0E, 38F6 and 38BE have the same record.
 name S331F:3116 carriers
-; Far pointers to the two map blocks, and the map's width and height (words
-; at 4CA0 and 4CA2; map_dims is two bytes before them).
+; Far pointers to the two map blocks; the map's length in bytes (width times
+; height times two), its width and its height, as map_load sets them.
 name S331F:17B6 map_ptr
 name S331F:17B2 map2_ptr
-name S331F:4C9E map_dims
+name S331F:4C9E map_bytes
+name S331F:4CA0 map_width
+name S331F:4CA2 map_height
+
+; map_load (read, not stepped in a run): marks every record of the units and
+; of the four 1Ch-record tables unused (8000h), loads the map file with
+; file_load, takes width and height from bytes 1 and 3 of its header and
+; points map_ptr behind the four header bytes. Then it walks the fields. The
+; first byte indexes ww1gnds_dat (6-byte records); of that record's word 0,
+; bits 2 and 1 give a side (2, 1 or 0) and 400h, 100h or 40h add a record to
+; the table at S331F:3A0E, 38F6 or 38BE. A second byte below F4h is a unit:
+; halved it is the kind (below 33h), its bit 0 the side; unit_add is called
+; with the next number from unit_total, and for a kind with 40h and 80h in
+; unit_dat's word 0Dh twice, the second a row further down with the kind
+; plus one. What the three tables are in the game is not known.
+name S0E56:0329 map_load
+name S331F:4CAC unit_total
+; unit_add(number, kind, map offset, flag bits): fills the unit's record from
+; the kind's record in unit_dat (byte 0 to 0, 3 to 2, 4 to 3, 3Dh to 9, word
+; 11h to 6, word 0Dh to unit_flags with the flag bits set too); a kind with
+; 1000h in word 0Dh gets a record of carriers, its number in byte 0Ah.
+name S15C5:0005 unit_add
+name S15C5:04AE carrier_add
+name S15C5:0594 unit_free
+; (table number, map offset, side): a record at S331F:3A0E, 38F6, 38BE. Byte
+; 18h starts as 0Fh, 0Ah and 14h there.
+name S15C5:024A site_add_400
+name S15C5:032C site_add_100
+name S15C5:040D site_add_40

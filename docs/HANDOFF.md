@@ -429,14 +429,14 @@ emulation error (2026-10-02).
     first the 14 records of side two's units differ from the rest.
     `S39B6:12FD`, `126B`, `1224` and `S331F:02B5` are two records each
     (0Ch, 49h, 20h and 2 bytes), presumably one a side.
-  - `S331F:4C9E`: two bytes, then the map's width and height as words (16
-    and 24 here). Over the map's 768 bytes the two map blocks are the
+  - `S331F:4C9E`: three words, the map's length in bytes (300h here), its
+    width and its height (16 and 24). Over the map's 768 bytes the two map blocks are the
     same in this file; after them the first has bytes left from elsewhere
     and the second only the values 6, 8, 9, 10 and 11 (not known).
 - Names from the unit records (2026-10-04): `unit_count`, `unit_flags`,
   `unit_kind`, `unit_pos` (the fields at 2, 4, 8 and 0Bh, as the code
   addresses them: record number times 1Ah plus the field's address),
-  `carriers` (`S331F:3116`), `map_ptr`, `map2_ptr`, `map_dims`. Read in the
+  `carriers` (`S331F:3116`), `map_ptr`, `map2_ptr`, `map_bytes`. Read in the
   code, not seen in a run: `unit_flags` 8000h marks an unused record
   (`S15C5:0594` writes it, nine places test it); the 14 bytes at the start
   of a carrier's record are two rows of seven unit numbers, and
@@ -446,6 +446,28 @@ emulation error (2026-10-02).
   Much of the code reaches the records through a far pointer (`[BX+4]`),
   so the names do not show every use. Next there: the routines in `S02E6`,
   `S1CC6` and `S0E56` that loop over the table.
+- How a battle's state is built (2026-10-04, read in `map_load`,
+  `S0E56:0329`, and the routines it calls; not stepped in a run, but the
+  saved file agrees). `map_load` marks all records unused, loads the map
+  file, sets `map_width`, `map_height`, `map_bytes` and `map_ptr`, and walks
+  the fields. A field's first byte indexes `ww1gnds_dat` (6-byte records):
+  bits 2 and 1 of the record's word 0 give a side, and 400h, 100h or 40h
+  add a record to the table at `S331F:3A0E`, `38F6` or `38BE`
+  (`site_add_400`, `site_add_100`, `site_add_40`; what the three are in the
+  game is not known, byte 18h of their record starts as 0Fh, 0Ah and 14h).
+  A field's second byte below F4h is a unit: `unit_add(number, kind, map
+  offset, flag bits)` copies bytes 0, 3, 4, 3Dh and the words 0Dh and 11h
+  of the kind's record in `unit_dat` into the unit (so `unit_count` starts
+  as the kind's byte 3 and `unit_flags` as its word 0Dh), and a kind with
+  1000h in that word gets a record of `carriers` (`carrier_add`). A kind
+  with 40h and 80h there makes two units, the second one row down with
+  the next kind. `map_load` also sets bytes 3Dh and 3Eh of every kind to 1
+  (the bytes in which the saved table differs from `UNIT.DAT`) and counts
+  in the side records (17h bytes each at `S331F:4D33`, bytes 2, 3 and 4:
+  units and the first two kinds of table record; they are the bytes the
+  saved game's header repeats). `unit_free` is `S15C5:0594`. Next: the
+  loops over the units in `S02E6`, `S1CC6`, `S1FD8` and `S2138`, and a run
+  with `-watch` on `unit_count` to see a fight.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

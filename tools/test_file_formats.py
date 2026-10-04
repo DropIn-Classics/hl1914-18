@@ -131,6 +131,15 @@ class SaveFiles(unittest.TestCase):
         with self.assertRaises(ValueError):
             savfiles.write_save(head, blocks)
 
+    def test_units(self):
+        self.assertEqual(sum(n for _, n, _ in savfiles.BLOCKS[:savfiles.UNITS]) + savfiles.HEADER, 0x523A)
+        self.assertEqual(savfiles.BLOCKS[savfiles.UNITS][1], savfiles.UNIT_COUNT * savfiles.UNIT_REC)
+        empty = bytes(5) + b'\x80' + bytes(savfiles.UNIT_REC - 6)
+        used = bytes(range(1, savfiles.UNIT_REC + 1))
+        blocks = [bytes(n) for _, n, _ in savfiles.BLOCKS]
+        blocks[savfiles.UNITS] = empty * 2 + used + empty * (savfiles.UNIT_COUNT - 3)
+        self.assertEqual(savfiles.units(blocks), [(2, used)])
+
 
 if __name__ == '__main__':
     unittest.main()

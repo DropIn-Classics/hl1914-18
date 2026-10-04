@@ -371,7 +371,7 @@ emulation error (2026-10-02).
   `3A0E`, `38F6`, `38BE`, `3116`, `189C`, `09BD`, `S39B6:0132`, `09AB`,
   `12FD`, `126B`, `1224` and `S331F:02B5`. This list is the game's own
   statement of its state and the place to start naming records. The table
-  at `S331F:09BD` is 45h records of 33h bytes, 3,519 bytes: the size of the
+  at `S331F:09BD` is 33h records of 45h bytes (see the records below), 3,519 bytes: the size of the
   top-level `UNIT.DAT`, which `datfiles.py` rejects as records of 68. A
   `-ram` dump after 300 s of play confirms it: 3,385 of the unpacked file's
   3,519 bytes are at `S331F:09BD` (the game changes some while it runs),
@@ -398,13 +398,48 @@ emulation error (2026-10-02).
   The first records of the 1Ch-record tables, taken by the index, showed no
   plain relation to kind or position. Pieces of `00.SHP` and `00.COM` were not found in any block
   as they are in the files.
+- The saved game's records (2026-10-04, later the same day; from the one
+  file saved at the start of map 00, `tools/savfiles.py --list`). Where
+  `save_blocks` multiplies two numbers, the variable is the record's length
+  and the constant the count, not the other way round as first written
+  down: the blocks are periodic that way and not the other.
+  - `S331F:189C`: the units, F1h (241) records of 1Ah bytes, 30 in use;
+    an unused one is zero but for 80h in byte 5. The map's 28 fields with
+    a unit hold the record's number in their second byte, and the words at
+    0Bh and 0Dh of the record are the offset of that byte in the map block
+    (the map's fields begin at the block's offset 0). Byte 8 is the map
+    file's value halved (the kind), byte 4 is 4 for the 14 units of the
+    upper end, 5 for the 14 of the lower: the file's value is kind times
+    two plus side, as guessed. Two more records (byte 4 is 6) point to a
+    field's first byte, where the file has 15. Bytes 0, 2, 5 to 7 and 9
+    are the same for units of a kind in this file; what they mean is not
+    known.
+  - `S331F:3116`, `3A0E`, `38F6`, `38BE`: 70, 10, 10 and 2 records of 1Ch
+    bytes of one layout: 14 bytes (FFh, or in `38F6` a few unit numbers),
+    four words that are map offsets, five bytes, and a unit's number or
+    FFh. The three records in use at `3116` name the three units of kind
+    22, and byte 0Ah of those units is the record's number. The two used
+    records of `38F6` have the two byte-4-is-6 units' offsets and three
+    fields beside each. Presumably these are what carries or holds units
+    (not checked by a run).
+  - `S331F:09BD` (`unit_dat`): 33h (51) records of 45h (69) bytes. The file
+    differs from the unpacked `UNIT.DAT` only in bytes 0Fh, 3Dh and 3Eh of
+    the records.
+  - `S39B6:0132`, `S39B6:09AB`: 241 records of 9 bytes, one a unit; in the
+    first the 14 records of side two's units differ from the rest.
+    `S39B6:12FD`, `126B`, `1224` and `S331F:02B5` are two records each
+    (0Ch, 49h, 20h and 2 bytes), presumably one a side.
+  - `S331F:4C9E`: two bytes, then the map's width and height as words (16
+    and 24 here). Over the map's 768 bytes the two map blocks are the
+    same in this file; after them the first has bytes left from elsewhere
+    and the second only the values 6, 8, 9, 10 and 11 (not known).
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
-  time each) 17 were finished when this was written; one hung in the
+  time each) 19 finished; one hung in the
   runner's `mcb_coalesce` as described above (`build/n2/w8.keys`). Six of
   the first nine show the main menu at the end, so their battle was over
-  before; whether by a victory or a defeat was not looked at. The 17
-  executed 55,419 distinct starts and nothing outside decoded code:
+  before; whether by a victory or a defeat was not looked at. The 19
+  executed 55,828 distinct starts and nothing outside decoded code:
   coverage by play has stopped finding code.
 - Not checked: which of the remaining undecoded bytes are code (about
   18,000 in frames with code, the largest `S30EF` 4,680 and `CODE` 4,469).
@@ -700,8 +735,8 @@ emulation error (2026-10-02).
    status 007Bh remains unverified.
 2. `HL.EXE`: 71,755 instructions decode and play finds no more code. Go on
    with stage 2: the saved game's 24 blocks (`tools/savfiles.py`) name the
-   game's state; find what each holds (the side records, the unit table
-   `unit_dat`, the map layers behind `S331F:17B6` and `17B2`) with `-watch`
+   game's state; find what the fields of the unit records and of `unit_dat` mean, and
+   what the side records and the second map block hold, with `-watch`
    and `-rwatch` in runs driven as described above, and name the routines of
    `game_loop`. For doskit: the runner's endless loop in `mcb_coalesce`, the
    limit of 4,096 input events, and an option of `gaps.py` for coverage of

@@ -20,8 +20,8 @@ HEADER = 0x1B
 # (where save_game takes the block from, bytes, note).  An address in
 # brackets is a far pointer variable: the block is what it points to.
 BLOCKS = [
-    ('[S331F:17B6]', 0x1806, 'the map: two bytes a field, as MAP/NN.FIN has them after its four header bytes; room for 3,072 fields and 6 bytes'),
-    ('[S331F:17B2]', 0x1806, 'the map a second time (how the two differ is not known)'),
+    ('[S331F:17B6]', 0x1806, 'the map: two bytes a field from offset 0, as MAP/NN.FIN has them after its four header bytes; the second byte is FFh or the number of the unit on the field'),
+    ('[S331F:17B2]', 0x1806, 'the map a second time; the same over the fields of the map, other bytes after them (not known)'),
     ('[S331F:4D44]', 0xF2, "side one (the pointer is in the side's record at S331F:4D33)"),
     ('[S331F:4D5B]', 0xF2, 'side two (record at S331F:4D4A)'),
     ('[S331F:1893]', 0x82, ''),
@@ -30,22 +30,30 @@ BLOCKS = [
     ('S331F:4CA4', 0x8F, 'state words (the flag words 4CA4 and 4CA8 are in it)'),
     ('S331F:4D92', 0x31, 'side one, 31h-byte record'),
     ('S331F:4DC3', 0x31, 'side two, 31h-byte record'),
-    ('S331F:4C9E', 6, ''),
+    ('S331F:4C9E', 6, 'two bytes, then the map\'s width and height as words'),
     ('S331F:3B5A', 0x1104, ''),
-    ('S331F:3A0E', 0x1C * 0x0A, '1Ch records of 0Ah bytes'),
-    ('S331F:38F6', 0x1C * 0x0A, '1Ch records of 0Ah bytes'),
-    ('S331F:38BE', 0x1C * 2, '1Ch words'),
-    ('S331F:3116', 0x1C * 0x46, '1Ch records of 46h bytes'),
-    ('S331F:189C', 0x1A * 0xF1, '1Ah records of F1h bytes'),
-    ('S331F:09BD', 0x45 * 0x33, '45h records of 33h bytes (the size of the top-level UNIT.DAT)'),
-    ('S39B6:0132', 9 * 0xF1, '9 records of F1h bytes'),
-    ('S39B6:09AB', 9 * 0xF1, '9 records of F1h bytes'),
-    ('S39B6:12FD', 0x0C * 2, '0Ch words'),
-    ('S39B6:126B', 0x49 * 2, '49h words'),
-    ('S39B6:1224', 0x20 * 2, '20h words'),
+    ('S331F:3A0E', 0x0A * 0x1C, '0Ah records of 1Ch bytes, as S331F:3116'),
+    ('S331F:38F6', 0x0A * 0x1C, '0Ah records of 1Ch bytes, as S331F:3116'),
+    ('S331F:38BE', 2 * 0x1C, 'two records of 1Ch bytes, as S331F:3116'),
+    ('S331F:3116', 0x46 * 0x1C, '46h records of 1Ch bytes: 14 bytes, four map offsets, five bytes, a unit number or FFh'),
+    ('S331F:189C', 0xF1 * 0x1A, 'the units: F1h records of 1Ah bytes (UNIT_REC)'),
+    ('S331F:09BD', 0x33 * 0x45, 'the kinds of unit: 33h records of 45h bytes, UNIT.DAT with bytes 0Fh, 3Dh and 3Eh of a record changed'),
+    ('S39B6:0132', 0xF1 * 9, 'F1h records of 9 bytes, one a unit'),
+    ('S39B6:09AB', 0xF1 * 9, 'F1h records of 9 bytes, one a unit'),
+    ('S39B6:12FD', 2 * 0x0C, 'two records of 0Ch bytes'),
+    ('S39B6:126B', 2 * 0x49, 'two records of 49h bytes'),
+    ('S39B6:1224', 2 * 0x20, 'two records of 20h bytes'),
     ('S331F:02B5', 2 * 2, 'two words'),
 ]
 SIZE = HEADER + sum(n for _, n, _ in BLOCKS)
+# The units' block: its index in BLOCKS, the records and a record's length.
+# Of a record, seen in one file saved at the start of map 00: byte 4 is 4
+# for side one's units, 5 for side two's and 6 for the two that stand on a
+# field's first byte; byte 8 is the kind (the map file's value halved); byte
+# 0Ah is FFh or a record of the block from S331F:3116; the words at 0Bh and
+# 0Dh are the offset in the map block of the byte that holds the unit's
+# number.  An unused record is zero but for 80h in byte 5.
+UNITS, UNIT_COUNT, UNIT_REC = 16, 0xF1, 0x1A
 
 
 def read_save(data):
@@ -66,6 +74,14 @@ def read_save(data):
     for _, n, _ in BLOCKS:
         blocks.append(bytes(data[pos:pos + n])); pos += n
     return head, blocks
+
+
+def units(blocks):
+    """The used records of the units' block as (number, record)."""
+    b = blocks[UNITS]
+    empty = bytes(5) + b'\x80' + bytes(UNIT_REC - 6)
+    recs = [b[i * UNIT_REC:(i + 1) * UNIT_REC] for i in range(UNIT_COUNT)]
+    return [(i, r) for i, r in enumerate(recs) if r != empty]
 
 
 def write_save(head, blocks):
@@ -99,6 +115,8 @@ def main():
             for (src, n, note), b in zip(BLOCKS, blocks):
                 print(f'  {pos:5X} {n:5X} {src:20} {sum(1 for x in b if x):5} bytes not zero  {note}')
                 pos += n
+            for i, r in units(blocks):
+                print(f'  unit {i:3}: kind {r[8]:2} byte 4 {r[4]} at map offset {struct.unpack_from("<H", r, 11)[0]:4X}')
     return 1 if bad else 0
 
 

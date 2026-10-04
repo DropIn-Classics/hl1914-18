@@ -507,6 +507,30 @@ emulation error (2026-10-02).
   where a unit with nothing left is taken off the map (`unit_free`,
   presumably). That is the next step; `-break fight_losses` in the same
   run gives the caller and the record.
+- `fight_losses`, first reading (2026-10-04; read once from the generated
+  source, nothing of it checked in a run, so all of it is to be confirmed
+  before the port uses it). The record it works on is the far pointer at
+  `S3AEC:0008`: far pointers to the two units at 0 and 4, to their kinds
+  at 0Ah and 0Eh, to two more records at 12h and 16h whose byte 5 indexes
+  a table of byte pairs at `S3AED:0000` (presumably the ground of the two
+  fields and what it adds to attack and defence), the units' map offsets
+  at 1Ah and 1Ch, two bytes at 30h and 31h used as per cent added to the
+  first unit's two values, a far routine at 6Ah called with a word made
+  from the record's first eight bytes and the dword at 3Ah (presumably
+  the random number). Each unit's count is taken from `unit_count` (or
+  byte 3 for a kind with 4 in word 0Fh), at least 1 and at most 6. Which
+  byte of the attacker's kind is its strength depends on the other unit's
+  `unit_flags`: byte 0Ah if 10h is set, 0Ch if 8, else 0Bh (presumably
+  three classes of unit, the bits 4, 8 and 10h); the kind's byte 8 or 9
+  is the reach, and beyond one field the strength is lowered by distance
+  (`S0E56:241F` is called with row and column of both; presumably the
+  distance in fields). Byte 2 of a kind is used as the other value
+  (presumably defence), `unit_exp` plus one enters as a factor. One
+  unit does not hit back in four cases tested at the start (the other
+  kind's word 6 has 80h, or 40h with the record's word 2Eh set, or word
+  2Eh is 0, or the kinds' class bits do not meet). The exact arithmetic
+  (the calls to the long multiply and divide at `CODE:03A1` and `03DC`)
+  was not worked through.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

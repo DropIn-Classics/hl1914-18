@@ -1,0 +1,58 @@
+/* hl.h - HL.EXE's memory by the names of the hints, and what is translated.
+ *
+ * The translated routines work on the program's own memory image
+ * (doskit/runtime/rmem.h), loaded where dosrun loads it, so their results
+ * can be compared byte for byte with the original's.
+ */
+#ifndef HL_H
+#define HL_H
+
+#include "rmem.h"
+#include "gen/names.h"
+
+/* where dosrun loads HL.EXE when it is started by itself (its -ram dumps
+ * have the image at 0076h) */
+#define HL_PSP 0x0066u
+#define HL_BASE (HL_PSP + 0x10u)
+
+/* S_name: the segment a name is in, as loaded; A_name: its offset */
+enum {
+#define X(seg, name, off) S_##name = HL_##seg + HL_BASE, A_##name = off,
+    HL_NAMES(X)
+#undef X
+    HL_NAMES_END
+};
+
+/* byte and word at a name plus an offset */
+#define NB(name, o) frb(S_##name, (uint16_t)(A_##name + (o)))
+#define NW(name, o) frw(S_##name, (uint16_t)(A_##name + (o)))
+#define SETB(name, o, v) fwb(S_##name, (uint16_t)(A_##name + (o)), (uint8_t)(v))
+#define SETW(name, o, v) fww(S_##name, (uint16_t)(A_##name + (o)), (uint16_t)(v))
+
+/* a far pointer as the program keeps it: offset, then segment */
+typedef struct { uint16_t seg, off; } Far;
+
+static inline Far far_at(uint16_t seg, uint16_t off)
+{
+    Far p;
+    p.off = frw(seg, off);
+    p.seg = frw(seg, (uint16_t)(off + 2));
+    return p;
+}
+static inline uint8_t pb(Far p, uint16_t o) { return frb(p.seg, (uint16_t)(p.off + o)); }
+static inline uint16_t pw(Far p, uint16_t o) { return frw(p.seg, (uint16_t)(p.off + o)); }
+static inline void pwb(Far p, uint16_t o, uint8_t v) { fwb(p.seg, (uint16_t)(p.off + o), v); }
+static inline Far pfar(Far p, uint16_t o) { return far_at(p.seg, (uint16_t)(p.off + o)); }
+
+#define UNIT_SIZE 0x1Au     /* a record of `units` */
+#define KIND_SIZE 0x45u     /* a record of `unit_dat` */
+
+/* fight.c */
+void field_neighbours(uint16_t field);
+int same_side(uint16_t flags, uint16_t other);
+uint8_t fight_around(uint8_t unit, uint8_t other, Far map, uint16_t side);
+void fight_percent(uint8_t attacker, uint8_t target, Far map, uint16_t side);
+int16_t field_distance(int16_t a1, int16_t a2, int16_t b1, int16_t b2);
+void fight_losses(void);
+
+#endif

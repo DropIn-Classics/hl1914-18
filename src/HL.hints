@@ -1022,6 +1022,7 @@ name CODE:048A long_shl
 ; it. Presumably the seed and the random number routine. fight_losses calls
 ; this through the fight record's pointer at 6Ah and draws no number itself.
 name CODE:07AB rand_seed
+name DATA:11F6 rand_state
 ; Called by fight_losses with row and column of both fields when the
 ; attacker's reach is above 1; in the 39 fights its result was the distance
 ; in fields that the losses agree with.
@@ -1093,3 +1094,14 @@ name S02E6:2802 dir_wrap
 ; a byte.
 name S02E6:2635 fight_percent
 name S331F:0009 around_percent
+
+; The unit records (F1h of 1Ah bytes); unit_exp, unit_count and the other
+; unit_ names are fields of the first.
+name S331F:189C units
+; The far pointer fight_losses takes its record through (fight_rec in the 39
+; fights).
+name S3AEC:0008 fight_rec_ptr
+; Pairs of signed bytes, indexed by byte 5 of a field's record in
+; ww1gnds_dat: what the ground adds to an attack and to a defence
+; (fight_losses; the 39 fights agree).
+name S3AED:0000 ground_bonus

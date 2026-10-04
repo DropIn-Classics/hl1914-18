@@ -8,8 +8,9 @@ game's layout, the unit records and the tables beside them, how `map_load`
 builds a battle's state, the two maps, and the routine that takes a fight's
 losses off (`fight_losses`) are named and described below under "`HL.EXE`
 stage 1" (the bullets dated 2026-10-04); the fight's arithmetic is read and
-agrees with 39 fights of six runs. Nothing of the game is translated in the
-port yet. `master` was pushed at `a6e0117`; the commits after it are local.
+agrees with 39 fights of six runs. The port has its first translated
+routines (`port/src/fight.c`: `fight_percent`, `fight_losses`), the same as
+the original on those 39 fights; nothing calls them yet. `master` was pushed at `a6e0117`; the commits after it are local.
 
 The `doskit` submodule is now at `a4b8166` (fast-forwarded from `f4dc33c`).
 That update adds consent-based package self-updates to the runtime
@@ -646,6 +647,20 @@ emulation error (2026-10-02).
     `unit_pos` were the same in all 39). Not met: byte 31h with both fields
     held (the bound of 96h), a field beyond the edge next to a fight (the
     first loop then reads the map's byte 0 instead of skipping; read only).
+- The port's first routines (2026-10-04). `port/src/hl.h` gives the names
+  of `src/HL.hints` as `S_name` (segment as loaded, image at 0076h as in
+  dosrun's dumps of `HL.EXE` started by itself, so PSP 0066h) and `A_name`
+  (offset), from `port/src/gen/names.h` (`symmap.py`; check.py keeps it up
+  to date, so a new name in the hints means running symmap.py again before
+  the commit). `port/src/fight.c` translates `fight_percent`,
+  `fight_around`, `field_neighbours`, `same_side`, `field_distance` and
+  `fight_losses`; `port/tests/fight_test.sh` runs them on the 39 pairs of
+  dumps: all the same (port/README.md, "Checked", has what differs in the
+  rest of memory and what the fights do not cover). Names added for it:
+  `units`, `fight_rec_ptr`, `ground_bonus`, `rand_state`. A test of this
+  kind (the original's memory at a routine's entry and end, the port's
+  routine run on the first) works for every routine that draws nothing and
+  waits for nothing; the game's loading and its loop come later.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -956,9 +971,10 @@ emulation error (2026-10-02).
    - the fight is confirmed (`build/n2/fights.sh`, `fightcalc.py`); left
      of it: a fight of a kind with 4 in word 0Fh, `S131D:178D` and the
      pictures in `S2532`. The per cent bytes are confirmed too
-     (`fight_percent`, `build/n2/percalc.py`), so `fight_percent` and
-     `fight_losses` can be the port's first translated routines, with the
-     39 dumps as their test;
+     (`fight_percent`, `build/n2/percalc.py`), and both are translated in the port
+     (`port/src/fight.c`, `port/tests/fight_test.sh`). Next in the port:
+     `attacks_run` around them (it settles which map and side index
+     `fight_percent` gets), `unit_destroy`, `unit_free`;
    - what the three tables filled from the ground are (`site_add_400`,
      `site_add_100`, `site_add_40`) and what byte 18h of their record
      counts; what the units' bytes 0, 3, 0Fh, 10h and word 6 mean, and

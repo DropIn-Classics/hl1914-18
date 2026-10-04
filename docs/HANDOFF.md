@@ -666,6 +666,22 @@ emulation error (2026-10-02).
   kind (the original's memory at a routine's entry and end, the port's
   routine run on the first) works for every routine that draws nothing and
   waits for nothing; the game's loading and its loop come later.
+- `attacks_run` before and after the fight (2026-10-04, read only, not
+  stepped). After filling `fight_rec` it exchanges `map_ptr` and
+  `map2_ptr`, fills the 1104h bytes at `S331F:3B5A` (a block of the saved
+  game) with 80h or 40h (by the side) and writes 0 at the two units'
+  places (both halves of a two-part unit), calls three routines of
+  `S0E56` (`177C`, `0D44`, `0F36`; presumably they draw the map) and
+  exchanges the pointers back; so at `fight_losses` the pointers are as
+  before, as the test takes them. The index into `3B5A` is column plus
+  row times 64, one byte a field (1104h is 66 times 66, which does not fit
+  rows of 64; not understood); presumably what of the map is to be drawn
+  or seen (not checked). Later
+  in the routine the pointers are exchanged around `S0E56:145A` in the
+  same way. Between and after: messages (`S10AF:0131`), `S2974:0002`,
+  `S28DC:000A`, `S2A10:0006`, none of them read. This is why
+  `attacks_run` is not translated yet: nearly all it calls besides the
+  fight draws or waits.
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where

@@ -564,8 +564,16 @@ emulation error (2026-10-02).
   - A's attack is raised by the record's byte 30h per cent, B's defence by
     byte 31h per cent (value plus the upper word of (value x 65536 / 100)
     x per cent). This corrects the first reading above, which gave both to
-    the first unit. Who sets the two bytes is not read (0, 25, 50, 75, 100,
-    125, 150 and 0, 80 were seen).
+    the first unit. The two bytes are written by `S02E6:2635`, which
+    `attacks_run` calls before it fills the record (0, 25, 50, 75, 100,
+    125, 150 and 0, 80 were seen). Read loosely, not checked: it looks at
+    the six fields around the units (`S0B15:0162` lists a field's
+    neighbours at `S331F:17FB`), adds for byte 30h a value of the table at
+    `S331F:0009` for each of five neighbouring places that `S02E6:2834`
+    leaves marked, and for byte 31h 50h for each of two places, at most
+    96h; both are 0 when none of the six fields holds another unit.
+    Presumably units standing around the target help the attack and
+    units beside it the defence.
   - Strength of a value v for a unit with count n and e = `unit_exp` + 1 on
     a ground with bonus g: n x v + n x v x (e x 256 / 6 + 1) / 256 +
     g x (v / 2). g is a signed byte of the pairs at `S3AED:0000`, indexed
@@ -924,8 +932,8 @@ emulation error (2026-10-02).
 2. `HL.EXE`: 71,755 instructions decode and play finds no more code. Go on
    with stage 2 where it stands (the bullets of 2026-10-04 above):
    - the fight is confirmed (`build/n2/fights.sh`, `fightcalc.py`); left
-     of it: who sets the per cent bytes 30h and 31h of `fight_rec`
-     (`S02E6:2635` is called just before the record is filled; not read),
+     of it: how exactly `S02E6:2635` and `S02E6:2834` work out the per
+     cent bytes 30h and 31h of `fight_rec` (read loosely only),
      a fight of a kind with 4 in word 0Fh, `S131D:178D` and the pictures
      in `S2532`; then `fight_losses` can be the port's first translated
      routine, with the 39 dumps as its test;

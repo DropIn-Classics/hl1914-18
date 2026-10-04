@@ -12,8 +12,21 @@ agrees with 39 fights of six runs. The port has its first translated
 routines (`port/src/fight.c`: `fight_percent`, `fight_losses`), the same as
 the original on those 39 fights; nothing calls them yet. `master` was pushed at `a6e0117`; the commits after it are local.
 
-The `doskit` submodule is now at `a4b8166` (fast-forwarded from `f4dc33c`).
-That update adds consent-based package self-updates to the runtime
+The `doskit` submodule is now at `2f6fe29` (fast-forwarded from `a4b8166`,
+eight commits). That update adds first support for LE images (`disasm.py`,
+`build.py`; this game has none), an assembler option
+`regreg_form=rm_reg` that puts the destination of a register ALU/MOV
+instruction in r/m (see the docstring of `disasm.py`; not tried on this
+project's `raw` lines), 32-bit offsets in the runner's
+named addresses, and in the runner fixed US country information, an empty
+DBCS table and unused interrupt vectors an extender can find. Nothing of the
+port's template changed. Checked on macOS: `doskit/tests/selftest.py` passed
+(`selftest ok`), `check.py` says `all ok` (the four programs rebuild
+identically with the same numbers as before), `sh port/build.sh` built, and
+`tools/test_file_formats.py`, `port/tests/fight_test.sh` (39 fights, 0
+different) and `port/tests/units_test.sh` (24 calls, 0 different) passed.
+
+The update before it, to `a4b8166` (from `f4dc33c`), added consent-based package self-updates to the runtime
 (`update.c`: on Windows and Linux the setup screen's U downloads, verifies
 and installs a newer release; on macOS it opens the release page), a
 `pad_in_use()` query, GOG Linux shell installations in `goglist.py`, and a

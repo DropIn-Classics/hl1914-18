@@ -55,4 +55,9 @@ void fight_percent(uint8_t attacker, uint8_t target, Far map, uint16_t side);
 int16_t field_distance(int16_t a1, int16_t a2, int16_t b1, int16_t b2);
 void fight_losses(void);
 
+/* units.c */
+void unit_destroy(uint8_t unit, uint8_t put, uint8_t put2, int8_t slot, uint16_t side, Far map);
+void site_free(Far site, uint16_t row);
+void unit_free(uint8_t unit, uint16_t row);
+
 #endif

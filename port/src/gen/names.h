@@ -183,6 +183,7 @@
     X(S15C5, site_add_40, 0x040D) \
     X(S15C5, carrier_add, 0x04AE) \
     X(S15C5, unit_free, 0x0594) \
+    X(S15C5, site_free, 0x06EA) \
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
     X(S2B85, file_close, 0x0002) \
@@ -197,6 +198,7 @@
     X(S331F, unit_dat, 0x09BD) \
     X(S331F, map2_ptr, 0x17B2) \
     X(S331F, map_ptr, 0x17B6) \
+    X(S331F, free_depth, 0x17F2) \
     X(S331F, neighbours, 0x17FB) \
     X(S331F, fight_rec, 0x181C) \
     X(S331F, units, 0x189C) \
@@ -209,11 +211,15 @@
     X(S331F, unit_aim, 0x18AD) \
     X(S331F, unit_marks, 0x18B0) \
     X(S331F, carriers, 0x3116) \
+    X(S331F, blasts, 0x4C5E) \
     X(S331F, amok_dat, 0x4C7A) \
+    X(S331F, blast_time, 0x4C82) \
     X(S331F, map_bytes, 0x4C9E) \
     X(S331F, map_width, 0x4CA0) \
     X(S331F, map_height, 0x4CA2) \
     X(S331F, unit_total, 0x4CAC) \
+    X(S331F, site_totals, 0x4CAD) \
+    X(S331F, sides, 0x4D33) \
     X(S331F, attack_pick, 0x4DA8) \
     X(S3AEC, fight_rec_ptr, 0x0008) \
     X(S3AED, ground_bonus, 0x0000) \

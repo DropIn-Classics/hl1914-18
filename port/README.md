@@ -23,6 +23,9 @@ program's memory (`src/hl.h`, the names from `src/gen/names.h`, which
 `field_distance`. They are compiled into the program but nothing calls
 them yet: the program still only finds the game's files.
 
+Then `src/units.c`: `unit_destroy`, `unit_free` and `site_free`, likewise
+not called by the program yet.
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -72,3 +75,19 @@ anything the game needs before the first release.
   is index 1 and `map2_ptr`, the second side attacking, so the other case
   is not covered either (and in these dumps both maps and both words of
   `unit_pos` are the same, so a wrong pick would not show).
+- Taking units off (2026-10-04, macOS): `sh port/tests/units_test.sh` runs
+  `unit_destroy` and `unit_free` on calls of the original, each a pair of
+  dosrun `-ram` dumps at the routine's entry and at its end, the arguments
+  read from the stack of the first (the scratch script
+  `build/n2/destroy2.py` makes the dumps from the same six runs and
+  writes the test's argument list; local, not in the repository). The six
+  runs have 14 calls of each; the first four of each run were dumped, 12
+  of `unit_destroy` and 12 of `unit_free`: after the port's routine
+  nothing differs from the original in the game's state (segment `S331F`
+  up to `DATA`, and both maps). Elsewhere only the stack below the entry's
+  SP differs, and in one call the same five bytes as in the fights
+  (`S30EF:021E`, `DATA:0D4F` to `0D52`).
+  Not covered: in all 12 calls `unit_free` changed four bytes, so no unit
+  of two parts and no carrier was freed: `site_free`, the two-part paths
+  of both routines and `unit_free`'s two early returns are translated from
+  reading only.

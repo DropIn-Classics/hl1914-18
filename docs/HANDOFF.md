@@ -682,6 +682,40 @@ emulation error (2026-10-02).
   `S28DC:000A`, `S2A10:0006`, none of them read. This is why
   `attacks_run` is not translated yet: nearly all it calls besides the
   fight draws or waits.
+- `unit_destroy`, `unit_free`, `site_free` (2026-10-04), read and translated
+  (`port/src/units.c`), 12 calls each of the first two compared with the
+  original (`port/tests/units_test.sh`, dumps by `build/n2/destroy2.py`):
+  the same. The six long runs hold 14 calls of each.
+  - `unit_destroy(unit, byte, byte for the other half, slot, side index,
+    map)`: notes the unit's field in record `slot` of `blasts`
+    (`S331F:4C5E`, 7 bytes: map offset, a count-down from `blast_time`
+    `S331F:4C82`, the field's first byte and the new unit byte as words),
+    writes the byte as the field's unit and sets 4 in `unit_marks`; for a
+    unit of two parts (40h) the other half (the next unit with 80h set,
+    else the one before) the same in the next record, its count-down one
+    higher.
+  - `unit_free(unit, row)`: counts its own depth in `free_depth`
+    (`S331F:17F2`) and returns above 5 or for a record already unused
+    (8000h), in both cases without lowering the depth again (as read; not
+    met). For a unit of two parts both records become unused and 2 is
+    taken off instead of 1; a carrier (1000h) gives up its record through
+    `site_free`; `unit_total` and byte 2 of the side's record (`sides`,
+    `S331F:4D33`; side by bits 0 and 1 of `unit_flags`, none for bit 1)
+    are lowered, `unit_flags` becomes 8000h.
+  - `site_free(record, row)` (`S15C5:06EA`): frees the seven units of the
+    record's row `row` (0 or 1; `unit_free` hands its own second argument
+    on) and writes FFh there; then by word 19h of the record (side bits 0
+    and 1 as in `unit_flags`): with 10h byte 4 of the side's record and
+    the second byte of `site_totals` (`S331F:4CAD`) are lowered, with 8
+    byte 3 and the first, with 20h the third; word 19h becomes 8000h. So
+    word 19h of a 1Ch-byte record is its flags, and the three bits are
+    presumably the three tables filled from the ground (which is which is
+    not checked).
+  - Not met in the 12 calls: a unit of two parts, a carrier (so
+    `site_free` is read only), the early returns.
+  - `build/n2/d0.log` to `d5.log` of an earlier session were overwritten
+    by this session's first logging script (scratch files; what they held
+    is not known to matter).
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -994,9 +1028,11 @@ emulation error (2026-10-02).
      pictures in `S2532`. The per cent bytes are confirmed too
      (`fight_percent`, `build/n2/percalc.py`), and both are translated in the port
      (`port/src/fight.c`, `port/tests/fight_test.sh`). Next in the port:
-     `attacks_run` around them, `unit_destroy`, `unit_free`; a fight
-     the first side starts is still to be seen (a scripted attack by the
-     player);
+     `unit_destroy` and `unit_free` (`port/src/units.c`,
+     `port/tests/units_test.sh`). `attacks_run` around them waits for
+     the drawing routines; a fight the first side starts is still to be
+     seen (a scripted attack by the player), as are a carrier's and a
+     two-part unit's end;
    - what the three tables filled from the ground are (`site_add_400`,
      `site_add_100`, `site_add_40`) and what byte 18h of their record
      counts; what the units' bytes 0, 3, 0Fh, 10h and word 6 mean, and

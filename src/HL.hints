@@ -1112,3 +1112,28 @@ name S3AED:0000 ground_bonus
 ; In the 39 fights it was 1, and DI at fight_losses 1. What else the byte
 ; means is not known.
 name S331F:4DA8 attack_pick
+
+; site_free(record, row): for a 1Ch-byte record (a carrier's, called by
+; unit_free; presumably also those of the three tables filled from the
+; ground): calls unit_free for the seven units of the given row (0 or 1)
+; and empties their places, lowers the counts that belong to the record's
+; word 19h (with 10h byte 4 of the side's record and the second of
+; site_totals, with 8 byte 3 and the first, with 20h the third) and writes
+; 8000h to word 19h. Read; the port's translation agrees with the original
+; in the runs port/README.md names.
+name S15C5:06EA site_free
+; How deep unit_free is in itself (through site_free); above 5 it returns
+; at once, and it leaves the count raised when it returns early.
+name S331F:17F2 free_depth
+; Records of 7 bytes that unit_destroy fills (the slot is its argument): a
+; field's map offset, a count-down started from blast_time, the field's
+; first byte and the unit byte written to it, both as words. Presumably
+; the explosions to be shown.
+name S331F:4C5E blasts
+name S331F:4C82 blast_time
+; The two sides' records of 17h bytes: byte 2 the side's units, bytes 3 and
+; 4 its records of two of the tables filled from the ground, a far pointer
+; at 11h to its list of attacking units and their number in byte 15h.
+name S331F:4D33 sides
+; Three bytes after unit_total that site_free lowers.
+name S331F:4CAD site_totals

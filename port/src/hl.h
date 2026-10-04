@@ -72,10 +72,16 @@ void map_reset(void);
 void map_setup(Far file);
 void shp_reset(void);
 void shp_setup(Far file);
+uint16_t map_load(Far name, Far buf, Far work);
+uint16_t shp_load(Far name, Far buf, Far work);
 
 /* files.c */
 extern const char *hl_game_dir;     /* the installed game's folder */
 Far ptr_norm(Far p);
 Far file_load(Far to, Far name, Far work);
+
+/* names.c */
+Far file_name(uint16_t where, int16_t dir, Far name, int16_t ext);
+Far num_text(int32_t value, Far to, int16_t width, uint8_t flags);
 
 #endif

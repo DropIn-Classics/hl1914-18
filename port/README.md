@@ -32,8 +32,11 @@ its loading of the file), `map_copy`, `shp_reset` and `shp_setup` (the same
 of `shp_load`). `src/files.c` has `file_load`, which reads a file of the
 installed game into the program's memory and unpacks a packed one, and
 `ptr_norm`; its allocation when no place is given, the message and the
-further tries when a file cannot be opened are not translated. None of
-this is called by the program yet.
+further tries when a file cannot be opened are not translated. With it
+`map_load` and `shp_load` are whole (`src/map.c`). `src/names.c` has
+`file_name`, which puts a file's name together from the program's tables
+of folders and endings, and `num_text` (a number as decimal text). None
+of this is called by the program yet.
 
 ## Build and run
 
@@ -142,3 +145,19 @@ anything the game needs before the first release.
   returns 0 there), a packed file without a work buffer, a file longer
   than a segment, `DATA:0378` above 0 (the name behind the name), and the
   failure to read.
+- Whole loads and names (2026-10-04, macOS): the same test takes `map`,
+  `shp`, `name` and `num` for calls of `map_load`, `shp_load`, `file_name`
+  and `num_text` (dumps by the scratch script `build/n2/calls1.py`: the
+  one `map_load` and `shp_load` of each of the six runs, 30 of run `w0`'s
+  45 calls of `file_name` and its five of `num_text`). All 47 the same in
+  all of memory, with the same exceptions as above and the routine's own
+  arguments on the stack, which the original changes (a pointer moved
+  along, a width counted down); `DATA:03C6` to `03C8` joined the bytes
+  counted apart. `map_load` and `shp_load` read `MAP\00.FIN` to `05.FIN`
+  and `.SHP` from the game's folder, so this compares the whole way from
+  the files to a battle's units, sites and maps.
+  Not covered: `num_text` was only ever called with 0, two places and
+  filling (all five calls), so a real number, the cut to the lowest digits
+  and a negative value are from reading only; `file_name` was met with
+  nine combinations of its arguments, among them the prefix (`where` 2) on
+  an empty prefix only; a map or `.SHP` file that cannot be loaded.

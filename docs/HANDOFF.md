@@ -795,6 +795,33 @@ emulation error (2026-10-02).
   string behind the name when `DATA:0378` is above 0 and calls a hook
   around the opening when `DATA:04B9` is set (neither met nor read
   further).
+- `map_load` and `shp_load` whole, `file_name`, `num_text` (2026-10-04;
+  `port/src/map.c`, `port/src/names.c`, compared by
+  `port/tests/load_test.sh`: 47 calls the same, port/README.md has the
+  limits). Read in the routine of `S066A` that sets a battle up (around
+  `S066A:07C6` to `0938`; not named, most of it not read):
+  - `map_load(name, place, work buffer)` gets `map_ptr` itself as the
+    place, normalises it and afterwards sets `map_ptr` four bytes behind
+    it (the file's header), so `map_ptr` moves on by four with every map
+    loaded in one start of the program (read; a second battle in one run
+    was not looked at). `shp_load` gets the far pointer at `sides`+9
+    (`S331F:4D3C`) as its place: the `.SHP` file is loaded where side 0's
+    list is (what that list is, is not known).
+  - The same routine loads `UNIT.DAT` to `unit_dat` and `WW1GNDS.DAT` to
+    `ww1gnds_dat` directly with `file_load`, and calls `S0CB6:1842` with 2
+    when a load fails (presumably the error exit; not read). After
+    `map_load` it sets the word at `S331F:0008` to 1 for a map wider than
+    32 or higher than 40, else 2 (one of the words the saved game's header
+    repeats).
+  - `file_name(where, folder, name, ending)` (`S1571:02CD`) makes every
+    file's name at `name_buf` (`S3310:00B9`) from `name_dirs` (6-byte
+    entries; 0 and 1 were met, `LIB\` and `MAP\`) and `name_exts` (5-byte
+    entries); the map's number comes from `num_text` (`S2892:0001`, the
+    map's number in two places). `where` 2 puts `name_prefix`
+    (`S3310:007D`) in front; it was met for `MAP\00.HI` with an empty
+    prefix (presumably the folder for files the game writes; not checked).
+  - `S288D:0009` normalises a far pointer like `ptr_norm` (not named; the
+    port uses `ptr_norm` for it).
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -1110,12 +1137,15 @@ emulation error (2026-10-02).
      `unit_destroy` and `unit_free` (`port/src/units.c`,
      `port/tests/units_test.sh`) are done, and so is the making of a
      battle's state from a map's two files (`port/src/map.c`); the loading
-     itself is translated too (`file_load`, `port/src/files.c`). Next
-     there: `mem_alloc`, then `map_load` and `shp_load` whole (their
-     parts joined with `file_load`) and the routine that calls them
-     (`S066A`, from the list of opened files: which files go where), so
-     that the port builds a battle's state from the game's folder; then
-     the other
+     itself is translated too (`file_load`, `port/src/files.c`). `map_load`
+     and `shp_load` are whole, with `file_name` and `num_text`
+     (`port/src/names.c`). Next there: the routine of `S066A` that sets a
+     battle up (it calls them; which files go where, and what else it
+     prepares), translated as far as it draws nothing, so that the port
+     builds a battle's state from the game's folder by itself;
+     `mem_alloc` needs a decision first on how the port keeps DOS memory
+     (the comparison wants the same segments as dosrun's allocator gives);
+     then the other
      caller of `unit_add` (in `S066A`, just after a call of the routine
      at `S15C5:01A7`, which finds a unit by its flags; `S131D` calls that
      one too; neither read). `attacks_run` around them waits for

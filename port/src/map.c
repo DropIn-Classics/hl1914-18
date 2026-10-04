@@ -1,5 +1,6 @@
 /* map.c - a battle's state from its map: the part of HL.EXE's map_load
- * (S0E56:0329) behind the loading of the file, and map_copy (S0E56:1D9B),
+ * (S0E56:0329) and shp_load (S0E56:0079), each in its parts before and
+ * behind the loading of the file and whole, and map_copy (S0E56:1D9B),
  * translated over the program's memory.  port/README.md says how this was
  * compared with the original.
  */
@@ -204,4 +205,34 @@ void shp_setup(Far file)
             pwb(s, (uint16_t)i, n);
         }
     }
+}
+
+/* S0E56:0329: a battle's map from the file `name`, loaded to `buf` (the
+ * program passes map_ptr itself) with the work buffer `work`.  0, or FFFFh
+ * when the file cannot be loaded. */
+uint16_t map_load(Far name, Far buf, Far work)
+{
+    Far got;
+
+    map_reset();
+    buf = ptr_norm(buf);
+    got = file_load(buf, name, work);
+    if (!(got.seg | got.off))
+        return 0xFFFF;
+    map_setup(buf);
+    return 0;
+}
+
+/* S0E56:0079: the units in the sites, from the map's .SHP file */
+uint16_t shp_load(Far name, Far buf, Far work)
+{
+    Far got;
+
+    shp_reset();
+    buf = ptr_norm(buf);
+    got = file_load(buf, name, work);
+    if (!(got.seg | got.off))
+        return 0xFFFF;
+    shp_setup(buf);
+    return 0;
 }

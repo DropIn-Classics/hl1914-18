@@ -627,6 +627,21 @@ comment S2C45:0002 file_load(far place or 0/FFFFFFFF, far name, far work buffer 
 ; work buffer 1000h bytes at a time. Compared with the port's translation
 ; on the 47 calls of a start up to the first map.
 name S2C9E:0002 ptr_norm
+; file_name(where, folder, far name or 0, ending): puts a file's name
+; together at name_buf and returns that: with where 2 the text at
+; name_prefix first, then entry `folder` of name_dirs (6 bytes each), the
+; name, and entry `ending` of name_exts (5 bytes each); a folder or ending
+; below 0 is left out. Compared with the port's translation.
+name S1571:02CD file_name
+name S3310:00B9 name_buf
+name S3310:007D name_prefix
+name S3310:0029 name_dirs
+name S3310:0041 name_exts
+; num_text(long value, far to, width, flags): the value's amount in decimal
+; at `to`, at most 10 places (the lowest digits when there are more); flags
+; 4 fills up from the left, with spaces when 1 is set too, else with
+; zeros. Compared with the port's translation.
+name S2892:0001 num_text
 comment S2C9E:0002 ptr_norm(far pointer): DX:AX = the same place with an offset below 10h.
 name S2CBE:000E mem_alloc
 comment S2CBE:000E mem_alloc(dword size): INT 21h AH=48h for size/16+1 paragraphs; the segment is entered in the table at DATA:0469 (count at DATA:0467) and returned in DX, AX = 0.

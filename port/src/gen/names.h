@@ -179,6 +179,7 @@
     X(S1273, save_game, 0x0005) \
     X(S1273, load_game, 0x0399) \
     X(S1273, save_blocks, 0x0662) \
+    X(S1571, file_name, 0x02CD) \
     X(S15C5, unit_add, 0x0005) \
     X(S15C5, carrier_find, 0x01F7) \
     X(S15C5, site_add_400, 0x024A) \
@@ -189,6 +190,7 @@
     X(S15C5, site_free, 0x06EA) \
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
+    X(S2892, num_text, 0x0001) \
     X(S2B85, file_close, 0x0002) \
     X(S2B8F, file_size, 0x000C) \
     X(S2BC5, file_write, 0x0008) \
@@ -197,6 +199,10 @@
     X(S2C8E, file_open, 0x0006) \
     X(S2C9E, ptr_norm, 0x0002) \
     X(S2CBE, mem_alloc, 0x000E) \
+    X(S3310, name_dirs, 0x0029) \
+    X(S3310, name_exts, 0x0041) \
+    X(S3310, name_prefix, 0x007D) \
+    X(S3310, name_buf, 0x00B9) \
     X(S331F, around_percent, 0x0009) \
     X(S331F, ww1gnds_dat, 0x05A3) \
     X(S331F, unit_dat, 0x09BD) \

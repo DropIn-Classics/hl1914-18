@@ -1,13 +1,15 @@
-/* load_test.c - file_load against the original.
+/* load_test.c - file_load, map_load, shp_load, file_name and num_text
+ * against the original.
  *
- *     load_test GAMEDIR  SS:SP AX DX ENTRY.ram EXIT.ram [...]
+ *     load_test GAMEDIR  (load|map|shp|name|num) SS:SP AX DX ENTRY.ram EXIT.ram [...]
  *
- * Each set of five is one call in HL.EXE: SS:SP (hex) at file_load's
+ * Each set of six is one call in HL.EXE: the routine, SS:SP (hex) at its
  * entry, AX and DX at its RETF, and dosrun's -ram dumps at both.  The
  * arguments are read from the stack of the first dump; after the port's
- * file_load, which reads the file from GAMEDIR, the returned pointer and
+ * routine, which reads files from GAMEDIR, the returned value and
  * all memory are compared with the second.  Differences in the stack below
- * the entry's SP and in the bytes `beside` names are only counted; a call with no place given (the
+ * the entry's SP, in the routine's own arguments and in the bytes `beside`
+ * names are only counted; a call with no place given (the
  * original then allocates) is skipped.  port/tests/load_test.sh builds
  * this.
  */
@@ -52,7 +54,7 @@ static int beside(uint32_t a)
     if (a < data)
         return 0;
     a -= data;
-    return a == 0x308 || a == 0x3C9 || (a >= 0x3D4 && a < 0x3E8) || (a >= 0x400 && a < 0x414)
+    return a == 0x308 || (a >= 0x3C6 && a < 0x3CA) || (a >= 0x3D4 && a < 0x3E8) || (a >= 0x400 && a < 0x414)
         || (a >= 0x424 && a < 0x427) || a == 0xB19 || (a >= 0xD5F && a < 0xD63);
 }
 
@@ -60,12 +62,14 @@ int main(int argc, char **argv)
 {
     int i, bad = 0, calls = 0, skipped = 0;
 
-    if (argc < 7 || (argc - 2) % 5) {
-        fprintf(stderr, "usage: load_test GAMEDIR SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
+    if (argc < 8 || (argc - 2) % 6) {
+        fprintf(stderr, "usage: load_test GAMEDIR (load|map|shp|name|num) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     hl_game_dir = argv[1];
-    for (i = 2; i < argc; i += 5) {
+    for (i = 2; i < argc; i += 6) {
+        const char *what = argv[i++];
+        int wide = 1;
         unsigned ss, sp, ax, dx, d_stack = 0, d_else = 0, d_beside = 0, changed = 0, o;
         uint32_t a, lo_stack, hi_stack;
         Far to, name, work, got;
@@ -80,18 +84,39 @@ int main(int argc, char **argv)
         to = far_at((uint16_t)ss, (uint16_t)(sp + 4));
         name = far_at((uint16_t)ss, (uint16_t)(sp + 8));
         work = far_at((uint16_t)ss, (uint16_t)(sp + 12));
+        text[0] = 0;
+        if (!strcmp(what, "name")) {
+            got = file_name(frw((uint16_t)ss, (uint16_t)(sp + 4)), (int16_t)frw((uint16_t)ss, (uint16_t)(sp + 6)),
+                            name, (int16_t)frw((uint16_t)ss, (uint16_t)(sp + 12)));
+            name = got;
+        } else if (!strcmp(what, "num")) {
+            got = num_text((int32_t)(frw((uint16_t)ss, (uint16_t)(sp + 4))
+                                     | (uint32_t)frw((uint16_t)ss, (uint16_t)(sp + 6)) << 16),
+                           name, (int16_t)frw((uint16_t)ss, (uint16_t)(sp + 12)),
+                           frb((uint16_t)ss, (uint16_t)(sp + 14)));
+        } else if (!strcmp(what, "map") || !strcmp(what, "shp")) {
+            name = to;
+            got.off = what[0] == 'm' ? map_load(to, far_at((uint16_t)ss, (uint16_t)(sp + 8)), work)
+                                     : shp_load(to, far_at((uint16_t)ss, (uint16_t)(sp + 8)), work);
+            got.seg = 0;
+            wide = 0;
+        } else if ((to.seg == 0 && to.off == 0) || (to.seg == 0xFFFF && to.off == 0xFFFF)) {
+            printf("load: no place given, skipped\n");
+            skipped++;
+            i--;
+            continue;
+        } else
+            got = file_load(to, name, work);
         for (o = 0; o < sizeof text - 1 && pb(name, (uint16_t)o); o++)
             text[o] = (char)pb(name, (uint16_t)o);
         text[o] = 0;
-        if ((to.seg == 0 && to.off == 0) || (to.seg == 0xFFFF && to.off == 0xFFFF)) {
-            printf("%s: no place given, skipped\n", text);
-            skipped++;
-            continue;
-        }
-        got = file_load(to, name, work);
+        i--;
         lo_stack = lin((uint16_t)ss, 0);
-        hi_stack = lin((uint16_t)ss, (uint16_t)(sp + 4));
-        printf("%s%s:", text, work.seg | work.off ? "" : " (no work buffer)");
+        /* with the routine's own arguments, which the original changes
+         * (a pointer moved along, a width counted down): 12 bytes, 10 of
+         * file_name */
+        hi_stack = lin((uint16_t)ss, (uint16_t)(sp + 4 + (strcmp(what, "name") ? 12 : 10)));
+        printf("%s %s:", what, text);
         for (a = 0; a < RAM; a++) {
             changed += mem[a] != entry[a];
             if (mem[a] == leave[a])
@@ -103,11 +128,11 @@ int main(int argc, char **argv)
             else if (d_else++ < 8)
                 printf(" %05X", (unsigned)a);
         }
-        if (got.off != ax || got.seg != dx)
+        if (got.off != ax || (wide && got.seg != dx))
             printf(" returns %04X:%04X, the original %04X:%04X;", got.seg, got.off, dx, ax);
         printf(" different %u, beside %u, stack %u; bytes the port's routine changed %u\n",
                d_else, d_beside, d_stack, changed);
-        if (d_else || got.off != ax || got.seg != dx)
+        if (d_else || got.off != ax || (wide && got.seg != dx))
             bad++;
         calls++;
     }

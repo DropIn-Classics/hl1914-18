@@ -391,15 +391,21 @@ emulation error (2026-10-02).
   is what stands on the field, a kind in the file and an index in memory;
   that the tables of 1Ch (28) records in the list above belong to it is a
   guess from the number alone. Beyond the first 768 bytes the two copies
-  differ (the rest of the 1806h bytes is not empty; not looked at). Pieces of `00.SHP` and `00.COM` were not found in any block
+  differ (the rest of the 1806h bytes is not empty; not looked at). In map 00
+  the file's 28 values are even (20 to 44) in the upper part of the map and
+  odd (21 to 45) in the lower, the two sides' ends: presumably the value is
+  a unit's kind times two plus its side (not checked against `unit_dat`).
+  The first records of the 1Ch-record tables, taken by the index, showed no
+  plain relation to kind or position. Pieces of `00.SHP` and `00.COM` were not found in any block
   as they are in the files.
-- Battles that end (2026-10-04). Nine runs of three emulated hours (a
+- Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
-  time each) finished: six of them show the main menu at the end, so their
-  battle was over before; whether by a victory or a defeat was not looked
-  at. A tenth hung in the runner's `mcb_coalesce` as described above
-  (`build/n2/w8.keys`). The nine executed 54,369 distinct starts and
-  nothing outside decoded code: coverage by play has stopped finding code.
+  time each) 17 were finished when this was written; one hung in the
+  runner's `mcb_coalesce` as described above (`build/n2/w8.keys`). Six of
+  the first nine show the main menu at the end, so their battle was over
+  before; whether by a victory or a defeat was not looked at. The 17
+  executed 55,419 distinct starts and nothing outside decoded code:
+  coverage by play has stopped finding code.
 - Not checked: which of the remaining undecoded bytes are code (about
   18,000 in frames with code, the largest `S30EF` 4,680 and `CODE` 4,469).
   What is left needs reading: pointers and tables in those frames, and

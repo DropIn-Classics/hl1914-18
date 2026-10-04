@@ -483,6 +483,30 @@ emulation error (2026-10-02).
   3, 5 and so on. No unit had lost any of its `unit_count` in that dump
   or in the one of map 00: 300 s of random play do not bring a fight, so
   what a fight changes is still to be watched.
+- Units after fights (2026-10-04). Six of the long runs were played again
+  to 2400 s with a `-ram` dump at the end (`build/n2/fight.sh`, the dumps
+  read with `build/n2/units.py`). In five of them units have a
+  `unit_count` below their kind's byte 3 (the start value, 6 or 3): 1 to
+  5 are left, in one dump of 19 units of 82. So `unit_count` is how many
+  of a unit are left, as the code suggested. Byte 1 of those units is 1
+  to 4, and a few units with a full count have it too: presumably it
+  rises with fights (named `unit_exp`; what raises it was not watched).
+  On map 00 `unit_total` was 29 after 30 at the start and the side
+  records' byte 2 said 13 and 16 after 14 and 14: units are lost and
+  gained.
+- The fight (2026-10-04). `-watch unit_count+680` (unit 64) in the long
+  run `w3` played again to 2400 s: the byte is set to 6 by `unit_add`
+  (at `S15C5:0074`, t=17.9, which confirms the reading of `map_load`) and
+  then lowered by one five times between t=534 and t=2395, always by the
+  last store of the routine at `S2487:000A`, named `fight_losses`. Its
+  end was read: it gets a record with far pointers to two units and to
+  their kinds' records, bounds two losses by the units' counts and
+  subtracts them; for a kind with 4 in its word 0Fh the result goes to
+  the unit's byte 3 and `unit_count` becomes 0 when that is 0. Not read:
+  the 900 lines before, which work the losses out, who calls it, and
+  where a unit with nothing left is taken off the map (`unit_free`,
+  presumably). That is the next step; `-break fight_losses` in the same
+  run gives the caller and the record.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

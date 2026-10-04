@@ -1221,8 +1221,8 @@ emulation error (2026-10-02).
         `S331F:0008`), anything else back to state 0.
       So byte 16h of a view is the side's part of the round: with 1 it
       moves units, with 2 it attacks, repairs and builds (its being
-      `attack_pick` fits). The F1 pair of the runs presumably changes it;
-      where was not found in what is read.
+      `attack_pick` fits). `attacks_run` exchanges it between the views
+      ("A round's end" below).
     - `view_step(view, input record, input bits, far pointer, side)`,
       state 0, by byte 18h: 0 a pressed button goes to state 1; 19h waits
       for byte 8 of the input record and then is 0; 16h, a unit that is to
@@ -1240,8 +1240,63 @@ emulation error (2026-10-02).
       again with nine words kept at `S3306:000A`). Byte 30h of the view
       is set when the button was let go before, so that a held button
       does not count twice.
-  - Next there: `S066A:0F0C` to `1F39` again for the F1 change of byte
-    16h, then `S10E1` (moving: `000F`, `02EB`, `05D1`) and `S0AE0`
+  - A round's end (2026-10-04; the end of `attacks_run`, `S02E6:19B8` to
+    `205B`, read, nothing stepped). This is where byte 16h of the views
+    changes: no key does it. Nothing in `S066A` writes the byte but the
+    setup (1 for the first view, 2 for the second), and here the two are
+    exchanged. So a round has two halves: in each, one side moves and the
+    other attacks, repairs and builds, both at once, and `attacks_run`
+    after both have ended (state 5) carries the attacks out and turns the
+    parts round. A is the side whose attacks were carried out (the one
+    with 2 in byte 16h), M the other. After the fights:
+    - with 1000h in `game_state`, `S02E6:2B87` is called with the
+      routine's own six argument words, then `S2974:0002` and
+      `S28DC:000A`, and 1000h is cleared (not read);
+    - `rows_sync` (`S02E6:23F0`) for `carriers` (46h records),
+      `sites_100` and `sites_400` (0Ah each) and `sites_40` (2): M's
+      records get M's row copied to A's, all others A's row to M's. So
+      the two rows of seven are not the two sides' units but each side's
+      own state of the record, as each side has its own map; this
+      corrects "the first row belongs to the first side" under state 2
+      above (the code there takes the row of the side that looks);
+    - every unit byte of A's map becomes FFh; each unit of M's side gets
+      its `unit_pos` and its byte 0Fh for A set from those for M (so M's
+      moves become true for A); `units_drop_empty` (`S02E6:2B28`) gives
+      8000h to every unit with `unit_count` 0; then each unit without
+      8000h and 4000h is written into A's map at its word 0Bh (the first
+      word of `unit_pos` whichever side A is; not understood, after the
+      step before the two words are the same only for M's units), and
+      `map_copy` copies A's map to M's;
+    - both views: bytes 17h, 18h and 19h 0 and the pointer 5 (this is
+      what takes them out of state 5), byte 16h exchanged; byte 15h of
+      both `sides` records (the count of attackers) 0; texts 35h and 36h
+      (35h for the first side when its part is now 1, else for the
+      second); 18h set in `game_state`'s word 4; `round_count`
+      (`S331F:4CB5`, word 11h of `game_state`) goes up when the first
+      view's part is 1 again, so once in two calls; `field_bits_clear`
+      with FFh;
+    - each unit: 0F00h cleared in `unit_flags`; with 1 in `unit_marks`
+      and 1 in its kind's word 0Fh (and not 4000h in the flags)
+      `S0E56:1DDB(unit, 200h, its side, 1)` and 200h set in the flags
+      (not read; presumably a unit that has moved and may not act in the
+      next half); with 8000h in its word 6 its byte 3 rises by 1 up to
+      the kind's byte 4 when the kind has 4 in word 0Fh, else
+      `unit_count` by 1 up to the kind's byte 3 (a unit that mends by
+      itself), and for a carrier (1000h) of that sort the same for each
+      unit in the row of seven of its record; then `unit_marks`,
+      `unit_aim` and bytes 13h, 15h and 16h become 0;
+    - who is left: the units without 8000h and without 20h and 4 in word
+      6 are counted by side. A side with none left ends the battle: both
+      views go to state 7, the loser's word 22h 12h and the other's 11h,
+      15h for both when neither has one. So 11h in state 7 is a victory
+      by the other side having no unit left (texts 41h and 42h), and 0Fh
+      the one `attacks_run`'s result gives;
+    - `defence_sum`'s result is kept at `S331F:4D2F`, and with 40h in
+      `game_state` and a local flag set `S2F39:0F87` is called
+      (presumably music; not read). The result is the byte at [BP-7].
+    The F1 pair of the runs is then presumably what ends a side's half
+    (pointer 9, state 5) and the key of entry 0Ch; not looked at.
+  - Next there: `S10E1` (moving: `000F`, `02EB`, `05D1`) and `S0AE0`
     (`0008`, `02E3`: choosing whom to attack), `S0B15:0371` and `062F`
     (what a unit reaches), `S0CB6:05F1`, `S131D:1745`, and `S1C74:000B`,
     the computer's turn.

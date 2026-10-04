@@ -1298,3 +1298,19 @@ name S0CB6:0750 view_step
 ; button is let go, begins a move or an attack or sets the view's state (3
 ; the map, 4 the field's unit, 5 the round's end, 6 into a site). Read.
 name S0CB6:0EAA field_menu
+; rows_sync(table, side, other side, records): attacks_run calls it at a
+; round's end for carriers, sites_100, sites_400 and sites_40 with the side
+; whose attacks it carried out and the other. For each record without 8000h
+; and 2 in word 19h: a record of the other side (same_side) has that side's
+; row of seven copied to the first side's row, a freed unit (8000h in
+; unit_flags) becoming FFh in both; any other record has the first side's
+; row copied to the other's. So each side has its own row, as it has its own
+; map, and a round's end makes them the same. Read, not stepped.
+name S02E6:23F0 rows_sync
+; Sets 8000h in unit_flags of every unit whose unit_count is 0 (attacks_run,
+; at a round's end). Read, not stepped.
+name S02E6:2B28 units_drop_empty
+; Word 11h of game_state: attacks_run adds 1 at every second round's end
+; (when attack_pick has become 1 again); presumably the number of the round
+; the players see. Not checked.
+name S331F:4CB5 round_count

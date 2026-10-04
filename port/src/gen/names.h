@@ -167,10 +167,12 @@
     X(CODE, rand_seed, 0x07AB) \
     X(S02E6, attacks_run, 0x000F) \
     X(S02E6, unit_destroy, 0x208E) \
+    X(S02E6, rows_sync, 0x23F0) \
     X(S02E6, fight_percent, 0x2635) \
     X(S02E6, dir_wrap, 0x2802) \
     X(S02E6, fight_around, 0x2834) \
     X(S02E6, defence_sum, 0x29D4) \
+    X(S02E6, units_drop_empty, 0x2B28) \
     X(S066A, game_loop, 0x000D) \
     X(S0B15, field_bits_clear, 0x000B) \
     X(S0B15, field_neighbours, 0x0162) \
@@ -255,6 +257,7 @@
     X(S331F, game_state, 0x4CA4) \
     X(S331F, unit_total, 0x4CAC) \
     X(S331F, site_totals, 0x4CAD) \
+    X(S331F, round_count, 0x4CB5) \
     X(S331F, map_number, 0x4CBB) \
     X(S331F, sides, 0x4D33) \
     X(S331F, views, 0x4D92) \

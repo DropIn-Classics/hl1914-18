@@ -1105,3 +1105,10 @@ name S3AEC:0008 fight_rec_ptr
 ; ww1gnds_dat: what the ground adds to an attack and to a defence
 ; (fight_losses; the 39 fights agree).
 name S3AED:0000 ground_bonus
+
+; Byte 16h of the first 31h-byte side record (S331F:4D92). attacks_run
+; takes from it whose attacks it carries out: with 2 here side index 0 and
+; the map behind map_ptr, else index 1 and the map behind map2_ptr (read).
+; In the 39 fights it was 1, and DI at fight_losses 1. What else the byte
+; means is not known.
+name S331F:4DA8 attack_pick

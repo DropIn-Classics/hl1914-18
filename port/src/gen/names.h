@@ -214,6 +214,7 @@
     X(S331F, map_width, 0x4CA0) \
     X(S331F, map_height, 0x4CA2) \
     X(S331F, unit_total, 0x4CAC) \
+    X(S331F, attack_pick, 0x4DA8) \
     X(S3AEC, fight_rec_ptr, 0x0008) \
     X(S3AED, ground_bonus, 0x0000) \
     X(DATA, rand_state, 0x11F6) \

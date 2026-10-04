@@ -77,9 +77,11 @@ int main(int argc, char **argv)
         }
         a = NB(fight_rec, 8);
         b = NB(fight_rec, 9);
-        /* the dumps do not say which map and side index attacks_run hands
-         * over: the two maps and both words of unit_pos were the same */
-        fight_percent(a, b, far_at(S_map_ptr, A_map_ptr), 0);
+        /* the map and side index as attacks_run picks them */
+        if (NB(attack_pick, 0) == 2)
+            fight_percent(a, b, far_at(S_map_ptr, A_map_ptr), 0);
+        else
+            fight_percent(a, b, far_at(S_map2_ptr, A_map2_ptr), 1);
         d_pc = differ(entry, rec, 0x80);
         fight_losses();
         d_units = differ(leave, units, 0xF1 * UNIT_SIZE);

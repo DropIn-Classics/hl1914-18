@@ -67,6 +67,8 @@ anything the game needs before the first release.
   byte 3), a loss of 12 or more before the bounds, a fight at the map's
   edge, both fields beside a fight held by the target's side, and a
   divisor of 0 (the original would stop with a division error; the port
-  takes the quotient as 0). The test hands `fight_percent` `map_ptr` and
-  side index 0; which map and index `attacks_run` passes is not settled
-  (in the dumps both maps and both words of `unit_pos` are the same).
+  takes the quotient as 0). The test hands `fight_percent` the map and side
+  index as `attacks_run` picks them (`attack_pick`); in all 39 fights that
+  is index 1 and `map2_ptr`, the second side attacking, so the other case
+  is not covered either (and in these dumps both maps and both words of
+  `unit_pos` are the same, so a wrong pick would not show).

@@ -642,9 +642,14 @@ emulation error (2026-10-02).
   - Byte 31h (the defence): 50h for each of the two fields that touch both
     the attacker and the target, if marked for the target's side (a unit of
     the target's side there that could attack the attacker); at most 96h.
-  - Not settled by the dumps: which of the two maps `attacks_run` hands
-    over and what its side index is (the two maps and both words of
-    `unit_pos` were the same in all 39). Not met: byte 31h with both fields
+  - Which map: `attacks_run` begins by reading `attack_pick`
+    (`S331F:4DA8`): 2 gives side index 0 and the map behind `map_ptr`, any
+    other value index 1 and `map2_ptr`. So each side has its map and its
+    word of `unit_pos`; this corrects "the map as it will be" above. All 39
+    fights had index 1 (the byte 1, DI 1 at `fight_losses`, the attacker
+    of the second side): the random play of the first side never attacked,
+    and the dumps could not show a wrong pick (both maps and both words of
+    `unit_pos` the same in them). Not met: byte 31h with both fields
     held (the bound of 96h), a field beyond the edge next to a fight (the
     first loop then reads the map's byte 0 instead of skipping; read only).
 - The port's first routines (2026-10-04). `port/src/hl.h` gives the names
@@ -973,8 +978,9 @@ emulation error (2026-10-02).
      pictures in `S2532`. The per cent bytes are confirmed too
      (`fight_percent`, `build/n2/percalc.py`), and both are translated in the port
      (`port/src/fight.c`, `port/tests/fight_test.sh`). Next in the port:
-     `attacks_run` around them (it settles which map and side index
-     `fight_percent` gets), `unit_destroy`, `unit_free`;
+     `attacks_run` around them, `unit_destroy`, `unit_free`; a fight
+     the first side starts is still to be seen (a scripted attack by the
+     player);
    - what the three tables filled from the ground are (`site_add_400`,
      `site_add_100`, `site_add_40`) and what byte 18h of their record
      counts; what the units' bytes 0, 3, 0Fh, 10h and word 6 mean, and

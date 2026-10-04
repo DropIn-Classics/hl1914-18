@@ -80,6 +80,9 @@ extern const char *hl_game_dir;     /* the installed game's folder */
 Far ptr_norm(Far p);
 Far file_load(Far to, Far name, Far work);
 
+/* mem.c */
+Far mem_alloc(uint32_t size);
+
 /* names.c */
 Far file_name(uint16_t where, int16_t dir, Far name, int16_t ext);
 Far num_text(int32_t value, Far to, int16_t width, uint8_t flags);

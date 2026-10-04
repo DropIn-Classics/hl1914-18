@@ -35,8 +35,9 @@ installed game into the program's memory and unpacks a packed one, and
 further tries when a file cannot be opened are not translated. With it
 `map_load` and `shp_load` are whole (`src/map.c`). `src/names.c` has
 `file_name`, which puts a file's name together from the program's tables
-of folders and endings, and `num_text` (a number as decimal text). None
-of this is called by the program yet.
+of folders and endings, and `num_text` (a number as decimal text);
+`src/mem.c` has `mem_alloc` on the runtime's DOS blocks. None of this is
+called by the program yet.
 
 ## Build and run
 
@@ -161,3 +162,9 @@ anything the game needs before the first release.
   and a negative value are from reading only; `file_name` was met with
   nine combinations of its arguments, among them the prefix (`where` 2) on
   an empty prefix only; a map or `.SHP` file that cannot be loaded.
+- Memory (2026-10-04, macOS): the same test takes `alloc` for `mem_alloc`
+  (the runtime's `rm_arena` set from the size of the program's own block
+  in the dump). A start up to the first map has one call, for 445C0h
+  bytes: the returned segment and all memory the same, the block's and the
+  following free block's headers included. One call is all the evidence;
+  a second block, no room, and `file_load`'s use of it are not covered.

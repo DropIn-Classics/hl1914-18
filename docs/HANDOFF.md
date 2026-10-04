@@ -824,6 +824,19 @@ emulation error (2026-10-02).
     prefix (presumably the folder for files the game writes; not checked).
   - `S288D:0009` normalises a far pointer like `ptr_norm` (not named; the
     port uses `ptr_norm` for it).
+- `game_loop` is the program's main (2026-10-04, its first 400 lines
+  read, nothing of it stepped): its arguments are the command line's
+  count and words; `/a` and `/b` (either case) choose 1 or 2 instead of 3
+  for the call of `S2F39:000B` (presumably the sound or picture device;
+  not read). It then asks `mem_alloc` for 445C0h bytes (the one
+  allocation of a start up to the first map), sets up a 320 by 200 screen
+  (`S298E:000D` with 140h, C8h, 4), loads two files into that block
+  through `S2B81:0004` and keeps their places at `S331F:17AA` and `17A6`,
+  and goes into the menu (`S167A`) before the loads of a battle described
+  above. `S0CB6:1842` is called with 1, 2 or 3 after a failed allocation,
+  load or screen setup (presumably the exit with a message). `mem_alloc`
+  is translated (`port/src/mem.c`, on the runtime's `dos_alloc`; the one
+  call compared, the same).
 - Decided with the user (2026-10-04): the hints of the sibling project's
   programs (`../bisle/src`, among them a data disk of the same year whose
   packer is the same) are not used here, not even to carry names where
@@ -1145,9 +1158,12 @@ emulation error (2026-10-02).
      sets a battle up (it calls them; which files go where, and what else
      it prepares), call by call and translated as far as it draws nothing, so that the port
      builds a battle's state from the game's folder by itself;
-     `mem_alloc` needs a decision first on how the port keeps DOS memory
-     (the comparison wants the same segments as dosrun's allocator gives);
-     then the other
+     `mem_alloc` is translated on the runtime's DOS blocks. Since
+     `game_loop` is the program's main, the port's own start comes first:
+     `rm_load_exe` for `HL.EXE` at PSP 0066h in `port/src/main.c`, then the
+     loads of a battle in the order `game_loop` makes them, checked with
+     `rm_write` and `doskit/tools/memcmp.py` against a dosrun dump; then
+     the other
      caller of `unit_add` (in `S066A`, just after a call of the routine
      at `S15C5:01A7`, which finds a unit by its flags; `S131D` calls that
      one too; neither read). `attacks_run` around them waits for

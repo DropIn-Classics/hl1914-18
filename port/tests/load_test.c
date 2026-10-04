@@ -1,7 +1,7 @@
-/* load_test.c - file_load, map_load, shp_load, file_name and num_text
- * against the original.
+/* load_test.c - file_load, map_load, shp_load, file_name, num_text and
+ * mem_alloc against the original.
  *
- *     load_test GAMEDIR  (load|map|shp|name|num) SS:SP AX DX ENTRY.ram EXIT.ram [...]
+ *     load_test GAMEDIR  (load|map|shp|name|num|alloc) SS:SP AX DX ENTRY.ram EXIT.ram [...]
  *
  * Each set of six is one call in HL.EXE: the routine, SS:SP (hex) at its
  * entry, AX and DX at its RETF, and dosrun's -ram dumps at both.  The
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
     int i, bad = 0, calls = 0, skipped = 0;
 
     if (argc < 8 || (argc - 2) % 6) {
-        fprintf(stderr, "usage: load_test GAMEDIR (load|map|shp|name|num) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: load_test GAMEDIR (load|map|shp|name|num|alloc) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     hl_game_dir = argv[1];
@@ -94,6 +94,14 @@ int main(int argc, char **argv)
                                      | (uint32_t)frw((uint16_t)ss, (uint16_t)(sp + 6)) << 16),
                            name, (int16_t)frw((uint16_t)ss, (uint16_t)(sp + 12)),
                            frb((uint16_t)ss, (uint16_t)(sp + 14)));
+        } else if (!strcmp(what, "alloc")) {
+            /* the runtime's DOS blocks begin behind the program's own */
+            rm_psp = HL_PSP;
+            rm_arena = (uint16_t)(HL_PSP + frw(HL_PSP - 1, 3));
+            got = mem_alloc(frw((uint16_t)ss, (uint16_t)(sp + 4))
+                            | (uint32_t)frw((uint16_t)ss, (uint16_t)(sp + 6)) << 16);
+            name.seg = name.off = 0;
+            snprintf(text, sizeof text, "%04X:%04X", got.seg, got.off);
         } else if (!strcmp(what, "map") || !strcmp(what, "shp")) {
             name = to;
             got.off = what[0] == 'm' ? map_load(to, far_at((uint16_t)ss, (uint16_t)(sp + 8)), work)
@@ -107,9 +115,11 @@ int main(int argc, char **argv)
             continue;
         } else
             got = file_load(to, name, work);
-        for (o = 0; o < sizeof text - 1 && pb(name, (uint16_t)o); o++)
-            text[o] = (char)pb(name, (uint16_t)o);
-        text[o] = 0;
+        if (name.seg | name.off) {
+            for (o = 0; o < sizeof text - 1 && pb(name, (uint16_t)o); o++)
+                text[o] = (char)pb(name, (uint16_t)o);
+            text[o] = 0;
+        }
         i--;
         lo_stack = lin((uint16_t)ss, 0);
         /* with the routine's own arguments, which the original changes

@@ -859,6 +859,9 @@ code S066A:0006
 ; The battle: CODE:013A calls it, the map is drawn and the keys are compared
 ; in it (read from the code; its S and E branches were followed for the
 ; names below).
+; game_loop is the program's main (argc, argv): /a or /b on the command
+; line, the allocation of 445C0h bytes, the screen, the menu and the loads
+; of a battle come before the loop (read in part, see docs/HANDOFF.md).
 name S066A:000D game_loop
 ; Saving: in a run, a click (the F1 prompt), D and a digit wrote the file
 ; 03.DAT into the state folder. The D key (entry 1Ah of the key table) is

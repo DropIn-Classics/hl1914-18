@@ -19,7 +19,8 @@ battle's setup" below: the setup is translated up to the loop's beginning,
 but for pictures and sound). Of the loop, the views' states, a round's end
 and what a unit reaches are read (the last bullets under "The loop of
 `game_loop`, second reading"), and the routines that mark where a unit can
-move and whom it can attack are translated (`port/src/range.c`). `master`
+move, whom it can attack and its way are translated (`port/src/range.c`).
+`master`
 was pushed at `dc1970c`; the commits after it are local.
 
 The `doskit` submodule is now at `2f6fe29` (fast-forwarded from `a4b8166`,
@@ -1373,8 +1374,19 @@ emulation error (2026-10-02).
       unit that has its order) into `unit_flags`, with 40h/80h and
       10h/20h in `field_bits` on the unit's field; the round's end
       clears them.
-  - Next there: `S10E1:0F82`, `S0B15:0E52` (the way), `timer_fire`'s kind
-    4 (the walk; `S10E1:072C` is called at a pass's end with 40h in word
+  - The way (2026-10-04; `path_find`, `S0B15:0E52`, read, translated in
+    `port/src/range.c` and compared on 60 calls of the six runs: the
+    same; port/README.md, "Checked"). It goes over the fields
+    `move_range` marked, trying them in the order of their worth: the
+    distance to the end (`field_distance`) times the kind's byte 15h
+    plus the ground's cost times the kind's byte 16h, so those two bytes
+    of `unit_dat` say how a kind weighs the straight way against easy
+    ground. It is not the cheapest way: what the way so far has cost is
+    not counted. The way is left from its end back to its beginning,
+    the unit's own field last; `path_len` (`S331F:17F3`) is the number of
+    its fields. The six runs call it 10,237 times, 5,421 without a way
+    (presumably the computer trying fields; not looked at).
+  - Next there: `S10E1:0F82`, `timer_fire`'s kind 4 (the walk; `S10E1:072C` is called at a pass's end with 40h in word
     4), `S0CB6:05F1`, `S131D:1745`, and `S1C74:000B`, the computer's
     turn.
   - The three routines are translated (`port/src/range.c`) and compared
@@ -1719,8 +1731,8 @@ emulation error (2026-10-02).
      (the bullet "The loop of `game_loop`, second reading": the states of
      a view, the other caller of `unit_add`, which builds a unit in a
      site, the end of a round and of a battle). Next: its part from
-     how a move is carried out (the way, `S0B15:0E52`, and the walk by
-     the timer of kind 4; `view_step`, `field_menu`, the routines that
+     how a move is carried out (the walk by the timer of kind 4; the
+     way, `path_find`, is translated; `view_step`, `field_menu`, the routines that
      take an order, `move_aim`, `move_start`, `attack_order`, the round's end in
      `attacks_run` and `move_range`, `move_costs` and `attack_range` are
      read, the three translated in `port/src/range.c` and compared),

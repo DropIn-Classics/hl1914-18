@@ -65,6 +65,8 @@ int16_t move_range(int16_t field, Far buf, uint16_t unit, int16_t range,
 uint8_t attack_range(Far buf, int16_t field, int16_t range, uint16_t side,
                      uint16_t unit, uint16_t mask, Far map);
 
+int16_t path_find(Far buf, uint16_t unit, int16_t from, int16_t to, uint16_t side, Far map);
+
 /* units.c */
 void unit_destroy(uint8_t unit, uint8_t put, uint8_t put2, int8_t slot, uint16_t side, Far map);
 void site_free(Far site, uint16_t row);

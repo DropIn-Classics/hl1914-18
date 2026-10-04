@@ -181,6 +181,7 @@
     X(S0B15, move_range, 0x0371) \
     X(S0B15, attack_range, 0x062F) \
     X(S0B15, move_costs, 0x0A01) \
+    X(S0B15, path_find, 0x0E52) \
     X(S0CB6, view_cursor, 0x0154) \
     X(S0CB6, same_side, 0x0205) \
     X(S0CB6, timer_set, 0x0272) \
@@ -238,6 +239,7 @@
     X(S331F, build_count, 0x17BE) \
     X(S331F, build_kinds, 0x17BF) \
     X(S331F, free_depth, 0x17F2) \
+    X(S331F, path_len, 0x17F3) \
     X(S331F, neighbours, 0x17FB) \
     X(S331F, fight_rec, 0x181C) \
     X(S331F, units, 0x189C) \

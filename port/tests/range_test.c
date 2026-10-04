@@ -1,6 +1,6 @@
-/* range_test.c - move_range and attack_range against the original.
+/* range_test.c - move_range, attack_range and path_find against the original.
  *
- *     range_test (move|attack) SS:SP AX ENTRY.ram EXIT.ram [...]
+ *     range_test (move|attack|path) SS:SP AX ENTRY.ram EXIT.ram [...]
  *
  * Each set of five is one call in HL.EXE: which routine, SS:SP (hex) at its
  * entry, AX (hex) at its end, dosrun's -ram dump at the entry and the one
@@ -10,7 +10,7 @@
  * attack_range) and memory with the second dump.  A call passes when the
  * result is the same and nothing differs in the game's state (from
  * segment S3306, where move_range keeps its arguments, up to DATA, the two
- * maps and the work buffer the routine was given); what differs elsewhere
+ * maps and the work buffer the routine was given, 2580h bytes of it); what differs elsewhere
  * is listed (the stack below the entry's SP is only counted).
  * port/tests/range_test.sh builds this.
  */
@@ -21,7 +21,7 @@
 
 #define RAM 0xA0000u
 #define MAP_BLOCK 0x1806u
-#define BUF_BYTES 0x1104u
+#define BUF_BYTES 0x2580u      /* with the way path_find leaves at 1F40h */
 
 static uint8_t entry[RAM], leave[RAM];
 
@@ -47,7 +47,7 @@ int main(int argc, char **argv)
     int i, bad = 0, calls = 0;
 
     if (argc < 6 || (argc - 1) % 5) {
-        fprintf(stderr, "usage: range_test (move|attack) SS:SP AX ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: range_test (move|attack|path) SS:SP AX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     for (i = 1; i < argc; i += 5) {
@@ -74,8 +74,13 @@ int main(int argc, char **argv)
             got = attack_range(buf, (int16_t)W(4), (int16_t)W(6), W(8), W(0x0A), W(0x0C),
                                far_at(s, (uint16_t)(arg + 0x0E)));
             want = ax & 0xFF;
+        } else if (!strcmp(argv[i], "path")) {
+            buf = far_at(s, arg);
+            got = (uint16_t)path_find(buf, W(4), (int16_t)W(6), (int16_t)W(8), W(0x0A),
+                                      far_at(s, (uint16_t)(arg + 0x0C)));
+            want = ax;
         } else {
-            fprintf(stderr, "%s: move or attack\n", argv[i]);
+            fprintf(stderr, "%s: move, attack or path\n", argv[i]);
             return 2;
         }
 #undef W

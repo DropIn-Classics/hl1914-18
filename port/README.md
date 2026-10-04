@@ -64,8 +64,8 @@ its second side below map 24 and as its first from there on).
 
 Then `src/range.c`: `move_range`, which marks where a unit can move, with
 `move_costs` (what entering each field costs it) and `buf_neighbours`,
-and `attack_range`, which marks whom it can attack. Nothing calls them
-yet.
+and `attack_range`, which marks whom it can attack, and `path_find`, the
+way of a unit to a field it can reach. Nothing calls them yet.
 
 ## Build and run
 
@@ -280,3 +280,17 @@ anything the game needs before the first release.
   `attack_range` with 2 in its mask. 10 of the 60 moves reach only the
   unit's own field; 12 of the 48 attacks have 40h in the mask, 25 find
   one to ten units.
+- The way (2026-10-04, macOS): the same test takes `path` for calls of
+  `path_find` (dumps at its entry and at each of its four ends,
+  `S0B15:1019`, `110B`, `13B7` and `13DE`, by the scratch script
+  `build/n2/range5.py`). The six runs hold 10,237 calls, 5,421 of them
+  without a way; ten of each run were dumped, eight spread over the run
+  and the first two without a way: 26 with a way and 34 without, the
+  result, `path_len`, the way and the records in the work buffer the same
+  in all 60 (the test compares 2580h bytes of the buffer). With them the
+  test runs 168 calls, 0 different.
+  Not covered: which side and which units these calls are for was not
+  looked at (presumably the computer's, as with `move_range`); the two
+  ends at 316h records or fields were not met in the calls dumped, as far
+  as the results show (they return FFFFh like a way not found, so the
+  dumps do not tell them apart).

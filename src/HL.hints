@@ -1387,3 +1387,17 @@ name S10E1:05D1 move_start
 ; is taken off the map and put back in its place there, the view going back
 ; to state 2. Read, not stepped.
 name S10E1:000F move_done
+; path_find(buffer, unit, from, to, side, map): the way of a unit over the
+; fields move_range marked for the side (1 or 2 in field_bits). Fields are
+; kept in the buffer as records of 10 bytes (column, row, the record it was
+; reached from, its worth, the records before and after it in the order of
+; worth) and tried in that order; the worth of a field is its distance to
+; the end times the kind's byte 15h plus the ground's cost (byte 3 of its
+; record, byte 4 for a unit with 10h in unit_flags) times the kind's byte
+; 16h. 40h or 80h in field_bits marks a field met and is cleared at the
+; end. Returns 0 with the way, from its end back to its beginning, as map
+; offsets at 1F40h of the buffer and their number in path_len; FFFFh
+; without one or with more than 316h records. Read; compared with the
+; port's translation.
+name S0B15:0E52 path_find
+name S331F:17F3 path_len

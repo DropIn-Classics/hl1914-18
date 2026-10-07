@@ -1707,11 +1707,40 @@ emulation error (2026-10-02).
         the test's arguments in ignored `build/computer/`. Of the
         scratch scripts in `build/n4/` only `phases.py`, which sums up
         a log of `computer_turn`, has no copy there.
+    - The other steps (2026-10-07, Mac, later): `step_unit_out` (kind
+      4) with `move_targets_list`, `step_site_menu` (6) and `step_build`
+      (7) are translated too, with `unit_holder` and `rec_find_unit`;
+      `computer_step` now carries out every kind.
+      - `step_unit_out`: the cursor to the site or carrier that holds
+        the unit, the code 82h (the site's list opens), the list's row
+        to the unit, the code 80h, then `move_targets_list` gives every
+        field the unit could go to and the first of them is taken (the
+        columns from the left, each from the top; with none the site's
+        own field and 8 in the side's word 0), the cursor there, the
+        button twice, the code 83h. So the computer does not choose
+        where a unit leaves to: it is the first field of the list.
+      - `step_build`: the cursor to the `sites_400` record, 82h, the
+        list's row to the last free place of the side's seven, 82h,
+        down to the kind in `build_kinds`, 82h, 83h.
+      - Both end by the code 83h (button and right), presumably leaving
+        the site's list (not seen on the screen).
+      - Which kinds come up where (24 runs of 1500 s, every third code
+        from 1, scratch `build/n5/survey.py`): the 16 maps with a
+        computer's side all have the kinds 1, 2 and 3; kind 4 on 12 of
+        them (50 to 617 calls), kind 7 on 15 (48 to 178 calls); the
+        kinds 5 and 6 on none, nor `step_attack`'s state 4 (a target
+        whose field is not marked). The codes from 49 on are maps for
+        two players: no call of `computer_step`. `computer_queue` adds a
+        step of kind 6 at one place (the call of `step_add` at
+        `S1CC6:0567`); when, was not read. Nothing adds a kind 5.
+      - `computer_dumps.py` now logs the entry of every state of every
+        handler (their addresses from the jump tables in the player's
+        `HL.EXE`) and dumps three calls of each state, from four
+        battles (the codes 0, 24 and, for the kinds 4 and 7, 1 and 25).
     - Still to do there: `computer_assess`, `computer_plan` and
       `computer_queue` (`S1CC6`, `S202F`, `S2138`, some 9,000 lines of
-      the generated source), read only at their beginnings; the steps of
-      the kinds 4, 6 and 7; `computer_turn` itself is a few lines once
-      its phases are there.
+      the generated source), read only at their beginnings;
+      `computer_turn` itself is a few lines once its phases are there.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

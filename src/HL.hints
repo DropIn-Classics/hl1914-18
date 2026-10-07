@@ -1709,8 +1709,9 @@ name S1CC6:0000 computer_queue
 ; step_site_menu (byte 1, a unit), 7 step_build (bytes 1 and 3, a kind
 ; and a record of sites_400). A handler returns not 0 when its step is
 ; done and byte 46h goes up. Returns 0, or FFFFh at the list's end (the
-; list is emptied). In runs only the kinds 1, 3 and 4 came up. Read;
-; translated for the kinds 1, 2, 3 and 5 and compared (port/README.md).
+; list is emptied). In runs the kinds 1, 2, 3, 4 and 7 came up, 5 and 6
+; never. Read; translated, and compared for those five kinds
+; (port/README.md).
 name S1E4B:012E computer_step
 ; computer_input(side): puts the next word of input into computer_out (0
 ; when there is none) from the code at the script's place: a code below
@@ -1757,17 +1758,24 @@ name S1E4B:038F step_add
 ; of the side's record of sides: step_target_field becomes its first
 ; field, or with path_len 0 the holder's own field and 8 in the side's
 ; word 0; 8 cursor_step towards it; 9 and 0Ah the button; 0Bh the code
-; 83h; 0Ch done. Read, not translated (move_targets_list is not).
+; 83h, and done at once (the code runs on into the state 0Ch, which only
+; a step left in that state would reach). The unit's place is the last of
+; the row's seven that holds it, 0 without. Read; translated and compared
+; (port/README.md).
 ; step_site_menu(side, cursor, unit, steps), kind 6: as step_unit_out up
 ; to the unit's row in its holder (the pointer at S3AE8:0023), then the
-; code 81h (button and down) and the code 83h. What that gesture does to
-; the unit was not seen (no call in a run). Read.
+; code 81h (button and down) and the code 83h, done with that call. What
+; that gesture does to the unit was not seen: no step of this kind came up
+; in 1500 s on 16 maps (computer_queue has one place that adds it, at the
+; call of step_add at S1CC6:0567; its condition was not read). Read and
+; translated, not compared.
 ; step_build(side, cursor, kind, site, steps), kind 7: cursor_script to
 ; the field of the record `site` of sites_400 (pointer at S3AE8:0027), the
-; code 82h, a row of the side's seven places chosen as in step_unit_out
-; (what is looked for there was not read), 82h again, the code 2 (down)
-; until the view's word 0Eh plus word 20h reaches the kind's place in
-; build_kinds, 82h, 83h. Read in outline; no call in a run.
+; code 82h, the list's row to the last free place (FFh) of the side's row
+; of seven (the codes 2 or 1), 82h again, the code 2 (down) while the
+; kind's place in build_kinds (the last among build_count, 0 without) is
+; above the view's word 0Eh plus word 20h, 82h, 83h, done with the next
+; call. Read; translated and compared.
 ; unit_holder(side, unit): a far pointer to the record that has the unit
 ; in the side's row, looked for with rec_find_unit in sites_400 (10
 ; records), sites_100 (10), carriers (70) and sites_40 (2); FFFFh:FFFFh
@@ -1775,6 +1783,11 @@ name S1E4B:038F step_add
 ; rec_find_unit(side, unit, table, count): the number of the first of the
 ; table's 1Ch-byte records, without 2 and 8000h in word 19h, that has the
 ; unit among the seven places of the side's row; FFFFh for none. Read.
+; move_targets_list(buffer, side, unit), as read on the Mac: path_len 0,
+; the unit into move_rec, then column by column every field marked for the
+; side in field_bits (1, the second side 2) for which move_target gives 0
+; is written as a map offset to the buffer and counted in path_len, up to
+; 316h. Translated and compared with step_unit_out's state 7.
 ; cursor_scroll(side, column, row): one move of the side's view (its
 ; words 0Ch and 0Eh) towards the place that has the field five columns
 ; and four rows in, kept inside the map and even: the codes 3 or 4 (left,

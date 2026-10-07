@@ -4,24 +4,25 @@ computer_input and computer_step with (HL.EXE's S1E4B:0001 and S1E4B:012E).
 
     python3 port/tests/computer_dumps.py [-until T] [-early T] [stage2]
 
-Two battles are played on the runner by generated input, one with the
-computer's second side (the map of code 0) and one with the computer's
-first side (the map of code 24); the code is read from the installed
-game's CODES.DAT.  Stage 1 logs every call of the two routines up to T
+Four battles are played on the runner by generated input, two with the
+computer's second side (the maps of the codes 0 and 1) and two with the
+computer's first side (those of the codes 24 and 25); the code is read
+from the installed game's CODES.DAT.  The first of each pair gives the
+calls of computer_input and the steps of the kinds 1 to 3, the second
+those of the kinds 4, 6 and 7 (the computer builds there).  Stage 1 logs every call of the two routines up to T
 emulated seconds (default 1500); stage 2 (alone with `stage2`, from the
 logs there are, keeping the dumps there are) runs each battle again up
 to a chosen call and dumps memory behind the routine's entry code and
 before its return.  Chosen:
 calls of computer_input spread over those before the early time (default
-150 s), and those that returned 0 with the call behind each; calls of
-computer_step by the step's kind, spread over those before twice the
-early time (for the kinds 2 and 3 also the first and the last calls of
-two such steps), the lists' ends, and the first calls of a kind that comes up
-only later.  Everything goes to build/computer/ (ignored): the key and
-mouse files, the logs, the dumps and computer_test.args.  Some ten
-minutes on twelve cores.  No game data is kept in this file.
+150 s), and those that returned 0 with the call behind each; of
+computer_step three calls of each state of each kind of step (the state's
+entry is logged), spread over those before twice the early time or else
+the first there are, and three ends of a list.  Everything goes to build/computer/ (ignored): the key and
+mouse files, the logs, the dumps and computer_test.args.  About an hour
+on twelve cores.  No game data is kept in this file.
 """
-import os, random, re, subprocess, sys
+import os, random, re, struct, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -32,13 +33,22 @@ import datfiles
 from kit import game_dir
 
 D = 'build/computer'
-RUNS = {'second': (0, 7000), 'first': (24, 7024)}     # name: code index, seed
+# name: code index, seed, the kinds of step dumped from it (0: a list's
+# end), whether computer_input's calls are dumped
+RUNS = {'second': (0, 7000, (0, 1, 2, 3), True), 'first': (24, 7024, (0, 1, 2, 3), True),
+        'second_b': (1, 7001, (4, 6, 7), False), 'first_b': (25, 7025, (4, 6, 7), False)}
 # computer_step: entry, exits (behind the last write of each), and the
 # seven kinds' entries of its table
 STEP_IN, STEP_OUT, STEP_END = '014F', '035B', '0372'
 KINDS = {'01A3': 1, '01E2': 2, '0222': 3, '0265': 4, '029D': 5, '02D4': 6, '030B': 7}
-# how many calls of each kind of step a run gives (0: the list's end)
-WANT = {0: 3, 1: 30, 2: 12, 3: 8, 4: 2, 5: 6, 6: 2, 7: 2}
+# the handlers' tables of their states' entries (the kind, the table's
+# offset in S1E4B, its entries); the offsets are read from the player's
+# HL.EXE (states())
+TABLES = {1: (0x06CF, 8), 2: (0x08E1, 6), 3: (0x0A1C, 5), 4: (0x0D6E, 13), 6: (0x0FAA, 7), 7: (0x127E, 8)}
+S1E4B = 0x1E4B
+# how many calls of each state of a kind of step a run gives, and of the
+# lists' ends
+PER_STATE, ENDS = 3, 3
 INPUT_SPREAD, INPUT_SCRIPT = 14, 12
 
 
@@ -46,6 +56,18 @@ def code(index):
     """a map's code as the menu takes it: five letters of the record"""
     data = datfiles.unpacked(os.path.join(game_dir(), 'CODES.DAT'))
     return ''.join(chr(b - 0x11 + ord('a')) for b in data[index * 10:index * 10 + 5])
+
+
+def states():
+    """{offset in S1E4B: (kind, state)} of the handlers' states, from the
+    jump tables in the program's file"""
+    exe = open(os.path.join(game_dir(), 'HL.EXE'), 'rb').read()
+    base = struct.unpack_from('<H', exe, 8)[0] * 16 + S1E4B * 16
+    out = {}
+    for kind, (table, n) in TABLES.items():
+        for state, off in enumerate(struct.unpack_from('<%dH' % n, exe, base + table)):
+            out['%04X' % off] = (kind, state)
+    return out
 
 
 def play(name, index, seed, end):
@@ -111,16 +133,17 @@ def run(name, out, until, opts):
 
 def stage1(name, until):
     opts = []
-    for a in ['0023', '0120', STEP_IN, STEP_OUT, STEP_END] + list(KINDS):
+    for a in ['0023', '0120', STEP_IN, STEP_OUT, STEP_END] + list(KINDS) + list(states()):
         opts += ['-log', 'S1E4B:' + a]
     run(name, name, until, opts)
 
 
 def calls(name):
     """(time, side, SS:BP, entry, exit, result) of computer_input's calls,
-    and (time, side, SS:BP, entry, exit, kind) of computer_step's (kind 0:
-    the list's end)"""
-    inputs, steps, cur, step = [], [], None, None
+    and (time, side, SS:BP, entry, exit, kind, state) of computer_step's
+    (kind 0: the list's end; state: of the kind's handler, None for the
+    kind 5)"""
+    inputs, steps, cur, step, st = [], [], None, None, states()
     for line in open('%s/%s.log' % (D, name)):
         m = re.match(r'log HL\.EXE\+1E4B:(\w+) t=(\S+) hit=(\d+) regs .*?AX=(\w+) .* SI=(\w+) DI=(\w+) BP=(\w+) .* SS=(\w+)', line)
         if not m:
@@ -133,9 +156,11 @@ def calls(name):
             inputs.append(cur + (int(ax, 16),))
             cur = None
         elif a == STEP_IN:
-            step = [t, int(si, 16), '%s:%s' % (ss, bp), 'S1E4B:%s#%s' % (a, hit), None, 0]
+            step = [t, int(si, 16), '%s:%s' % (ss, bp), 'S1E4B:%s#%s' % (a, hit), None, 0, None]
         elif a in KINDS and step:
             step[5] = KINDS[a]
+        elif a in st and step and st[a][0] == step[5] and step[6] is None:
+            step[6] = st[a][1]
         elif a in (STEP_OUT, STEP_END) and step:
             step[4] = 'S1E4B:%s#%s' % (a, hit)
             steps.append(tuple(step))
@@ -155,8 +180,8 @@ def main():
     os.chdir(ROOT)
     os.makedirs(D, exist_ok=True)
     if 'stage2' not in args:
-        for name, (index, seed) in RUNS.items():
-            play(name, index, seed, until)
+        for name, run_ in RUNS.items():
+            play(name, run_[0], run_[1], until)
         with ThreadPoolExecutor(len(RUNS)) as ex:
             list(ex.map(lambda n: stage1(n, until), RUNS))
     jobs, lines, keep = [], [], 'stage2' in args
@@ -181,26 +206,20 @@ def main():
         for c in spread(list(dict.fromkeys(script)), INPUT_SCRIPT):
             if c not in chosen:
                 chosen.append(c)
-        for c in chosen:
+        for c in chosen if RUNS[name][3] else []:
             want(name, 'input', c)
         count = {}
-        for kind, n in WANT.items():
-            of = [c for c in steps if c[5] == kind]
-            count[kind] = len(of)
+        for c in steps:
+            count.setdefault((c[5], c[6]), []).append(c)
+        for (kind, state), of in sorted(count.items(), key=lambda x: (x[0][0], x[0][1] or 0)):
+            if kind not in RUNS[name][2]:
+                continue
+            n = ENDS if kind == 0 else PER_STATE
             soon = [c for c in of if c[0] <= 2 * early]
-            chosen = spread(soon, n) if len(soon) >= n else of[:n]
-            if kind in (2, 3):
-                # the cursor's way and a wait take most calls: also the
-                # first and the last calls of two such steps
-                starts = [i for i, c in enumerate(steps) if c[5] == kind and (i == 0 or steps[i - 1][5] != kind)]
-                for i in starts[:2]:
-                    j = i
-                    while j < len(steps) and steps[j][5] == kind:
-                        j += 1
-                    chosen += [c for c in steps[i:i + 6] + steps[max(i, j - 6):j] if c not in chosen]
-            for c in chosen:
+            for c in (spread(soon, n) if len(soon) >= n else of[:n]):
                 want(name, 'stepend' if kind == 0 else 'step', c)
-        print('%s: %d calls of computer_input, of computer_step by kind %s' % (name, len(inputs), count))
+        count = {'%d/%s' % k: len(v) for k, v in sorted(count.items(), key=lambda x: (x[0][0], x[0][1] or 0))}
+        print('%s: %d calls of computer_input, of computer_step by kind/state %s' % (name, len(inputs), count))
     with ThreadPoolExecutor(10) as ex:
         list(ex.map(lambda j: run(*j), jobs))
     open('%s/computer_test.args' % D, 'w').write('\n'.join(lines) + '\n')

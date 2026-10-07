@@ -11,6 +11,16 @@
 #define SITE_SIZE 0x1Cu     /* a record of `carriers` and the like */
 #define SIDE_SIZE 0x17u     /* a record of `sides` */
 
+/* addresses without a name in the hints yet (PENDING LEAD NAME; the names
+ * are proposals): S331F:4CAA, a word order 4 sets to 1 (site_taken,
+ * presumably read by the round's end that follows; not checked), and
+ * S3303:0021, a byte set to 1 before the picture of a site taken
+ * (take_picture; what reads it was not looked at) */
+#define S_site_taken (HL_S331F + HL_BASE)
+#define A_site_taken 0x4CAAu
+#define S_take_picture (HL_S3303 + HL_BASE)
+#define A_take_picture 0x0021u
+
 static Far unit_at(uint8_t unit)
 {
     Far p;
@@ -71,14 +81,14 @@ static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, ui
     int i;
 
     SETW(game_state, 0, NW(game_state, 0) | 0x1000);
-    SETW(game_state, 0x4CAA - 0x4CA4, 1);
+    fww(S_site_taken, A_site_taken, 1);
     view_to_field(a, field);
     /* the site's field is marked with 30h while the view is drawn and
      * the mark taken off again */
     f = (int16_t)((int16_t)field >> 1);
     at = (uint16_t)(f % w + ((f / w) << 6));
     SETB(field_bits, at, NB(field_bits, at) & 0xCF);
-    fwb(HL_S3303 + HL_BASE, 0x0021, 1);
+    fwb(S_take_picture, A_take_picture, 1);
 
     for (i = 0; i < 7; i++)
         pwb(rec, (uint16_t)(m * 7 + i), pb(rec, (uint16_t)(a * 7 + i)));

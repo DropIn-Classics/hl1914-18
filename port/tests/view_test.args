@@ -1,0 +1,6 @@
+start 3EA4:0F6C 0001 ../build/n2/o/msk4_move_start_in.ram ../build/n2/o/msk4_move_start_out.ram
+start 3EA4:0F6C 0001 ../build/n2/o/mss2_move_start_in.ram ../build/n2/o/mss2_move_start_out.ram
+start 3EA4:0F6C 0001 ../build/n2/o/mss4_2_move_start_in.ram ../build/n2/o/mss4_2_move_start_out.ram
+start 3EA4:0F6C 0001 ../build/n2/o/mss4_20_move_start_in.ram ../build/n2/o/mss4_20_move_start_out.ram
+start 3EA4:0F6C 0001 ../build/n2/o/msd5_10_move_start_in.ram ../build/n2/o/msd5_10_move_start_out.ram
+start 3EA4:0F6C 0001 ../build/n2/o/msd5_63_move_start_in.ram ../build/n2/o/msd5_63_move_start_out.ram

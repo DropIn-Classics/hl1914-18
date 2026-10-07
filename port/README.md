@@ -554,4 +554,11 @@ anything the game needs before the first release.
   times): results 8, 0, 0, 10h, 10h, 11h, 11h and the record and view
   the same, also outside the game's state. `view_step` and
   `field_menu`, which the word drives, are not translated yet.
-
+- `move_start` (2026-10-07, Linux; `src/move.c`, `S10E1:05D1`), the
+  first of `view_step`'s callees: the confirmed move puts the unit into
+  the side's list of movers and starts the walk's timer. `sh
+  port/tests/view_test.sh` (dumps by `port/tests/view_dumps.sh`) compares
+  six calls from the runs k4, s2, s4 (map 0) and d5r (map 8), the first
+  side's and the computer's: result 1 and memory the same, also outside
+  the game's state. Not covered: the result 12h (the cursor not on the
+  field move_aim took) and a unit with 40h in `unit_flags`.

@@ -472,3 +472,43 @@ uint16_t move_step(void)
     }
     return text ? text : 0xFFFF;
 }
+
+/* S10E1:05D1 (move_start): the button again on the field move_aim took.
+ * The unit in word 1Eh of the view becomes move_rec's walker; 1 is
+ * returned when its word 11h is the cursor's field (the view's word 0),
+ * else 12h, with 8 more for 40h in its unit_flags.  Only with 1: the unit
+ * goes into the side's list of movers (the far list at 11h of its record
+ * of `sides`, its count at byte 15h), its word 11h becomes its place on
+ * the side's map, path_len goes down by 2, move_rec's bytes 2 and 3 are
+ * FFh (byte 2 the place's byte 1Bh of the record at view+24h for a view
+ * in step 3 of a site), game_state's word 4 gets 80h and 100h, a timer of
+ * kind 4 is set, and site_taken becomes 0. */
+uint16_t move_start(Far view, uint16_t side)
+{
+    uint8_t no = (uint8_t)pw(view, 0x1E);
+    Far unit = unit_at(no);
+    uint16_t r = pw(unit, 0x11) == pw(view, 0) ? 1 : 0x12, s = (uint16_t)(A_sides + side * 0x17);
+    Far list;
+
+    if (pw(unit, 4) & 0x40)
+        r |= 8;
+    SETB(move_rec, MR_UNIT, no);
+    if (!(r & 1))
+        return r;
+    list = far_at(S_sides, (uint16_t)(s + 0x11));
+    fwb(list.seg, (uint16_t)(list.off + frb(S_sides, (uint16_t)(s + 0x15))), no);
+    fwb(S_sides, (uint16_t)(s + 0x15), (uint8_t)(frb(S_sides, (uint16_t)(s + 0x15)) + 1));
+    pww(unit, 0x11, pw(unit, (uint16_t)(0x0B + side * 2)));
+    SETW(path_len, 0, NW(path_len, 0) - 2);
+    SETB(move_rec, MR_UNDER2, 0xFF);
+    SETB(move_rec, MR_UNDER, 0xFF);
+    if (pb(view, 0x19) == 3) {
+        Far rec = far_at(view.seg, (uint16_t)(view.off + 0x24));
+        SETB(move_rec, MR_UNDER, pb(rec, 0x1B));
+    }
+    SETW(game_state, 4, NW(game_state, 4) | 0x80);
+    timer_set(4, 0, 0);
+    SETW(game_state, 4, NW(game_state, 4) | 0x100);
+    SETW(site_taken, 0, 0);
+    return r;
+}

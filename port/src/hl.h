@@ -79,6 +79,7 @@ void unit_mark(uint8_t unit, uint16_t bits, uint16_t side, uint16_t set);
 uint16_t move_target(uint16_t field, uint16_t side, Far map);
 uint16_t move_arrive(uint16_t side, Far map);
 uint16_t move_step(void);
+uint16_t move_start(Far view, uint16_t side);
 
 /* units.c */
 void unit_destroy(uint8_t unit, uint8_t put, uint8_t put2, int8_t slot, uint16_t side, Far map);

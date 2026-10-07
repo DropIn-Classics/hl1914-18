@@ -1811,7 +1811,8 @@ emulation error (2026-10-02).
   - `view_step`'s callees (2026-10-07, Linux): `move_start`
     (`S10E1:05D1`) is used by the computer as well (49 calls in the run
     s4, 63 in d5r up to 260 s). Translated and compared (port/README.md).
-    Next: `move_aim`, `move_done`, `attack_order` and `S0AE0:02E3`, then
+    `S0AE0:02E3` is `attack_unmark` (named, translated, compared on three
+    calls). Next: `move_aim`, `move_done`, `attack_order`, then
     `field_menu` and `view_step`.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,

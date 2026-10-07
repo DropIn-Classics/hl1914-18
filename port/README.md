@@ -562,3 +562,11 @@ anything the game needs before the first release.
   side's and the computer's: result 1 and memory the same, also outside
   the game's state. Not covered: the result 12h (the cursor not on the
   field move_aim took) and a unit with 40h in `unit_flags`.
+- `attack_unmark` (2026-10-07, Linux; `src/move.c`, `S0AE0:02E3`): after
+  `attack_order` the side's attack marks are cleared in `field_bits`
+  (`field_bits_clear`, now shared from `src/range.c`) and the view's unit
+  loses 100h; the redrawing is left out. Three calls of the run d5r (the
+  first side's and two of the computer's): the game's state the same;
+  outside it eight bytes, the interrupt bytes and `DATA:0308`, `0B19`,
+  as with the other routines that draw.
+

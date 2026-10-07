@@ -16,3 +16,11 @@ d mss4_20 m0_s4.keys 260 move_start 20 &
 MAP8=1 d msd5_10 m8_d5r.keys 260 move_start 10 &
 MAP8=1 d msd5_63 m8_d5r.keys 260 move_start 63 &
 wait
+# attack_unmark (S0AE0:02E3) and attack_order (S0AE0:0008), d5r's calls 1,
+# 5 and 9 (the first side's, then the computer's)
+for n in 1 5 9; do
+    MAP8=1 d au$n m8_d5r.keys 330 attack_unmark $n &
+    MAP8=1 d ao$n m8_d5r.keys 330 attack_order $n &
+done
+wait
+

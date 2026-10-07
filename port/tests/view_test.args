@@ -4,3 +4,6 @@ start 3EA4:0F6C 0001 ../build/n2/o/mss4_2_move_start_in.ram ../build/n2/o/mss4_2
 start 3EA4:0F6C 0001 ../build/n2/o/mss4_20_move_start_in.ram ../build/n2/o/mss4_20_move_start_out.ram
 start 3EA4:0F6C 0001 ../build/n2/o/msd5_10_move_start_in.ram ../build/n2/o/msd5_10_move_start_out.ram
 start 3EA4:0F6C 0001 ../build/n2/o/msd5_63_move_start_in.ram ../build/n2/o/msd5_63_move_start_out.ram
+unmark 3EA4:0F6C - ../build/n2/o/au1_attack_unmark_in.ram ../build/n2/o/au1_attack_unmark_out.ram
+unmark 3EA4:0F6C - ../build/n2/o/au5_attack_unmark_in.ram ../build/n2/o/au5_attack_unmark_out.ram
+unmark 3EA4:0F6C - ../build/n2/o/au9_attack_unmark_in.ram ../build/n2/o/au9_attack_unmark_out.ram

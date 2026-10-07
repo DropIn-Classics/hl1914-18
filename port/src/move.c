@@ -512,3 +512,75 @@ uint16_t move_start(Far view, uint16_t side)
     SETW(site_taken, 0, 0);
     return r;
 }
+
+/* S0AE0:02E3 (attack_unmark): after an attack was ordered or given up,
+ * the side's marks of the fields that can be attacked (4 in field_bits,
+ * 8 for the second side) are cleared and the view's unit (word 1Eh) loses
+ * 100h in unit_flags (unit_mark); the view is drawn again (left out). */
+void attack_unmark(Far view, uint16_t side)
+{
+    field_bits_clear(side ? 8 : 4);
+    unit_mark((uint8_t)pb(view, 0x1E), 0x100, side, 0);
+}
+
+/* S0AE0:0008 (attack_order): the button on the cursor's field (the view's
+ * word 0) while the view's unit (word 1Eh) chooses what to attack, on map
+ * `map`.  Only a field marked for the side in field_bits (4 or 8 under 55h
+ * or AAh) takes an order, else nothing (text 45h).  A unit with 4000h in
+ * word 6 gets 0Dh on a field whose ground is amok_dat's byte 18h (while
+ * fewer than 0Ah depots were built; text 46h, else 47h and nothing) and
+ * 0Bh on others; one with 2000h gets 11h (text 6Eh); any other unit
+ * attacks a unit on the field (9, its byte 14h 2, onto the side's list of
+ * movers; text 49h), with no unit there nothing (45h).  With an order the
+ * unit is marked 200h (unit_mark) and gets the field in word 11h, and
+ * game_state's word 4 gets 100h with site_taken 0.  game_state's word 4
+ * always gets 8 (10h for the second side) after the text, which is not
+ * shown here.  Returns 1 when an order was given. */
+uint16_t attack_order(Far view, Far map, uint16_t side)
+{
+    uint8_t no = (uint8_t)pw(view, 0x1E), order = 0;
+    Far unit = unit_at(no);
+    uint16_t field = pw(view, 0), given = 0, taken = 0xFF;
+    int16_t p = (int16_t)field >> 1, w = (int16_t)NW(map_width, 0);
+    uint8_t bits;
+
+    if (pw(unit, 6) & 0x4000)
+        order = 0x0C;
+    else if (pw(unit, 6) & 0x2000)
+        order = 0x10;
+    else if (frb(map.seg, (uint16_t)(map.off + field + 1)) <= 0xF0)
+        order = 9;
+    bits = (uint8_t)(NB(field_bits, (p % w) + (p / w) * 0x40) & (side ? 0xAA : 0x55));
+    if (!(bits & 0x0C))
+        order = 0;
+    if (order == 0x0C) {
+        if (frb(map.seg, (uint16_t)(map.off + field)) == frb(S_amok_dat, A_amok_dat + 0x18)) {
+            if (NB(depot_count, 0) < 0x0A)
+                order = 0x0D;
+            else
+                order = 0;
+        } else
+            order = 0x0B;
+    }
+    if (order) {
+        unit_mark(no, 0x200, side, 1);
+        pww(unit, 0x11, field);
+        if (order == 9) {
+            uint16_t s = (uint16_t)(A_sides + side * 0x17);
+            Far list = far_at(S_sides, (uint16_t)(s + 0x11));
+            pwb(unit, 0x14, 2);
+            pwb(unit, 0x13, 9);
+            fwb(list.seg, (uint16_t)(list.off + frb(S_sides, (uint16_t)(s + 0x15))), no);
+            fwb(S_sides, (uint16_t)(s + 0x15), (uint8_t)(frb(S_sides, (uint16_t)(s + 0x15)) + 1));
+        } else
+            pwb(unit, 0x13, order == 0x10 ? 0x11 : order);
+        taken = 0;
+        given = 1;
+    }
+    SETW(game_state, 4, NW(game_state, 4) | (side ? 0x10 : 8));
+    if (taken != 0xFF) {
+        SETW(game_state, 4, NW(game_state, 4) | 0x100);
+        SETW(site_taken, 0, taken);
+    }
+    return given;
+}

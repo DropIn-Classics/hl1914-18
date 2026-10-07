@@ -59,6 +59,7 @@ void fight_losses(void);
 
 /* range.c */
 void buf_neighbours(int16_t col, int16_t row);
+void field_bits_clear(uint8_t mask);
 void move_costs(Far buf, uint8_t unit, uint16_t side, uint16_t mask, Far map);
 int16_t move_range(int16_t field, Far buf, uint16_t unit, int16_t range,
                    uint16_t side, uint16_t mask, Far map);
@@ -80,6 +81,8 @@ uint16_t move_target(uint16_t field, uint16_t side, Far map);
 uint16_t move_arrive(uint16_t side, Far map);
 uint16_t move_step(void);
 uint16_t move_start(Far view, uint16_t side);
+void attack_unmark(Far view, uint16_t side);
+uint16_t attack_order(Far view, Far map, uint16_t side);
 
 /* units.c */
 void unit_destroy(uint8_t unit, uint8_t put, uint8_t put2, int8_t slot, uint16_t side, Far map);

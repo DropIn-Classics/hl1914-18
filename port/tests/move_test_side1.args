@@ -1,0 +1,4 @@
+arrive 3EA4:0F6C 0038 ../build/n2/o/s4a2_move_arrive_in.ram ../build/n2/o/s4a2_move_arrive_out.ram
+arrive 3EA4:0F6C 0038 ../build/n2/o/s4a3_move_arrive_in.ram ../build/n2/o/s4a3_move_arrive_out.ram
+arrive 3EA4:0F6C 0038 ../build/n2/o/s4a4_move_arrive_in.ram ../build/n2/o/s4a4_move_arrive_out.ram
+arrive 3EA4:0F6C 0038 ../build/n2/o/s4a5_move_arrive_in.ram ../build/n2/o/s4a5_move_arrive_out.ram

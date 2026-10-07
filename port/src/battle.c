@@ -228,7 +228,7 @@ int battle_setup(void)
 #define VIEW_SIZE 0x31u
 
 /* defence_sum (S02E6:29D4) */
-static uint32_t defence_sum(void)
+uint32_t defence_sum(void)
 {
     uint8_t level = NB(sides, 0x16);
     int32_t sum = 0;
@@ -310,7 +310,7 @@ static void view_reset(uint16_t side)
 }
 
 /* view_cursor (S0CB6:0154) */
-static void view_cursor(uint16_t side)
+void view_cursor(uint16_t side)
 {
     uint16_t v = (uint16_t)(A_views + side * VIEW_SIZE);
     uint16_t col = frw(S_views, (uint16_t)(v + 0x0C)), row = frw(S_views, (uint16_t)(v + 0x0E));

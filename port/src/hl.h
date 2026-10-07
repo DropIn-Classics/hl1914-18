@@ -130,10 +130,13 @@ int menu_result(uint16_t map);
 int battle_setup(void);
 int battle_begin(void);
 void view_to_field(uint16_t side, uint16_t field);
+void view_cursor(uint16_t side);
+uint32_t defence_sum(void);
 
 /* orders.c */
 int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result);
 void income_add(uint16_t side);
+uint8_t attacks_run(const char **missing);
 
 /* computer.c */
 uint16_t computer_input(uint16_t side);
@@ -150,6 +153,26 @@ uint16_t side_input(Far rec, Far view);
 void show_message(uint16_t text, uint16_t side);
 void field_menu(Far view, uint16_t side, uint16_t bits);
 uint8_t view_step(Far view, Far rec, uint16_t bits, Far map, uint16_t side);
+
+/* loop.c */
+/* what a pass of game_loop reads from outside the translated code, for
+ * one side: the key read in its part (0 none); a human's directions and
+ * button as side_input finds them in the input record (1 up, 2 down,
+ * 4 left, 8 right, 10h the button), the computer's input word; the text
+ * the computer's part shows (FFFFh none); a human's input record bytes 5
+ * and 8 as view_step reads them (-1 not read); whether the original set
+ * 80h in game_state's word 2 in state 5 (by the computer's phase); and
+ * whether the computer's turn set 8 in the side's word 0 of `sides` (its
+ * steps do, computer_step, which the port's pass does not run) */
+typedef struct {
+    uint8_t key;
+    uint16_t word, text;
+    int16_t rec5, rec8;
+    int set80, set8;
+} SideIn;
+void timer_fire(uint16_t kind, uint16_t timer);
+const char *loop_pass(const SideIn in[2]);
+void loop_reset(void);
 
 /* names.c */
 Far file_name(uint16_t where, int16_t dir, Far name, int16_t ext);

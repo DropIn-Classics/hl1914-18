@@ -5,6 +5,7 @@
  *     side_test repair SS:BP SI ENTRY.ram EXIT.ram [...]
  *     side_test unit SS:BP SI ENTRY.ram EXIT.ram [...]
  *     side_test out SS:BP SI ENTRY.ram EXIT.ram [...]
+ *     side_test input SS:SP AX ENTRY.ram EXIT.ram [...]
  *
  * build: a call of S131D:14D4, its arguments (points, side) read from the
  * stack at SS:SP of the entry dump, the exit dump at its RETF (S131D:15FA).
@@ -12,7 +13,10 @@
  * SS:BP-3Ah and the side in SI; the text the port returns is compared with
  * the original's word at SS:BP-46h.  unit: the building of a unit,
  * game_loop at S066A:387A and at 3A42, view and side as for repair.
- * out: the moving out of a unit, game_loop at S066A:2F52 and 3146.  Memory after the port's routine is
+ * out: the moving out of a unit, game_loop at S066A:2F52 and 3146.
+ * input: a call of S0CB6:05F1 (side_input), its far arguments read from
+ * the stack at SS:SP, the original's result AX (from dumps.log) given,
+ * the exit dump at its RETF (S0CB6:070E).  Memory after the port's routine is
  * compared with the exit dump in the game's state (from segment S3306 up
  * to DATA); differences elsewhere but the stack's segment are counted
  * apart (the maps lie there; so do bytes the interrupts change).  port/tests/side_test.sh builds this.
@@ -47,15 +51,15 @@ int main(int argc, char **argv)
     int i = 1, bad = 0, calls = 0;
 
     while (i < argc) {
-        int out_ = !strcmp(argv[i], "out"), unit = !strcmp(argv[i], "unit");
-        int rep = out_ || unit || !strcmp(argv[i], "repair"), n = rep ? 5 : 4;
+        int inp = !strcmp(argv[i], "input"), out_ = !strcmp(argv[i], "out"), unit = !strcmp(argv[i], "unit");
+        int rep = inp || out_ || unit || !strcmp(argv[i], "repair"), n = rep ? 5 : 4;
         unsigned ss, sp, si = 0, d = 0;
         uint32_t a, lo = (uint32_t)(HL_S3306 + HL_BASE) << 4, hi = (uint32_t)(HL_DATA + HL_BASE) << 4;
         const char *in, *out;
 
         if ((!rep && strcmp(argv[i], "build")) || i + n > argc || sscanf(argv[i + 1], "%x:%x", &ss, &sp) != 2
             || (rep && sscanf(argv[i + 2], "%x", &si) != 1)) {
-            fprintf(stderr, "usage: side_test build SS:SP IN OUT | repair|unit|out SS:BP SI IN OUT ...\n");
+            fprintf(stderr, "usage: side_test build SS:SP IN OUT | repair|unit|out SS:BP SI IN OUT | input SS:SP AX IN OUT ...\n");
             return 2;
         }
         in = argv[i + n - 2];
@@ -63,7 +67,12 @@ int main(int argc, char **argv)
         memset(mem, 0, MEM_SIZE);
         if (!load(in, mem) || !load(out, leave))
             return 2;
-        if (out_) {
+        if (inp) {
+            uint16_t got = side_input(far_at((uint16_t)ss, (uint16_t)(sp + 4)), far_at((uint16_t)ss, (uint16_t)(sp + 8)));
+            printf("input %s: %04Xh, original %04Xh", out, got, si);
+            if (got != si)
+                d++;
+        } else if (out_) {
             move_out(far_at((uint16_t)ss, (uint16_t)(sp - 0x3A)), (uint16_t)si);
             printf("out %s: side %u", out, si);
         } else if (unit) {

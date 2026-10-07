@@ -41,4 +41,9 @@ wait
 { cat keys/m0_s2.keys; python3 keys/make_m8.py $C2; } | sort -n | cmp -s - keys/m0_s2c.keys \
     || { echo "keys/m0_s2c.keys is not m0_s2.keys with the steps of C2" >&2; exit 1; }
 d c2o1 m0_s2c.keys 108 move_out 1
+# side_input (S0CB6:05F1) in m8_d5r.keys: the calls around the taps of
+# right at 245.00 (3996 to 3998) and the move gesture at 248.00 (4045,
+# 4049 to 4051); the numbers were counted with -log at those times
+for k in 3996 3997 3998 4045 4049 4050 4051; do MAP8=1 d si$k m8_d5r.keys 250 side_input $k & done
+wait
 

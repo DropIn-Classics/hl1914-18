@@ -545,4 +545,13 @@ anything the game needs before the first release.
   at `S066A:2FA7` was hit): `side_test` (`out`) the same in the game's
   state; outside it the same kinds of bytes as for the moves out of a
   site (interrupts, `DATA:0308` to `0410`, `0B19`), no byte of a map.
+- A human side's input (2026-10-07, Linux): `side_input` (`src/side.c`,
+  `S0CB6:05F1`) makes the input word `game_loop` takes into DI from the
+  side's 5-byte input record and the view's repeat counter. `side_test`
+  (`input`) compares seven calls of the run `m8_d5r.keys` taken at its
+  taps of right (245.00) and of the move gesture (248.00), made by
+  `side_dumps.sh` (the call numbers counted with `-log` up to those
+  times): results 8, 0, 0, 10h, 10h, 11h, 11h and the record and view
+  the same, also outside the game's state. `view_step` and
+  `field_menu`, which the word drives, are not translated yet.
 

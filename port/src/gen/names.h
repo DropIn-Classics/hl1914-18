@@ -168,11 +168,13 @@
     X(S02E6, attacks_run, 0x000F) \
     X(S02E6, unit_destroy, 0x208E) \
     X(S02E6, rows_sync, 0x23F0) \
+    X(S02E6, carrier_losses, 0x2556) \
     X(S02E6, fight_percent, 0x2635) \
     X(S02E6, dir_wrap, 0x2802) \
     X(S02E6, fight_around, 0x2834) \
     X(S02E6, defence_sum, 0x29D4) \
     X(S02E6, units_drop_empty, 0x2B28) \
+    X(S02E6, pictures_load, 0x2B87) \
     X(S066A, game_loop, 0x000D) \
     X(S0AE0, attack_order, 0x0008) \
     X(S0AE0, attack_unmark, 0x02E3) \
@@ -210,6 +212,7 @@
     X(S0E56, unit_mark, 0x1DDB) \
     X(S0E56, field_distance, 0x241F) \
     X(S10AF, show_message, 0x000F) \
+    X(S10AF, unit_panel, 0x0131) \
     X(S10E1, move_done, 0x000F) \
     X(S10E1, move_aim, 0x02EB) \
     X(S10E1, move_start, 0x05D1) \
@@ -227,6 +230,7 @@
     X(S131D, row_load, 0x15FB) \
     X(S131D, side_income, 0x1685) \
     X(S131D, income_add, 0x1745) \
+    X(S131D, fight_panel, 0x178D) \
     X(S1571, file_name, 0x02CD) \
     X(S15C5, unit_add, 0x0005) \
     X(S15C5, unit_find, 0x01A7) \
@@ -342,6 +346,7 @@
     X(S331F, sides, 0x4D33) \
     X(S331F, views, 0x4D92) \
     X(S331F, attack_pick, 0x4DA8) \
+    X(S37FF, no_fight_pics, 0x0115) \
     X(S39B6, kind_worth, 0x0000) \
     X(S39B6, unit_plans2, 0x0132) \
     X(S39B6, unit_plans, 0x09AB) \

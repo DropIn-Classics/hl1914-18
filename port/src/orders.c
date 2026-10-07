@@ -1,16 +1,19 @@
 /* orders.c - what a round's end does with the orders of the side that
  * moved: HL.EXE's attacks_run from S02E6:0E9C to 19B8, the loop over the
- * units by their byte 13h, translated over the program's memory for the
- * orders 2, 3, 4, 5, 0Bh, 0Dh and 11h.  What the original draws, plays and
- * waits for in between (the music, the views, the picture of a site
- * taken, the libraries loaded again) is left out, as in move_step.  port/README.md
- * says how this was compared with the original.
+ * units by their byte 13h, for the orders 1 to 5, 0Bh, 0Dh and 11h, and
+ * the rest of attacks_run around it: the fights, the freeing of the units
+ * they leave marked, the round's end; translated over the program's
+ * memory.  What the original draws, plays and waits for in between (the
+ * music, the views, the fight's pictures and a site taken's, the libraries
+ * loaded again) is left out, as in move_step.  port/README.md says how
+ * this was compared with the original.
  */
 #include "hl.h"
 
 #define SITE_SIZE 0x1Cu     /* a record of `carriers` and the like */
 #define SIDE_SIZE 0x17u     /* a record of `sides` */
 #define VIEW_SIZE 0x31u     /* a record of `views` */
+#define S_GAME (HL_S331F + HL_BASE)     /* the segment of the game's state */
 
 /* S331F:4CAA site_taken (a word order 4 sets to 1) and S3303:0021
  * take_picture (set to 1 before the picture of a site taken): names.h */
@@ -254,14 +257,38 @@ static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, ui
         carrier_moved(no, m);
 }
 
+/* order 1 (S02E6:0ED9): the unit took the unit in its byte 16h into its
+ * carrier's row.  A unit freed meanwhile only empties its place in the
+ * row; else it goes over to side m: the sides' counts of units (byte 2)
+ * change unless it was already m's (same_side) or of no side (2), and it
+ * gets the next serial number of its kind for side m (unit_dat byte
+ * 3Dh plus the side, raised by 2), as in order_take. */
+static void order_capture(Far unit, uint16_t m)
+{
+    uint8_t o = pb(unit, 0x16);
+    uint16_t other = (uint16_t)(m ? 0 : 1), flags = NW(unit_flags, o * UNIT_SIZE);
+    uint16_t kind;
+
+    if (flags & 0x8000) {
+        fwb(S_carriers, (uint16_t)(A_carriers + (int8_t)pb(unit, 0x0A) * SITE_SIZE + m * 7 + pb(unit, 0x19)), 0xFF);
+        return;
+    }
+    if (!same_side(pw(unit, 4), flags) && !(flags & 2))
+        SETB(sides, other * SIDE_SIZE + 2, NB(sides, other * SIDE_SIZE + 2) - 1);
+    if (!same_side(pw(unit, 4), flags) || flags & 2)
+        SETB(sides, m * SIDE_SIZE + 2, NB(sides, m * SIDE_SIZE + 2) + 1);
+    SETW(unit_flags, o * UNIT_SIZE, (flags & 0xFFFC) | m);
+    kind = (uint16_t)(A_unit_dat + NB(unit_kind, o * UNIT_SIZE) * KIND_SIZE + m + 0x3D);
+    SETB(unit_serial, o * UNIT_SIZE, frb(S_unit_dat, kind));
+    fwb(S_unit_dat, kind, (uint8_t)(frb(S_unit_dat, kind) + 2));
+}
+
 /* S02E6:0E9C to 19B8: each unit in use by its order (byte 13h).  m is the
  * side that moved ([BP-2] of attacks_run), a the other (DI), map m's map
  * ([BP-6]); *result is attacks_run's result byte ([BP-7]), set to m when
- * a headquarters is taken.  Returns the number of units with an order the
- * port does not carry out (only 1 now; read, not translated). */
-int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result)
+ * a headquarters is taken. */
+void orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result)
 {
-    int left = 0;
     uint16_t no;
 
     for (no = 0; no <= 0xF0; no++) {
@@ -286,13 +313,12 @@ int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result)
             aim_grounds_set(pw(unit, (uint16_t)(0x0B + 2 * a)), pw(unit, 0x11), map);
             break;
         case 1:
-            left++;
+            order_capture(unit, m);
             break;
         default:        /* 2, 3 and anything else: nothing more */
             break;
         }
     }
-    return left;
 }
 
 /* S131D:1685 (side_income): byte 16h plus the side of every record of
@@ -378,24 +404,220 @@ static void unit_mend(Far unit)
         pwb(unit, 2, (uint8_t)(pb(unit, 2) + 1));
 }
 
+/* S331F:0153 (far pointer to a far pointer for each ground), 4CB3 (a
+ * count of ticks attacks_run waits for) and 4CB7 (a dword fight_rec gets
+ * at 3Ah; rand_seed's seed is made from it) */
+#define A_ground_pics 0x0153u
+#define A_fight_wait 0x4CB3u
+#define A_fight_seed 0x4CB7u
+#define BLAST_SIZE 7u
+
+static void rec_far(uint16_t o, uint16_t seg, uint16_t off)
+{
+    fww(S_fight_rec, (uint16_t)(A_fight_rec + o), off);
+    fww(S_fight_rec, (uint16_t)(A_fight_rec + o + 2), seg);
+}
+
+/* the count a fight takes off: byte 3 for a kind with 4 in word 0Fh, else
+ * unit_count */
+static uint8_t unit_left(uint8_t u)
+{
+    uint16_t k = (uint16_t)(A_unit_dat + NB(unit_kind, u * UNIT_SIZE) * KIND_SIZE);
+
+    return NB(units, u * UNIT_SIZE + (frw(S_unit_dat, (uint16_t)(k + 0x0F)) & 4 ? 3 : 2));
+}
+
+/* the first half of a two-part unit (40h without 80h is the second) */
+static uint8_t first_half(uint8_t u)
+{
+    uint16_t f = NW(unit_flags, u * UNIT_SIZE);
+
+    return (uint8_t)(f & 0x40 && !(f & 0x80) ? u - 1 : u);
+}
+
+/* fight_rec's part for one unit: the unit, its kind, its field's record
+ * in ww1gnds_dat, its number (at 8 + which) and its field's ground
+ * picture (1Eh, the target's 22h) */
+static void rec_unit(uint16_t which, uint8_t u, uint16_t field, Far map)
+{
+    uint16_t g = pb(map, field);
+    Far pics = far_at(S_GAME, A_ground_pics), pic;
+
+    rec_far(which ? 4 : 0, S_units, (uint16_t)(A_units + u * UNIT_SIZE));
+    rec_far(which ? 0x0E : 0x0A, S_unit_dat, (uint16_t)(A_unit_dat + NB(unit_kind, u * UNIT_SIZE) * KIND_SIZE));
+    rec_far(which ? 0x16 : 0x12, S_ww1gnds_dat, (uint16_t)(A_ww1gnds_dat + g * 6));
+    fwb(S_fight_rec, (uint16_t)(A_fight_rec + 8 + which), u);
+    pics = ptr_norm((Far){ (uint16_t)(pics.seg + (uint16_t)(((uint32_t)g * 4) >> 4)), (uint16_t)(pics.off + ((g * 4) & 0x0F)) });
+    pic = far_at(pics.seg, pics.off);
+    rec_far(which ? 0x22 : 0x1E, pic.seg, pic.off);
+}
+
+/* S02E6:208E's blasts counted down and the fields put back (the loop at
+ * S02E6:0B61, when the fights are not pictures; what it draws is left
+ * out): each turn every blast whose byte 2 is not negative counts down,
+ * and one that goes below 0 gets its field's two bytes back */
+static void blasts_run(Far map)
+{
+    int active;
+
+    do {
+        uint16_t i;
+
+        active = 0;
+        for (i = 0; i < 4; i++) {
+            uint16_t b = (uint16_t)(i * BLAST_SIZE);
+            int8_t t = (int8_t)NB(blasts, b + 2);
+
+            if (t < 0)
+                continue;
+            active++;
+            SETB(blasts, b + 2, t - 1);
+            if (t - 1 < 0) {
+                pwb(map, NW(blasts, b), NB(blasts, b + 3));
+                pwb(map, (uint16_t)(NW(blasts, b) + 1), NB(blasts, b + 5));
+            }
+        }
+    } while (active);
+}
+
+/* S02E6:2556 (carrier_losses): each unit in the row `side` of the
+ * carrier's record loses `loss`; one with no more than that is marked 4
+ * in unit_marks (freed after the fights) and its place emptied */
+static void carrier_losses(uint16_t side, uint8_t carrier, uint8_t loss)
+{
+    uint16_t rec = (uint16_t)(A_carriers + (int8_t)NB(units, carrier * UNIT_SIZE + 0x0A) * SITE_SIZE);
+    uint8_t i;
+
+    for (i = 0; i < 7; i++) {
+        uint8_t u = frb(S_carriers, (uint16_t)(rec + side * 7 + i));
+
+        if (u > 0xF0)
+            continue;
+        if (NB(unit_count, u * UNIT_SIZE) <= loss) {
+            SETB(unit_marks, u * UNIT_SIZE, NB(unit_marks, u * UNIT_SIZE) | 4);
+            fwb(S_carriers, (uint16_t)(rec + side * 7 + i), 0xFF);
+        } else
+            SETB(unit_count, u * UNIT_SIZE, NB(unit_count, u * UNIT_SIZE) - loss);
+    }
+}
+
+/* experience (byte 1) raised by n, at most 6 */
+static void exp_add(uint8_t u, uint8_t n)
+{
+    uint16_t e = (uint16_t)(NB(units, u * UNIT_SIZE + 1) + n);
+
+    SETB(units, u * UNIT_SIZE + 1, e > 6 ? 6 : e);
+}
+
+/* S02E6:0122 to 0D48: side a's attacks, one a unit of its list (far
+ * pointer at 11h of its `sides` record, their number in byte 15h); m is
+ * the other side, map side a's.  Left out: what is drawn and played and
+ * waited for (unit_panel but their show_message, the
+ * view drawn on the attacker's field with the maps and the units' bytes
+ * 0Fh and 10h exchanged and given back, fight_panel's and fight_show's
+ * pictures, pictures_load and S02E6:3484 after a fight picture). */
+static void fights_run(uint16_t a, uint16_t m, Far map)
+{
+    Far list = far_at(S_sides, (uint16_t)(A_sides + a * SIDE_SIZE + 0x11));
+    uint8_t n = 0;
+
+    while (n < NB(sides, a * SIDE_SIZE + 0x15)) {
+        uint8_t u = first_half(pb(list, n)), t, cu, ct, lu, lt, gain_u = 0, gain_t = 0;
+        uint16_t aim = NW(unit_aim, pb(list, n) * UNIT_SIZE);
+        uint16_t field = (uint16_t)(NW(unit_pos, u * UNIT_SIZE + 2 * a) - 1);
+        uint16_t w = NW(map_width, 0), i, pictures = !NB(no_fight_pics, 0);
+        int destroyed = 0;
+
+        n++;
+        t = pb(map, (uint16_t)(aim + 1));
+        if (t > 0xF0)
+            continue;
+        t = first_half(t);
+        fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x2E), 0);
+        field_neighbours(field);
+        for (i = 0; i < 6; i++)
+            if (NW(neighbours, 2 * i) == aim)
+                fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x2E), 1);
+        fight_percent(u, t, map, a);
+        rec_unit(0, u, field, map);
+        cu = unit_left(u);
+        rec_unit(1, t, aim, map);
+        ct = unit_left(t);
+        fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x1A), field);
+        fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x1C), aim);
+        fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x26), (uint16_t)((int16_t)((int16_t)field >> 1) % (int16_t)w));
+        fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x28), (uint16_t)((int16_t)((int16_t)field >> 1) / (int16_t)w));
+        fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x2A), (uint16_t)((int16_t)((int16_t)aim >> 1) % (int16_t)w));
+        fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x2C), (uint16_t)((int16_t)((int16_t)aim >> 1) / (int16_t)w));
+        rec_far(0x32, 0, 0);
+        rec_far(0x3A, frw(S_GAME, A_fight_seed + 2), frw(S_GAME, A_fight_seed));
+        fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x38), NW(game_state, 0) & 0x80 ? 1 : 0);
+        field = (uint16_t)(((int16_t)field >> 1) << 1);
+
+        /* the attacker's view put on its field (drawn with the other
+         * side's map; the marks set meanwhile are cleared again) */
+        view_to_field(m, field);
+        field_bits_clear(0xFF);
+        show_message(0xFFFF, m);        /* the two units' panels */
+        show_message(0xFFFF, a);
+
+        /* the losses: fight_show or fight_panel (both set fight_rec_ptr,
+         * fight_show also keeps the counts before and after) */
+        fww(S_fight_rec_ptr, A_fight_rec_ptr, A_fight_rec);
+        fww(S_fight_rec_ptr, (uint16_t)(A_fight_rec_ptr + 2), S_fight_rec);
+        if (pictures) {
+            fwb(S_fight_rec_ptr, 0x0F, NB(unit_count, u * UNIT_SIZE));
+            fwb(S_fight_rec_ptr, 0x0E, NB(unit_count, t * UNIT_SIZE));
+        }
+        fight_losses();
+        if (pictures) {
+            fwb(S_fight_rec_ptr, 0x0D, NB(unit_count, u * UNIT_SIZE));
+            fwb(S_fight_rec_ptr, 0x0C, NB(unit_count, t * UNIT_SIZE));
+        }
+
+        lu = unit_left(u);
+        lt = unit_left(t);
+        if (lu == 0) {
+            unit_destroy(u, 0xFF, 0xFF, 0, a, map);
+            destroyed = 1;
+            gain_t++;
+        }
+        if (lt == 0) {
+            unit_destroy(t, 0xFF, 0xFF, 2, a, map);
+            destroyed = 1;
+            gain_u++;
+        }
+        lu = (uint8_t)(cu - lu);
+        if (NW(unit_flags, u * UNIT_SIZE) & 0x1000)
+            carrier_losses(a, u, lu);
+        lt = (uint8_t)(ct - lt);
+        if (NW(unit_flags, t * UNIT_SIZE) & 0x1000)
+            carrier_losses(a, t, lt);
+        if (lt && !(NW(units, t * UNIT_SIZE + 6) & 0x20))
+            gain_u++;
+        if (lu && !(NW(units, u * UNIT_SIZE + 6) & 0x20))
+            gain_t++;
+        exp_add(u, gain_u);
+        exp_add(t, gain_t);
+        fww(S_GAME, A_fight_wait, 4);
+        if (!pictures && destroyed)
+            blasts_run(map);
+    }
+}
+
 /* S02E6:000F (attacks_run), the round's end after both sides ended their
  * half: the attacks of side a (the one with 2 in its view's byte 16h) are
  * carried out, then the orders of the side m that moved (orders_run),
  * then each side's records and maps are made the same and the halves
- * turned round (S02E6:19B8 to 205B).  Not translated: the fights (the loop
- * from S02E6:0122 to 0D48 and the blasts after them), order_undo, the
- * routine S02E6:2B87 run with 1000h in game_state (a site taken), and
- * what draws, plays music and waits.  When the state needs one of them
- * nothing is changed after that point and *missing names it; else *missing
- * is NULL.  Returns the result byte ([BP-7]): FFh, or the side that took a
- * headquarters. */
-uint8_t attacks_run(const char **missing)
+ * turned round (S02E6:19B8 to 205B).  Left out: what draws, plays music
+ * and waits.  Returns the result byte ([BP-7]): FFh, or the side that
+ * took a headquarters. */
+uint8_t attacks_run(void)
 {
     uint8_t result = 0xFF;
     uint16_t a, m, u, c0 = 0, c1 = 0;
     Far map, other, v0, v1;
 
-    *missing = NULL;
     field_bits_clear(0xFF);
     show_message(0xFFFF, 0);
     show_message(0xFFFF, 1);
@@ -407,29 +629,50 @@ uint8_t attacks_run(const char **missing)
     map = a ? far_at(S_map2_ptr, A_map2_ptr) : far_at(S_map_ptr, A_map_ptr);
     other = a ? far_at(S_map_ptr, A_map_ptr) : far_at(S_map2_ptr, A_map2_ptr);
     if (NB(sides, a * SIDE_SIZE + 0x15)) {
-        *missing = "fights (S02E6:0122 to 0D48)";
-        return result;
-    }
-    /* S02E6:0D63: the units with 4 in unit_marks (none without fights,
-     * as far as read) are freed, with order_undo for those with 1 */
-    for (u = 0; u <= 0xF0; u++) {
-        Far unit = unit_at((uint8_t)u);
+        /* S02E6:00E0: the far pointer game_loop passes first (the end of
+         * the sides' lists) goes to fight_rec's 52h */
+        Far ends = ptr_norm(far_at(S_sides, A_sides + 0x11));
 
-        if (!(pw(unit, 4) & 0x8000) && pb(unit, 0x14) & 4) {
-            *missing = "freeing units marked 4 (S02E6:0D9A)";
-            return result;
+        ends = ptr_norm((Far){ ends.seg, (uint16_t)(ends.off + 0xF2) });
+        fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x52), ends.off);
+        fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x54), ends.seg);
+        SETW(game_state, 0, NW(game_state, 0) | 0x1000);
+        fights_run(a, m, map);
+    }
+    /* S02E6:0D63: the units with 4 in unit_marks are freed, with
+     * order_undo for those with 1, and so are those in the row of side a
+     * of a freed carrier's record */
+    for (u = 0; u <= 0xF0; u++) {
+        Far unit = unit_at((uint8_t)u), rec;
+        int carrier;
+        uint8_t p;
+
+        if (pw(unit, 4) & 0x8000 || !(pb(unit, 0x14) & 4))
+            continue;
+        carrier = pw(unit, 4) & 0x1000 ? 1 : 0;
+        if (pb(unit, 0x14) & 1)
+            order_undo((uint8_t)u, map, m);
+        unit_free((uint8_t)u, m);
+        if (!carrier)
+            continue;
+        rec.seg = S_carriers;
+        rec.off = (uint16_t)(A_carriers + (int8_t)pb(unit, 0x0A) * SITE_SIZE);
+        for (p = 0; p < 7; p++) {
+            uint8_t c = pb(rec, (uint16_t)(a * 7 + p));
+
+            if (c > 0xF0)
+                continue;
+            if (NB(unit_marks, c * UNIT_SIZE) & 1)
+                order_undo(c, map, m);
+            unit_free(c, m);
         }
     }
     show_message(0xFFFF, 0);
     show_message(0xFFFF, 1);
-    if (orders_run(m, a, map, &result)) {
-        *missing = "order 1 (S02E6:0ED9)";
-        return result;
-    }
-    if (NW(game_state, 0) & 0x1000) {
-        *missing = "S02E6:2B87 (game_state 1000h)";
-        return result;
-    }
+    orders_run(m, a, map, &result);
+    /* S02E6:19B8: after a fight or a site taken the pictures are loaded
+     * again (pictures_load, which changes nothing the port keeps) */
+    SETW(game_state, 0, NW(game_state, 0) & 0xEFFF);
     rows_sync(A_carriers, a, m, 0x46);
     rows_sync(A_sites_100, a, m, 0x0A);
     rows_sync(A_sites_400, a, m, 0x0A);

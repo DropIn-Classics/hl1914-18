@@ -12,7 +12,8 @@ R={'move_arrive':('S10E1:0AF0','S10E1:0F70',['side','map_off','map_seg']),
    'move_step':  ('S10E1:072C','S10E1:0AEF',[]),
    'income':('S131D:1745','S131D:178C',['side']),
    'build_list':('S131D:14D4','S131D:15FA',['points','side']),
-   'repair':('S066A:3156','S066A:32A9',[])}
+   'repair':('S066A:3156','S066A:32A9',[]),
+   'build_unit':('S066A:387A','S066A:3A42',[])}
 out,tag,keys,until,rt,n=sys.argv[1:7]
 n_in,n_out=(n.split('/')+[n])[:2]
 here=os.path.dirname(os.path.abspath(__file__)); kit=os.path.join(here,'../../doskit/tools/run.py')

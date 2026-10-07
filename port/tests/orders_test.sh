@@ -1,7 +1,8 @@
 #!/bin/sh
 # Builds port/tests/orders_test.c and runs it on pairs of dumps of
 # attacks_run's loop over the orders (see there).  Without arguments: the
-# passes in build/n2/orders_test.args (the first side's scripted moves).
+# passes in every build/n2/orders_test*.args (orders_test.args: the first
+# side's scripted moves; orders_test_build.args: its depot built on map 8).
 set -e
 cd "$(dirname "$0")/.."
 CC=${CC:-cc}
@@ -12,4 +13,4 @@ if [ $# -gt 0 ]; then
     exec build/orders_test "$@"
 fi
 # shellcheck disable=SC2046
-exec build/orders_test $(cat ../build/n2/orders_test.args)
+exec build/orders_test $(cat ../build/n2/orders_test*.args)

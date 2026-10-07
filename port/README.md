@@ -346,3 +346,12 @@ anything the game needs before the first release.
   linear 3187Eh, presumably interrupts as in the other tests; not
   checked). Not covered: kind 1, a two-part unit, a carrier that moves
   in with units (`row_move`), the second side.
+- `file_load` clears `DATA:0B17` (2026-10-07, Linux): each try of the
+  original writes 0 there before it opens the file (`S2C45:0016`); the
+  port now does so too. `load_test` on three calls of `file_load` from a
+  run on map 0 (`build/n2/load_test_n2.args`: `MNUCHR18.LIB`,
+  `LIB\partS.DAT`, `MAP\00.SHP`): the same. In this run its low byte (the
+  only one watched) was 0 before each of the last 32 of its 46 writes
+  (those the runner lists), so the dumps do
+  not tell the change apart; which routine sets it otherwise was not looked
+  at.

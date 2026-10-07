@@ -1787,6 +1787,27 @@ emulation error (2026-10-02).
     map-8 and map-0 runs left a carrier (`S066A:2FA7`, the step back
     for 20h in the record's word 19h, never hit); the run `m0_s2c.keys`
     does it for the first side (port/README.md), the same as the port.
+  - The human side's input (2026-10-07, Linux): `S0CB6:05F1` is
+    `side_input(input record, view)`, called by `game_loop` at
+    `S066A:122D` for a side that is not the computer's (the computer's
+    word comes from the other branch). The record's five bytes are, by
+    the keys of the scripts, left, right, up, down and the button: 4, 8,
+    1, 2 and 10h in the word (consistent with the gestures: down gives
+    2, which the place menu turns into repairing, left 4, building). The
+    record is cleared on each call. The directions are reported only
+    when byte 2Ch of the view (a repeat counter, counted down each call)
+    is 0 or they differ from word 2Eh (the last word); then 2Ch is set
+    from the delays at 28h (1, 2, 1 in the map-8 dumps) by the stage in
+    2Bh (0 after a change, up to 2). So a key held over more calls than
+    the delay is reported again: calls 4050 and 4051 of the run
+    `m8_d5r.keys` both gave 11h for one held up. This is the cursor's
+    odd step: a tap held 0.08 s spans one or two passes of `game_loop`
+    (about 16 a second while the computer thinks, more otherwise), so
+    it moves the cursor once or twice, rows and columns alike (the
+    m8 scripts saw rows 5, 7, 9 and columns 13, 15, 17); the half field
+    of an odd column does not enter into it. A key script that wants
+    one step holds the key for less than a pass or checks the view's
+    word 0. Translated (`side_input`) and compared on seven calls.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

@@ -12,3 +12,10 @@ out 3EA4:0FEA 1 ../build/n2/o/m8o20_move_out_in.ram ../build/n2/o/m8o20_move_out
 out 3EA4:0FEA 0 ../build/n2/o/m8o41_move_out_in.ram ../build/n2/o/m8o41_move_out_out.ram
 repair 3EA4:0FEA 0 ../build/n2/o/m8r2_repair_in.ram ../build/n2/o/m8r2_repair_out.ram
 out 3EA4:0FEA 0 ../build/n2/o/c2o1_move_out_in.ram ../build/n2/o/c2o1_move_out_out.ram
+input 3EA4:0F8C 0008 ../build/n2/o/si3996_side_input_in.ram ../build/n2/o/si3996_side_input_out.ram
+input 3EA4:0F8C 0000 ../build/n2/o/si3997_side_input_in.ram ../build/n2/o/si3997_side_input_out.ram
+input 3EA4:0F8C 0000 ../build/n2/o/si3998_side_input_in.ram ../build/n2/o/si3998_side_input_out.ram
+input 3EA4:0F8C 0010 ../build/n2/o/si4045_side_input_in.ram ../build/n2/o/si4045_side_input_out.ram
+input 3EA4:0F8C 0010 ../build/n2/o/si4049_side_input_in.ram ../build/n2/o/si4049_side_input_out.ram
+input 3EA4:0F8C 0011 ../build/n2/o/si4050_side_input_in.ram ../build/n2/o/si4050_side_input_out.ram
+input 3EA4:0F8C 0011 ../build/n2/o/si4051_side_input_in.ram ../build/n2/o/si4051_side_input_out.ram

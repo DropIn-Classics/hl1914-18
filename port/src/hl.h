@@ -139,6 +139,7 @@ uint16_t repair(Far view, uint16_t side);
 void build_unit(Far view, uint16_t side);
 void view_copy(Far view, int back);
 void move_out(Far view, uint16_t side);
+uint16_t side_input(Far rec, Far view);
 
 /* names.c */
 Far file_name(uint16_t where, int16_t dir, Far name, int16_t ext);

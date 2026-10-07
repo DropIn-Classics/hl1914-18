@@ -182,3 +182,52 @@ void move_out(Far view, uint16_t side)
     pww(view, 0x1E, no);
     pwb(view, 0x1B, 4);
 }
+
+/* S0CB6:05F1 (side_input): the input word of a human side from its input
+ * record `rec` (bytes 0 to 4: left, right, up, down, the button, as the
+ * key scripts' keys show; each cleared here) and its view: 10h for the
+ * button, 4 left or else 8 right, 1 up or else 2 down.  The directions count only when the view's
+ * repeat counter (byte 2Ch) has run out or they changed from the last
+ * word (word 2Eh); then the counter is set from the delays at 28h by the
+ * stage in byte 2Bh, which goes up to 2 (byte 2Dh holds it back first),
+ * and a change of the directions starts again at stage 0. */
+uint16_t side_input(Far rec, Far view)
+{
+    uint16_t cx = 0, dx = 0, i;
+    int fresh = 0;
+
+    if (pb(rec, 4))
+        cx |= 0x10;
+    if (pb(rec, 0))
+        dx |= 4;
+    else if (pb(rec, 1))
+        dx |= 8;
+    if (pb(rec, 2))
+        dx |= 1;
+    else if (pb(rec, 3))
+        dx |= 2;
+    for (i = 0; i < 5; i++)
+        pwb(rec, (uint16_t)(4 - i), 0);
+    if (pb(view, 0x2C)) {
+        pwb(view, 0x2C, (uint8_t)(pb(view, 0x2C) - 1));
+        if (pw(view, 0x2E) != dx)
+            fresh = 1;
+    } else
+        fresh = 1;
+    if (fresh) {
+        if (pw(view, 0x2E) != dx) {
+            pwb(view, 0x2D, 0);
+            pwb(view, 0x2B, 0);
+        }
+        cx |= dx;
+        pwb(view, 0x2C, pb(view, (uint16_t)(0x28 + pb(view, 0x2B))));
+        pww(view, 0x2E, cx);
+        if (pb(view, 0x2D))
+            pwb(view, 0x2D, (uint8_t)(pb(view, 0x2D) - 1));
+        else if (pb(view, 0x2B) < 2)
+            pwb(view, 0x2B, (uint8_t)(pb(view, 0x2B) + 1));
+        else
+            pwb(view, 0x2B, 2);
+    }
+    return cx;
+}

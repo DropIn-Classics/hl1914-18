@@ -1584,6 +1584,31 @@ emulation error (2026-10-02).
     found). The dumps for this and the second side's arrivals are made
     by `port/tests/sites_dumps.sh`; kind 1 of `move_arrive` still has no
     known writer.
+  - A side's part in a site (2026-10-07, Linux): building, repairing
+    and moving out are not routines of their own but parts of
+    `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h
+    in `unit_flags` after the label `S066A:3890`; moving out in state 2,
+    step 0Bh). `S131D:14D4` is `build_list(points, side)`:
+    `build_kinds` all FFh, `build_count` 0; nothing more without a free
+    unit record (`S15C5:01A7`, `unit_find(8000h)`); else every kind whose
+    byte 3Fh is at most the points and without 2 in word 0Fh, with 1000h
+    in word 0Dh only while `carriers` has a free record, not the kinds
+    below 0Ah for the second side nor above 23h for the first. It runs
+    when a site is entered in the attack half (state 2, step 9) and after
+    a repair; it also ran once at t=208 in the map-0 run s4 with no site
+    entered (caller not looked for). Repairing finds the unit from the
+    record at view+24h (row side*7, place in word 0Eh of the view). Both
+    translated (`port/src/side.c`) and compared on few calls
+    (port/README.md). For key scripts: a half is ended with the button
+    and left on a plain field (pointer 9) and F1 twice; on a site's field
+    the same gesture enters the site. A direction let go 0.02 s after the
+    button did not take in one case (k4's move); 0.2 s works. The halves'
+    times depend on the computer's turn, so a fixed script over many
+    rounds drifts. The headquarters (`sites_40`, word 19h 4) cannot build
+    (building needs 8 there), so building is to be scripted at a record
+    of `sites_400` of the side (map 8: record 1), not done. Next:
+    building and moving out, and a repair carried out (a damaged unit
+    and 0Fh points).
   - Next there: `S0CB6:05F1`, `S0E56:1A97` and `1B57`, and
     `S1C74:000B`, the computer's turn; a scripted run of the first side
     that moves into a site and a carrier and takes a site, to compare

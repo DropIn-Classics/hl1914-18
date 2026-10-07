@@ -190,6 +190,7 @@
     X(S0CB6, timer_fire, 0x035A) \
     X(S0CB6, view_copy, 0x0445) \
     X(S0CB6, side_input, 0x05F1) \
+    X(S0CB6, rand_range, 0x0713) \
     X(S0CB6, view_step, 0x0750) \
     X(S0CB6, view_reset, 0x0CDA) \
     X(S0CB6, field_menu, 0x0EAA) \
@@ -257,6 +258,10 @@
     X(S1FD8, unit_worth, 0x00E8) \
     X(S1FD8, unit_of_kind, 0x02B2) \
     X(S1FD8, unit_reaches, 0x0368) \
+    X(S202F, plan_approach, 0x000A) \
+    X(S202F, plan_units_out, 0x04D9) \
+    X(S202F, plan_repairs, 0x05CB) \
+    X(S202F, plan_move, 0x071E) \
     X(S202F, sites_list, 0x0BA7) \
     X(S202F, plan_to_site, 0x0EAA) \
     X(S2138, computer_plan, 0x000C) \
@@ -271,6 +276,7 @@
     X(S2C45, file_load, 0x0002) \
     X(S2C8E, file_open, 0x0006) \
     X(S2C95, clock_seed, 0x000E) \
+    X(S2C9A, rand_next, 0x0008) \
     X(S2C9E, ptr_norm, 0x0002) \
     X(S2CBE, mem_alloc, 0x000E) \
     X(S3303, take_picture, 0x0021) \
@@ -333,6 +339,7 @@
     X(S39B6, unit_plans2, 0x0132) \
     X(S39B6, unit_plans, 0x09AB) \
     X(S39B6, computer_script, 0x1224) \
+    X(S39B6, step_draft, 0x1264) \
     X(S39B6, computer_steps, 0x126B) \
     X(S39B6, computer_phase, 0x12FD) \
     X(S39B6, computer_out, 0x1315) \
@@ -341,8 +348,11 @@
     X(S3AE8, script_gestures, 0x000E) \
     X(S3AE8, holder_ptr, 0x001D) \
     X(S3AE8, step_target_field, 0x0021) \
+    X(S3AEA, approach_order, 0x000C) \
+    X(S3AEA, way_len, 0x0012) \
     X(S3AEC, fight_rec_ptr, 0x0008) \
     X(S3AED, ground_bonus, 0x0000) \
+    X(DATA, rand_words, 0x0AF1) \
     X(DATA, rand_state, 0x11F6) \
 
 #endif

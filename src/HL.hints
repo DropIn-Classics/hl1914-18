@@ -1695,8 +1695,8 @@ name S39B6:1315 computer_out
 ; computer_queue goes by byte 3 of computer_phase through nine states
 ; (table at S1CC6:0A23) and adds the steps with step_add; its first state
 ; sets word 2 to FFFFh in the record of each unit of the side in the table
-; of 9-byte records (S39B6:0132 or 09AB by attack_pick). Only the
-; beginnings of the three were read; what they decide by is not known yet.
+; of 9-byte records (S39B6:0132 or 09AB by attack_pick). computer_assess
+; and computer_queue are described below.
 name S1CC6:0A35 computer_assess
 name S2138:000C computer_plan
 name S1CC6:0000 computer_queue
@@ -1801,6 +1801,91 @@ name S39B6:0000 kind_worth
 ; Six bytes: the order in which the fields around the headquarters are
 ; listed by computer_assess's state 3, as indices into neighbours.
 name S3AE7:000E guard_order
+; ---- computer_queue, read in full (2026-10-07, Mac): it makes the units'
+; plans into steps, by byte 3 of the side's computer_phase, and returns 1
+; when it has added steps that are to be carried out before it goes on
+; (computer_turn then runs the list and calls it again in the same state).
+; 0: word 2 of the plans of the side's units FFFFh (open), byte 7 and
+;    word 9 of computer_phase 0.
+; 1: the units in the side's sites get plans: with 1 in the side's
+;    attack_pick plan_units_out, else plan_repairs (sites_100, sites_400,
+;    sites_40).
+; 2: the next unit of the side with a plan, from word 9 of computer_phase
+;    on; none: on to 4.
+; 3: that unit's plan when it is 3 (a step of kind 1 to the plan's field),
+;    4 (nothing; the plan is given up), 0Ch (plan_move) or 0Eh (a step of
+;    kind 2 against the unit on the plan's field); back to 2, with the
+;    next unit when the plan is another.
+; 4: the open plan with the highest word 4 among the side's units without
+;    8200h in unit_flags; none: on to 6.
+; 5: that plan: 1 and 0Dh plan_move; 2 a step of kind 2; 5 a step of kind
+;    4 (the unit leaves its site); 6 a step of kind 6 (the call of
+;    step_add at S1CC6:0567: a repair, see step_site_menu); 7
+;    plan_approach; 9, 0Ah and 0Bh plan_move with the plan kept (only word
+;    2 becomes 1); any other kind (3, 4, 8, 0Ch: the default at
+;    S1CC6:07B7) is given up. Back to 4.
+; 6 (S1CC6:07FC): building, not with 1 in attack_pick: for every free
+;    place of the side's records of sites_400, while the side has more
+;    than 3Dh in side_points and fewer than ten kinds were chosen,
+;    build_list with the points above 3Dh and a kind drawn from
+;    build_kinds by rand_range (up to a hundred tries) that has 400h in
+;    word 2 of kind_worth: a step of kind 7, the kind's price (byte 3Fh)
+;    taken off the count the state keeps. (The list of steps holds ten,
+;    so later ones are dropped by step_add.)
+; 7: a step of kind 3 (the round's end).
+; 8: the phase becomes 20h (computer_assess) again, byte 3 0.
+; The kinds of plan as computer_queue serves them: 1 and 0Dh to a field, as
+; far as this round goes; 2 and 0Eh attack the unit on a field; 3 a move
+; of one round to a field; 4 stay; 5 leave the site; 6 be repaired; 7 go
+; next to a unit and attack what is there; 9, 0Ah, 0Bh to a field over
+; several rounds; 0Ch a move served before the others (who writes which is
+; computer_plan's). Translated; compared for the states and plans
+; port/README.md names.
+; plan_units_out(table, side, count): every unit in the side's row of the
+; side's records of the table, without 24h in its word 6, gets the plan 5
+; with the worth 7, in unit_plans. Read.
+name S202F:04D9 plan_units_out
+; plan_repairs(table, side, count): the same for the units whose
+; unit_count is below byte 3 of their kind, while the side has more than
+; 0Eh in side_points: the plan 6 with the worth 7, in unit_plans2. Read.
+name S202F:05CB plan_repairs
+; plan_move(unit, side): a part a call by byte 7 of computer_phase,
+; returns 1 when it is through. 0 waits while 80h is set in game_state's
+; word 4; 1, 2, 3 unit_reaches to the plan's field with the modes 3, 2 and
+; 0 (the first with a way goes on to 4); 4 copies the way to the side's
+; buffer of aims and its length to way_len; 5 move_range; 6
+; move_targets_list; 7 a step of kind 1 to the first field of the way,
+; from its end, that the unit can go to this round (other than the plan's
+; field itself not a ground with 540h in its word 0 nor a field with a
+; unit that has 1000h in unit_flags); no step without one. The second
+; half of a unit of two parts stands for the first. Read.
+name S202F:071E plan_move
+; plan_approach(unit, side): the plan 7, whose word 0 is a unit: 0 waits
+; as plan_move; 1 move_range; 2 the first free field around that unit, in
+; the order of approach_order from the byte at 0Fh of the unit's record
+; (the second side's at 10h; presumably the way it faces), that the unit
+; can go to: a step of kind 1 there, the plan done, and for a unit of
+; another side around that field that the kind can attack the plan 2
+; against it in unit_plans2; without such a field the plan becomes 1 to
+; the unit's field. Returns 1 from that state. Read; not compared (no
+; call was dumped).
+name S202F:000A plan_approach
+; Six bytes added to a direction by plan_approach.
+name S3AEA:000C approach_order
+; The length of the way plan_move keeps between its states 4 and 7.
+name S3AEA:0012 way_len
+; Seven bytes: the step computer_queue and its helpers fill and hand to
+; step_add. Only the bytes a kind needs are written, the others stay.
+name S39B6:1264 step_draft
+; rand_next(): the next number of the four words at rand_words (the word
+; 0 as it was is returned; word 0 becomes itself xor word 2, shifted
+; right with the top bit of word 6 coming in and its low bit going there;
+; word 2 the old word 0). rand_range(lo, hi): its absolute value modulo
+; the size of the range, plus lo. Read; compared within computer_queue's
+; state 6. clock_seed sets rand_words.
+name S2C9A:0008 rand_next
+name DATA:0AF1 rand_words
+name S0CB6:0713 rand_range
 ; computer_step(side): carries on the step byte 46h of computer_steps
 ; names, by its kind through the table at S1E4B:0381, with the map offset
 ; of the side's cursor (word 0 of its view): 1 step_move (bytes 1 and 3, a
@@ -1865,10 +1950,11 @@ name S1E4B:038F step_add
 ; (port/README.md).
 ; step_site_menu(side, cursor, unit, steps), kind 6: as step_unit_out up
 ; to the unit's row in its holder (the pointer at S3AE8:0023), then the
-; code 81h (button and down) and the code 83h, done with that call. What
-; that gesture does to the unit was not seen: no step of this kind came up
-; in 1500 s on 16 maps (computer_queue has one place that adds it, at the
-; call of step_add at S1CC6:0567; its condition was not read). Read and
+; code 81h (button and down) and the code 83h, done with that call. Button
+; and down in a site's list is the repair (game_loop's state 2), and
+; computer_queue adds this step for the plan 6, which plan_repairs gives a
+; unit below its full count in a site: so this is the computer's repair.
+; No step of this kind came up in 1500 s on 16 maps. Read and
 ; translated, not compared.
 ; step_build(side, cursor, kind, site, steps), kind 7: cursor_script to
 ; the field of the record `site` of sites_400 (pointer at S3AE8:0027), the

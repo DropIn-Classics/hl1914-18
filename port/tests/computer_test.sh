@@ -1,7 +1,8 @@
 #!/bin/sh
 # Builds port/tests/computer_test.c and runs it on pairs of dumps of the
 # computer's player's routines (see there).  Without arguments: the calls
-# in build/computer/computer_test.args and plan_test.args, which
+# in build/computer/computer_test.args and those of the planning phases
+# (assess_test.args, queue_test.args), which
 # port/tests/computer_dumps.py writes.
 set -e
 cd "$(dirname "$0")/.."
@@ -13,4 +14,4 @@ if [ $# -gt 0 ]; then
     exec build/computer_test "$@"
 fi
 # shellcheck disable=SC2046
-exec build/computer_test $(cat ../build/computer/computer_test.args ../build/computer/plan_test.args)
+exec build/computer_test $(cat ../build/computer/computer_test.args ../build/computer/assess_test.args ../build/computer/queue_test.args)

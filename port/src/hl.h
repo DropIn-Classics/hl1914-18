@@ -142,6 +142,8 @@ void move_targets_list(Far buf, uint16_t side, uint8_t unit);
 
 /* plan.c */
 uint16_t computer_assess(uint16_t side);
+void step_add(uint16_t side, Far step);
+uint16_t computer_queue(uint16_t side);
 
 /* side.c */
 void build_list(uint16_t points, uint16_t side);

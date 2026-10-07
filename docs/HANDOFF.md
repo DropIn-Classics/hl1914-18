@@ -1768,9 +1768,47 @@ emulation error (2026-10-02).
         not halved.
       - Not seen in a run: a unit with the plan 9 or a carrier with a
         unit to bring back in state 0, a unit listed in state 4.
-    - Still to do there: `computer_plan` and
-      `computer_queue` (`S1CC6`, `S202F`, `S2138`, some 9,000 lines of
-      the generated source), read only at their beginnings;
+    - `computer_queue` read in full and translated (2026-10-07, Mac;
+      `port/src/plan.c`, port/README.md for what was compared). It
+      serves the units' plans (byte 8 of a unit's record in
+      `unit_plans`: the kinds are listed in `src/HL.hints`) in two
+      passes: first in the order of the units those that are 3, 4, 0Ch
+      or 0Eh (what `computer_plan`'s attacks and `plan_ride` wrote),
+      then the rest by their worth, highest first. A plan becomes one
+      step (`step_add`), and the routine returns 1 so that the step is
+      carried out before the next plan is looked at; then building,
+      then the step that ends the round.
+      - The two halves of a round: with 1 in the side's `attack_pick`
+        the units in the side's sites get the plan to leave
+        (`plan_units_out`) and nothing is built; else those that are
+        not whole get the plan of a repair (`plan_repairs`) and state
+        6 builds.
+      - What the lead asked about. `S1CC6:07B7` is the default of state
+        5's table: a plan of a kind that has no step there (3, 4, 8,
+        0Ch) is given up. The call of `build_list` with the points less
+        3Dh is not there but in state 6 (`S1CC6:07FC`, the building):
+        the computer keeps 3Dh points back, takes a kind at random
+        among those `build_list` offers that have 400h in word 2 of
+        `kind_worth`, and queues a step of kind 7. The `step_add` at
+        `S1CC6:0567` queues a step of kind 6 for the plan 6, which only
+        `plan_repairs` writes: so the step of kind 6 (`step_site_menu`,
+        the code 81h, button and down) is the computer's repair. It did
+        not come up in any run: `plan_repairs` needs a unit below its
+        full count inside a site of the side in the half with 2 in
+        `attack_pick` and more than 0Eh points (not looked at which of
+        these fails; presumably the units do not get into the sites
+        while damaged, since the plans 9 never came up either).
+      - A move does not go to the plan's field at once: `plan_move`
+        finds the whole way (`unit_reaches`, three tries with fewer
+        fields closed each time), then what the unit can reach this
+        round (`move_range`, `move_targets_list`), and queues a move to
+        the reachable field that is furthest along the way.
+      - Random numbers: `rand_next` (`S2C9A:0008`) on the four words at
+        `DATA:0AF1` that `clock_seed` sets, through `rand_range`
+        (`S0CB6:0713`). The building is the first place found that
+        draws from it (the fights have their own, `rand_seed`).
+    - Still to do there: `computer_plan` (`S2138`, 4,500 lines of the
+      generated source);
       `computer_turn` itself is a few lines once its phases are there.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of

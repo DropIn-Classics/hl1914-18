@@ -3,7 +3,7 @@
 computer_input and computer_step with (HL.EXE's S1E4B:0001 and S1E4B:012E).
 
     python3 port/tests/computer_dumps.py [-until T] [-early T] [stage2]
-    python3 port/tests/computer_dumps.py [-until T] plan [stage2]
+    python3 port/tests/computer_dumps.py [-until T] phases [stage2] [assess] [queue] [plan]
 
 Four battles are played on the runner by generated input, two with the
 computer's second side (the maps of the codes 0 and 1) and two with the
@@ -23,13 +23,16 @@ the first there are, and three ends of a list.  Everything goes to build/compute
 mouse files, the logs, the dumps and computer_test.args.  About an hour
 on twelve cores.
 
-With `plan` the same four battles give the calls of the planning phases
-instead (PLANS: computer_assess so far): stage 1 logs each routine's
-entry, its exits and the places that tell one call from another (the
-entries of its jump tables, read from the player's HL.EXE, and a few
-branches), into NAME_plan.log; stage 2 dumps the first PER_PLAN calls of
-every set of places a run went through (the earliest, since a dump costs
-a run up to its time) and writes plan_test.args, which
+With `phases` the same four battles give the calls of the planning phases
+instead (PLANS: computer_assess, computer_queue, computer_plan; all, or
+those named): stage 1 logs each routine's entry, its exits and the places
+that tell one call from another (the entries of its jump tables and its
+helpers', read from the player's HL.EXE, and a few branches), into
+NAME_plan0.log and NAME_plan1.log (the runner logs 64 places a run);
+stage 2 dumps early calls of every set of places a run went through (the
+first whenever it is, more of the first 400 s of computer_queue and 150 s of computer_plan: a dump costs a run up to
+its time)
+and writes assess_test.args, queue_test.args and plan_test.args, which
 port/tests/computer_test.sh takes as well.  No game data is kept in this
 file.
 """
@@ -61,14 +64,27 @@ S1E4B = 0x1E4B
 # lists' ends
 PER_STATE, ENDS = 3, 3
 INPUT_SPREAD, INPUT_SCRIPT = 14, 12
-# the planning phases: the routine's segment, its entry behind the frame's
-# code, its exits (the result 0, then the result 1; each behind the last
-# write), its jump tables (offset, entries) and further places inside it
-# that tell calls apart
-PLANS = {'assess': ('1CC6', '0A54', ('1835', '182B'), ((0x1845, 6),),
-                    ('0BFF', '0CF6', '0D71', '1027', '11B8'))}
-# how many calls of a set of places a run gives, and of a routine at most
-PER_PLAN, PLAN_MOST = 3, 40
+# the planning phases: the routine's entry behind the frame's code, its
+# exits (a place and the result there; None: the result is AX, at the
+# place computer_turn gets back to), jump tables whose entries tell calls
+# apart (segment, offset, entries; the helpers' too) and further places,
+# how many calls of a set of places a run gives and of the routine at most,
+# every which call of a set is taken, and up to which time (a set's first
+# call is dumped whenever it is)
+PLANS = {
+    'assess': ('1CC6:0A54', (('1CC6:1835', 0), ('1CC6:182B', 1)), (('1CC6', 0x1845, 6),),
+               ('1CC6:0BFF', '1CC6:0CF6', '1CC6:0D71', '1CC6:1027', '1CC6:11B8'), 3, 40, 1, 1500.0),
+    'queue': ('1CC6:0022', (('1C74:010F', None),),
+              (('1CC6', 0x0A23, 9), ('1CC6', 0x0A0B, 12), ('1CC6', 0x09F1, 13), ('202F', 0x0B97, 8)),
+              ('202F:0105', '202F:011D', '202F:0186', '202F:02C9', '202F:0482', '1CC6:08AA', '1CC6:092A'),
+              3, 90, 5, 400.0),
+    'plan': ('2138:002B', (('1C74:00CE', None),),
+             (('2138', 0x2CDD, 13), ('2138', 0x2CCB, 5), ('2138', 0x2CC1, 5),
+              ('2138', 0x2CB5, 6), ('2138', 0x2CA9, 6), ('2138', 0x2C9F, 5), ('2138', 0x2C87, 12),
+              ('2138', 0x2C71, 11)), (), 2, 120, 5, 150.0),
+}
+# the runner logs 64 places a run: which routines share a run's log
+PLAN_LOGS = (('assess', 'queue'), ('plan',))
 
 
 def code(index):
@@ -187,76 +203,95 @@ def calls(name):
     return inputs, steps
 
 
-def plan_marks(seg, tables, more):
+def plan_marks(what):
     """the places of a routine that are logged to tell its calls apart"""
     exe = open(os.path.join(game_dir(), 'HL.EXE'), 'rb').read()
-    base = struct.unpack_from('<H', exe, 8)[0] * 16 + int(seg, 16) * 16
-    out = list(more)
-    for table, n in tables:
-        out += ['%04X' % o for o in struct.unpack_from('<%dH' % n, exe, base + table)]
+    head = struct.unpack_from('<H', exe, 8)[0] * 16
+    out = list(PLANS[what][3])
+    for seg, table, n in PLANS[what][2]:
+        out += ['%s:%04X' % (seg, o) for o in struct.unpack_from('<%dH' % n, exe, head + int(seg, 16) * 16 + table)]
     return sorted(set(out))
 
 
-def plan_stage1(name, until):
+def plan_stage1(name, until, group):
+    whats, places = PLAN_LOGS[group], set()
+    for what in whats:
+        places |= set([PLANS[what][0]] + [a for a, _ in PLANS[what][1]] + plan_marks(what))
     opts = []
-    for seg, a_in, outs, tables, more in PLANS.values():
-        for a in sorted(set([a_in] + list(outs) + plan_marks(seg, tables, more))):
-            opts += ['-log', 'S%s:%s' % (seg, a)]
-    run(name, name + '_plan', until, opts)
+    for a in sorted(places):
+        opts += ['-log', 'S' + a]
+    run(name, '%s_plan%d' % (name, group), until, opts)
 
 
-def plan_calls(name, what):
-    """(time, SS:BP, entry, exit, result, the places gone through) of the
-    calls of a planning routine"""
-    seg, a_in, outs, tables, more = PLANS[what]
-    marks, out, cur = plan_marks(seg, tables, more), [], None
-    for line in open('%s/%s_plan.log' % (D, name)):
-        m = re.match(r'log HL\.EXE\+(\w+):(\w+) t=(\S+) hit=(\d+) regs .* BP=(\w+) .* SS=(\w+)', line)
-        if not m or m.group(1) != seg:
-            continue
-        a, t, hit, bp, ss = m.groups()[1:]
-        if a == a_in:
-            cur = [float(t), '%s:%s' % (ss, bp), 'S%s:%s#%s' % (seg, a, hit), set()]
-        elif cur and a in outs:
-            out.append((cur[0], cur[1], cur[2], 'S%s:%s#%s' % (seg, a, hit), outs.index(a),
-                        tuple(sorted(cur[3]))))
+def plan_calls(name, whats):
+    """{routine: [(time, SS:BP, entry, exit, result, the places gone
+    through)]} of the calls of the planning routines in a run's log"""
+    entries = {PLANS[w][0]: w for w in whats}
+    marks = {w: set(plan_marks(w)) for w in whats}
+    out, cur, lines = {w: [] for w in whats}, None, []
+    for group, of in enumerate(PLAN_LOGS):
+        if set(of) & set(whats):
+            lines += list(open('%s/%s_plan%d.log' % (D, name, group))) + ['end']
+    for line in lines:
+        if line == 'end':
             cur = None
-        elif cur and a in marks:
-            cur[3].add(a)
+        m = re.match(r'log HL\.EXE\+(\w+:\w+) t=(\S+) hit=(\d+) regs .*?AX=(\w+) .* BP=(\w+) .* SS=(\w+)', line)
+        if not m:
+            continue
+        a, t, hit, ax, bp, ss = m.groups()
+        if a in entries:
+            cur = [entries[a], float(t), '%s:%s' % (ss, bp), 'S%s#%s' % (a, hit), set()]
+            continue
+        if not cur:
+            continue
+        ends = dict(PLANS[cur[0]][1])
+        if a in ends:
+            result = int(ax, 16) if ends[a] is None else ends[a]
+            out[cur[0]].append((cur[1], cur[2], cur[3], 'S%s#%s' % (a, hit), result, tuple(sorted(cur[4]))))
+            cur = None
+        elif a in marks[cur[0]]:
+            cur[4].add(a)
     return out
 
 
 def plan_main(args, until):
+    whats = [w for w in PLANS if w in args] or list(PLANS)
     if 'stage2' not in args:
         for name, run_ in RUNS.items():
             if not os.path.exists('%s/%s.keys' % (D, name)):
                 play(name, run_[0], run_[1], until)
-        with ThreadPoolExecutor(len(RUNS)) as ex:
-            list(ex.map(lambda n: plan_stage1(n, until), RUNS))
-    jobs, lines, keep = [], [], 'stage2' in args
+        with ThreadPoolExecutor(len(RUNS) * len(PLAN_LOGS)) as ex:
+            list(ex.map(lambda j: plan_stage1(j[0], until, j[1]),
+                        [(n, g) for n in RUNS for g in range(len(PLAN_LOGS))]))
+    jobs, keep = [], 'stage2' in args
+    lines = {w: [] for w in whats}
     for name in RUNS:
-        for what in PLANS:
+        found = plan_calls(name, whats)
+        for what in whats:
             by = {}
-            for c in plan_calls(name, what):
+            for c in found[what]:
                 by.setdefault((c[4], c[5]), []).append(c)
-            print('%s: %s by result and places: %s' % (name, what, {
-                '%d/%s' % (k[0], '+'.join(k[1])): len(v) for k, v in sorted(by.items())}))
+            print('%s: %s, %d sets of places, calls by result and places: %s' % (name, what, len(by), {
+                '%d/%s' % (k[0], '+'.join(a.split(':')[1] for a in k[1])): len(v) for k, v in sorted(by.items())}))
+            per, most, nth, early = PLANS[what][4:8]
             chosen = []
-            for k, of in sorted(by.items()):
-                chosen += of[:PER_PLAN]
-            for t, ssbp, a_in, a_out, result, _ in sorted(chosen)[:PLAN_MOST]:
+            for n in range(per):        # the first of every set, then a later one, ...
+                chosen += [of[n * nth] for k, of in sorted(by.items())
+                           if len(of) > n * nth and (n == 0 or of[n * nth][0] <= early)]
+            for t, ssbp, a_in, a_out, result, _ in sorted(chosen[:most]):
                 base = '%s_%s_%s' % (name, what, a_in.split('#')[1])
                 for way, a in (('e', a_in), ('x', a_out)):
                     ram = '%s/%s%s.ram' % (D, base, way)
                     if not (keep and os.path.exists(ram)):
                         jobs.append((name, base + way, int(t) + 5, ['-break', a, '-ram', ram]))
-                lines.append('%s%s %d %s ../%s/%se.ram ../%s/%sx.ram' % (
+                lines[what].append('%s%s %d %s ../%s/%se.ram ../%s/%sx.ram' % (
                     what, 'end' if result else '', 0 if name.startswith('first') else 1,
                     ssbp, D, base, D, base))
-    with ThreadPoolExecutor(10) as ex:
+    with ThreadPoolExecutor(int(os.environ.get('DUMP_JOBS', '10'))) as ex:
         list(ex.map(lambda j: run(*j), jobs))
-    open('%s/plan_test.args' % D, 'w').write('\n'.join(lines) + '\n')
-    print('computer_dumps: %d calls in %s/plan_test.args' % (len(lines), D))
+    for what in whats:
+        open('%s/%s_test.args' % (D, what), 'w').write('\n'.join(lines[what]) + '\n')
+        print('computer_dumps: %d calls in %s/%s_test.args' % (len(lines[what]), D, what))
 
 
 def spread(items, n):
@@ -270,7 +305,7 @@ def main():
     early = float(args[args.index('-early') + 1]) if '-early' in args else 150.0
     os.chdir(ROOT)
     os.makedirs(D, exist_ok=True)
-    if 'plan' in args:
+    if 'phases' in args:
         return plan_main(args, until)
     if 'stage2' not in args:
         for name, run_ in RUNS.items():

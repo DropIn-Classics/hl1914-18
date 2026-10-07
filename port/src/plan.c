@@ -1,7 +1,7 @@
 /* plan.c - what the computer's player of HL.EXE decides by: the phases
  * of computer_turn before the steps (port/src/computer.c), translated
  * over the program's memory.  So far computer_assess (S1CC6:0A35) and
- * what it calls.  src/HL.hints says what each state is for;
+ * computer_queue (S1CC6:0000) with what they call.  src/HL.hints says what each state is for;
  * port/README.md how this was compared with the original.
  */
 #include "hl.h"
@@ -407,5 +407,531 @@ uint16_t computer_assess(uint16_t side)
     }
 #undef PLAN
     pwb(phase, 5, (uint8_t)(pb(phase, 5) + 1));
+    return 0;
+}
+
+/* ---- computer_queue */
+
+/* rand_next (S2C9A:0008): the next number of the four words of
+ * rand_words; rand_range (S0CB6:0713): one from lo to hi of it */
+static int16_t rand_next(void)
+{
+    uint16_t w0 = NW(rand_words, 0), x = (uint16_t)(w0 ^ NW(rand_words, 2));
+    uint16_t w6 = NW(rand_words, 6);
+
+    SETW(rand_words, 4, w0);
+    SETW(rand_words, 6, (uint16_t)((w6 & 0x7FFF) | (x & 1) << 15));
+    SETW(rand_words, 0, (uint16_t)((w6 & 0x8000) | x >> 1));
+    SETW(rand_words, 2, w0);
+    return (int16_t)w0;
+}
+
+static int16_t rand_range(int16_t lo, int16_t hi)
+{
+    int16_t v = rand_next();
+
+    if (v < 0)
+        v = (int16_t)-v;
+    return (int16_t)(v % (int16_t)(hi - lo + 1) + lo);
+}
+
+/* the step computer_queue and its helpers fill before step_add (the
+ * bytes a kind of step does not use stay what they were) */
+static Far step_new(uint8_t kind)
+{
+    Far step = at(S_step_draft, A_step_draft);
+
+    pwb(step, 0, kind);
+    return step;
+}
+
+/* step_add (S1E4B:038F): the step's 7 bytes to the end of the side's
+ * list, and the list's end behind it; nothing with ten steps there */
+void step_add(uint16_t side, Far step)
+{
+    Far steps = at(S_computer_steps, (uint16_t)(A_computer_steps + side * 0x49));
+    uint8_t n = pb(steps, 0x46), next;
+
+    if (n >= 0x0A)
+        return;
+    if (!n) {
+        pwb(steps, 0x46, 1);
+        next = 1;
+    } else {
+        pwb(steps, 0x46, (uint8_t)(n + 1));
+        next = pb(steps, 0x46);
+    }
+    pwb(steps, (uint16_t)(n * 7), pb(step, 0));
+    pww(steps, (uint16_t)(n * 7 + 1), pw(step, 1));
+    pww(steps, (uint16_t)(n * 7 + 3), pw(step, 3));
+    pww(steps, (uint16_t)(n * 7 + 5), pw(step, 5));
+    pwb(steps, (uint16_t)(next * 7), 0xFF);
+}
+
+/* plan_units_out (S202F:04D9): every unit in the side's rows of a table
+ * of sites, without 24h in its word 6, gets the plan 5 (to leave) with
+ * the worth 7, in unit_plans */
+static void plan_units_out(Far table, uint16_t side, uint8_t count)
+{
+    uint8_t i, n;
+
+    for (i = 0; i < count; i++) {
+        uint16_t w19 = pw(table, (uint16_t)(i * SITE_SIZE + 0x19));
+
+        if (w19 & 0x8002 || !same_side(w19, side))
+            continue;
+        for (n = 0; n < 7; n++) {
+            uint8_t in = pb(table, (uint16_t)(i * SITE_SIZE + side * 7 + n));
+
+            if (in > 0xF0 || UW(in, 6) & 0x24)
+                continue;
+            SETB(unit_plans, in * PLAN_SIZE + 8, 5);
+            SETW(unit_plans, in * PLAN_SIZE + 4, 7);
+        }
+    }
+}
+
+/* plan_repairs (S202F:05CB): while the side has more than 0Eh points,
+ * every such unit whose unit_count is below its kind's byte 3 gets the
+ * plan 6 (a repair) with the worth 7, in unit_plans2 */
+static void plan_repairs(Far table, uint16_t side, uint8_t count)
+{
+    uint8_t i, n;
+
+    for (i = 0; i < count; i++) {
+        uint16_t w19 = pw(table, (uint16_t)(i * SITE_SIZE + 0x19));
+
+        if (w19 & 0x8002 || !same_side(w19, side) || (int16_t)NW(side_points, side * 2) <= 0x0E)
+            continue;
+        for (n = 0; n < 7; n++) {
+            uint8_t in = pb(table, (uint16_t)(i * SITE_SIZE + side * 7 + n));
+
+            if (in > 0xF0 || UW(in, 6) & 0x24 || UB(in, 2) >= KB(UB(in, 8), 3))
+                continue;
+            SETB(unit_plans2, in * PLAN_SIZE + 8, 6);
+            SETW(unit_plans2, in * PLAN_SIZE + 4, 7);
+        }
+    }
+}
+
+/* the first half of a unit of two parts for its second */
+static uint8_t unit_first(uint8_t unit)
+{
+    return (UW(unit, 4) & 0x40 && !(UW(unit, 4) & 0x80)) ? (uint8_t)(unit - 1) : unit;
+}
+
+static uint16_t bits_index(int16_t field)
+{
+    int16_t w = (int16_t)NW(map_width, 0), h = (int16_t)(field >> 1);
+
+    return (uint16_t)(h % w + ((h / w) << 6));
+}
+
+static uint8_t dir_wrap(uint8_t d)              /* S02E6:2802 */
+{
+    while (d > 5)
+        d = (uint8_t)(d - 6);
+    return d;
+}
+
+/* plan_approach (S202F:000A), the plan 7: the unit goes next to the unit
+ * its plan names (word 0), a part a call by byte 7 of computer_phase: 0
+ * waits while 80h is set in game_state's word 4, 1 move_range, 2 takes
+ * the first field around the target, in the order of approach_order from
+ * the way the target faces, that the unit can go to and that is free (not
+ * a ground with 4000h in its word 0 for a unit with 10h in unit_flags):
+ * a step of kind 1 there, and with a unit of another side around that
+ * field that the kind can attack (its word 6 and the unit's unit_flags
+ * share one of the bits 3Ch) the plan 2 against that field in unit_plans2,
+ * with the worth of that unit as a target; without such a field the plan
+ * becomes 1, to the target's field.  Returns 1 from the state 2. */
+static uint16_t plan_approach(uint8_t unit, uint16_t side)
+{
+    Far phase = phase_of(side), plan = plans_of(side), map = map_of(side);
+    Far buf = far_at(S_sides, (uint16_t)(A_sides + side * SIDE_SIZE + 0x0D));
+    uint8_t bit = side ? 2 : 1, i, dir, d = 0;
+    int16_t place;
+
+    unit = unit_first(unit);
+    plan.off = (uint16_t)(plan.off + unit * PLAN_SIZE);
+    switch (pb(phase, 7)) {
+    case 0:
+        if (!(NW(game_state, 4) & 0x80))
+            pwb(phase, 7, 1);
+        return 0;
+    case 1:
+        move_range((int16_t)(UW(unit, 0x0B + side * 2) - 1), buf, unit, UB(unit, 0), side,
+                   UW(unit, 4) & 1 ? 6 : 3, map);
+        pwb(phase, 7, 2);
+        return 0;
+    case 2:
+        break;
+    default:
+        return 0;
+    }
+    place = (int16_t)(NW(unit_pos, pw(plan, 0) * UNIT_SIZE + side * 2) - 1);
+    dir = frb(S_units, (uint16_t)(UNIT(pw(plan, 0), 0x0F) + side));
+    field_neighbours((uint16_t)place);
+    for (i = 0; i < 6; i++) {
+        int16_t f;
+        uint8_t ok;
+
+        d = dir_wrap((uint8_t)(dir + NB(approach_order, i)));
+        f = (int16_t)NW(neighbours, d * 2);
+        if (f == -1 || !(NB(field_bits, bits_index(f)) & bit))
+            continue;
+        ok = pb(map, (uint16_t)(f + 1)) > 0xF0;
+        if (UW(unit, 4) & 0x10 && NW(ww1gnds_dat, pb(map, (uint16_t)f) * 6) & 0x4000)
+            ok = 0;
+        if (ok)
+            break;
+    }
+    if (i < 6) {
+        Far step = step_new(1);
+
+        pwb(step, 1, unit);
+        pww(step, 3, NW(neighbours, d * 2));
+        step_add(side, step);
+        pwb(plan, 8, 0);
+        pww(plan, 4, 0xFFFF);
+        pww(plan, 2, 1);
+        field_neighbours(NW(neighbours, d * 2));
+        for (i = 0; i < 6; i++) {
+            uint16_t f, fl;
+            uint8_t on;
+
+            d = dir_wrap((uint8_t)(dir + NB(approach_order, i)));
+            f = NW(neighbours, d * 2);
+            if (f == 0xFFFF)
+                continue;
+            on = pb(map, (uint16_t)(f + 1));
+            if (on > 0xF0)
+                continue;
+            fl = UW(on, 4);
+            if (same_side(side, fl) || !(KW(UB(unit, 8), 6) & 0x3C & fl))
+                continue;
+            SETB(unit_plans2, unit * PLAN_SIZE + 8, 2);
+            SETW(unit_plans2, unit * PLAN_SIZE, f);
+            SETW(unit_plans2, unit * PLAN_SIZE + 4, pw(plans_of(side), (uint16_t)(on * PLAN_SIZE + 6)));
+        }
+    } else {
+        pwb(plan, 8, 1);
+        pww(plan, 0, (uint16_t)place);
+    }
+    field_bits_clear(bit);
+    pwb(phase, 7, 0);
+    return 1;
+}
+
+/* plan_move (S202F:071E), the plans that take a unit to a field (word 0
+ * of its plan), a part a call by byte 7 of computer_phase: 0 waits while
+ * 80h is set in game_state's word 4; 1, 2 and 3 unit_reaches with the
+ * modes 3, 2 and 0, the first that finds a way goes on to 4; 4 copies the
+ * way (from its end) to the side's buffer of aims and its length to
+ * way_len; 5 move_range (the mask FFFFh with 1 in the unit's word 6); 6
+ * move_targets_list; 7 takes the first field of the way, from its end,
+ * that is among those the unit can go to this round - other than the aim
+ * itself not a ground with 540h in its word 0 nor a field with a unit
+ * that has 1000h in unit_flags - and adds a step of kind 1 there.
+ * Returns 1 from the state 7, with or without a step. */
+static uint16_t plan_move(uint8_t unit, uint16_t side)
+{
+    Far phase = phase_of(side), plan = plans_of(side), map = map_of(side);
+    Far buf = far_at(S_sides, (uint16_t)(A_sides + side * SIDE_SIZE + 0x0D));
+    Far list = far_at(S_sides, (uint16_t)(A_sides + side * SIDE_SIZE + 9));
+    uint8_t bit = side ? 2 : 1, state;
+    int16_t n, i;
+
+    unit = unit_first(unit);
+    plan.off = (uint16_t)(plan.off + unit * PLAN_SIZE);
+    state = pb(phase, 7);
+    switch (state) {
+    case 0:
+        if (!(NW(game_state, 4) & 0x80))
+            pwb(phase, 7, 1);
+        return 0;
+    case 1:
+    case 2:
+        if (unit_reaches((int16_t)pw(plan, 0), unit, side, state == 1 ? 3 : 2))
+            pwb(phase, 7, 4);
+        else
+            pwb(phase, 7, (uint8_t)(state + 1));
+        return 0;
+    case 3:
+        unit_reaches((int16_t)pw(plan, 0), unit, side, 0);
+        break;
+    case 4:
+        SETW(way_len, 0, NW(path_len, 0));
+        for (n = 0; (int16_t)NW(path_len, 0) > n; n++)
+            pww(list, (uint16_t)(n * 2), pw(buf, (uint16_t)(0x1F40 + n * 2)));
+        break;
+    case 5:
+        move_range((int16_t)(UW(unit, 0x0B + side * 2) - 1), buf, unit, UB(unit, 0), side,
+                   UW(unit, 6) & 1 ? 0xFFFF : UW(unit, 4) & 1 ? 6 : 3, map);
+        break;
+    case 6:
+        move_targets_list(buf, side, unit);
+        field_bits_clear(bit);
+        break;
+    case 7:
+        pwb(phase, 7, 0);
+        for (n = 0; n < (int16_t)NW(way_len, 0); n++)
+            for (i = 0; (int16_t)NW(path_len, 0) > i; i++) {
+                uint16_t f = pw(buf, (uint16_t)(i * 2));
+                uint8_t ok = 1;
+
+                if (f != pw(list, (uint16_t)(n * 2)))
+                    continue;
+                if (pw(plan, 0) != f) {
+                    uint8_t on = pb(map, (uint16_t)(f + 1));
+
+                    if (NW(ww1gnds_dat, pb(map, f) * 6) & 0x540)
+                        ok = 0;
+                    if (on <= 0xF0 && UW(on, 4) & 0x1000)
+                        ok = 0;
+                }
+                if (ok) {
+                    Far step = step_new(1);
+
+                    pwb(step, 1, unit);
+                    pww(step, 3, f);
+                    step_add(side, step);
+                    pwb(phase, 7, 0);
+                    return 1;
+                }
+            }
+        return 1;
+    default:
+        return 0;
+    }
+    pwb(phase, 7, (uint8_t)(state + 1));
+    return 0;
+}
+
+/* a plan carried out or given up: no kind, no worth, done */
+static void plan_done(Far plan, int worth)
+{
+    pwb(plan, 8, 0);
+    if (worth)
+        pww(plan, 4, 0xFFFF);
+    pww(plan, 2, 1);
+}
+
+/* the plans 2 and 0Eh: a step of kind 2 against the unit on the plan's
+ * field, when there is one */
+static uint16_t queue_attack(uint16_t side, uint16_t u, Far plan)
+{
+    uint8_t on = pb(map_of(side), (uint16_t)(pw(plan, 0) + 1));
+    Far step;
+
+    plan_done(plan, 1);
+    if (UW(on, 4) & 0x8000 || on > 0xF0)
+        return 0;
+    step = step_new(2);
+    pwb(step, 1, (uint8_t)u);
+    pwb(step, 3, on);
+    step_add(side, step);
+    return 1;
+}
+
+/* computer_queue (S1CC6:0000), the phase 8 of computer_turn: makes the
+ * units' plans into steps, by byte 3 of the side's computer_phase.
+ * Returns 1 when steps were added that are to be carried out before it
+ * goes on, else 0:
+ * 0  the plans of the side's units become open (word 2 FFFFh);
+ * 1  the units in the side's sites get plans: to leave with 1 in the
+ *    side's attack_pick, else a repair where one is needed;
+ * 2  the next unit of the side with a plan, from word 9 on (none: 4);
+ * 3  its plan when that is 3 (a step of kind 1 to the plan's field), 4
+ *    (given up), 0Ch (plan_move) or 0Eh (an attack); back to 2, with the
+ *    next unit when it is another plan;
+ * 4  the open plan with the highest worth of the side's units without
+ *    8200h in unit_flags (none: 6);
+ * 5  that plan: 1 and 0Dh plan_move, 2 an attack, 5 a step of kind 4, 6
+ *    one of kind 6, 7 plan_approach, 9 to 0Bh plan_move with the plan
+ *    kept, any other given up; back to 4;
+ * 6  not with 1 in attack_pick: for every free place of the side's
+ *    records of sites_400, while the side has more than 3Dh points and
+ *    fewer than ten were chosen, build_list with what is above 3Dh and a
+ *    kind drawn from build_kinds that has 400h in word 2 of kind_worth
+ *    (a hundred tries): a step of kind 7, its price taken off the count;
+ * 7  a step of kind 3 (the round's end);
+ * 8  the phase becomes 20h (computer_assess) again. */
+uint16_t computer_queue(uint16_t side)
+{
+    Far phase = phase_of(side), plans = plans_of(side), plan, step;
+    uint16_t u;
+    uint8_t one = NB(views, side * VIEW_SIZE + 0x16) == 1;
+
+#define SITES(f, t, n) f(at(S_##t, A_##t), side, n)
+    switch (pb(phase, 3)) {
+    case 0:
+        for (u = 0; u <= 0xF0; u++)
+            if (!(UW(u, 4) & 0x8000) && same_side(UW(u, 4), side))
+                pww(plans, (uint16_t)(u * PLAN_SIZE + 2), 0xFFFF);
+        pwb(phase, 7, 0);
+        pww(phase, 9, 0);
+        break;
+    case 1:
+        if (one) {
+            SITES(plan_units_out, sites_100, 10);
+            SITES(plan_units_out, sites_400, 10);
+            SITES(plan_units_out, sites_40, 2);
+        } else {
+            SITES(plan_repairs, sites_100, 10);
+            SITES(plan_repairs, sites_400, 10);
+            SITES(plan_repairs, sites_40, 2);
+        }
+        break;
+    case 2:
+        for (u = pb(phase, 9); u <= 0xF0; u++)
+            if (!(UW(u, 4) & 0x8000) && same_side(UW(u, 4), side)
+                && pb(plans, (uint16_t)(u * PLAN_SIZE + 8))) {
+                pww(phase, 9, u);
+                break;
+            }
+        if (u > 0xF0) {
+            pwb(phase, 3, 4);
+            return 0;
+        }
+        break;
+    case 3:
+        u = pw(phase, 9);
+        plan = at(plans.seg, (uint16_t)(plans.off + u * PLAN_SIZE));
+        switch (pb(plan, 8)) {
+        case 3:
+            step = step_new(1);
+            pwb(step, 1, (uint8_t)u);
+            pww(step, 3, pw(plan, 0));
+            step_add(side, step);
+            plan_done(plan, 0);
+            pwb(phase, 3, 2);
+            return 1;
+        case 4:
+            plan_done(plan, 0);
+            pwb(phase, 3, 2);
+            return 0;
+        case 0x0C:
+            if (!plan_move((uint8_t)u, side))
+                return 0;
+            plan_done(plan, 1);
+            pwb(phase, 3, 2);
+            return 1;
+        case 0x0E:
+            pwb(phase, 3, 2);
+            return queue_attack(side, u, plan);
+        default:
+            pwb(phase, 3, 2);
+            pww(phase, 9, (uint16_t)(pw(phase, 9) + 1));
+            return 0;
+        }
+    case 4: {
+        int16_t best = -1;
+
+        pww(phase, 9, 0xFFFF);
+        for (u = 0; u <= 0xF0; u++) {
+            plan = at(plans.seg, (uint16_t)(plans.off + u * PLAN_SIZE));
+            if ((int16_t)pw(plan, 4) > best && !(UW(u, 4) & 0x8200) && same_side(UW(u, 4), side)
+                && pb(plan, 8) && (int16_t)pw(plan, 2) < 0) {
+                best = (int16_t)pw(plan, 4);
+                pww(phase, 9, u);
+            }
+        }
+        if ((int16_t)pw(phase, 9) < 0) {
+            pwb(phase, 3, 6);
+            return 0;
+        }
+        break;
+    }
+    case 5:
+        u = pw(phase, 9);
+        plan = at(plans.seg, (uint16_t)(plans.off + u * PLAN_SIZE));
+        switch (pb(plan, 8)) {
+        case 1:
+        case 0x0D:
+            if (!plan_move((uint8_t)u, side))
+                return 0;
+            plan_done(plan, 1);
+            pwb(phase, 3, 4);
+            return 1;
+        case 2:
+            pwb(phase, 3, 4);
+            return queue_attack(side, u, plan);
+        case 5:
+        case 6:
+            step = step_new(pb(plan, 8) == 5 ? 4 : 6);
+            pwb(step, 1, (uint8_t)u);
+            step_add(side, step);
+            plan_done(plan, 1);
+            pwb(phase, 3, 4);
+            return 1;
+        case 7:
+            if (!plan_approach((uint8_t)u, side))
+                return 0;
+            pwb(phase, 3, 4);
+            return 1;
+        case 9:
+        case 0x0A:
+        case 0x0B:
+            if (!plan_move((uint8_t)u, side))
+                return 0;
+            pww(plan, 2, 1);
+            pwb(phase, 3, 4);
+            return 1;
+        default:
+            plan_done(plan, 1);
+            pwb(phase, 3, 4);
+            return 0;
+        }
+    case 6: {
+        uint8_t chosen = 0, i, n, t;
+
+        if (one)
+            break;
+        for (i = 0; i < 10; i++) {
+            Far rec = at(S_sites_400, (uint16_t)(A_sites_400 + i * SITE_SIZE));
+            int16_t points = (int16_t)NW(side_points, side * 2);
+
+            if (pw(rec, 0x19) & 0x8002 || !same_side(pw(rec, 0x19), side) || points <= 0x3D)
+                continue;
+            for (n = 0; n < 7; n++) {
+                uint8_t kind = 0xFF;
+
+                if (pb(rec, (uint16_t)(side * 7 + n)) <= 0xF0)
+                    continue;
+                if ((int16_t)(points - 0x3D) <= 0)
+                    break;
+                build_list((uint16_t)(points - 0x3D), side);
+                if (!NB(build_count, 0) || chosen >= 0x0A)
+                    break;
+                for (t = 0; t < 0x64; t++) {
+                    kind = NB(build_kinds, rand_range(0, (int16_t)(NB(build_count, 0) - 1)));
+                    if (NW(kind_worth, kind * 6 + 2) & 0x400)
+                        break;
+                    kind = 0xFF;
+                }
+                if (kind == 0xFF)
+                    continue;
+                points = (int16_t)(points - KB(kind, 0x3F));
+                chosen++;
+                step = step_new(7);
+                pwb(step, 1, kind);
+                pwb(step, 3, i);
+                step_add(side, step);
+            }
+        }
+        break;
+    }
+    case 7:
+        step_add(side, step_new(3));
+        pwb(phase, 3, 8);
+        return 1;
+    default:
+        pww(phase, 0, (uint16_t)((pw(phase, 0) & 0xFFF7) | 0x20));
+        pwb(phase, 3, 0);
+        return 0;
+    }
+#undef SITES
+    pwb(phase, 3, (uint8_t)(pb(phase, 3) + 1));
     return 0;
 }

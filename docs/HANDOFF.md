@@ -1613,7 +1613,17 @@ emulation error (2026-10-02).
     (16h for side 0, 17h for side 1), then adds that byte of the side's
     record of `sites_40`. Translated (`port/src/orders.c`) and compared
     on four calls on map 8 (port/README.md); 24 and 57 a round there.
-    None of the four had a side holding a depot or a `sites_400` record.
+    On map 8 side 0 holds record 1 of `sites_400` from the start, and
+    its depot (record 1 of `sites_100`) has byte 16h 0.
+    Also on seven calls on map 0 (run s4), where side 0 takes record 0
+    of `sites_100` and its income goes from 5 to 20. In 81 dumps of maps
+    0 and 8 no unused record has byte 16h or 17h not 0
+    (`port/tests/sites_scan.py`), so the unused records of side 0 add
+    nothing there; other maps not looked at. Both sides' bytes 16h and
+    17h were equal in every record seen (why there are two was not
+    found). The dumps for this and the second side's arrivals are made
+    by `port/tests/sites_dumps.sh`; kind 1 of `move_arrive` still has no
+    known writer.
   - The computer's turn (2026-10-07, Mac; scratch scripts, logs and
     dumps in ignored `build/n4/`). `S1C74:000B` is `computer_turn(side)`;
     the names and what each routine does are in `src/HL.hints` (the block
@@ -1671,15 +1681,6 @@ emulation error (2026-10-02).
       `sides`, and could be next; `computer_assess`, `computer_plan` and
       `computer_queue` (`S1CC6`, `S202F`, `S2138`, some 9,000 lines of
       the generated source) are read only at their beginnings.
-    Also on seven calls on map 0 (run s4), where side 0 takes record 0
-    of `sites_100` and its income goes from 5 to 20. In 81 dumps of maps
-    0 and 8 no unused record has byte 16h or 17h not 0
-    (`port/tests/sites_scan.py`), so the unused records of side 0 add
-    nothing there; other maps not looked at. Both sides' bytes 16h and
-    17h were equal in every record seen (why there are two was not
-    found). The dumps for this and the second side's arrivals are made
-    by `port/tests/sites_dumps.sh`; kind 1 of `move_arrive` still has no
-    known writer.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

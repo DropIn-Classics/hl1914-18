@@ -433,11 +433,8 @@ anything the game needs before the first release.
   byte for byte); the calls are in `port/tests/income_test.args`.
   `port/tests/sites_scan.py` lists the records of the three tables in a
   dump: in 81 dumps of maps 0 and 8 no unused record (8000h in word 19h)
-  has byte 16h or 17h not 0.
-  Not covered:
-  a side owning a depot or a `sites_400` record at the time (the depot of
-  d5 is built after the last call dumped), and whether an unused record
-  (word 19h 8000h, side bits 0) ever has a byte 16h that is not 0.
+  has byte 16h or 17h not 0. Not covered: other maps, a depot or site
+  whose byte 16h is not 0 newly taken by the second side.
 - The computer's input (2026-10-07, Mac): `computer_input`
   (`S1E4B:0001`, `port/src/computer.c`), the last link of the computer's
   player: the next word of direction and button bits from the side's
@@ -450,9 +447,9 @@ anything the game needs before the first release.
   calls (24 of them with no script) and 24 of those that returned 0 and
   the calls behind them; single codes, the sequences 11h, 14h and 18h and
   a script's end are among them. 52 calls, 0 different.
-  
-  has byte 16h or 17h not 0. Not covered: other maps, a depot or site
-  whose byte 16h is not 0 newly taken by the second side.
+  Not covered: the codes 81h (12h) and 84h and the diagonals were not
+  seen in these calls. Nothing else of `computer_turn` is translated, so
+  the port's program does not play a side yet.
 - A side's part in a site, first steps (2026-10-07, Linux):
   `src/side.c` has `build_list` (`S131D:14D4`, which makes `build_kinds`
   and `build_count` anew from the side's points) and the repairing that

@@ -407,3 +407,16 @@ anything the game needs before the first release.
   Not covered: the branch for an aim's ground of A5h or above, a field
   at the map's edge (not tested by the original either), the second
   side's 11h, a ground without 8000h among the three.
+- A round's income (2026-10-07, Linux): `income_add` (`src/orders.c`,
+  `S131D:1745`) adds `side_income` (`S131D:1685`) to the side's word of
+  `side_points`: byte 16h plus the side of each of the ten records of
+  `sites_100` and of `sites_400` whose word 19h has the side in its two
+  low bits (used or not, the original tests nothing else), and that byte
+  of the side's record of `sites_40`. `sh port/tests/income_test.sh`
+  compares four calls dumped at entry and RETF (`S131D:178C`) on map 8
+  (`build/n2/income_test.args`, key scripts d4.2 and d5, `MAP8=1
+  build/n2/tools/dumps.py ... income N`): side 0 0 to 24 and 24 to 48,
+  side 1 0 to 57 and 57 to 114, the game's state the same. Not covered:
+  a side owning a depot or a `sites_400` record at the time (the depot of
+  d5 is built after the last call dumped), and whether an unused record
+  (word 19h 8000h, side bits 0) ever has a byte 16h that is not 0.

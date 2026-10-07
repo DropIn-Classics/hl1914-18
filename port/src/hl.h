@@ -126,6 +126,7 @@ void view_to_field(uint16_t side, uint16_t field);
 
 /* orders.c */
 int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result);
+void income_add(uint16_t side);
 
 /* names.c */
 Far file_name(uint16_t where, int16_t dir, Far name, int16_t ext);

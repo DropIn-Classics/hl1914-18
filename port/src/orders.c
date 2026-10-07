@@ -303,3 +303,27 @@ int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result)
     }
     return left;
 }
+
+/* S131D:1685 (side_income): byte 16h plus the side of every record of
+ * sites_100 and sites_400 whose word 19h has the side in its two low bits,
+ * ten each, used or not (the original has no other test), and that byte
+ * of the side's record of sites_40 */
+static uint16_t side_income(uint16_t side)
+{
+    uint16_t sum = 0, n;
+
+    for (n = 0; n < 10; n++)
+        if ((NW(sites_100, n * SITE_SIZE + 0x19) & 3) == side)
+            sum = (uint16_t)(sum + NB(sites_100, n * SITE_SIZE + 0x16 + side));
+    for (n = 0; n < 10; n++)
+        if ((NW(sites_400, n * SITE_SIZE + 0x19) & 3) == side)
+            sum = (uint16_t)(sum + NB(sites_400, n * SITE_SIZE + 0x16 + side));
+    return (uint16_t)(sum + NB(sites_40, side * SITE_SIZE + 0x16 + side));
+}
+
+/* S131D:1745 (income_add): side_income added to the side's word of
+ * side_points; game_loop calls it at a round's end after attacks_run */
+void income_add(uint16_t side)
+{
+    SETW(side_points, side * 2, NW(side_points, side * 2) + side_income(side));
+}

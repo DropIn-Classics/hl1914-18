@@ -15,3 +15,8 @@ done 3EA4:0F66 - ../build/n2/o/mds2c_5_move_done_in.ram ../build/n2/o/mds2c_5_mo
 done 3EA4:0F66 - ../build/n2/o/mdd5_40_move_done_in.ram ../build/n2/o/mdd5_40_move_done_out.ram
 done 3EA4:0F66 - ../build/n2/o/mdd5_88_move_done_in.ram ../build/n2/o/mdd5_88_move_done_out.ram
 done 3EA4:0F66 - ../build/n2/o/mdsite_101_move_done_in.ram ../build/n2/o/mdsite_101_move_done_out.ram
+aim 3EA4:0F68 0001 ../build/n2/o/mak4_move_aim_in.ram ../build/n2/o/mak4_move_aim_out.ram
+aim 3EA4:0F68 0001 ../build/n2/o/mad5_1_move_aim_in.ram ../build/n2/o/mad5_1_move_aim_out.ram
+aim 3EA4:0F68 0001 ../build/n2/o/mad5_30_move_aim_in.ram ../build/n2/o/mad5_30_move_aim_out.ram
+aim 3EA4:0F68 0001 ../build/n2/o/mad5_60_move_aim_in.ram ../build/n2/o/mad5_60_move_aim_out.ram
+aim 3EA4:0F68 0001 ../build/n2/o/mad5_73_move_aim_in.ram ../build/n2/o/mad5_73_move_aim_out.ram

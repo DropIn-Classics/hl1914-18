@@ -31,4 +31,9 @@ MAP8=1 d mdd5_40 m8_d5r.keys 405 move_done 40 &
 MAP8=1 d mdd5_88 m8_d5r.keys 405 move_done 88 &
 MAP8=1 d mdsite_101 m8_site.keys 405 move_done 101 &
 wait
+# move_aim (S10E1:02EB): the first side's in k4, calls 1, 30, 60 and 73 of
+# d5r (the first side's and the computer's)
+d mak4 m0_k4.keys 60 move_aim 1 &
+for n in 1 30 60 73; do MAP8=1 d mad5_$n m8_d5r.keys 300 move_aim $n & done
+wait
 

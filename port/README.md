@@ -587,4 +587,11 @@ anything the game needs before the first release.
   site or carrier). There the original writes F4h and the record's byte
   1Bh through the units' segment at the map's offset plus the unit's
   place, not into the map; the port does the same (not compared).
+- `move_aim` (2026-10-07, Linux; `src/move.c`, `S10E1:02EB`) with
+  `marks_erase` (`S0E56:1217`, of which only its `field_bits_clear` is
+  state): five calls (the first side's in k4 and d5r, the computer's in
+  d5r) the same in the game's state, all with a way found (result 1).
+  Not covered: the refusals (12h: a field not marked, the unit's own, a
+  ground closed to the unit, a text from `move_target`, no way, 48h).
+  With this all of `view_step`'s callees are in the port.
 

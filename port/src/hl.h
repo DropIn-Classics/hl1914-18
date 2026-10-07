@@ -84,6 +84,7 @@ uint16_t move_start(Far view, uint16_t side);
 void attack_unmark(Far view, uint16_t side);
 uint16_t attack_order(Far view, Far map, uint16_t side);
 void move_done(Far view, Far map, uint16_t side, uint16_t flags);
+uint16_t move_aim(Far view, Far map, uint16_t side);
 
 /* units.c */
 void unit_destroy(uint8_t unit, uint8_t put, uint8_t put2, int8_t slot, uint16_t side, Far map);

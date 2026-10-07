@@ -6,7 +6,7 @@
  * Each set is one call dumped by port/tests/dumps.py at the routine's
  * entry and its RETF: SS:SP at the entry (the arguments are read from the
  * stack there) and the original's result AX (from dumps.log).  ROUTINE is
- * start (move_start, S10E1:05D1), done (move_done, S10E1:000F, nothing
+ * aim (move_aim, S10E1:02EB), start (move_start, S10E1:05D1), done (move_done, S10E1:000F, nothing
  * returned), order (attack_order, S0AE0:0008) or unmark (attack_unmark, S0AE0:02E3,
  * which returns nothing: give - as AX).  Memory after the port's routine is
  * compared with the exit dump in the game's state (from segment S3306 up
@@ -61,7 +61,9 @@ int main(int argc, char **argv)
         memset(mem, 0, MEM_SIZE);
         if (!load(argv[i + 3], mem) || !load(argv[i + 4], leave))
             return 2;
-        if (!strcmp(r, "start"))
+        if (!strcmp(r, "aim"))
+            got = move_aim(FARG(0), FARG(2), ARG(4));
+        else if (!strcmp(r, "start"))
             got = move_start(FARG(0), ARG(2));
         else if (!strcmp(r, "order"))
             got = attack_order(FARG(0), FARG(2), ARG(4));

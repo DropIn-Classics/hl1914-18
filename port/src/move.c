@@ -644,3 +644,68 @@ void move_done(Far view, Far map, uint16_t side, uint16_t flags)
     pww(view, 0x0C, pw(view, 4));
     pww(view, 0x0E, pw(view, 6));
 }
+
+/* S0E56:1217 (marks_erase): the view's fields marked with `mask` drawn
+ * without the marks (left out), then the mask cleared in field_bits */
+static void marks_erase(uint8_t mask)
+{
+    field_bits_clear(mask);
+}
+
+/* S10E1:02EB (move_aim): the button on the cursor's field (the view's
+ * word 0) while the view's unit (word 1Eh) chooses where to move, on map
+ * `map`.  Refused (12h): a field not marked 1 or 2 for the side, the
+ * unit's own field, a ground with 4000h in its word 0 for a unit with 10h
+ * in unit_flags, one move_target gives a text for (shown; game_state's
+ * word 4 gets 8 or 10h), and one path_find finds no way to (text 48h, the
+ * marks 40h or 80h cleared).  Else the marks 1 (2) are cleared but for
+ * the way's fields (path_len of them at 1F40h of the side's work buffer),
+ * the field goes to the unit's word 11h and 1 is returned.  8 is added for
+ * a unit with 40h in unit_flags.  The unit is move_rec's walker either
+ * way.  The drawing is left out. */
+uint16_t move_aim(Far view, Far map, uint16_t side)
+{
+    uint8_t no = (uint8_t)pw(view, 0x1E), mark = side ? 2 : 1;
+    Far unit = unit_at(no);
+    uint16_t field = pw(view, 0), r = 1, pos = (uint16_t)(0x0B + side * 2);
+    int16_t p = (int16_t)field >> 1, w = (int16_t)NW(map_width, 0);
+    Far buf = far_at(S_sides, (uint16_t)(A_sides + side * 0x17 + 0x0D));
+
+    if (!(NB(field_bits, (p % w) + (p / w) * 0x40) & (side ? 0xAA : 0x55) & 3))
+        r = 0x12;
+    if (pw(unit, pos) == field + 1)
+        r = 0x12;
+    if ((pw(unit, 4) & 0x10)
+        && (frw(S_ww1gnds_dat, (uint16_t)(A_ww1gnds_dat + frb(map.seg, (uint16_t)(map.off + field)) * 6)) & 0x4000))
+        r = 0x12;
+    SETB(move_rec, MR_UNIT, no);
+    if (r & 1) {
+        uint16_t text = move_target(field, side, map);
+        if (text) {
+            show_message(text, side);
+            SETW(game_state, 4, NW(game_state, 4) | (side ? 0x10 : 8));
+            r = 0x12;
+        }
+    }
+    if (pw(unit, 4) & 0x40)
+        r |= 8;
+    if (!(r & 1))
+        return r;
+    if (path_find(buf, no, (int16_t)(pw(unit, pos) - 1), (int16_t)field, side, map)) {
+        field_bits_clear(side ? 0x80 : 0x40);
+        show_message(0x48, side);
+        SETW(game_state, 4, NW(game_state, 4) | (side ? 0x10 : 8));
+        return 0x12;
+    }
+    {
+        int16_t n = (int16_t)NW(path_len, 0);
+        marks_erase(mark);
+        field_bits_clear(mark);
+        while (n-- > 0) {
+            int16_t q = (int16_t)frw(buf.seg, (uint16_t)(buf.off + 0x1F40 + 2 * n)) >> 1;
+            SETB(field_bits, (q % w) + (q / w) * 0x40, NB(field_bits, (q % w) + (q / w) * 0x40) | mark);
+        }
+    }
+    pww(unit, 0x11, field);
+    return r;
+}

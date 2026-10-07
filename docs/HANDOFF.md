@@ -1821,8 +1821,10 @@ emulation error (2026-10-02).
     1Bh at S331F:(map offset + the unit's place), with ES still the units'
     segment where the map's was presumably meant (DX holds it unused);
     as the map's offset is 0Ah or 0Ch this lands inside S331F's first
-    bytes plus the place, not checked in a run. Next: `move_aim`, then
-    `field_menu` and `view_step`.
+    bytes plus the place, not checked in a run. `move_aim` is translated
+    and compared on five calls (all finding a way); `S0E56:1217` is
+    `marks_erase` (draws, then clears the mask). Next: `field_menu`, then
+    `view_step`.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

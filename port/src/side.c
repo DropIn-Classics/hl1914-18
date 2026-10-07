@@ -21,10 +21,7 @@ static void pww(Far p, uint16_t o, uint16_t v)
     fww(p.seg, (uint16_t)(p.off + o), v);
 }
 
-/* S331F:17AE: a far pointer to the map moves are made on (map_cur;
- * PENDING LEAD NAME, presumably the side's map of the half; not checked) */
-#define S_map_cur (HL_S331F + HL_BASE)
-#define A_map_cur 0x17AEu
+/* S331F:17AE map_cur, the map moves are made on: names.h */
 
 #define KIND(k, o) (A_unit_dat + (k) * KIND_SIZE + (o))
 

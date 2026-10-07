@@ -989,6 +989,19 @@ name S331F:17B2 map2_ptr
 name S331F:4C9E map_bytes
 name S331F:4CA0 map_width
 name S331F:4CA2 map_height
+; A far pointer to the map moves are made on, presumably the map of the
+; side whose half it is (map_ptr or map2_ptr); used by moving out (not
+; checked beyond that).
+name S331F:17AE map_cur
+; A word order 4 sets to 1, presumably read by the round's end that
+; follows (not checked).
+name S331F:4CAA site_taken
+; The count of the depots built: the next record of sites_100 a depot
+; gets (orders 0Bh and 0Dh stop at 0Ah).
+name S331F:4CAE depot_count
+; A byte set to 1 before the picture of a site taken (what reads it was
+; not looked at).
+name S3303:0021 take_picture
 
 ; map_load (read, not stepped in a run): loads the map file with
 ; file_load, takes width and height from bytes 1 and 3 of its header and

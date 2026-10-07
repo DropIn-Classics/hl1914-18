@@ -265,6 +265,7 @@
     X(S2C95, clock_seed, 0x000E) \
     X(S2C9E, ptr_norm, 0x0002) \
     X(S2CBE, mem_alloc, 0x000E) \
+    X(S3303, take_picture, 0x0021) \
     X(S3310, name_dirs, 0x0029) \
     X(S3310, name_exts, 0x0041) \
     X(S3310, name_prefix, 0x007D) \
@@ -276,6 +277,7 @@
     X(S331F, side_points, 0x02B5) \
     X(S331F, ww1gnds_dat, 0x05A3) \
     X(S331F, unit_dat, 0x09BD) \
+    X(S331F, map_cur, 0x17AE) \
     X(S331F, map2_ptr, 0x17B2) \
     X(S331F, map_ptr, 0x17B6) \
     X(S331F, build_count, 0x17BE) \
@@ -309,8 +311,10 @@
     X(S331F, map_width, 0x4CA0) \
     X(S331F, map_height, 0x4CA2) \
     X(S331F, game_state, 0x4CA4) \
+    X(S331F, site_taken, 0x4CAA) \
     X(S331F, unit_total, 0x4CAC) \
     X(S331F, site_totals, 0x4CAD) \
+    X(S331F, depot_count, 0x4CAE) \
     X(S331F, round_count, 0x4CB5) \
     X(S331F, map_number, 0x4CBB) \
     X(S331F, sides, 0x4D33) \

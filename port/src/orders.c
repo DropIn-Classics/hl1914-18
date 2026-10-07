@@ -11,15 +11,8 @@
 #define SITE_SIZE 0x1Cu     /* a record of `carriers` and the like */
 #define SIDE_SIZE 0x17u     /* a record of `sides` */
 
-/* addresses without a name in the hints yet (PENDING LEAD NAME; the names
- * are proposals): S331F:4CAA, a word order 4 sets to 1 (site_taken,
- * presumably read by the round's end that follows; not checked), and
- * S3303:0021, a byte set to 1 before the picture of a site taken
- * (take_picture; what reads it was not looked at) */
-#define S_site_taken (HL_S331F + HL_BASE)
-#define A_site_taken 0x4CAAu
-#define S_take_picture (HL_S3303 + HL_BASE)
-#define A_take_picture 0x0021u
+/* S331F:4CAA site_taken (a word order 4 sets to 1) and S3303:0021
+ * take_picture (set to 1 before the picture of a site taken): names.h */
 
 /* S331F:0049, 004D, 0051, 0055: the column and row steps (four signed
  * bytes each) from a field to the four fields of a depot, for an even and
@@ -33,10 +26,7 @@
  * other fields get (inside amok_dat, its bytes 18h and 1Dh) */
 #define A_prepared (0x4C92u - 0x4C7Au)
 #define A_depot (0x4C97u - 0x4C7Au)
-/* S331F:4CAE: the count of the depots built, the next record of
- * sites_100 (depot_count; PENDING LEAD NAME) */
-#define S_depot_count (HL_S331F + HL_BASE)
-#define A_depot_count 0x4CAEu
+/* S331F:4CAE depot_count, the next record of sites_100: names.h */
 
 static Far unit_at(uint8_t unit)
 {

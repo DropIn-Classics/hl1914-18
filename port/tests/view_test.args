@@ -7,3 +7,6 @@ start 3EA4:0F6C 0001 ../build/n2/o/msd5_63_move_start_in.ram ../build/n2/o/msd5_
 unmark 3EA4:0F6C - ../build/n2/o/au1_attack_unmark_in.ram ../build/n2/o/au1_attack_unmark_out.ram
 unmark 3EA4:0F6C - ../build/n2/o/au5_attack_unmark_in.ram ../build/n2/o/au5_attack_unmark_out.ram
 unmark 3EA4:0F6C - ../build/n2/o/au9_attack_unmark_in.ram ../build/n2/o/au9_attack_unmark_out.ram
+order 3EA4:0F68 0001 ../build/n2/o/ao1_attack_order_in.ram ../build/n2/o/ao1_attack_order_out.ram
+order 3EA4:0F68 0001 ../build/n2/o/ao5_attack_order_in.ram ../build/n2/o/ao5_attack_order_out.ram
+order 3EA4:0F68 0001 ../build/n2/o/ao9_attack_order_in.ram ../build/n2/o/ao9_attack_order_out.ram

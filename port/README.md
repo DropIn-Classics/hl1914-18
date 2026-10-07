@@ -569,4 +569,14 @@ anything the game needs before the first release.
   first side's and two of the computer's): the game's state the same;
   outside it eight bytes, the interrupt bytes and `DATA:0308`, `0B19`,
   as with the other routines that draw.
+- `attack_order` (2026-10-07, Linux; `src/move.c`, `S0AE0:0008`) and the
+  state part of `show_message` (`src/side.c`, `S10AF:000F`: 4 or 8 in
+  `game_state`'s word 0 for a text shown, which `timer_fire` takes away;
+  the drawing left out). Three calls of the run d5r (the first side's
+  and two of the computer's, all orders given): the game's state the
+  same, outside it the interrupt bytes and bytes around linear 2B0B0h
+  that `show_message`'s drawing presumably writes (not checked). Before
+  `show_message` was added the first call differed in `game_state`'s
+  word 0. Not covered: a field not marked (text 45h), the builder's
+  orders 0Bh, 0Dh and the depot limit (47h), order 11h.
 

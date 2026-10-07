@@ -1812,7 +1812,10 @@ emulation error (2026-10-02).
     (`S10E1:05D1`) is used by the computer as well (49 calls in the run
     s4, 63 in d5r up to 260 s). Translated and compared (port/README.md).
     `S0AE0:02E3` is `attack_unmark` (named, translated, compared on three
-    calls). Next: `move_aim`, `move_done`, `attack_order`, then
+    calls). `attack_order` is translated and compared on three calls;
+    `show_message` writes state too: 4 (8 for the second side) in
+    `game_state`'s word 0 for a text, cleared by `timer_fire` (so the
+    port has its state part). Next: `move_aim`, `move_done`, then
     `field_menu` and `view_step`.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,

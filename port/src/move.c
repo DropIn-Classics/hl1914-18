@@ -533,14 +533,14 @@ void attack_unmark(Far view, uint16_t side)
  * attacks a unit on the field (9, its byte 14h 2, onto the side's list of
  * movers; text 49h), with no unit there nothing (45h).  With an order the
  * unit is marked 200h (unit_mark) and gets the field in word 11h, and
- * game_state's word 4 gets 100h with site_taken 0.  game_state's word 4
- * always gets 8 (10h for the second side) after the text, which is not
- * shown here.  Returns 1 when an order was given. */
+ * game_state's word 4 gets 100h with site_taken 0.  After the text
+ * (show_message) game_state's word 4 always gets 8 (10h for the second
+ * side).  Returns 1 when an order was given. */
 uint16_t attack_order(Far view, Far map, uint16_t side)
 {
     uint8_t no = (uint8_t)pw(view, 0x1E), order = 0;
     Far unit = unit_at(no);
-    uint16_t field = pw(view, 0), given = 0, taken = 0xFF;
+    uint16_t field = pw(view, 0), given = 0, taken = 0xFF, text = 0x45;
     int16_t p = (int16_t)field >> 1, w = (int16_t)NW(map_width, 0);
     uint8_t bits;
 
@@ -557,8 +557,10 @@ uint16_t attack_order(Far view, Far map, uint16_t side)
         if (frb(map.seg, (uint16_t)(map.off + field)) == frb(S_amok_dat, A_amok_dat + 0x18)) {
             if (NB(depot_count, 0) < 0x0A)
                 order = 0x0D;
-            else
+            else {
                 order = 0;
+                text = 0x47;
+            }
         } else
             order = 0x0B;
     }
@@ -574,9 +576,11 @@ uint16_t attack_order(Far view, Far map, uint16_t side)
             fwb(S_sides, (uint16_t)(s + 0x15), (uint8_t)(frb(S_sides, (uint16_t)(s + 0x15)) + 1));
         } else
             pwb(unit, 0x13, order == 0x10 ? 0x11 : order);
+        text = order == 9 ? 0x49 : order == 0x10 ? 0x6E : 0x46;
         taken = 0;
         given = 1;
     }
+    show_message(text, side);
     SETW(game_state, 4, NW(game_state, 4) | (side ? 0x10 : 8));
     if (taken != 0xFF) {
         SETW(game_state, 4, NW(game_state, 4) | 0x100);

@@ -140,6 +140,13 @@ uint16_t computer_input(uint16_t side);
 uint16_t computer_step(uint16_t side, int *left);
 void move_targets_list(Far buf, uint16_t side, uint8_t unit);
 
+/* plan.c */
+uint16_t computer_assess(uint16_t side);
+void step_add(uint16_t side, Far step);
+uint16_t computer_queue(uint16_t side);
+uint16_t computer_plan(uint16_t side);
+void computer_turn(uint16_t side);
+
 /* side.c */
 void build_list(uint16_t points, uint16_t side);
 uint16_t repair(Far view, uint16_t side);

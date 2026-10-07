@@ -474,8 +474,95 @@ anything the game needs before the first release.
   in no site at `step_unit_out`'s state 0, `move_targets_list` with no
   field, a field off the map; of `computer_input` the codes 81h and 84h
   and the diagonals (81h is what `step_site_menu` would write).
-  `computer_assess`, `computer_plan` and `computer_queue` are not
-  translated, so the port's program does not play a side yet.
+  The planning phases are in the next three entries.
+- The computer's assessment (2026-10-07, Mac; `port/src/plan.c`):
+  `computer_assess` (`S1CC6:0A35`), the phase 20h of `computer_turn`,
+  with `unit_worth` (`S1FD8:00E8`), `unit_of_kind` (`S1FD8:02B2`),
+  `unit_reaches` (`S1FD8:0368`, which calls `path_find`), `sites_list`
+  (`S202F:0BA7`) and `plan_to_site` (`S202F:0EAA`). What its five states
+  do is in `src/HL.hints`. `port/tests/computer_dumps.py phases` plays the
+  same four battles, logs the routine's entry, its two exits and the
+  entries of its states (and five branches inside them) for 1500 s, and
+  dumps the first three calls of every set of places a run went through;
+  `port/tests/computer_test.sh` compares them as it does the steps (its
+  kinds `assess` and `assessend`, the side read from the frame as well).
+  75 calls, 0 different: 36 of side 0 and 39 of side 1, six of each of
+  the states 1 to 5 for each side and six and nine of state 0 (three of
+  them with a carrier among the side's units). 29 of the calls had bytes
+  only the original wrote outside the game's state (the same kind as
+  with the steps).
+  Not covered: in state 0 a unit with the plan 9 (the search with
+  `sites_list` and `unit_reaches`: neither ran) and a carrier that holds
+  a unit with 4 in its word 6 (`plan_to_site`: not run either); in state
+  1 a unit near the headquarters only on the map of code 25 (three
+  calls); in state 4 no unit was listed in any call (one byte changed),
+  so that loop and whether its first test passed were not seen. All
+  calls are from the first 835 s of four maps.
+- The computer's queue (2026-10-07, Mac; `port/src/plan.c`):
+  `computer_queue` (`S1CC6:0000`), the phase 8 of `computer_turn`, which
+  makes the units' plans into steps, with `step_add` (`S1E4B:038F`),
+  `plan_units_out` (`S202F:04D9`), `plan_repairs` (`S202F:05CB`),
+  `plan_move` (`S202F:071E`), `plan_approach` (`S202F:000A`) and
+  `rand_next` and `rand_range` (`S2C9A:0008`, `S0CB6:0713`); it calls
+  `build_list`, `unit_reaches`, `move_range` and `move_targets_list`.
+  Its nine states and the kinds of plan are in `src/HL.hints`.
+  `computer_dumps.py phases` logs its entry, where `computer_turn` gets
+  back to (the result is AX there), the entries of its three jump tables
+  and of `plan_move`'s, and dumps the first call of every set of places
+  a run went through and its sixth and eleventh when they are in the
+  first 400 s; `computer_test.sh` compares them (kinds `queue` and
+  `queueend`).
+  171 calls, 0 different, 83 of them of side 0: 5 of state 0, 5 of
+  state 1, 12 of state 2, 24 of state 3 (the plans 3, 4 and 0Eh, and
+  units with another plan), 12 of state 4, 97 of state 5 (`plan_move`
+  in each of its eight states, with and without a step at its end, its
+  state 3, the third try for a way, is rare: 20 calls in all the logs;
+  the plan 2;
+  the plan 5), 7 of state 6, 5 of state 7 and 4 of state 8. Five of
+  the calls of state 6 changed one byte (nothing to build); the two
+  that built (25 and 74 bytes, the kinds drawn by `rand_range`) were
+  picked by hand from the logs (the call of state 6 before the first
+  step of kind 7, at 617 s and 435 s on the maps of the codes 1 and
+  25) and dumped the same way; the script now logs two places inside
+  the building (`S1CC6:08AA`, `092A`) so that it finds such calls
+  itself, which was not run again. 66 calls had bytes only the
+  original wrote outside the game's state.
+  Not covered (no such call in 1500 s of the four battles): the plans 6
+  (a repair, the step of kind 6), 7 (`plan_approach`: translated, never
+  run against the original), 9, 0Ah, 0Bh and 0Dh, the plan 0Ch in state
+  3, a list of steps that is full.
+- The computer's plan (2026-10-07, Mac; `port/src/plan.c`):
+  `computer_plan` (`S2138:000C`), the phase 40h of `computer_turn`, which
+  gives the side's units their plans, with `plan_ride` (`S2407:0007`),
+  `unit_outmatched` (`S1FD8:0002`), `field_pinched` (`S202F:0C79`) and
+  `unit_chosen` (`S202F:0E3C`); it calls `unit_reaches`, `sites_list`,
+  `move_range`, `move_targets_list` and `attack_range`. Its thirteen
+  states and their steps are in `src/HL.hints`. `computer_dumps.py
+  phases` logs its entry, where `computer_turn` gets back to and the
+  entries of eight of its jump tables (the state and the step inside
+  it), and dumps the first call of every state and step a run went
+  through and its sixth when that is in the first 150 s;
+  `computer_test.sh` compares them (kinds `plan` and `planend`).
+  283 calls, 0 different, 148 of them of side 0: 4 of state 0, 8 of
+  state 1, 37 of state 3, 28 of state 5, 20 of state 7, 4 of state 8,
+  30 of state 9, 84 of state 0Ah (every one of its steps 0 to 0Ah), 64
+  of state 0Bh and 4 of state 0Ch. 103 calls had bytes only the
+  original wrote outside the game's state.
+  Not covered (no such call in 1500 s of the four battles): the states
+  2, 4 (an aim of kind 2) and 6 (an aim of kind 4); `plan_ride` was not
+  logged by its own states: by byte 8 of `computer_phase` at the entry,
+  ten of the calls went into it, six in its state 0 and four in its
+  state 5; its states 1 to 4 and 6 were in no dump. Most calls are from
+  the first
+  150 s of a battle, where few units have plans yet.
+  `computer_turn` (`S1C74:000B`) itself is translated too, a few lines
+  that call the five routines by the phase word; it was not compared
+  (no call of it was dumped), and the port's program does not call it
+  yet: `game_loop`'s loop is not translated.
+  `port/tests/computer_test.sh` now links `side.c` and what that needs:
+  `move.c` calls `show_message` and `view_copy` since the last merge, so
+  the script did not link on `master` (nor does
+  `port/tests/move_test.sh` there; left as it is).
 - A side's part in a site, first steps (2026-10-07, Linux):
   `src/side.c` has `build_list` (`S131D:14D4`, which makes `build_kinds`
   and `build_count` anew from the side's points) and the repairing that

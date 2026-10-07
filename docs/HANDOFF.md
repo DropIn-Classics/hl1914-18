@@ -1737,10 +1737,115 @@ emulation error (2026-10-02).
         handler (their addresses from the jump tables in the player's
         `HL.EXE`) and dumps three calls of each state, from four
         battles (the codes 0, 24 and, for the kinds 4 and 7, 1 and 25).
-    - Still to do there: `computer_assess`, `computer_plan` and
-      `computer_queue` (`S1CC6`, `S202F`, `S2138`, some 9,000 lines of
-      the generated source), read only at their beginnings;
-      `computer_turn` itself is a few lines once its phases are there.
+    - `computer_assess` read in full and translated (2026-10-07, Mac,
+      branch `mac/computer-assess`; `port/src/plan.c`, compared on 75
+      calls, port/README.md). What it is: the round's bookkeeping before
+      the planning. Its five states (byte 5 of `computer_phase`): the
+      two sides weighed against each other by `unit_worth` (word 9 of
+      `computer_phase` 1, 2 or 3, presumably how careful to be) and the
+      side's plans emptied; every unit of the other side given its
+      worth as a target (word 6 of its record in `unit_plans`); then
+      the side's list of aims (6
+      bytes an entry behind the far pointer at byte 9 of the side's
+      record of `sides`, counted in byte 6 of `computer_phase`): the
+      other side's headquarters and every site that is not the side's
+      (kind 1), the fields around the own headquarters (kind 3) and
+      units with 4 in word 6 and 2 in `unit_flags` (kind 4).
+      - The plans: `unit_plans` (`S39B6:09AB`) and `unit_plans2`
+        (`S39B6:0132`), 9 bytes a unit; a side uses the second with 2
+        in its `attack_pick`, the first otherwise. So `attack_pick` (1
+        or 2) tells the two halves of a round apart for a side, and
+        each half has its own table of plans; code of one half writes
+        the other half's table directly in places (what a unit is to do
+        in the half that follows).
+      - `kind_worth` (`S39B6:0000`), 6 bytes a kind of unit: byte 0 its
+        worth as a target, word 2 the bits the computer picks kinds by.
+        Its bytes come from the computer's file of the map, presumably
+        (`computer_reset`; not checked here).
+      - Slips of the original kept as they are: the fields around a
+        unit near the headquarters are taken of the halved map offset
+        (state 1), and `plan_to_site` takes its distance of map offsets
+        not halved.
+      - Not seen in a run: a unit with the plan 9 or a carrier with a
+        unit to bring back in state 0, a unit listed in state 4.
+    - `computer_queue` read in full and translated (2026-10-07, Mac;
+      `port/src/plan.c`, port/README.md for what was compared). It
+      serves the units' plans (byte 8 of a unit's record in
+      `unit_plans`: the kinds are listed in `src/HL.hints`) in two
+      passes: first in the order of the units those that are 3, 4, 0Ch
+      or 0Eh (what `computer_plan`'s attacks and `plan_ride` wrote),
+      then the rest by their worth, highest first. A plan becomes one
+      step (`step_add`), and the routine returns 1 so that the step is
+      carried out before the next plan is looked at; then building,
+      then the step that ends the round.
+      - The two halves of a round: with 1 in the side's `attack_pick`
+        the units in the side's sites get the plan to leave
+        (`plan_units_out`) and nothing is built; else those that are
+        not whole get the plan of a repair (`plan_repairs`) and state
+        6 builds.
+      - What the lead asked about. `S1CC6:07B7` is the default of state
+        5's table: a plan of a kind that has no step there (3, 4, 8,
+        0Ch) is given up. The call of `build_list` with the points less
+        3Dh is not there but in state 6 (`S1CC6:07FC`, the building):
+        the computer keeps 3Dh points back, takes a kind at random
+        among those `build_list` offers that have 400h in word 2 of
+        `kind_worth`, and queues a step of kind 7. The `step_add` at
+        `S1CC6:0567` queues a step of kind 6 for the plan 6, which only
+        `plan_repairs` writes: so the step of kind 6 (`step_site_menu`,
+        the code 81h, button and down) is the computer's repair. It did
+        not come up in any run: `plan_repairs` needs a unit below its
+        full count inside a site of the side in the half with 2 in
+        `attack_pick` and more than 0Eh points (not looked at which of
+        these fails; presumably the units do not get into the sites
+        while damaged, since the plans 9 never came up either).
+      - A move does not go to the plan's field at once: `plan_move`
+        finds the whole way (`unit_reaches`, three tries with fewer
+        fields closed each time), then what the unit can reach this
+        round (`move_range`, `move_targets_list`), and queues a move to
+        the reachable field that is furthest along the way.
+      - Random numbers: `rand_next` (`S2C9A:0008`) on the four words at
+        `DATA:0AF1` that `clock_seed` sets, through `rand_range`
+        (`S0CB6:0713`). The building is the first place found that
+        draws from it (the fights have their own, `rand_seed`).
+    - `computer_plan` read in full and translated (2026-10-07, Mac;
+      `port/src/plan.c`, port/README.md for what was compared), and
+      `computer_turn` with it (not compared). The whole chain from the
+      assessment to the input word is in the port now. What the plan
+      is, in the order of its states (byte 4 of `computer_phase`; the
+      details in `src/HL.hints`):
+      - Nothing is planned in the half of a round with 2 in the side's
+        `attack_pick`: that half's table (`unit_plans2`) was filled
+        while planning the other.
+      - The aims of `computer_assess`, kind by kind and the worthiest
+        first: a site to take gets the unit with the shortest way among
+        those whose kind has 1 in word 2 of `kind_worth`; a field at
+        the headquarters gets a unit with 40h there; a unit to go with
+        (an aim the first adds for kinds with 20h) gets followers; a
+        unit to fetch gets a carrier (`plan_ride`).
+      - Units that are not whole go to a site of the side (the plan 1,
+        or a carrier by `plan_ride`).
+      - Units that fire from afar (2 in `kind_worth`) stay and get the
+        attack on the worthiest unit in reach for the other half.
+      - The attacks: target after target by its worth
+        (`computer_assess`'s word 6), up to four units are put on
+        fields around it, opposite one another where that can be, and
+        attack it in the other half.
+      - Whoever has no plan then goes towards the worthiest target it
+        can attack, else to where the nearest unit with a plan goes,
+        else home by carrier.
+      - The bits of word 2 of `kind_worth` as the planning uses them: 1
+        takes sites, 2 fires from afar, 1Ch matched against bits of
+        the `unit_flags` of a unit to go with, 20h wants company, 40h
+        holds a field, 380h a carrier (never planned as a fighter),
+        400h is built by the computer. Names for them are guesses.
+      - Not seen in a run: the aims of kind 2 and 4 (so no unit with
+        20h in `kind_worth` took a site, and no unit was listed to
+        fetch), and with them the plans 7 and 0Ah.
+      - Left open: `computer_turn` and `plan_approach` were never run
+        against the original; the dumps of `computer_plan` are early
+        ones (150 s), so the attacks with several units around a target
+        late in a battle are thinly covered; `game_loop`'s loop, which
+        would call `computer_turn`, is not translated.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

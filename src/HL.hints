@@ -1711,11 +1711,315 @@ name S39B6:1315 computer_out
 ; computer_queue goes by byte 3 of computer_phase through nine states
 ; (table at S1CC6:0A23) and adds the steps with step_add; its first state
 ; sets word 2 to FFFFh in the record of each unit of the side in the table
-; of 9-byte records (S39B6:0132 or 09AB by attack_pick). Only the
-; beginnings of the three were read; what they decide by is not known yet.
+; of 9-byte records (S39B6:0132 or 09AB by attack_pick). All three are
+; described below.
 name S1CC6:0A35 computer_assess
 name S2138:000C computer_plan
 name S1CC6:0000 computer_queue
+; ---- computer_assess, read in full (2026-10-07, Mac). It goes by byte 5
+; of the side's computer_phase through five states, one a call, and
+; returns 1 from the sixth (byte 5 back to 0):
+; 0: byte 7 of computer_phase 0; with 2 in the side's attack_pick nothing
+;    more (on to state 5). Else every unit without 8002h in unit_flags is
+;    weighed by unit_worth, the three words summed up for the side's own
+;    units and for the others; word 9 of computer_phase becomes 3 when
+;    twice the own sum is not above the others', 2 when the own sum is
+;    below it, else 1 (presumably how careful the side is to be). An own
+;    unit's plan is emptied (word 0 0, word 4 FFFFh, byte 8 0, and the same
+;    three in unit_plans2 whichever table is the side's), but not with 0Bh
+;    in its byte 8, not with 9 there while unit_reaches finds a way to one
+;    of the fields of sites_list (the side's sites, with 0Fh points or
+;    more), and a unit with 1000h in unit_flags (a carrier) that holds a
+;    unit with 4 in its word 6 gets plan_to_site instead. Another side's
+;    unit gets FFFFh in the words 2 and 6 of its plan.
+; 1: every unit of the other side (not the second half of a unit of two
+;    parts) gets its worth for the side added to word 6 of its plan: byte
+;    0 of the kind's kind_worth, 32h with C0h in the kind's word 6, 19h
+;    for each of the kind's bytes 0Ah, 0Bh and 0Ch that is 0 (not with 20h
+;    in its word 11h), the kind_worth of what is in its carrier (read from
+;    the assessing side's row of the carrier, as the code has it), and
+;    0Ah for each step its unit_exp is below 6. A kind with 1 in word 2 of
+;    kind_worth that is nearer to the side's headquarters than its kind's
+;    byte 0 (a unit with 4000h in unit_flags: that of the kind of its
+;    carrier's unit) adds 12Ch, 2 to word 9 of computer_phase, and 12Ch to
+;    the plans of the other side's units around it. (The neighbours are
+;    taken of the halved map offset there, as the code has it; presumably
+;    a slip of the original.)
+; 2: with a unit of the side whose kind has 1 in word 2 of kind_worth, the
+;    side's list of aims gets the other side's headquarters (worth
+;    ten times byte 18h of its sites_40 record) and every record of
+;    sites_400 and sites_100 that is in use and not the side's (worth 6Eh
+;    times its byte 18h, 14h for each unit in the side's row, and for
+;    sites_400 14h for every ten of its byte 16h or 17h), each of kind 1.
+; 3: with such a unit on the other side, as many fields around the side's
+;    own headquarters as word 9 of computer_phase says (at most 6; 1 with
+;    less than ten units in byte 2 of the side's record), in the order of
+;    guard_order, worth 78h plus 1Eh for each still to come, kind 3.
+; 4: with a unit of the side whose kind has 280h in word 2 of kind_worth,
+;    every unit with 4 in its word 6 and 2 in unit_flags, worth C8h, kind
+;    4 (word 2 of the entry is the unit's number there, not a field).
+; What the kinds 1, 3 and 4 of an aim lead to is computer_plan's (not read
+; yet); "to take", "to guard" and "to fetch" are guesses from what is
+; listed. The states were compared with the original (port/README.md).
+; The list of a side's aims: the far pointer at byte 9 of its record of
+; sides, entries of 6 bytes (word 0 the worth, word 2 a field's map offset
+; or a unit, bytes 4 and 5 the kind, both the same as computer_assess
+; writes them), their number in byte 6 of computer_phase. No bound is
+; tested. The same buffer holds sites_list's words while state 0 runs.
+; unit_worth(unit, far pointer to three words): each word is a byte of the
+; unit's kind (0Bh, 0Ch, 0Ah in this order) times half the unit's count
+; plus 1 (byte 2 of the unit, byte 3 with 4 in the kind's word 0Fh) times
+; unit_exp plus 1 times an eighth of the kind's byte 2, the product
+; divided by 20h. Read; translated and compared within computer_assess.
+name S1FD8:00E8 unit_worth
+; Where computer_assess has unit_worth put its three words.
+name S331F:17F5 unit_worth_out
+; unit_of_kind(mask, side): the first unit of the side (same_side with its
+; unit_flags, 8000h clear) whose kind has a bit of the mask in word 2 of
+; kind_worth; FFh for none. Read.
+name S1FD8:02B2 unit_of_kind
+; unit_reaches(field, unit, side, mode): 1 when path_find gives a way for
+; the unit from its place to the field, else 0. Before that every field
+; whose ground the kind can enter (byte 2 of the ground's record and byte
+; 5 of the kind share a bit) is marked for the side in field_bits (1, the
+; second side 2), but not a field with another side's unit when mode has
+; 1, nor with an own unit other than the unit itself when mode has 2;
+; the marks are cleared again. Read; compared within computer_assess.
+name S1FD8:0368 unit_reaches
+; sites_list(table, side, count): while the side has more than 0Eh in
+; side_points, word 0Eh (the field) of every record of the table that is
+; the side's and has not 8002h in word 19h is added as a word to the
+; buffer behind the far pointer at byte 9 of the side's record of sides,
+; counted in path_len. 0Fh is what a repair costs, so presumably the
+; places a unit can be repaired at. Read.
+name S202F:0BA7 sites_list
+; plan_to_site(side, unit): the unit's plan becomes kind 0Ah with the
+; worth 190h and as its field that of the nearest record of sites_400 of
+; the side that unit_reaches (mode 1) finds a way to, the side's
+; headquarters without one. The distance is taken of the map offsets not
+; halved, as the code has it. Read; no call of it was compared.
+name S202F:0EAA plan_to_site
+; The units' plans: a record of 9 bytes for each unit, word 0 a field (or
+; what the kind of plan needs), word 2 FFFFh until computer_queue has made
+; the plan's steps and 1 after, word 4 the plan's worth (computer_queue
+; takes the highest first), word 6 for another side's unit what it is
+; worth as a target (computer_assess), byte 8 the kind of plan, 0 for
+; none. A side uses unit_plans2 with 2 in its attack_pick, else
+; unit_plans; some places write unit_plans2 whatever the side's table is.
+name S39B6:09AB unit_plans
+name S39B6:0132 unit_plans2
+; A record of 6 bytes for each kind of unit: byte 0 (signed) what a unit
+; of the kind is worth as a target, word 2 bits the computer chooses kinds
+; by (1, 280h and 400h are tested; what they stand for is not known:
+; presumably 1 a kind that can take a site, 400h one the computer builds).
+; Bytes 1, 4 and 5 not read.
+name S39B6:0000 kind_worth
+; Six bytes: the order in which the fields around the headquarters are
+; listed by computer_assess's state 3, as indices into neighbours.
+name S3AE7:000E guard_order
+; ---- computer_queue, read in full (2026-10-07, Mac): it makes the units'
+; plans into steps, by byte 3 of the side's computer_phase, and returns 1
+; when it has added steps that are to be carried out before it goes on
+; (computer_turn then runs the list and calls it again in the same state).
+; 0: word 2 of the plans of the side's units FFFFh (open), byte 7 and
+;    word 9 of computer_phase 0.
+; 1: the units in the side's sites get plans: with 1 in the side's
+;    attack_pick plan_units_out, else plan_repairs (sites_100, sites_400,
+;    sites_40).
+; 2: the next unit of the side with a plan, from word 9 of computer_phase
+;    on; none: on to 4.
+; 3: that unit's plan when it is 3 (a step of kind 1 to the plan's field),
+;    4 (nothing; the plan is given up), 0Ch (plan_move) or 0Eh (a step of
+;    kind 2 against the unit on the plan's field); back to 2, with the
+;    next unit when the plan is another.
+; 4: the open plan with the highest word 4 among the side's units without
+;    8200h in unit_flags; none: on to 6.
+; 5: that plan: 1 and 0Dh plan_move; 2 a step of kind 2; 5 a step of kind
+;    4 (the unit leaves its site); 6 a step of kind 6 (the call of
+;    step_add at S1CC6:0567: a repair, see step_site_menu); 7
+;    plan_approach; 9, 0Ah and 0Bh plan_move with the plan kept (only word
+;    2 becomes 1); any other kind (3, 4, 8, 0Ch: the default at
+;    S1CC6:07B7) is given up. Back to 4.
+; 6 (S1CC6:07FC): building, not with 1 in attack_pick: for every free
+;    place of the side's records of sites_400, while the side has more
+;    than 3Dh in side_points and fewer than ten kinds were chosen,
+;    build_list with the points above 3Dh and a kind drawn from
+;    build_kinds by rand_range (up to a hundred tries) that has 400h in
+;    word 2 of kind_worth: a step of kind 7, the kind's price (byte 3Fh)
+;    taken off the count the state keeps. (The list of steps holds ten,
+;    so later ones are dropped by step_add.)
+; 7: a step of kind 3 (the round's end).
+; 8: the phase becomes 20h (computer_assess) again, byte 3 0.
+; The kinds of plan as computer_queue serves them: 1 and 0Dh to a field, as
+; far as this round goes; 2 and 0Eh attack the unit on a field; 3 a move
+; of one round to a field; 4 stay; 5 leave the site; 6 be repaired; 7 go
+; next to a unit and attack what is there; 9, 0Ah, 0Bh to a field over
+; several rounds; 0Ch a move served before the others (who writes which is
+; computer_plan's). Translated; compared for the states and plans
+; port/README.md names.
+; plan_units_out(table, side, count): every unit in the side's row of the
+; side's records of the table, without 24h in its word 6, gets the plan 5
+; with the worth 7, in unit_plans. Read.
+name S202F:04D9 plan_units_out
+; plan_repairs(table, side, count): the same for the units whose
+; unit_count is below byte 3 of their kind, while the side has more than
+; 0Eh in side_points: the plan 6 with the worth 7, in unit_plans2. Read.
+name S202F:05CB plan_repairs
+; plan_move(unit, side): a part a call by byte 7 of computer_phase,
+; returns 1 when it is through. 0 waits while 80h is set in game_state's
+; word 4; 1, 2, 3 unit_reaches to the plan's field with the modes 3, 2 and
+; 0 (the first with a way goes on to 4); 4 copies the way to the side's
+; buffer of aims and its length to way_len; 5 move_range; 6
+; move_targets_list; 7 a step of kind 1 to the first field of the way,
+; from its end, that the unit can go to this round (other than the plan's
+; field itself not a ground with 540h in its word 0 nor a field with a
+; unit that has 1000h in unit_flags); no step without one. The second
+; half of a unit of two parts stands for the first. Read.
+name S202F:071E plan_move
+; plan_approach(unit, side): the plan 7, whose word 0 is a unit: 0 waits
+; as plan_move; 1 move_range; 2 the first free field around that unit, in
+; the order of approach_order from the byte at 0Fh of the unit's record
+; (the second side's at 10h; presumably the way it faces), that the unit
+; can go to: a step of kind 1 there, the plan done, and for a unit of
+; another side around that field that the kind can attack the plan 2
+; against it in unit_plans2; without such a field the plan becomes 1 to
+; the unit's field. Returns 1 from that state. Read; not compared (no
+; call was dumped).
+name S202F:000A plan_approach
+; Six bytes added to a direction by plan_approach.
+name S3AEA:000C approach_order
+; The length of the way plan_move keeps between its states 4 and 7.
+name S3AEA:0012 way_len
+; Seven bytes: the step computer_queue and its helpers fill and hand to
+; step_add. Only the bytes a kind needs are written, the others stay.
+name S39B6:1264 step_draft
+; rand_next(): the next number of the four words at rand_words (the word
+; 0 as it was is returned; word 0 becomes itself xor word 2, shifted
+; right with the top bit of word 6 coming in and its low bit going there;
+; word 2 the old word 0). rand_range(lo, hi): its absolute value modulo
+; the size of the range, plus lo. Read; compared within computer_queue's
+; state 6. clock_seed sets rand_words.
+name S2C9A:0008 rand_next
+name DATA:0AF1 rand_words
+name S0CB6:0713 rand_range
+; ---- computer_plan, read in full (2026-10-07, Mac): it gives the side's
+; units their plans, a part a call, by byte 4 of computer_phase (the
+; state) and byte 7 (the step inside a state); returns 1 from state 0Ch.
+; 0: with 2 in the side's attack_pick straight to 0Ch (nothing is planned
+;    in that half; its table was filled in the other). Else plan_aim_kind 1.
+; 1: the aim worth most among those of the kind plan_aim_kind (byte 5 of
+;    the entry) becomes plan_aim and its kind chooses the state (1: 3, 2:
+;    4, 3: 5, 4: 6; another: 2, which only strikes it out); without one
+;    the next kind; after kind 5, or with no aims, on to 7. A state that
+;    has served an aim sets byte 5 of its entry to 0 and comes back here.
+; 3, an aim of kind 1 (a site to take): for every unit of the side whose
+;    kind has 1 in word 2 of kind_worth, without C040h in unit_flags and
+;    with a plan worth less than the aim, the length of its way there
+;    (unit_reaches; 3E8h without one) into word 2 of its plan; the one
+;    with the shortest way whose plan is also worth less than the aim's
+;    worth less that length gets the plan 1 to the aim's field, worth
+;    that difference. A kind with 20h in word 2 of kind_worth adds an aim
+;    of kind 2 for the unit, worth ten less.
+; 4, an aim of kind 2 (a unit to go with): as many units as byte 4 of
+;    that unit's kind_worth says, each the one nearest to it by its way
+;    among the side's units whose kind_worth word 2 shares one of the bits
+;    1Ch with that unit's unit_flags, get the plan 7 (plan_approach) for
+;    it, worth the aim's worth, which goes down by a third each time.
+; 5, an aim of kind 3 (a field to hold): a unit of the side that stands on
+;    it, with 40h in word 2 of its kind_worth and a plan worth less, gets
+;    the plan 4 (stay); else the unit with 40h there that has the shortest
+;    way gets the plan 1 to the field.
+; 6, an aim of kind 4 (a unit, word 2 of the entry): plan_ride for it with
+;    the kind 0Ah.
+; 7, repairs: every unit of the side without C048h in unit_flags whose
+;    unit_count is below byte 3 of its kind: the last field sites_list
+;    gives (only that one is tried), worth 0Fh, or 46h plus ten times
+;    unit_exp for a unit with a count below 5 and unit_exp above 1; with
+;    a way of at most the kind's byte 0 fields (unit_reaches, mode 1) the
+;    worth is doubled and the unit gets the plan 1 there when that beats
+;    its plan; further off, or without a way, plan_ride with the kind 9
+;    (not for a kind with 380h in word 2 of kind_worth).
+; 8: word 2 of the plan of every unit of the other side becomes what can
+;    attack it: 1 with C0h in its kind's word 6, 2, 4 and 8 for a 0 in
+;    the kind's bytes 0Ah, 0Ch and 0Bh.
+; 9, the units that fire from afar (2 in word 2 of kind_worth, not C200h
+;    in unit_flags): attack_range with the kind's bytes 9 and 8 (above 1)
+;    marks what they reach (4, the second side 8, in field_bits); with a
+;    field marked the unit gets the plan 4 (stay), worth 64h, and in
+;    unit_plans2 the plan 0Eh against the marked field whose unit has the
+;    highest word 6 (the byte on a field without a unit indexes the plans
+;    all the same, as the code has it).
+; 0Ah, the attacks: again and again the unit of the other side with the
+;    highest word 6 whose word 2 is not negative (plan_target). Every unit
+;    of the side that is not unit_outmatched, has a plan worth less than
+;    that, stands nearer than half its kind's byte 0, can attack it (the
+;    kind's word 6 and the target's unit_flags share one of 3Ch) and has
+;    not 40h in the kind's word 6 is listed, after move_range, for each of
+;    the six fields around the target it stands on or could go to (free,
+;    not field_pinched, not a ground with 540h, not the aim of any plan):
+;    six lists of up to 14h units in the buffer of aims, their lengths at
+;    78h there. Then up to four of the fields are given a unit (state
+;    words, fields and units at 0, 14h and 28h of the side's work buffer;
+;    plan_count counts): first units whose unit_flags fit the target's
+;    word 2, then one opposite a field taken, a pair on opposite fields,
+;    one between two taken, any. A unit chosen gets the plan 3 to its
+;    field (4 when it stands there), worth the target's word 6, and in
+;    unit_plans2 the plan 2 against the target's field. The target's word
+;    2 becomes FFFFh and the next is looked for.
+; 0Bh, the units still without a plan (not C000h in unit_flags, not 20h
+;    in word 6, not 380h in kind_worth): word 2 of every other unit's plan
+;    becomes its distance (for the side's own units that of their plan's
+;    field); the unit of the other side with the highest word 6 that the
+;    kind can attack and that has a way to it gives the plan 1 to its
+;    field, worth 0Ah; else the nearest unit of the side with a plan worth
+;    more than 0Ah (not the plans 6, 8, 0Ch) gives the plan 1 to that
+;    plan's field; else plan_ride with the kind 0Bh, worth 46h, to the
+;    side's headquarters.
+; 0Ch: bytes 4 and 6 of computer_phase 0 (the aims are used up).
+; The aims' kinds, then: 1 a site to take, 2 a unit to go with, 3 a field
+; to hold, 4 a unit to fetch. Translated; compared for the states and
+; steps port/README.md names.
+; The variables computer_plan keeps between calls: the target of state
+; 0Ah, the unit at hand, the kind of aim at hand, the aim at hand, how
+; many of sites_list's fields are left, the worth and the field state 7
+; hands to plan_ride, the count of fields of state 0Ah, and the other
+; unit of state 0Bh.
+name S3AEB:0004 plan_target
+name S3AEB:0005 plan_unit
+name S3AEB:0006 plan_aim_kind
+name S3AEB:0008 plan_aim
+name S3AEB:000A plan_sites_left
+name S3AEB:000C plan_worth
+name S3AEB:000E plan_field
+name S3AEB:0010 plan_count
+name S3AEB:0012 plan_other
+; plan_ride(side, unit, worth, kind, field): a carrier for the unit, a
+; part a call by byte 8 of computer_phase, returns 1 when through. 0: a
+; unit with 4 in its word 6 goes on at 5; 1 move_range and 2
+; move_targets_list for the unit; 3 a field among those with a unit whose
+; plan is `kind` already: the unit gets the plan 0Ch there and that unit's
+; plan is worth `worth` more; 4 one with a unit without a plan: the same,
+; and that unit gets the plan `kind` to `field`; 5 the next carrier of the
+; side from ride_carrier on (1000h in unit_flags, 380h in word 2 of its
+; kind_worth, a plan worth less and not 9, 0Ah, 0Bh or 0Dh, its record of
+; carriers sharing one of the bits FC0h in word 19h with the unit's word
+; 6); 6 with a way to the unit it gets the plan 0Dh to the unit's field,
+; else the next carrier is tried. The kinds: 9 to a site for repair, 0Ah
+; to fetch the aim's unit, 0Bh home. Read.
+name S2407:0007 plan_ride
+name S3AEC:0004 ride_carrier
+; unit_outmatched(unit, other): FFFFh when the unit's count (byte 2, byte
+; 3 with 4 in its kind's word 0Fh) is more than two below the other's and
+; its unit_exp below 3, else 0. Read.
+name S1FD8:0002 unit_outmatched
+; field_pinched(field, side): 1 for a field with more than three units of
+; the other side around it or with two of them on opposite sides;
+; neighbours is kept. Read.
+name S202F:0C79 field_pinched
+; unit_chosen(unit, side): 1 when the unit is among the six bytes at 28h
+; of the side's work buffer (the units computer_plan's state 0Ah has
+; chosen for the fields around its target). Read.
+name S202F:0E3C unit_chosen
 ; computer_step(side): carries on the step byte 46h of computer_steps
 ; names, by its kind through the table at S1E4B:0381, with the map offset
 ; of the side's cursor (word 0 of its view): 1 step_move (bytes 1 and 3, a
@@ -1780,10 +2084,11 @@ name S1E4B:038F step_add
 ; (port/README.md).
 ; step_site_menu(side, cursor, unit, steps), kind 6: as step_unit_out up
 ; to the unit's row in its holder (the pointer at S3AE8:0023), then the
-; code 81h (button and down) and the code 83h, done with that call. What
-; that gesture does to the unit was not seen: no step of this kind came up
-; in 1500 s on 16 maps (computer_queue has one place that adds it, at the
-; call of step_add at S1CC6:0567; its condition was not read). Read and
+; code 81h (button and down) and the code 83h, done with that call. Button
+; and down in a site's list is the repair (game_loop's state 2), and
+; computer_queue adds this step for the plan 6, which plan_repairs gives a
+; unit below its full count in a site: so this is the computer's repair.
+; No step of this kind came up in 1500 s on 16 maps. Read and
 ; translated, not compared.
 ; step_build(side, cursor, kind, site, steps), kind 7: cursor_script to
 ; the field of the record `site` of sites_400 (pointer at S3AE8:0027), the

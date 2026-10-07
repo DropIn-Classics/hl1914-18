@@ -107,10 +107,12 @@ int start_setup(void)
  * human) or for one (400h in game_state, and one side the computer's: the
  * second below map 18h, else the first); in word 2 of game_state 1 for
  * one side of the computer and 2 for none; FFh in byte 16h of both sides'
- * records.  With the 1 game_loop sets in game_state before the menu
- * (S066A:0349).  The file is loaded to the block's free part only to be
- * read here (the menu has it elsewhere).  Returns 0, or 2 when the file
- * cannot be loaded. */
+ * records; from byte 8 of the map's record FFh at S37FF:012F when its
+ * bit of value 2 is set, else 0 (the menu's store at S167A:25C1; the
+ * grounds' and the pictures' files are chosen by it, W or S).  With the 1
+ * game_loop sets in game_state before the menu (S066A:0349).  The file is
+ * loaded to the block's free part only to be read here (the menu has it
+ * elsewhere).  Returns 0, or 2 when the file cannot be loaded. */
 int menu_result(uint16_t map)
 {
     Far name, codes;
@@ -129,6 +131,7 @@ int menu_result(uint16_t map)
     SETW(game_state, 2, (NW(game_state, 2) & 0xFFF0) | (two ? 2 : 1));
     SETB(sides, 0x16, 0xFF);
     SETB(sides, 0x17 + 0x16, 0xFF);
+    fwb(S_OPT, 0x012F, pb(codes, (uint16_t)(map * 10 + 8)) & 2 ? 0xFF : 0);
     return 0;
 }
 

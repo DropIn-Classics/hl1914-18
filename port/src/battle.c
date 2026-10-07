@@ -319,7 +319,7 @@ static void view_cursor(uint16_t side)
 }
 
 /* view_to_field (S0E56:177C) */
-static void view_to_field(uint16_t side, uint16_t field)
+void view_to_field(uint16_t side, uint16_t field)
 {
     uint16_t v = (uint16_t)(A_views + side * VIEW_SIZE);
     int16_t w = (int16_t)NW(map_width, 0), f = (int16_t)((int16_t)field >> 1);

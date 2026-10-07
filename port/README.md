@@ -334,3 +334,44 @@ anything the game needs before the first release.
   and `unit_mark` only setting 200h, both inside `move_step`.
   `order_undo` is not translated; the logs show no call of it nor of
   `row_move` in the six runs.
+- The arrivals (2026-10-07, Linux): `move_test` takes `arrive` for calls
+  of `move_arrive` (dumps at `S10E1:0AF0` and at its RETF `S10E1:0F70`),
+  and `move_test.sh` reads every `build/n2/move_test*.args`. Three calls
+  from runs where the first side is played by a key script (map 0, the
+  German side; `build/n2/move_test_sides.args`, dumps under `build/n2/o/`,
+  local): a unit into a site of its side (kind 5), into a carrier (kind
+  2) and onto a site of nobody (kind 4). Result 38h and the game's state
+  the same in all three; elsewhere only the stack and, in the kind 4
+  call, five bytes outside the state (`DATA:0D5F` to `0D62` and one at
+  linear 3187Eh, presumably interrupts as in the other tests; not
+  checked). Not covered: kind 1, a two-part unit, a carrier that moves
+  in with units (`row_move`), the second side.
+- `file_load` clears `DATA:0B17` (2026-10-07, Linux): each try of the
+  original writes 0 there before it opens the file (`S2C45:0016`); the
+  port now does so too. `load_test` on three calls of `file_load` from a
+  run on map 0 (`build/n2/load_test_n2.args`: `MNUCHR18.LIB`,
+  `LIB\partS.DAT`, `MAP\00.SHP`): the same. In this run its low byte (the
+  only one watched) was 0 before each of the last 32 of its 46 writes
+  (those the runner lists), so the dumps do
+  not tell the change apart; which routine sets it otherwise was not looked
+  at.
+- The orders at a round's end (2026-10-07, Linux): `sh
+  port/tests/orders_test.sh` runs `orders_run` (`src/orders.c`,
+  `attacks_run` from `S02E6:0E9C` to `19B8`) on dumps at the loop's first
+  entry and at `19B8`, the side that moved and its map read from
+  `attacks_run`'s frame, the other side from DI. Three passes from the
+  key-script runs (`build/n2/orders_test.args`): with a unit of order 5
+  (not a carrier) and with one of order 2 the original changes no byte of
+  the game's state and neither does the port; with order 4 (unit 06 onto
+  `sites_100` 0, map 0) the port's 24 changed bytes are the original's
+  (word 19h of the site 0012h to 0010h, byte 18h 28h to 05h, side 0's row
+  copied from side 1's and the unit in its first free place, 1, the unit
+  4204h at the site's field). 14 bytes only the original writes: three in
+  the libraries' records (`S331F:0167` to `016A`) and eleven below
+  `S331F` (linear 3391Dh to 33927h), presumably the libraries loaded
+  again and the music, which the port leaves out (not checked one by
+  one). 3 passes, 0 different.
+  Not covered: order 5 of a carrier with goods (the stock and the freeing),
+  a site of the other side, `sites_40` and `sites_400`, the second side's
+  orders; the orders 1, 0Bh, 0Dh and 11h are not translated (`orders_run`
+  counts them and the test fails a pass that has one).

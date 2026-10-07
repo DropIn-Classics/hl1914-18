@@ -90,11 +90,15 @@ Far file_load(Far to, Far name, Far work)
 {
     Far none = { 0, 0 }, at;
     size_t size, in = 0;
-    uint8_t *file = host_load(name, &size);
+    uint8_t *file;
     uint32_t out, left, end;
     uint16_t pos, i;
     unsigned ctl = 0, bits = 0;
 
+    /* each try of the original clears DATA:0B17 before it opens the file
+     * (S2C45:0016) */
+    fww(HL_DATA + HL_BASE, 0x0B17, 0);
+    file = host_load(name, &size);
     if (!file)
         return none;
     for (i = 0; i < 8 && i < size; i++)

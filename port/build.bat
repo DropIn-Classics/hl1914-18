@@ -31,7 +31,7 @@ if not defined PORT_VERSION for /f "usebackq delims=" %%v in (`git describe --ta
 if defined PORT_VERSION set CFLAGS=%CFLAGS% /DPORT_VERSION=\"%PORT_VERSION%\"
 rem where a release looks for newer ones (the workflow sets it; update.h)
 if defined PORT_UPDATE_URL set CFLAGS=%CFLAGS% /DPORT_UPDATE_URL=\"%PORT_UPDATE_URL%\"
-set GAME=src\main.c src\fight.c src\range.c src\move.c src\units.c src\map.c src\files.c src\names.c src\mem.c src\battle.c
+set GAME=src\main.c src\fight.c src\range.c src\move.c src\orders.c src\units.c src\map.c src\files.c src\names.c src\mem.c src\battle.c
 set RUNTIME=%RT%\sys.c %RT%\cdimage.c %RT%\inno.c %RT%\textmode.c %RT%\pad.c %RT%\sha256.c %RT%\rmem.c %RT%\vga.c %RT%\frame.c %RT%\modplay.c %RT%\audiofx.c %RT%\fli.c %RT%\shot.c %RT%\update.c %RT%\launcher.c
 
 cl %CFLAGS% /Fobuild\obj\ /Fe:build\history-line.exe %GAME% %RUNTIME% %RT%\plat_win32.c user32.lib gdi32.lib winmm.lib advapi32.lib shell32.lib winhttp.lib /link /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup

@@ -1575,6 +1575,15 @@ emulation error (2026-10-02).
     (16h for side 0, 17h for side 1), then adds that byte of the side's
     record of `sites_40`. Translated (`port/src/orders.c`) and compared
     on four calls on map 8 (port/README.md); 24 and 57 a round there.
+    Also on seven calls on map 0 (run s4), where side 0 takes record 0
+    of `sites_100` and its income goes from 5 to 20. In 81 dumps of maps
+    0 and 8 no unused record has byte 16h or 17h not 0
+    (`port/tests/sites_scan.py`), so the unused records of side 0 add
+    nothing there; other maps not looked at. Both sides' bytes 16h and
+    17h were equal in every record seen (why there are two was not
+    found). The dumps for this and the second side's arrivals are made
+    by `port/tests/sites_dumps.sh`; kind 1 of `move_arrive` still has no
+    known writer.
   - Next there: `S0CB6:05F1`, `S0E56:1A97` and `1B57`, and
     `S1C74:000B`, the computer's turn; a scripted run of the first side
     that moves into a site and a carrier and takes a site, to compare

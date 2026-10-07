@@ -346,6 +346,11 @@ anything the game needs before the first release.
   linear 3187Eh, presumably interrupts as in the other tests; not
   checked). Not covered: kind 1, a two-part unit, a carrier that moves
   in with units (`row_move`), the second side.
+- The second side's arrivals (2026-10-07, Linux): four calls of
+  `move_arrive` from the map-0 run s4 (`port/tests/move_test_side1.args`,
+  side 1, kind 3, made by `port/tests/sites_dumps.sh`): result 38h, the
+  game's state the same; elsewhere the five bytes noted above. Kind 1
+  still has no known writer and was not compared.
 - `file_load` clears `DATA:0B17` (2026-10-07, Linux): each try of the
   original writes 0 there before it opens the file (`S2C45:0016`); the
   port now does so too. `load_test` on three calls of `file_load` from a
@@ -416,7 +421,17 @@ anything the game needs before the first release.
   compares four calls dumped at entry and RETF (`S131D:178C`) on map 8
   (`build/n2/income_test.args`, key scripts d4.2 and d5, `MAP8=1
   build/n2/tools/dumps.py ... income N`): side 0 0 to 24 and 24 to 48,
-  side 1 0 to 57 and 57 to 114, the game's state the same. Not covered:
-  a side owning a depot or a `sites_400` record at the time (the depot of
-  d5 is built after the last call dumped), and whether an unused record
-  (word 19h 8000h, side bits 0) ever has a byte 16h that is not 0.
+  side 1 0 to 57 and 57 to 114, the game's state the same. Seven more
+  calls from the map-0 run s4 (`port/tests/keys/m0_s4.keys`): side 0 5 a
+  round until it takes record 0 of `sites_100` (word 19h 12h to 10h,
+  byte 16h 0Fh), then 20 (15 to 35); side 1 5, then 20 with record 1 of
+  `sites_100`; all the same. On map 8 side 0 holds record 1 of
+  `sites_400` (0Eh) from the start, and its depot (record 1 of
+  `sites_100`) has byte 16h 0, so it adds nothing. The dumps are made
+  again by `sh port/tests/sites_dumps.sh` (`port/tests/dumps.py`, the
+  key scripts in `port/tests/keys/`; the remade s4i1 dump was the same
+  byte for byte); the calls are in `port/tests/income_test.args`.
+  `port/tests/sites_scan.py` lists the records of the three tables in a
+  dump: in 81 dumps of maps 0 and 8 no unused record (8000h in word 19h)
+  has byte 16h or 17h not 0. Not covered: other maps, a depot or site
+  whose byte 16h is not 0 newly taken by the second side.

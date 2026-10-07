@@ -1783,6 +1783,10 @@ emulation error (2026-10-02).
     looked at, so a script's cursor is checked by dumping the view's
     word 0. The button with right on a plain field shows the field's
     information (state 3).
+  - Moving out of a carrier: none of the computer's moves out in the
+    map-8 and map-0 runs left a carrier (`S066A:2FA7`, the step back
+    for 20h in the record's word 19h, never hit); the run `m0_s2c.keys`
+    does it for the first side (port/README.md), the same as the port.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

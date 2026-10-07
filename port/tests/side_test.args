@@ -11,3 +11,4 @@ out 3EA4:0FEA 1 ../build/n2/o/m8o2_move_out_in.ram ../build/n2/o/m8o2_move_out_o
 out 3EA4:0FEA 1 ../build/n2/o/m8o20_move_out_in.ram ../build/n2/o/m8o20_move_out_out.ram
 out 3EA4:0FEA 0 ../build/n2/o/m8o41_move_out_in.ram ../build/n2/o/m8o41_move_out_out.ram
 repair 3EA4:0FEA 0 ../build/n2/o/m8r2_repair_in.ram ../build/n2/o/m8r2_repair_out.ram
+out 3EA4:0FEA 0 ../build/n2/o/c2o1_move_out_in.ram ../build/n2/o/c2o1_move_out_out.ram

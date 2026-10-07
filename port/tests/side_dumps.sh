@@ -6,6 +6,7 @@
 # arguments below).  Each dump is two runs of the original; existing dumps
 # are kept.
 set -e
+C2='d52 E55 f60 f65 E72 f80 f85 u98 s99 o104'
 M8='e45 g55 s64 l67 d69 E70 f95 f100 f105 f110 E116 f150 f155 f160 f165 f170 u182 L183 s185 s189 s192 l195 d197 E198 f205 f210 f215 f220 f225 f230 f235 E245 f250 f255 f260 f265 f270 f275 f280 f285 f290 f295 f300 u312 L313 s315 R320 r322 l325 d327 E328 f335 f340 f345 f350 f355 f360 f365 f370 f375 u388 L389 s391 R396 o398'
 D5R='R245 u246 m248 d251 L252 a254 a256 u258 u259 E261 f270 f275 f280 f285 f290 f295 f300 f305 f310 f315 f320 d333 s335 r339'
 cd "$(dirname "$0")"
@@ -35,3 +36,9 @@ wait
 MAP8=1 d m8r2 m8_d5r.keys 343 repair 1 &
 MAP8=1 d m8a63 m8_d5r.keys 260 move_arrive 63 &
 wait
+# map 0: m0_s2c.keys, m0_s2.keys (a unit into a carrier) and the steps of
+# C2: the unit moved out of the carrier in the next move half
+{ cat keys/m0_s2.keys; python3 keys/make_m8.py $C2; } | sort -n | cmp -s - keys/m0_s2c.keys \
+    || { echo "keys/m0_s2c.keys is not m0_s2.keys with the steps of C2" >&2; exit 1; }
+d c2o1 m0_s2c.keys 108 move_out 1
+

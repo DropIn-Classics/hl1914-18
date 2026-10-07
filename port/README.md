@@ -537,4 +537,12 @@ anything the game needs before the first release.
   of the run; `port/tests/move_test_m8.args`) is the same as well.
   Not covered: a repair of a unit with lost count (no unit without
   4000h in a site was damaged in the runs).
+- Moving out of a carrier (2026-10-07, Linux): the map-0 run `m0_s2c.keys`
+  (`m0_s2.keys`, whose unit moves into a carrier, and the steps of `C2`
+  in `port/tests/side_dumps.sh`) ends both halves of the first round and
+  in the second move half enters the carrier and moves the unit out
+  (the record's word 19h has 20h, so the field is one less; the branch
+  at `S066A:2FA7` was hit): `side_test` (`out`) the same in the game's
+  state; outside it the same kinds of bytes as for the moves out of a
+  site (interrupts, `DATA:0308` to `0410`, `0B19`), no byte of a map.
 

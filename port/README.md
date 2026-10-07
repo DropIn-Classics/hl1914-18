@@ -474,8 +474,7 @@ anything the game needs before the first release.
   in no site at `step_unit_out`'s state 0, `move_targets_list` with no
   field, a field off the map; of `computer_input` the codes 81h and 84h
   and the diagonals (81h is what `step_site_menu` would write).
-  `computer_plan` is not translated, so the port's program does not play
-  a side yet.
+  The planning phases are in the next three entries.
 - The computer's assessment (2026-10-07, Mac; `port/src/plan.c`):
   `computer_assess` (`S1CC6:0A35`), the phase 20h of `computer_turn`,
   with `unit_worth` (`S1FD8:00E8`), `unit_of_kind` (`S1FD8:02B2`),
@@ -532,6 +531,34 @@ anything the game needs before the first release.
   (a repair, the step of kind 6), 7 (`plan_approach`: translated, never
   run against the original), 9, 0Ah, 0Bh and 0Dh, the plan 0Ch in state
   3, a list of steps that is full.
+- The computer's plan (2026-10-07, Mac; `port/src/plan.c`):
+  `computer_plan` (`S2138:000C`), the phase 40h of `computer_turn`, which
+  gives the side's units their plans, with `plan_ride` (`S2407:0007`),
+  `unit_outmatched` (`S1FD8:0002`), `field_pinched` (`S202F:0C79`) and
+  `unit_chosen` (`S202F:0E3C`); it calls `unit_reaches`, `sites_list`,
+  `move_range`, `move_targets_list` and `attack_range`. Its thirteen
+  states and their steps are in `src/HL.hints`. `computer_dumps.py
+  phases` logs its entry, where `computer_turn` gets back to and the
+  entries of eight of its jump tables (the state and the step inside
+  it), and dumps the first call of every state and step a run went
+  through and its sixth when that is in the first 150 s;
+  `computer_test.sh` compares them (kinds `plan` and `planend`).
+  283 calls, 0 different, 148 of them of side 0: 4 of state 0, 8 of
+  state 1, 37 of state 3, 28 of state 5, 20 of state 7, 4 of state 8,
+  30 of state 9, 84 of state 0Ah (every one of its steps 0 to 0Ah), 64
+  of state 0Bh and 4 of state 0Ch. 103 calls had bytes only the
+  original wrote outside the game's state.
+  Not covered (no such call in 1500 s of the four battles): the states
+  2, 4 (an aim of kind 2) and 6 (an aim of kind 4); `plan_ride` was not
+  logged by its own states: by byte 8 of `computer_phase` at the entry,
+  ten of the calls went into it, six in its state 0 and four in its
+  state 5; its states 1 to 4 and 6 were in no dump. Most calls are from
+  the first
+  150 s of a battle, where few units have plans yet.
+  `computer_turn` (`S1C74:000B`) itself is translated too, a few lines
+  that call the five routines by the phase word; it was not compared
+  (no call of it was dumped), and the port's program does not call it
+  yet: `game_loop`'s loop is not translated.
   `port/tests/computer_test.sh` now links `side.c` and what that needs:
   `move.c` calls `show_message` and `view_copy` since the last merge, so
   the script did not link on `master` (nor does

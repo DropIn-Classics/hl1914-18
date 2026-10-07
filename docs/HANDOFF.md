@@ -1807,9 +1807,45 @@ emulation error (2026-10-02).
         `DATA:0AF1` that `clock_seed` sets, through `rand_range`
         (`S0CB6:0713`). The building is the first place found that
         draws from it (the fights have their own, `rand_seed`).
-    - Still to do there: `computer_plan` (`S2138`, 4,500 lines of the
-      generated source);
-      `computer_turn` itself is a few lines once its phases are there.
+    - `computer_plan` read in full and translated (2026-10-07, Mac;
+      `port/src/plan.c`, port/README.md for what was compared), and
+      `computer_turn` with it (not compared). The whole chain from the
+      assessment to the input word is in the port now. What the plan
+      is, in the order of its states (byte 4 of `computer_phase`; the
+      details in `src/HL.hints`):
+      - Nothing is planned in the half of a round with 2 in the side's
+        `attack_pick`: that half's table (`unit_plans2`) was filled
+        while planning the other.
+      - The aims of `computer_assess`, kind by kind and the worthiest
+        first: a site to take gets the unit with the shortest way among
+        those whose kind has 1 in word 2 of `kind_worth`; a field at
+        the headquarters gets a unit with 40h there; a unit to go with
+        (an aim the first adds for kinds with 20h) gets followers; a
+        unit to fetch gets a carrier (`plan_ride`).
+      - Units that are not whole go to a site of the side (the plan 1,
+        or a carrier by `plan_ride`).
+      - Units that fire from afar (2 in `kind_worth`) stay and get the
+        attack on the worthiest unit in reach for the other half.
+      - The attacks: target after target by its worth
+        (`computer_assess`'s word 6), up to four units are put on
+        fields around it, opposite one another where that can be, and
+        attack it in the other half.
+      - Whoever has no plan then goes towards the worthiest target it
+        can attack, else to where the nearest unit with a plan goes,
+        else home by carrier.
+      - The bits of word 2 of `kind_worth` as the planning uses them: 1
+        takes sites, 2 fires from afar, 1Ch matched against bits of
+        the `unit_flags` of a unit to go with, 20h wants company, 40h
+        holds a field, 380h a carrier (never planned as a fighter),
+        400h is built by the computer. Names for them are guesses.
+      - Not seen in a run: the aims of kind 2 and 4 (so no unit with
+        20h in `kind_worth` took a site, and no unit was listed to
+        fetch), and with them the plans 7 and 0Ah.
+      - Left open: `computer_turn` and `plan_approach` were never run
+        against the original; the dumps of `computer_plan` are early
+        ones (150 s), so the attacks with several units around a target
+        late in a battle are thinly covered; `game_loop`'s loop, which
+        would call `computer_turn`, is not translated.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

@@ -1,7 +1,8 @@
 /* plan.c - what the computer's player of HL.EXE decides by: the phases
  * of computer_turn before the steps (port/src/computer.c), translated
- * over the program's memory.  So far computer_assess (S1CC6:0A35) and
- * computer_queue (S1CC6:0000) with what they call.  src/HL.hints says what each state is for;
+ * over the program's memory: computer_assess (S1CC6:0A35), computer_plan
+ * (S2138:000C) and computer_queue (S1CC6:0000) with what they call, and
+ * computer_turn itself.  src/HL.hints says what each state is for;
  * port/README.md how this was compared with the original.
  */
 #include "hl.h"
@@ -934,4 +935,981 @@ uint16_t computer_queue(uint16_t side)
 #undef SITES
     pwb(phase, 3, (uint8_t)(pb(phase, 3) + 1));
     return 0;
+}
+
+/* ---- computer_plan */
+
+#define KWORTH(u) NW(kind_worth, UB(u, 8) * 6 + 2)
+#define HALF2(fl) ((fl) & 0x40 && !((fl) & 0x80))   /* the second half of a unit of two */
+#define POS(u) ((int16_t)(NW(unit_pos, (u) * UNIT_SIZE + side * 2) - 1))
+#define P_W(u, o) pw(plans, (uint16_t)((u) * PLAN_SIZE + (o)))
+#define P_B(u, o) pb(plans, (uint16_t)((u) * PLAN_SIZE + (o)))
+#define SP_W(u, o, v) pww(plans, (uint16_t)((u) * PLAN_SIZE + (o)), (uint16_t)(v))
+#define SP_B(u, o, v) pwb(plans, (uint16_t)((u) * PLAN_SIZE + (o)), (uint8_t)(v))
+
+/* the other half's plan of a unit emptied */
+static void plan2_clear(uint16_t u)
+{
+    SETB(unit_plans2, u * PLAN_SIZE + 8, 0);
+    SETW(unit_plans2, u * PLAN_SIZE + 4, 0xFFFF);
+}
+
+/* field_distance of two map offsets */
+static int16_t fields_apart(int16_t a, int16_t b)
+{
+    int16_t w = (int16_t)NW(map_width, 0);
+
+    a >>= 1;
+    b >>= 1;
+    return field_distance((int16_t)(a % w), (int16_t)(a / w), (int16_t)(b % w), (int16_t)(b / w));
+}
+
+/* unit_outmatched (S1FD8:0002): FFFFh when the unit's count is more than
+ * two below the other's and its unit_exp below 3, else 0 */
+static int16_t unit_outmatched(uint8_t unit, uint8_t other)
+{
+    int16_t a = UB(unit, KW(UB(unit, 8), 0x0F) & 4 ? 3 : 2);
+    int16_t b = UB(other, KW(UB(other, 8), 0x0F) & 4 ? 3 : 2);
+
+    return (int16_t)(a - b) < -2 && UB(unit, 1) < 3 ? -1 : 0;
+}
+
+/* field_pinched (S202F:0C79): 1 for a field with more than three units of
+ * the other side around it, or with two of them on opposite sides;
+ * `neighbours` is left as it was */
+static uint16_t field_pinched(uint16_t field, uint16_t side)
+{
+    Far map = map_of(side);
+    uint16_t other = side ? 0 : 1, keep[6], pinched = 0;
+    int16_t n = 0, i;
+
+    for (i = 0; i < 6; i++)
+        keep[i] = NW(neighbours, i * 2);
+    field_neighbours(field);
+    for (i = 0; i < 6; i++) {
+        uint16_t f = NW(neighbours, i * 2);
+        uint8_t on;
+
+        SETW(neighbours, i * 2, 0);
+        if (f == 0xFFFF)
+            continue;
+        on = pb(map, (uint16_t)(f + 1));
+        if (on <= 0xF0 && same_side(other, UW(on, 4))) {
+            SETW(neighbours, i * 2, 1);
+            n++;
+        }
+    }
+    if (n > 3)
+        pinched = 1;
+    else
+        for (i = 0; i < 6; i++)
+            if (NW(neighbours, i * 2) && NW(neighbours, dir_wrap((uint8_t)(i + 3)) * 2))
+                pinched = 1;
+    for (i = 0; i < 6; i++)
+        SETW(neighbours, i * 2, keep[i]);
+    return pinched;
+}
+
+/* unit_chosen (S202F:0E3C): is the unit one of the six chosen for the
+ * fields around the target (bytes 28h to 2Dh of the side's work buffer) */
+static uint8_t unit_chosen(uint8_t unit, uint16_t side)
+{
+    Far buf = far_at(S_sides, (uint16_t)(A_sides + side * SIDE_SIZE + 0x0D));
+    uint8_t i;
+
+    for (i = 0; i < 6; i++)
+        if (pb(buf, (uint16_t)(0x28 + i)) == unit)
+            return 1;
+    return 0;
+}
+
+/* plan_ride (S2407:0007): a carrier for the unit, a part a call by byte 8
+ * of computer_phase; returns 1 when it is through, with or without one.
+ * 0: a unit with 4 in its word 6 goes on at 5; 1 move_range, 2
+ * move_targets_list; 3 a field the unit can go to with a unit whose plan
+ * is `kind` already: the unit gets the plan 0Ch there and that unit's
+ * worth goes up by `worth`; 4 one with a unit without a plan: the same,
+ * and that unit gets the plan `kind` to `field`; 5 the next carrier of the
+ * side (1000h in unit_flags, 380h in word 2 of its kind_worth) from
+ * ride_carrier on whose plan is worth less, is not 9, 0Ah, 0Bh or 0Dh,
+ * and whose record of carriers shares one of the bits FC0h in word 19h
+ * with the unit's word 6; 6 with a way for it to the unit it gets the
+ * plan 0Dh there, else 5 again with the next. */
+static uint16_t plan_ride(uint16_t side, uint8_t unit, int16_t worth, uint8_t kind, uint16_t field)
+{
+    Far phase = phase_of(side), plans = plans_of(side), map = map_of(side);
+    Far buf = far_at(S_sides, (uint16_t)(A_sides + side * SIDE_SIZE + 0x0D));
+    uint16_t u;
+    int16_t i;
+
+    switch (pb(phase, 8)) {
+    case 0:
+        SETW(ride_carrier, 0, 0);
+        pwb(phase, 8, UW(unit, 6) & 4 ? 5 : 1);
+        return 0;
+    case 1:
+        move_range(POS(unit), buf, unit, UB(unit, 0), side, 0, map);
+        break;
+    case 2:
+        move_targets_list(buf, side, unit);
+        field_bits_clear(side ? 2 : 1);
+        break;
+    case 3:
+    case 4:
+        for (i = 0; (int16_t)NW(path_len, 0) > i; i++) {
+            uint16_t f = pw(buf, (uint16_t)(i * 2));
+            uint8_t on = pb(map, (uint16_t)(f + 1));
+
+            if (on > 0xF0 || P_B(on, 8) != (pb(phase, 8) == 3 ? kind : 0))
+                continue;
+            SP_W(unit, 4, worth);
+            SP_W(unit, 0, f);
+            SP_B(unit, 8, 0x0C);
+            plan2_clear(unit);
+            if (pb(phase, 8) == 3)
+                SP_W(on, 4, P_W(on, 4) + worth);
+            else {
+                SP_W(on, 4, worth);
+                SP_W(on, 0, field);
+                SP_B(on, 8, kind);
+                plan2_clear(on);
+            }
+            pwb(phase, 8, 0);
+            return 1;
+        }
+        break;
+    case 5: {
+        int16_t best = 0x3E8;
+
+        for (u = (uint8_t)NW(ride_carrier, 0); u <= 0xF0; u++) {
+            uint16_t fl = UW(u, 4);
+            uint8_t k;
+            int16_t d;
+
+            if (fl & 0xC000 || !(fl & 0x1000) || (int16_t)P_W(u, 4) >= worth
+                || !same_side(side, fl))
+                continue;
+            k = P_B(u, 8);
+            if (!(KWORTH(u) & 0x380) || k == 9 || k == 0x0A || k == 0x0D || k == 0x0B)
+                continue;
+            if (!(UW(unit, 6) & pw(carrier_of((uint8_t)u), 0x19) & 0xFC0))
+                continue;
+            d = fields_apart(POS(unit), POS(u));
+            if (d < best) {
+                best = d;
+                SETW(ride_carrier, 0, u);
+                break;
+            }
+        }
+        pwb(phase, 8, u <= 0xF0 ? 6 : 7);
+        return 0;
+    }
+    case 6: {
+        int16_t at_ = POS(unit);
+
+        u = NW(ride_carrier, 0);
+        if (unit_reaches(at_, (uint8_t)u, side, 0)) {
+            SP_W(u, 4, worth);
+            SP_W(u, 0, at_);
+            SP_B(u, 8, 0x0D);
+            plan2_clear(u);
+            pwb(phase, 8, 7);
+        } else {
+            pwb(phase, 8, 5);
+            SETW(ride_carrier, 0, u + 1);
+        }
+        return 0;
+    }
+    default:
+        pwb(phase, 8, 0);
+        return 1;
+    }
+    pwb(phase, 8, (uint8_t)(pb(phase, 8) + 1));
+    return 0;
+}
+
+/* computer_plan (S2138:000C), the phase 40h of computer_turn: gives the
+ * side's units their plans, a part a call, by the bytes 4 (the state)
+ * and 7 (the step inside it) of the side's computer_phase.  Returns 1
+ * from the state 0Ch, else 0.  src/HL.hints says what each state does. */
+uint16_t computer_plan(uint16_t side)
+{
+    Far phase = phase_of(side), plans = plans_of(side), map = map_of(side);
+    Far aims = far_at(S_sides, (uint16_t)(A_sides + side * SIDE_SIZE + 9));
+    Far buf = far_at(S_sides, (uint16_t)(A_sides + side * SIDE_SIZE + 0x0D));
+    uint16_t other = side ? 0 : 1, u;
+    uint8_t step = pb(phase, 7), i;
+    int16_t best, pick;
+
+#define A_W(n, o) pw(aims, (uint16_t)((n) * AIM_SIZE + (o)))
+#define A_B(n, o) pb(aims, (uint16_t)((n) * AIM_SIZE + (o)))
+#define AIM NW(plan_aim, 0)
+#define AIM_WORTH ((int16_t)A_W(AIM, 0))
+#define CUR NB(plan_unit, 0)
+#define CUR_NEXT SETB(plan_unit, 0, NB(plan_unit, 0) + 1)
+#define TARGET NB(plan_target, 0)
+#define STATE(v) pwb(phase, 4, (uint8_t)(v))
+#define STEP(v) pwb(phase, 7, (uint8_t)(v))
+#define AIM_DONE (STEP(0), STATE(1), pwb(aims, (uint16_t)(AIM * AIM_SIZE + 5), 0))
+/* the plan 1 to a field for the unit at hand, worth 0Ah */
+#define FOLLOW(field) (SP_W(CUR, 4, 0x0A), SP_W(CUR, 0, field), SP_B(CUR, 8, 1), \
+                       plan2_clear(CUR), CUR_NEXT, STEP(1))
+    switch (pb(phase, 4)) {
+    case 0:
+        if (NB(views, side * VIEW_SIZE + 0x16) == 2)
+            STATE(0x0C);
+        else {
+            STATE(1);
+            SETW(plan_aim_kind, 0, 1);
+        }
+        return 0;
+    case 1:                     /* the aim worth most of the kind at hand */
+        if (!pb(phase, 6) || (int16_t)NW(plan_aim_kind, 0) >= 6) {
+            STATE(7);
+            return 0;
+        }
+        best = 0;
+        SETW(plan_aim, 0, 0xFFFF);
+        for (pick = 0; (int16_t)pb(phase, 6) > pick; pick++)
+            if ((int16_t)A_W(pick, 0) > best && A_B(pick, 5) == NW(plan_aim_kind, 0)) {
+                best = (int16_t)A_W(pick, 0);
+                SETW(plan_aim, 0, pick);
+            }
+        if ((int16_t)AIM >= 0) {
+            uint8_t k = A_B(AIM, 5);
+
+            STATE(k >= 1 && k <= 4 ? k + 2 : 2);
+        } else
+            SETW(plan_aim_kind, 0, NW(plan_aim_kind, 0) + 1);
+        return 0;
+    case 2:
+        STATE(1);
+        pwb(aims, (uint16_t)(AIM * AIM_SIZE + 5), 0);
+        return 0;
+    case 3:                     /* an aim of kind 1: a site to take */
+        switch (step) {
+        case 0:
+            SETB(plan_unit, 0, 0);
+            STEP(1);
+            return 0;
+        case 1:
+            for (; CUR <= 0xF0; CUR_NEXT)
+                if (KWORTH(CUR) & 1 && !(UW(CUR, 4) & 0xC040) && same_side(UW(CUR, 4), side)
+                    && (int16_t)P_W(CUR, 4) < AIM_WORTH)
+                    break;
+            STEP(CUR <= 0xF0 ? 2 : 3);
+            return 0;
+        case 2:
+            SP_W(CUR, 2, unit_reaches((int16_t)A_W(AIM, 2), CUR, side, 0) ? NW(path_len, 0) : 0x3E8);
+            STEP(1);
+            CUR_NEXT;
+            return 0;
+        case 3:
+            best = 0x3E8;
+            pick = -1;
+            for (u = 0; u <= 0xF0; u++)
+                if (KWORTH(u) & 1 && !(UW(u, 4) & 0xC040) && same_side(UW(u, 4), side)
+                    && (int16_t)P_W(u, 4) < AIM_WORTH && (int16_t)P_W(u, 2) < best
+                    && (int16_t)P_W(u, 4) < (int16_t)(A_W(AIM, 0) - P_W(u, 2))) {
+                    best = (int16_t)P_W(u, 2);
+                    pick = (int16_t)u;
+                }
+            if (pick >= 0) {
+                uint16_t worth = (uint16_t)(A_W(AIM, 0) - P_W(pick, 2));
+
+                SP_W(pick, 4, worth);
+                SP_W(pick, 0, A_W(AIM, 2));
+                SP_B(pick, 8, 1);
+                plan2_clear((uint16_t)pick);
+                if (KWORTH(pick) & 0x20)
+                    aim_add(phase, aims, (uint16_t)(worth - 10), (uint16_t)pick, 2);
+            }
+            STEP(4);
+            return 0;
+        default:
+            AIM_DONE;
+            return 0;
+        }
+    case 4:                     /* an aim of kind 2: a unit to go with */
+        switch (step) {
+        case 0:
+            SETB(plan_unit, 0, 0);
+            STEP(1);
+            return 0;
+        case 1:
+            for (; CUR <= 0xF0; CUR_NEXT) {
+                uint16_t fl = UW(CUR, 4);
+
+                if (HALF2(fl))
+                    continue;
+                if (!(fl & 0xC000) && same_side(fl, side) && (int16_t)P_W(CUR, 4) < AIM_WORTH
+                    && KWORTH(CUR) & UW(A_W(AIM, 2), 4) & 0x1C)
+                    break;
+            }
+            STEP(CUR <= 0xF0 ? 2 : 3);
+            return 0;
+        case 2:
+            SP_W(CUR, 2, unit_reaches(POS(A_W(AIM, 2)), CUR, side, 0) ? NW(path_len, 0) : 0x3E8);
+            STEP(1);
+            CUR_NEXT;
+            return 0;
+        case 3: {
+            uint8_t whom = pb(aims, (uint16_t)(AIM * AIM_SIZE + 2));
+            uint8_t n = NB(kind_worth, UB(whom, 8) * 6 + 4);
+
+            for (i = 0; i < n; i++) {
+                best = 0x3E8;
+                pick = -1;
+                for (u = 0; u <= 0xF0; u++) {
+                    uint16_t fl = UW(u, 4);
+
+                    if (HALF2(fl) || fl & 0xC000 || !same_side(fl, side)
+                        || (int16_t)P_W(u, 4) >= AIM_WORTH
+                        || !(KWORTH(u) & UW(whom, 4) & 0x1C) || (int16_t)P_W(u, 2) >= best)
+                        continue;
+                    best = (int16_t)P_W(u, 2);
+                    pick = (int16_t)u;
+                }
+                if (pick < 0)
+                    continue;
+                best = (int16_t)(AIM_WORTH / 3);
+                SP_W(pick, 4, A_W(AIM, 0));
+                pww(aims, (uint16_t)(AIM * AIM_SIZE), (uint16_t)(A_W(AIM, 0) - best));
+                SP_W(pick, 0, whom);
+                SP_B(pick, 8, 7);
+                plan2_clear((uint16_t)pick);
+            }
+            STEP(4);
+            return 0;
+        }
+        default:
+            AIM_DONE;
+            return 0;
+        }
+    case 5:                     /* an aim of kind 3: a field to hold */
+        switch (step) {
+        case 0:
+            SETB(plan_unit, 0, 0);
+            STEP(1);
+            return 0;
+        case 1: {
+            uint16_t f = A_W(AIM, 2);
+            uint8_t on = pb(map, (uint16_t)(f + 1));
+
+            if (on <= 0xF0 && same_side(side, UW(on, 4)) && (int16_t)P_W(on, 4) < AIM_WORTH
+                && KWORTH(on) & 0x40) {
+                SP_W(on, 4, A_W(AIM, 0));
+                SP_W(on, 0, f);
+                SP_B(on, 8, 4);
+                plan2_clear(on);
+                STEP(5);
+            } else
+                STEP(2);
+            return 0;
+        }
+        case 2:
+            for (; CUR <= 0xF0; CUR_NEXT) {
+                uint16_t fl = UW(CUR, 4);
+
+                if (HALF2(fl))
+                    continue;
+                if (!(fl & 0xC000) && same_side(fl, side) && (int16_t)P_W(CUR, 4) < AIM_WORTH
+                    && KWORTH(CUR) & 0x40)
+                    break;
+            }
+            STEP(CUR <= 0xF0 ? 3 : 4);
+            return 0;
+        case 3:
+            SP_W(CUR, 2, unit_reaches((int16_t)A_W(AIM, 2), CUR, side, 0) ? NW(path_len, 0) : 0x3E8);
+            STEP(2);
+            CUR_NEXT;
+            return 0;
+        case 4:
+            best = 0x3E8;
+            pick = -1;
+            for (u = 0; u <= 0xF0; u++) {
+                uint16_t fl = UW(u, 4);
+
+                if (HALF2(fl) || fl & 0xC000 || !same_side(fl, side)
+                    || (int16_t)P_W(u, 4) >= AIM_WORTH || !(KWORTH(u) & 0x40)
+                    || (int16_t)P_W(u, 2) >= best)
+                    continue;
+                best = (int16_t)P_W(u, 2);
+                pick = (int16_t)u;
+            }
+            if (pick >= 0) {
+                SP_W(pick, 4, A_W(AIM, 0));
+                SP_W(pick, 0, A_W(AIM, 2));
+                SP_B(pick, 8, 1);
+                plan2_clear((uint16_t)pick);
+            }
+            STEP(5);
+            return 0;
+        default:
+            AIM_DONE;
+            return 0;
+        }
+    case 6: {                   /* an aim of kind 4: a unit to fetch */
+        uint16_t whom = A_W(AIM, 2);
+
+        if (plan_ride(side, (uint8_t)whom, AIM_WORTH, 0x0A,
+                      NW(unit_pos, whom * UNIT_SIZE + side * 2))) {
+            STATE(1);
+            STEP(0);
+            pwb(aims, (uint16_t)(AIM * AIM_SIZE + 5), 0);
+        }
+        return 0;
+    }
+    case 7:                     /* the units that are not whole: to a site */
+        switch (step) {
+        case 0:
+            SETB(plan_unit, 0, 0);
+            STEP(1);
+            return 0;
+        case 1:
+            for (; CUR <= 0xF0; CUR_NEXT)
+                if (!(UW(CUR, 4) & 0xC048) && same_side(UW(CUR, 4), side)
+                    && UB(CUR, 2) < KB(UB(CUR, 8), 3))
+                    break;
+            STEP(CUR <= 0xF0 ? 2 : 5);
+            return 0;
+        case 2:
+            SETW(path_len, 0, 0);
+            sites_list(at(S_sites_40, A_sites_40), side, 2);
+            sites_list(at(S_sites_400, A_sites_400), side, 10);
+            sites_list(at(S_sites_100, A_sites_100), side, 10);
+            if (!NW(path_len, 0)) {
+                STEP(1);
+                CUR_NEXT;
+            } else {
+                SETW(plan_sites_left, 0, NW(path_len, 0));
+                STEP(3);
+            }
+            return 0;
+        case 3: {
+            int16_t worth, f;
+            int more;
+
+            if ((int16_t)NW(plan_sites_left, 0) <= 0)
+                return 0;
+            SETW(plan_sites_left, 0, NW(plan_sites_left, 0) - 1);
+            f = (int16_t)pw(aims, (uint16_t)(NW(plan_sites_left, 0) * 2));
+            worth = UB(CUR, 2) < 5 && UB(CUR, 1) > 1 ? (int16_t)(0x46 + UB(CUR, 1) * 0x0A) : 0x0F;
+            more = 1;           /* the site is further than a round's way */
+            if (unit_reaches(f, CUR, side, 1)
+                && (int16_t)NW(path_len, 0) <= (int16_t)KB(UB(CUR, 8), 0)) {
+                more = 0;
+                worth = (int16_t)(worth << 1);
+            }
+            if ((int16_t)P_W(CUR, 4) >= worth) {
+                STEP(1);
+                CUR_NEXT;
+            } else if (more) {
+                SETW(plan_worth, 0, worth);
+                SETW(plan_field, 0, f);
+                STEP(4);
+            } else {
+                SP_W(CUR, 4, worth);
+                SP_W(CUR, 0, f);
+                SP_B(CUR, 8, 1);
+                plan2_clear(CUR);
+                STEP(1);
+                CUR_NEXT;
+            }
+            return 0;
+        }
+        case 4:
+            if (KWORTH(CUR) & 0x380
+                || plan_ride(side, CUR, (int16_t)NW(plan_worth, 0), 9, NW(plan_field, 0))) {
+                STEP(1);
+                CUR_NEXT;
+            }
+            return 0;
+        default:
+            STEP(0);
+            STATE(8);
+            return 0;
+        }
+    case 8:                     /* what can attack each unit of the other side */
+        for (u = 0; u <= 0xF0; u++) {
+            uint16_t fl = UW(u, 4), by = 0;
+            uint8_t kind = UB(u, 8);
+
+            if (HALF2(fl) || !same_side(other, fl) || fl & 0xC000)
+                continue;
+            if (KW(kind, 6) & 0xC0)
+                by |= 1;
+            if (!KB(kind, 0x0A))
+                by |= 2;
+            if (!KB(kind, 0x0C))
+                by |= 4;
+            if (!KB(kind, 0x0B))
+                by |= 8;
+            SP_W(u, 2, by);
+        }
+        STATE(9);
+        return 0;
+    case 9:                     /* the units that fire from afar */
+        switch (step) {
+        case 0:
+            SETB(plan_unit, 0, 0);
+            STEP(1);
+            return 0;
+        case 1:
+            for (u = CUR; u <= 0xF0; u++) {
+                uint16_t fl = UW(u, 4);
+
+                if (!HALF2(fl) && same_side(side, fl) && !(fl & 0xC200) && KWORTH(u) & 2) {
+                    SETB(plan_unit, 0, u);
+                    break;
+                }
+            }
+            STEP(u <= 0xF0 ? 2 : 4);
+            return 0;
+        case 2: {
+            uint8_t kind = UB(CUR, 8), bit = side ? 8 : 4;
+            int16_t f = POS(CUR);
+
+            field_bits_clear(bit);
+            if (KB(kind, 9) > 1)
+                attack_range(buf, f, KB(kind, 9), side, CUR, KW(kind, 6) & 0xFFEF, map);
+            if (KB(kind, 8) > 1)
+                attack_range(buf, f, KB(kind, 8), side, CUR, KW(kind, 6) & 0xFFD3, map);
+            STEP(3);
+            return 0;
+        }
+        case 3: {
+            uint8_t bit = side ? 8 : 4;
+            int16_t col, row, at_ = -1;
+
+            best = -1;
+            for (col = 0; (int16_t)NW(map_width, 0) > col; col++)
+                for (row = 0; (int16_t)NW(map_height, 0) > row; row++) {
+                    uint16_t f;
+                    uint8_t on;
+
+                    if (!(NB(field_bits, (uint16_t)(col + (row << 6))) & bit))
+                        continue;
+                    f = (uint16_t)((NW(map_width, 0) * row + col) << 1);
+                    on = pb(map, (uint16_t)(f + 1));
+                    if ((int16_t)P_W(on, 6) > best) {
+                        at_ = (int16_t)f;
+                        best = (int16_t)P_W(on, 6);
+                    }
+                }
+            if (at_ >= 0) {
+                SP_B(CUR, 8, 4);
+                SP_W(CUR, 0, POS(CUR));
+                SP_W(CUR, 4, 0x64);
+                SETB(unit_plans2, CUR * PLAN_SIZE + 8, 0x0E);
+                SETW(unit_plans2, CUR * PLAN_SIZE, at_);
+                SETW(unit_plans2, CUR * PLAN_SIZE + 4, 0x64);
+            }
+            field_bits_clear(bit);
+            CUR_NEXT;
+            STEP(1);
+            return 0;
+        }
+        default:
+            STEP(0);
+            STATE(0x0A);
+            return 0;
+        }
+    case 0x0A: {                /* the targets, each with units around it */
+        Far fields = at(buf.seg, (uint16_t)(buf.off + 0x14));
+        Far chosen = at(buf.seg, (uint16_t)(buf.off + 0x28));
+
+/* the units that could go to the field in direction d: aims + d * 14h,
+ * their number at aims + 78h + d; the field's state, word d of buf: 0
+ * open, 1 taken, FFFFh not to be used */
+#define CAND(d, n) pb(aims, (uint16_t)((d) * 0x14 + (n)))
+#define CANDS(d) pb(aims, (uint16_t)(0x78 + (d)))
+#define SET_CANDS(d, v) pwb(aims, (uint16_t)(0x78 + (d)), (uint8_t)(v))
+#define FIELD(d) pw(buf, (uint16_t)((d) * 2))
+#define SET_FIELD(d, v) pww(buf, (uint16_t)((d) * 2), (uint16_t)(v))
+#define COUNT ((int16_t)NW(plan_count, 0))
+#define TAKE(d, who) (pwb(chosen, (d), (who)), SET_FIELD(d, 1), SET_CANDS(d, 0))
+        switch (step) {
+        case 0:
+            SETB(plan_target, 0, 0);
+            STEP(1);
+            return 0;
+        case 1:
+            best = -1;
+            SETB(plan_unit, 0, 0);
+            for (u = 0; u <= 0xF0; u++) {
+                uint16_t fl = UW(u, 4);
+
+                if (HALF2(fl) || !same_side(other, fl) || fl & 0xC002
+                    || (int16_t)P_W(u, 6) <= best || (int16_t)P_W(u, 2) < 0)
+                    continue;
+                best = (int16_t)P_W(u, 6);
+                SETB(plan_target, 0, u);
+            }
+            if (best >= 0) {
+                STEP(2);
+                for (i = 0; i < 6; i++)
+                    SET_CANDS(i, 0);
+            } else
+                STEP(0x0B);
+            return 0;
+        case 2:
+            STEP(3);
+            return 0;
+        case 3:                 /* the next unit that could attack it */
+            for (u = CUR; u <= 0xF0; u++) {
+                uint16_t fl = UW(u, 4);
+                uint8_t kind = UB(u, 8);
+
+                if (HALF2(fl) || unit_outmatched((uint8_t)u, TARGET) < 0)
+                    continue;
+                if (!same_side(side, fl) || fl & 0xC000
+                    || (int16_t)P_W(u, 4) >= (int16_t)P_W(TARGET, 6))
+                    continue;
+                if (fields_apart(POS(u), POS(TARGET)) >= (int16_t)(KB(kind, 0) >> 1))
+                    continue;
+                if (!(KW(kind, 6) & UW(TARGET, 4) & 0x3C) || KW(kind, 6) & 0x40)
+                    continue;
+                SETB(plan_unit, 0, u);
+                break;
+            }
+            STEP(u <= 0xF0 ? 4 : 6);
+            return 0;
+        case 4:
+            move_range(POS(CUR), buf, CUR, UB(CUR, 0), side,
+                       UW(CUR, 6) & 1 ? 0xFFFF : UW(CUR, 4) & 1 ? 6 : 3, map);
+            STEP(5);
+            return 0;
+        case 5: {               /* the fields around the target it could take */
+            uint8_t bit = side ? 2 : 1;
+
+            field_neighbours((uint16_t)POS(TARGET));
+            for (i = 0; i < 6; i++) {
+                int16_t f = (int16_t)NW(neighbours, i * 2);
+                uint16_t ground;
+
+                if (CANDS(i) >= 0x14 || f < 0 || field_pinched((uint16_t)f, side))
+                    continue;
+                if (POS(CUR) != f) {
+                    if (!(NB(field_bits, bits_index(f)) & bit))
+                        continue;
+                    ground = NW(ww1gnds_dat, pb(map, (uint16_t)f) * 6);
+                    if (pb(map, (uint16_t)(f + 1)) <= 0xF0 || field_pinched((uint16_t)f, side)
+                        || ground & 0x540 || (UW(CUR, 4) & 0x10 && ground & 0x4000))
+                        continue;
+                    for (u = 0; u <= 0xF0; u++)
+                        if (P_W(u, 0) == (uint16_t)f)
+                            break;
+                    if (u <= 0xF0)
+                        continue;
+                }
+                pwb(aims, (uint16_t)(i * 0x14 + CANDS(i)), CUR);
+                SET_CANDS(i, CANDS(i) + 1);
+            }
+            field_bits_clear(bit);
+            CUR_NEXT;
+            STEP(2);
+            return 0;
+        }
+        case 6:                 /* which of the six fields are open */
+            SETW(plan_count, 0, 6);
+            field_neighbours((uint16_t)POS(TARGET));
+            for (i = 0; i < 6; i++) {
+                int16_t f = (int16_t)NW(neighbours, i * 2);
+
+                pwb(chosen, i, 0xFF);
+                if (f < 0) {
+                    SET_FIELD(i, 0xFFFF);
+                    SETW(plan_count, 0, COUNT - 1);
+                    continue;
+                }
+                pww(fields, (uint16_t)(i * 2), (uint16_t)f);
+                SET_FIELD(i, 0);
+                if (field_pinched((uint16_t)f, side)) {
+                    SET_FIELD(i, 0xFFFF);
+                    SETW(plan_count, 0, COUNT - 1);
+                    continue;
+                }
+                for (u = 0; u <= 0xF0; u++)
+                    if (!(UW(u, 4) & 0xC000) && same_side(UW(u, 4), side) && P_B(u, 8)
+                        && P_W(u, 0) == (uint16_t)f) {
+                        SET_FIELD(i, 1);
+                        SETW(plan_count, 0, COUNT - 1);
+                        break;
+                    }
+            }
+            if (COUNT > 0) {
+                STEP(7);
+                SETW(plan_count, 0, 0);
+            } else
+                STEP(0x0A);
+            return 0;
+        case 7:                 /* the units that fit the target, at most four */
+            for (i = 0; i < 6; i++) {
+                uint8_t n;
+
+                if (FIELD(i))
+                    continue;
+                for (n = 0; CANDS(i) > n && COUNT < 4; n++) {
+                    uint8_t who = CAND(i, n), ok = !unit_chosen(who, side);
+                    uint16_t by, fl;
+
+                    if ((int16_t)P_W(TARGET, 6) <= (int16_t)P_W(who, 4) || !ok)
+                        continue;
+                    by = P_W(TARGET, 2);
+                    fl = UW(who, 4);
+                    if (!(by & 1 || (by & 2 && fl & 0x10) || (by & 8 && fl & 4) || (by & 4 && fl & 8)))
+                        continue;
+                    TAKE(i, who);
+                    SETW(plan_count, 0, COUNT + 1);
+                }
+            }
+            STEP(8);
+            return 0;
+        case 8: {               /* more of them: opposite, between, any */
+            uint8_t n;
+
+            for (i = 0; i < 6 && COUNT < 4; i++) {
+                uint8_t o = dir_wrap((uint8_t)(i + 3));
+
+                if (FIELD(i) == 1 && FIELD(o) == 0) {
+                    for (n = 0; CANDS(o) > n; n++) {
+                        uint8_t who = CAND(o, n);
+
+                        if (unit_chosen(who, side))
+                            continue;
+                        pwb(chosen, o, who);
+                        SET_FIELD(o, 1);
+                        n = CANDS(o);
+                        SET_CANDS(o, 0);
+                        SETW(plan_count, 0, COUNT + 1);
+                    }
+                } else if (FIELD(i) == 0 && FIELD(o) == 0 && CANDS(i) && CANDS(o)) {
+                    uint8_t a = 0xFF, b = 0xFF;
+
+                    for (n = 0; CANDS(i) > n; n++)
+                        if (!unit_chosen(CAND(i, n), side))
+                            a = CAND(i, n);
+                    for (n = 0; CANDS(o) > n; n++)
+                        if (!unit_chosen(CAND(o, n), side) && CAND(o, n) != a)
+                            b = CAND(o, n);
+                    if (a == 0xFF || b == 0xFF)
+                        continue;
+                    pwb(chosen, i, a);
+                    pwb(chosen, o, b);
+                    SET_FIELD(i, 1);
+                    SET_FIELD(o, 1);
+                    SET_CANDS(i, 0);
+                    SET_CANDS(o, 0);
+                    SETW(plan_count, 0, COUNT + 2);
+                }
+            }
+            for (i = 0; i < 6; i++) {
+                if (FIELD(i) || FIELD(dir_wrap((uint8_t)(i + 1))) != 1
+                    || FIELD(dir_wrap((uint8_t)(i + 5))) != 1 || COUNT >= 4)
+                    continue;
+                for (n = 0; CANDS(i) > n; n++)
+                    if (!unit_chosen(CAND(i, n), side)) {
+                        TAKE(i, CAND(i, n));
+                        SETW(plan_count, 0, COUNT + 1);
+                    }
+            }
+            for (i = 0; i < 6; i++) {
+                if (COUNT >= 4)
+                    continue;
+                for (n = 0; CANDS(i) > n; n++)
+                    if (!unit_chosen(CAND(i, n), side)) {
+                        TAKE(i, CAND(i, n));
+                        SETW(plan_count, 0, COUNT + 1);
+                    }
+            }
+            STEP(9);
+            return 0;
+        }
+        case 9:                 /* their plans: there, and then the attack */
+            for (i = 0; i < 6; i++) {
+                uint8_t who = pb(chosen, i);
+                uint16_t f = pw(fields, (uint16_t)(i * 2));
+
+                if (who == 0xFF)
+                    continue;
+                SP_B(who, 8, (uint16_t)POS(who) == f ? 4 : 3);
+                SP_W(who, 0, f);
+                SP_W(who, 4, P_W(TARGET, 6));
+                SETB(unit_plans2, who * PLAN_SIZE + 8, 2);
+                SETW(unit_plans2, who * PLAN_SIZE, POS(TARGET));
+                SETW(unit_plans2, who * PLAN_SIZE + 4, P_W(TARGET, 6));
+            }
+            STEP(0x0A);
+            return 0;
+        case 0x0A:
+            SP_W(TARGET, 2, 0xFFFF);
+            SETB(plan_target, 0, TARGET + 1);
+            STEP(1);
+            return 0;
+        default:
+            STEP(0);
+            STATE(0x0B);
+            return 0;
+        }
+    }
+    case 0x0B:                  /* the units still without a plan */
+        switch (step) {
+        case 0:
+            SETB(plan_unit, 0, 0);
+            STEP(1);
+            for (u = 0; u <= 0xF0; u++)
+                SP_W(u, 2, 0x3E8);
+            return 0;
+        case 1:
+            for (; CUR <= 0xF0; CUR_NEXT) {
+                if (HALF2(UW(CUR, 4)))
+                    continue;
+                if (!(UW(CUR, 4) & 0xC000) && !(UW(CUR, 6) & 0x20) && !(KWORTH(CUR) & 0x380)
+                    && same_side(UW(CUR, 4), side) && !P_B(CUR, 8))
+                    break;
+            }
+            STEP(CUR <= 0xF0 ? 2 : 0x0A);
+            return 0;
+        case 2:                 /* how far every other unit is, or will be */
+            for (u = 0; u <= 0xF0; u++) {
+                if (UW(u, 4) & 0xC002 || UW(u, 6) & 0x20 || u == CUR)
+                    continue;
+                SP_W(u, 2, fields_apart(POS(CUR), same_side(UW(u, 4), side) ? (int16_t)P_W(u, 0)
+                                                                            : POS(u)));
+            }
+            STEP(5);
+            return 0;
+        case 5: {               /* the target worth most it can attack */
+            uint16_t can = KW(UB(CUR, 8), 6) & 0x3C;
+
+            best = -1;
+            SETB(plan_other, 0, 0xFF);
+            for (u = 0; u <= 0xF0; u++) {
+                uint16_t fl = UW(u, 4);
+
+                if (fl & 0xC000 || !same_side(fl, other) || (int16_t)P_W(u, 6) <= best
+                    || (int16_t)P_W(u, 2) >= 0x3E8 || !(can & fl))
+                    continue;
+                best = (int16_t)P_W(u, 6);
+                SETB(plan_other, 0, u);
+            }
+            STEP(NB(plan_other, 0) <= 0xF0 ? 6 : 7);
+            return 0;
+        }
+        case 6: {
+            int16_t f = POS(NB(plan_other, 0));
+
+            if (unit_reaches(f, CUR, side, 0))
+                FOLLOW(f);
+            else {
+                SP_W(NB(plan_other, 0), 2, 0x3E8);
+                STEP(5);
+            }
+            return 0;
+        }
+        case 7:                 /* else the nearest unit of the side with a plan */
+            best = 0x3E8;
+            SETB(plan_other, 0, 0xFF);
+            for (u = 0; u <= 0xF0; u++) {
+                uint16_t fl = UW(u, 4);
+                uint8_t k = P_B(u, 8);
+
+                if (fl & 0xC000 || KWORTH(u) & 0x380 || !same_side(fl, side)
+                    || (int16_t)P_W(u, 4) <= 0x0A || (int16_t)P_W(u, 2) >= best
+                    || !k || k == 8 || k == 0x0C || k == 6)
+                    continue;
+                best = (int16_t)P_W(u, 2);
+                SETB(plan_other, 0, u);
+            }
+            STEP(NB(plan_other, 0) <= 0xF0 ? 8 : 9);
+            return 0;
+        case 8: {
+            uint16_t f = P_W(NB(plan_other, 0), 0);
+
+            if (unit_reaches((int16_t)f, CUR, side, 0))
+                FOLLOW(f);
+            else {
+                SP_W(NB(plan_other, 0), 2, 0x3E8);
+                STEP(7);
+            }
+            return 0;
+        }
+        case 9:                 /* else a carrier home */
+            if (KWORTH(CUR) & 0x380
+                || plan_ride(side, CUR, 0x46, 0x0B, NW(sites_40, side * SITE_SIZE + 0x0E))) {
+                STEP(1);
+                CUR_NEXT;
+            }
+            return 0;
+        default:
+            STEP(0);
+            STATE(0x0C);
+            return 0;
+        }
+    default:
+        STATE(0);
+        pwb(phase, 6, 0);
+        return 1;
+    }
+}
+
+/* computer_turn (S1C74:000B): one pass of a computer's side, in place of
+ * reading the side's input.  The phase word of computer_phase chooses:
+ * 20h computer_assess, 40h computer_plan, 8 computer_queue (one a pass;
+ * the next phase when it returns not 0), then in the same pass 2
+ * computer_step and 1 computer_input.  The number of the side's text
+ * goes to computer_out's second word. */
+void computer_turn(uint16_t side)
+{
+    Far phase = phase_of(side);
+    int left = 0;
+
+#define TEXT(t) SETW(computer_out, side * 4 + 2, t)
+#define PHASE(off, on) pww(phase, 0, (uint16_t)((pw(phase, 0) & (uint16_t)~(off)) | (on)))
+#define LIST_AT_0 SETB(computer_steps, side * 0x49 + 0x46, 0)
+    TEXT(0x4E);
+    if (pw(phase, 0) & 0x20) {
+        TEXT(0x61);
+        if (computer_assess(side)) {
+            PHASE(0x20, 0x40);
+            LIST_AT_0;
+        }
+    } else if (pw(phase, 0) & 0x40) {
+        if (pb(phase, 0x0B)) {
+            TEXT(0x62);
+            pwb(phase, 0x0B, 0);
+        } else {
+            TEXT(0x63);
+            pwb(phase, 0x0B, 1);
+        }
+        if (computer_plan(side)) {
+            PHASE(0x40, 8);
+            LIST_AT_0;
+        }
+    } else if (pw(phase, 0) & 8) {
+        TEXT(0x60);
+        if (computer_queue(side)) {
+            PHASE(8, 2);
+            LIST_AT_0;
+        }
+    }
+    if (pw(phase, 0) & 2) {
+        TEXT(0x4F);
+        if (computer_step(side, &left))
+            PHASE(0, 8);
+        else {
+            PHASE(0, 1);
+            SETB(computer_script, side * 0x20 + 0x1E, 0);
+        }
+        PHASE(2, 0);
+    }
+    if (pw(phase, 0) & 1) {
+        TEXT(0x4F);
+        if (computer_input(side))
+            PHASE(1, 2);
+    }
+#undef TEXT
+#undef PHASE
+#undef LIST_AT_0
 }

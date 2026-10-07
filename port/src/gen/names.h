@@ -255,6 +255,7 @@
     X(S1E4B, cursor_step, 0x15E8) \
     X(S1E4B, unit_holder, 0x1734) \
     X(S1E4B, rec_find_unit, 0x1827) \
+    X(S1FD8, unit_outmatched, 0x0002) \
     X(S1FD8, unit_worth, 0x00E8) \
     X(S1FD8, unit_of_kind, 0x02B2) \
     X(S1FD8, unit_reaches, 0x0368) \
@@ -263,8 +264,11 @@
     X(S202F, plan_repairs, 0x05CB) \
     X(S202F, plan_move, 0x071E) \
     X(S202F, sites_list, 0x0BA7) \
+    X(S202F, field_pinched, 0x0C79) \
+    X(S202F, unit_chosen, 0x0E3C) \
     X(S202F, plan_to_site, 0x0EAA) \
     X(S2138, computer_plan, 0x000C) \
+    X(S2407, plan_ride, 0x0007) \
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
     X(S2892, num_text, 0x0001) \
@@ -350,6 +354,16 @@
     X(S3AE8, step_target_field, 0x0021) \
     X(S3AEA, approach_order, 0x000C) \
     X(S3AEA, way_len, 0x0012) \
+    X(S3AEB, plan_target, 0x0004) \
+    X(S3AEB, plan_unit, 0x0005) \
+    X(S3AEB, plan_aim_kind, 0x0006) \
+    X(S3AEB, plan_aim, 0x0008) \
+    X(S3AEB, plan_sites_left, 0x000A) \
+    X(S3AEB, plan_worth, 0x000C) \
+    X(S3AEB, plan_field, 0x000E) \
+    X(S3AEB, plan_count, 0x0010) \
+    X(S3AEB, plan_other, 0x0012) \
+    X(S3AEC, ride_carrier, 0x0004) \
     X(S3AEC, fight_rec_ptr, 0x0008) \
     X(S3AED, ground_bonus, 0x0000) \
     X(DATA, rand_words, 0x0AF1) \

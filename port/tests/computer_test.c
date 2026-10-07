@@ -15,7 +15,8 @@
  *   queue    computer_queue, dumps at S1CC6:0022 and where computer_turn
  *            gets back to, S1C74:010F (result 0); queueend the same
  *            with the result 1;
- *            For these two the side is read from the frame as well
+ *   plan     computer_plan, dumps at S2138:002B and S1C74:00CE; planend.
+ *            For these three the side is read from the frame as well
  *            and must be SIDE.
  * The result and the memory after the port's routine are compared with
  * the second dump; the stack below the routine's BP is left out (the 0Ah
@@ -69,10 +70,10 @@ int main(int argc, char **argv)
         uint32_t hi_state = (uint32_t)(HL_DATA + HL_BASE) << 4;
         uint16_t got, want;
         int input = !strcmp(argv[i], "input"), left = 0;
-        const char *names[2] = { "assess", "queue" };
+        const char *names[3] = { "assess", "queue", "plan" };
         int phase = -1, k;
 
-        for (k = 0; k < 2; k++)
+        for (k = 0; k < 3; k++)
             if (!strcmp(argv[i], names[k])
                 || (!strncmp(argv[i], names[k], strlen(names[k]))
                     && !strcmp(argv[i] + strlen(names[k]), "end")))
@@ -92,7 +93,7 @@ int main(int argc, char **argv)
             printf("%s: side %u, input %04X, result %u", argv[i + 4], side,
                    NW(computer_out, side * 4), got);
         } else if (phase >= 0) {
-            static const uint8_t state_at[2] = { 5, 3 };
+            static const uint8_t state_at[3] = { 5, 3, 4 };
             uint8_t state = NB(computer_phase, side * 0x0C + state_at[phase]);
             uint8_t inner = NB(computer_phase, side * 0x0C + 7);
             uint8_t ride = NB(computer_phase, side * 0x0C + 8);
@@ -101,7 +102,8 @@ int main(int argc, char **argv)
                 fprintf(stderr, "%s: the frame's side is not %u\n", argv[i + 3], side);
                 return 2;
             }
-            got = phase == 0 ? computer_assess((uint16_t)side) : computer_queue((uint16_t)side);
+            got = phase == 0 ? computer_assess((uint16_t)side)
+                  : phase == 1 ? computer_queue((uint16_t)side) : computer_plan((uint16_t)side);
             want = argv[i][strlen(names[phase])] ? 1 : 0;
             printf("%s: side %u, computer_%s state %u/%u/%u, result %u", argv[i + 4], side,
                    names[phase], state, inner, ride, got);

@@ -195,6 +195,8 @@
     X(S0E56, map_load, 0x0329) \
     X(S0E56, site_find, 0x1726) \
     X(S0E56, view_to_field, 0x177C) \
+    X(S0E56, footprint, 0x1A97) \
+    X(S0E56, aim_grounds_set, 0x1B57) \
     X(S0E56, map_copy, 0x1D9B) \
     X(S0E56, unit_mark, 0x1DDB) \
     X(S0E56, field_distance, 0x241F) \
@@ -262,6 +264,9 @@
     X(S3310, name_prefix, 0x007D) \
     X(S3310, name_buf, 0x00B9) \
     X(S331F, around_percent, 0x0009) \
+    X(S331F, foot_steps, 0x0049) \
+    X(S331F, aim_steps, 0x0059) \
+    X(S331F, aim_grounds, 0x00C5) \
     X(S331F, side_points, 0x02B5) \
     X(S331F, ww1gnds_dat, 0x05A3) \
     X(S331F, unit_dat, 0x09BD) \

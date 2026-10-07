@@ -1587,7 +1587,24 @@ emulation error (2026-10-02).
       loop. Dumps (ignored `build/n2/o/`): `d3_attack_order`,
       `d4r_orders`, `d5_attack_order`, `d5r_orders`, entry and exit.
       `orders_run` does not carry out 0Bh and 0Dh yet.
-  - Next there: `S0E56:1A97` and `1B57`; translate the computer-turn and
+  - `S0E56:1A97` and `1B57` read again and named (2026-10-07, Mac):
+    `footprint` and `aim_grounds_set`, their tables `foot_steps`
+    (`S331F:0049`), `aim_steps` (`0059`) and `aim_grounds` (`00C5`); the
+    names the port proposed. The listing agrees with what the bullets
+    above and `port/src/orders.c` say; each has only the callers named
+    there (`S02E6:17C3` and `189E`; `S02E6:1986`). New from the tables:
+    in the entries of `aim_steps` looked at (an even column; the aim
+    above left, left below, above, below) the second of the three fields
+    is the aim and the others are the aim's two neighbours to either
+    side of the line from the place, so order 11h lays three fields in a
+    row across the direction the unit works in, the middle one with a
+    ground of its own; the entries for an aim that is no neighbour are
+    all 0 (the place itself; `aim_grounds` 0 there too). The odd
+    column's entries were not looked at one by one. What kind 14 builds
+    there (the grounds A7h, AAh, ABh) was not seen on the screen.
+    Nothing was run on the Mac for this: the dumps of `orders_test.sh`
+    are not on this machine, so the port's test was only built, not run.
+  - Next there: translate the computer-turn and
     income routines with comparisons, including a run where side 0 is the
     computer and a round end that exercises income; then a scripted run
     of the first side that moves into a site and a carrier and takes a

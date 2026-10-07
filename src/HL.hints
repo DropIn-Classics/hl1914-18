@@ -1611,3 +1611,38 @@ name S15C5:0804 carrier_moved
 ; records with the field among its four map offsets (0Eh on), FFFFh for
 ; none. Read.
 name S0E56:1726 site_find
+; footprint(field): the four fields of a depot on the field (a map offset)
+; as map offsets into `neighbours`: column and row of the field plus the
+; signed steps of foot_steps, the first of which is the field itself (the
+; same four site_add_100 takes). No test of the map's edge. Called by
+; attacks_run's orders 0Bh (S02E6:17C3) and 0Dh (S02E6:189E) only. Read;
+; the port's translation agreed with the original on two passes.
+name S0E56:1A97 footprint
+; Four signed column steps and four row steps for a field in an even column
+; (0049, 004D), then the same for an odd one (0051, 0055). Only footprint
+; reads them, through far pointers it builds itself.
+name S331F:0049 foot_steps
+; aim_grounds_set(place, aim, map): order 11h of attacks_run (S02E6:1986,
+; its only caller; a unit with 2000h in word 6). From the columns and rows
+; of the two map offsets an index: the place's column parity times 36h, the
+; aim's column less the place's plus 1 times 12h, the rows' the same times
+; 6. It chooses three fields by aim_steps; each whose ground has 8000h in
+; its word 0 gets its byte of aim_grounds, or, when the aim's ground is A5h
+; or above at entry, 51h (presumably taking the work back; that branch was
+; not seen run). No test of the map's edge. Read; one pass on map 51
+; agreed with the port.
+name S0E56:1B57 aim_grounds_set
+; aim_steps: for each index of aim_grounds_set three pairs of signed column
+; and row steps from the place. In the entries looked at (an even column;
+; the aim above left, left below, above and below) the second pair is the
+; aim itself and the two others are the aim's neighbours to either side of
+; the line from the place: three fields in a row across that line. The
+; entries for an aim that is no neighbour of the place are all 0 (the place
+; itself, three times). The other entries were not looked at one by one.
+name S331F:0059 aim_steps
+; aim_grounds: with the same index the ground each of the three fields
+; gets; only the first byte of each pair is read. The second field's (the
+; aim's) differs from the two others', which is how the test for A5h at
+; entry finds an aim worked on before (presumably; not checked that all
+; three are A5h or above for every entry).
+name S331F:00C5 aim_grounds

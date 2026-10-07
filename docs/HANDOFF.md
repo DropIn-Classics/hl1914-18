@@ -1,7 +1,8 @@
 # Handoff
 
-State of 2026-10-04: all four programs rebuild identically (`HL.EXE` 71,755
-instructions, INTRO 18,055, EXTRO 15,678, the launcher 1,663). Everything
+Last full rebuild check (2026-10-04): all four programs rebuilt
+identically (`HL.EXE` 71,755 instructions, INTRO 18,055, EXTRO 15,678,
+the launcher 1,663). Everything
 that runs of the game executed is decoded, including whole battles on all
 72 maps, saving and loading. Stage 2 is under way in `HL.EXE`: the saved
 game's layout, the unit records and the tables beside them, how `map_load`
@@ -21,8 +22,11 @@ and what a unit reaches are read (the last bullets under "The loop of
 `game_loop`, second reading"), and the routines that mark where a unit can
 move, whom it can attack and its way are translated (`port/src/range.c`),
 as is the carrying out of a move, field by field (`port/src/move.c`).
-`master`
-was pushed at `dc1970c`; the commits after it are local.
+The computer-turn helpers and income routine have now been read and named
+in `src/HL.hints`, but are not translated or fully checked; see the
+2026-10-07 notes below. `master` is one local commit ahead of
+`origin/master`, with additional uncommitted changes in `src/HL.hints` and
+`docs/HANDOFF.md`.
 
 The `doskit` submodule is now at `2f6fe29` (fast-forwarded from `a4b8166`,
 eight commits). That update adds first support for LE images (`disasm.py`,
@@ -1022,6 +1026,23 @@ emulation error (2026-10-02).
     the directions (up, down, left, right, as the cursor's moves use them)
     and 10h presumably the button. The side's map (`map_ptr` for side 0,
     `map2_ptr` for side 1) is kept at `S331F:17AE`.
+  - Computer turn and income routines (2026-10-07; read in generated
+    source, with runtime evidence noted below). `computer_turn` at
+    `S1C74:000B` advances a phase word in the side's 0Ch-byte record at
+    `S39B6:12FD`: assess (20h), plan (40h), queue (8), run queued steps
+    (2), then play the input-key script (1). A run saw side 1 pass through
+    20h, 40h, 8 and 2 and show texts 4Eh, 4Fh and 60h–63h (6,392 hits,
+    all for side 1); a computer-controlled side 0 was not observed. The
+    phase helpers and step handlers were read but not stepped. Their broad
+    roles and the meaning of steps 4 and 6 remain partly guesses; details
+    and addresses are named in `src/HL.hints` under `computer_turn`.
+    `income_add` at `S131D:1745` adds `side_income` to the side's points;
+    `game_loop` calls it at the end-of-round path after `attacks_run`.
+    This call path was read in generated source, but no run reached the
+    round end for an income observation. `side_income` sums byte 16h plus
+    the side index over the `sites_100` and `sites_400` records, and that
+    byte in the side's `sites_40` record. Treat the ownership bits and
+    whether unused records contribute as unverified until exercised.
   - Byte 17h of a view is the state of that side's hand, 0 to 7 (`0` the
     cursor moves freely: `S0CB6:0750` and then the column and row of the
     view change by the bits, an odd column's neighbours half a field off).
@@ -1566,10 +1587,14 @@ emulation error (2026-10-02).
       loop. Dumps (ignored `build/n2/o/`): `d3_attack_order`,
       `d4r_orders`, `d5_attack_order`, `d5r_orders`, entry and exit.
       `orders_run` does not carry out 0Bh and 0Dh yet.
-  - Next there: `S0CB6:05F1`, `S131D:1745`, `S0E56:1A97` and `1B57`, and
-    `S1C74:000B`, the computer's turn; a scripted run of the first side
-    that moves into a site and a carrier and takes a site, to compare
-    `move_arrive`'s other kinds and this part.
+  - Next there: `S0E56:1A97` and `1B57`; translate the computer-turn and
+    income routines with comparisons, including a run where side 0 is the
+    computer and a round end that exercises income; then a scripted run
+    of the first side that moves into a site and a carrier and takes a
+    site, to compare `move_arrive`'s other kinds and this part. The
+    human-input routine `S0CB6:05F1` and the source-level call to
+    `S131D:1745` have been read, but their port behavior is not implemented
+    or verified by those observations.
   - The three routines are translated (`port/src/range.c`) and compared
     with 108 calls of the original from the six long runs
     (`port/tests/range_test.sh`, dumps by `build/n2/range2.py`,
@@ -1918,9 +1943,10 @@ emulation error (2026-10-02).
      way, `path_find`; `view_step`, `field_menu`, the routines that
      take an order, `move_aim`, `move_start`, `attack_order`, the round's end in
      `attacks_run` and `move_range`, `move_costs` and `attack_range` are
-     read, the three translated in `port/src/range.c` and compared),
-     `S131D:1745` and the computer's turn `S1C74:000B`;
-     then translate what of a side's part changes state and draws
+     read, the three translated in `port/src/range.c` and compared). The
+     computer-turn and income routines have since been read and named;
+     next translate them and compare against runs, then translate what of
+     a side's part changes state and draws
      nothing (building, repairing, moving out), each with a comparison
      as for the setup; and the libraries' loading (`S0C66:0009`) once
      the port is to draw. `attacks_run` around them waits for

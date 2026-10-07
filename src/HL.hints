@@ -625,7 +625,7 @@ comment S331F:4CBB map_number: the number of the battle's map, as game_loop puts
 name S2C01:0006 lib_read
 comment S2C01:0006 Presumably reads one named entry of a library file: opens [BP+0A], reads a dword and seeks there, then reads 0Ch-byte records while the name at [BP+0E] is not empty (read from the code's start only).
 name S2C45:0002 file_load
-comment S2C45:0002 file_load(far place or 0/FFFFFFFF, far name, far work buffer of 1000h bytes or 0): opens (up to four tries with a message when DATA:0376 is set), reads eight bytes to S2C45:0486; with a work buffer and the packer's signature there the file is unpacked, else read whole; allocates when no place is given. Returns the place, its offset made 1 to 10h, or 0.
+comment S2C45:0002 file_load(far place or 0/FFFFFFFF, far name, far work buffer of 1000h bytes or 0): each try writes 0 to DATA:0B17, then opens (up to four tries with a message when DATA:0376 is set), reads eight bytes to S2C45:0486; with a work buffer and the packer's signature there the file is unpacked, else read whole; allocates when no place is given. Returns the place, its offset made 1 to 10h, or 0.
 ; The packed file: the signature, the unpacked length as a dword, then
 ; groups of a control byte and eight items, bit 7 first: bit clear, one byte
 ; as it is; bit set, two bytes: the upper four bits of the first and the
@@ -990,17 +990,18 @@ name S331F:4C9E map_bytes
 name S331F:4CA0 map_width
 name S331F:4CA2 map_height
 
-; map_load (read, not stepped in a run): marks every record of the units and
-; of the four 1Ch-record tables unused (8000h), loads the map file with
+; map_load (read, not stepped in a run): loads the map file with
 ; file_load, takes width and height from bytes 1 and 3 of its header and
-; points map_ptr behind the four header bytes. Then it walks the fields. The
+; points map_ptr behind the four header bytes. Then it marks every record
+; of the units, of sites_400, sites_100 and carriers unused (8000h;
+; sites_40 is not marked) and walks the fields. The
 ; first byte indexes ww1gnds_dat (6-byte records); of that record's word 0,
 ; bits 2 and 1 give a side (2, 1 or 0) and 400h, 100h or 40h add a record to
 ; the table at S331F:3A0E, 38F6 or 38BE. A second byte below F4h is a unit:
 ; halved it is the kind (below 33h), its bit 0 the side; unit_add is called
 ; with the next number from unit_total, and for a kind with 40h and 80h in
-; unit_dat's word 0Dh twice, the second a row further down with the kind
-; plus one. What the three tables are in the game is not known. The part
+; unit_dat's word 0Dh twice, the second a row down for side 1 (a row up
+; for side 0) with the kind plus one. What the three tables are in the game is not known. The part
 ; behind file_load was compared with the port's translation on six maps
 ; (none of them with a two-part unit or a kind with 2 in word 0Dh).
 name S0E56:0329 map_load
@@ -1032,7 +1033,12 @@ name S15C5:0594 unit_free
 ; as 1Eh, 14h and 32h, and the flags (word 19h) get 8, 10h and 4; carrier_add
 ; gives 20h. The four map offsets: site_add_400 the field, the one two
 ; columns left and the two between them; site_add_100 the field, the one
-; below and the two beside that; site_add_40 the field four times.
+; below and the two beside that; site_add_40 the field four times. Which
+; of the two side fields is taken by the parity of the field's number
+; ((field>>1)&1, as the port's site_add_400 and site_add_100 have it),
+; not of its column; the two parities are the same on maps of even width
+; only, and all 72 maps' files give an even width (read from their
+; headers).
 name S15C5:024A site_add_400
 name S15C5:032C site_add_100
 name S15C5:040D site_add_40
@@ -1184,8 +1190,10 @@ name S331F:4DA8 attack_pick
 ; and empties their places, lowers the counts that belong to the record's
 ; word 19h (with 10h byte 4 of the side's record and the second of
 ; site_totals, with 8 byte 3 and the first, with 20h the third) and writes
-; 8000h to word 19h. Read; the port's translation agrees with the original
-; in the runs port/README.md names.
+; 8000h to word 19h. The side is the row, unless bit 0 of word 19h says 1
+; (with bit 1 set and bit 0 clear it stays the row, so a site of no side
+; lowers that row's counts). Read; the port's translation agrees with the
+; original in the runs port/README.md names.
 name S15C5:06EA site_free
 ; How deep unit_free is in itself (through site_free); above 5 it returns
 ; at once, and it leaves the count raised when it returns early.
@@ -1212,7 +1220,11 @@ name S331F:4CAD site_totals
 ; the setup, 200h a saved game is to be loaded, 400h the map is one for a
 ; single player (the menu sets it from byte 6 of the map's record in
 ; CODES.DAT and then makes one side the computer's: the second below map
-; 18h, else the first). Word 2: 1 one side is the computer's, 2 none, 4
+; 18h, else the first). The menu's exit (S167A:25C1) also sets S37FF:012F
+; from bit 2 of byte 8 of that record (FFh when set, else 0); the grounds
+; file and the pictures' names follow it (W or S). The rule holds on 13
+; maps' dumps (among them 8 and 49, both FFh); the other 59 are predicted
+; from CODES.DAT alone. Word 2: 1 one side is the computer's, 2 none, 4
 ; both, 8 an item of the menu (which, was not looked at).
 name S331F:4CA4 game_state
 ; A record of 31h bytes for each side, presumably its half of the screen:
@@ -1359,10 +1371,11 @@ name S2C95:000E clock_seed
 ; stepped; docs/HANDOFF.md, "The loop of game_loop, second reading", has
 ; what the states of a view do). The routines and places named here are
 ; used there.
-; timer_set(kind, passes, value): takes the first free of the 15 timers in
+; timer_set(kind, passes, value): the first free of the 15 timers in
 ; game_state (byte 19h the kind, dword 28h the pass it is due at: the count
-; of passes at dword 13h plus the passes, word 64h the value); kinds 1 and
-; 2 first free the timers of their own kind. Read.
+; of passes at dword 13h plus the passes, word 64h the value) gets the
+; kind; for kinds 1 and 2 the timers of their own kind are freed first.
+; Nothing when no slot is free. Read.
 name S0CB6:0272 timer_set
 ; timer_fire(kind, timer): what a timer does when game_loop finds it due
 ; at the end of a pass: 1 and 2 take the first and second side's message
@@ -1409,15 +1422,17 @@ name S02E6:2B28 units_drop_empty
 name S331F:4CB5 round_count
 ; buf_neighbours(column, row): as field_neighbours, but the six entries of
 ; neighbours are places in a work buffer of one byte a field and 64 fields a
-; row (column plus row times 64), not map offsets; it ends with S0B15:025F
-; (not read; presumably FFFFh for those beyond the edge). Read.
+; row (column plus row times 64), not map offsets; FFFFh for those beyond
+; the edge. S0B15:025F clamps the column and row to the map first (as the
+; port's buf_neighbours has it). Read.
 name S0B15:005B buf_neighbours
 ; move_costs(buffer, unit, side, mask, map): what entering each field costs
 ; the unit, as a negative byte in a buffer of 1104h bytes; B0h is a field it
 ; cannot enter. From the ground's record in ww1gnds_dat: B0h unless its
 ; byte 2 has a bit of the kind's byte 5; else minus its byte 4 for a unit
-; with 10h in unit_flags, minus 2 for one with 10h in its word 6, minus its
-; byte 3 for the others; B0h where the ground's word 0 has a bit of the mask
+; with 10h in unit_flags, minus its byte 3 for the others; 10h in the
+; unit's word 6 overrides either and pays 2 everywhere it may enter.
+; B0h where the ground's word 0 has a bit of the mask
 ; (FFFFh is no mask). Then the units on the map: B0h for one with 2 in
 ; unit_flags and for one of the other side, whose six neighbours (not B0h)
 ; get 9Ah (around a unit of the second side) or 9Bh; FEh for a unit of the
@@ -1545,10 +1560,12 @@ name S10E1:072C move_step
 ; S1E4B:0621 (the computer's player).
 name S10E1:0F82 move_target
 ; move_arrive(side, map): the end of a walk, by byte 0Ch of move_rec; the
-; unit gets that kind in byte 13h (its order), 1 in unit_marks, and the
-; details in bytes 15h (the record's number), 16h (the other unit), 19h
-; (the place) and word 17h (the record's flags, or in kind 1 the other
-; unit's unit_flags). Returns the text (38h but in kind 1).
+; unit gets that kind in byte 13h (its order), 1 in unit_marks, and (in
+; kinds 3 and 4) the details in bytes 15h (the record's number), 16h (the
+; other unit), 19h (the place) and word 17h (the record's flags, or in
+; kind 1 the other unit's unit_flags); kind 2 does not write word 17h,
+; kind 5 not byte 16h, kind 1 not byte 15h (as the port's move_arrive has
+; them). Returns the text (38h but in kind 1).
 ; - 3, a field: 200h for 100h and 4000h in unit_flags (unit_mark).
 ; - 4, a site of the other side or of nobody: the same; the site is not
 ;   changed here.

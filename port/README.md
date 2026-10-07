@@ -407,3 +407,18 @@ anything the game needs before the first release.
   Not covered: the branch for an aim's ground of A5h or above, a field
   at the map's edge (not tested by the original either), the second
   side's 11h, a ground without 8000h among the three.
+- The computer's input (2026-10-07, Mac): `computer_input`
+  (`S1E4B:0001`, `port/src/computer.c`), the last link of the computer's
+  player: the next word of direction and button bits from the side's
+  script of input codes. `port/tests/computer_test.sh` runs it on pairs
+  of dumps at `S1E4B:0023` and `S1E4B:011D` (`build/n4/input1.py` and
+  `input2.py` make them; the result is read from the routine's frame in
+  the second dump) and compares the whole dump but the routine's frame:
+  52 calls from the first 150 s of two runs, 26 of side 1 (the long run
+  `w0`) and 26 of side 0 (`k24`, the map of code 24), 28 spread over all
+  calls (24 of them with no script) and 24 of those that returned 0 and
+  the calls behind them; single codes, the sequences 11h, 14h and 18h and
+  a script's end are among them. 52 calls, 0 different.
+  Not covered: the codes 81h (12h) and 84h and the diagonals were not
+  seen in these calls. Nothing else of `computer_turn` is translated, so
+  the port's program does not play a side yet.

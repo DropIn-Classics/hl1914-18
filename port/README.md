@@ -390,3 +390,20 @@ anything the game needs before the first release.
   original; with the three earlier passes 5, 0 different.
   Not covered: a 0Bh whose fields are no longer free, the second side's
   depots, the field at a map's edge (`S0E56:1A97` does not test it).
+- Order 11h at a round's end (2026-10-07, Windows): `orders_run` carries
+  it out (`S02E6:1986` calls `S0E56:1B57` with the unit's place on side
+  DI's map, `unit_aim` and the map at `[BP-6]`): three fields around the
+  place, chosen by the aim's direction and the column's parity from the
+  steps at `S331F:0059`, get the grounds at `S331F:00C5` where their
+  ground has 8000h, or 51h when the aim's ground is A5h or above. One pass
+  from a key-script run on map 51 (code PLATE, player two set to the
+  computer; unit 1F, kind 14; `build/n2/orders_test_build11.args`,
+  `0E9C#242`/`19B8#2`, DI 0): the original changes three bytes of side
+  0's map (01FAh 51h to A7h, 0228h to AAh, 022Ch to ABh) and nothing in
+  side 1's (a compare of the whole dump), and the port the same three,
+  nothing written only by the original; with the old `orders.c` the pass
+  fails (the three bytes only the original's). Built and run with MSVC
+  here; the five earlier passes' dumps are not on this machine.
+  Not covered: the branch for an aim's ground of A5h or above, a field
+  at the map's edge (not tested by the original either), the second
+  side's 11h, a ground without 8000h among the three.

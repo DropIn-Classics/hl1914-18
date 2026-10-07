@@ -224,7 +224,15 @@
     X(S15C5, unit_free, 0x0594) \
     X(S15C5, site_free, 0x06EA) \
     X(S15C5, carrier_moved, 0x0804) \
+    X(S1C74, computer_turn, 0x000B) \
     X(S1C74, computer_reset, 0x01B4) \
+    X(S1CC6, computer_queue, 0x0000) \
+    X(S1CC6, computer_assess, 0x0A35) \
+    X(S1E4B, computer_input, 0x0001) \
+    X(S1E4B, computer_step, 0x012E) \
+    X(S1E4B, step_add, 0x038F) \
+    X(S1E4B, cursor_script, 0x128E) \
+    X(S2138, computer_plan, 0x000C) \
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
     X(S2892, num_text, 0x0001) \
@@ -289,6 +297,12 @@
     X(S331F, sides, 0x4D33) \
     X(S331F, views, 0x4D92) \
     X(S331F, attack_pick, 0x4DA8) \
+    X(S39B6, computer_script, 0x1224) \
+    X(S39B6, computer_steps, 0x126B) \
+    X(S39B6, computer_phase, 0x12FD) \
+    X(S39B6, computer_out, 0x1315) \
+    X(S3AE8, script_bits, 0x0004) \
+    X(S3AE8, script_gestures, 0x000E) \
     X(S3AEC, fight_rec_ptr, 0x0008) \
     X(S3AED, ground_bonus, 0x0000) \
     X(DATA, rand_state, 0x11F6) \

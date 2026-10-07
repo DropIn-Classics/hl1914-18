@@ -23,7 +23,7 @@
 
 /* S331F:0049, 004D, 0051, 0055: the column and row steps (four signed
  * bytes each) from a field to the four fields of a depot, for an even and
- * an odd column (foot_steps; PENDING LEAD NAME) */
+ * an odd column (foot_steps in the hints) */
 #define S_foot_steps (HL_S331F + HL_BASE)
 #define A_foot_cols_even 0x0049u
 #define A_foot_rows_even 0x004Du
@@ -62,7 +62,7 @@ static Far order_site(Far unit)
     return p;
 }
 
-/* S0E56:1A97 (footprint; PENDING LEAD NAME): the four fields of a depot
+/* S0E56:1A97 (footprint in the hints): the four fields of a depot
  * on `field` as map offsets into `neighbours`: the field, then by the
  * steps at S331F:0049 (an odd column: 0051).  No test of the map's edge. */
 static void footprint(uint16_t field)
@@ -80,7 +80,7 @@ static void footprint(uint16_t field)
     }
 }
 
-/* S331F:0059 and 00C5 (aim_steps and aim_grounds; PENDING LEAD NAME):
+/* S331F:0059 and 00C5 (aim_steps and aim_grounds in the hints):
  * by the column's parity (36h bytes each), the aim's column (12h) and row
  * (6) less the unit's plus 1, three pairs of signed column and row steps
  * from the unit's field, and at 00C5 with the same index the ground each
@@ -89,7 +89,7 @@ static void footprint(uint16_t field)
 #define A_aim_steps 0x0059u
 #define A_aim_grounds 0x00C5u
 
-/* S0E56:1B57 (aim_grounds_set; PENDING LEAD NAME): order 11h, a unit with
+/* S0E56:1B57 (aim_grounds_set in the hints): order 11h, a unit with
  * 2000h in its word 6.  Three fields around the unit's place, chosen by
  * where the aim lies, get new grounds when their ground has 8000h in its
  * word 0: those of the table at 00C5 while the aim's ground is below A5h,

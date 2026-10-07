@@ -20,7 +20,8 @@ R={'move_arrive':('S10E1:0AF0','S10E1:0F70',['side','map_off','map_seg']),
    'attack_unmark':('S0AE0:02E3','S0B15:000A',['view_off','view_seg','side']),
    'move_done':('S10E1:000F','S10E1:02EA',['view_off','view_seg','map_off','map_seg','side','flags']),
    'move_aim':('S10E1:02EB','S10E1:05C9',['view_off','view_seg','map_off','map_seg','side']),
-   'field_menu':('S0CB6:0EAA','S0CB6:1841',['view_off','view_seg','side','bits'])}
+   'field_menu':('S0CB6:0EAA','S0CB6:1841',['view_off','view_seg','side','bits']),
+   'view_step':('S0CB6:0750','S0CB6:0CD2',['view_off','view_seg','rec_off','rec_seg','bits','map_off','map_seg','side'])}
 out,tag,keys,until,rt,n=sys.argv[1:7]
 n_in,n_out=(n.split('/')+[n])[:2]
 here=os.path.dirname(os.path.abspath(__file__)); kit=os.path.join(here,'../../doskit/tools/run.py')

@@ -270,6 +270,7 @@
     X(S2C9E, ptr_norm, 0x0002) \
     X(S2CBE, mem_alloc, 0x000E) \
     X(S3303, take_picture, 0x0021) \
+    X(S3306, move_args, 0x000A) \
     X(S3310, name_dirs, 0x0029) \
     X(S3310, name_exts, 0x0041) \
     X(S3310, name_prefix, 0x007D) \

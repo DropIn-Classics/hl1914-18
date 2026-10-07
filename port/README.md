@@ -584,9 +584,10 @@ anything the game needs before the first release.
   the same in the game's state; all have the flags 1, so only the
   clearing of the side's marks is covered. Not covered: a move given up
   (10h in the flags) and a view in step 3 (a unit taken back into its
-  site or carrier). There the original writes F4h and the record's byte
-  1Bh through the units' segment at the map's offset plus the unit's
-  place, not into the map; the port does the same (not compared).
+  site or carrier). (Corrected with `view_step` below: the original
+  writes F4h and the record's byte 1Bh into the map; the port wrote them
+  through the units' segment, which the first comparison of a move given
+  up showed.)
 - `move_aim` (2026-10-07, Linux; `src/move.c`, `S10E1:02EB`) with
   `marks_erase` (`S0E56:1217`, of which only its `field_bits_clear` is
   state): five calls (the first side's in k4 and d5r, the computer's in
@@ -607,3 +608,20 @@ anything the game needs before the first release.
   pointer 2, the refusals (texts 53h, 54h, 4Bh, 4Ch, 4Dh, 6Fh), the
   builder (`depot_places`) and a unit with 2000h in word 6, and a held
   down, left or right.
+- `view_step` (2026-10-07, Linux; `src/side.c`, `S0CB6:0750`), with
+  `move_args` (`S3306:000A`, now named; `move_range` keeps its arguments
+  there and step 18h calls it again with them). 15 calls of the runs k4,
+  s4 (map 0), d5r and site (map 8), found with `run.py -log` on its
+  branches (`S0CB6:07C1`, `080F`, `0837`, `0909`, `0B24`, `0C90`): a
+  press in step 0, without a press, the aim (16h) found and refused
+  (12h, two calls), the move's start (3) and the step after it (19h),
+  the move given up by a second press (17h, `move_done` with 10h and a
+  unit out of a site, three calls) and the attack's order (13h, four
+  calls): result (AL) and the game's state the same. The move given up
+  first differed in one byte: `move_done` wrote F4h through the units'
+  segment where the original writes into the map; fixed in `src/move.c`.
+  Two refused calls of `move_aim` (d5r, its calls 15 and 16, result 12h)
+  were added to the comparison; which of its tests refused them was not
+  looked at. Not covered: steps 18h and 1Ah (a move whose start gave 10h,
+  an attack not ordered; neither came in these runs, so `move_start`'s
+  12h is still not compared) and a second press by 8 in the side's word.

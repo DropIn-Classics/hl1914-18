@@ -6,7 +6,7 @@
  * Each set is one call dumped by port/tests/dumps.py at the routine's
  * entry and its RETF: SS:SP at the entry (the arguments are read from the
  * stack there) and the original's result AX (from dumps.log).  ROUTINE is
- * menu (field_menu, S0CB6:0EAA, nothing returned), aim (move_aim, S10E1:02EB), start (move_start, S10E1:05D1), done (move_done, S10E1:000F, nothing
+ * step (view_step, S0CB6:0750, its result in AL only), menu (field_menu, S0CB6:0EAA, nothing returned), aim (move_aim, S10E1:02EB), start (move_start, S10E1:05D1), done (move_done, S10E1:000F, nothing
  * returned), order (attack_order, S0AE0:0008) or unmark (attack_unmark, S0AE0:02E3,
  * which returns nothing: give - as AX).  Memory after the port's routine is
  * compared with the exit dump in the game's state (from segment S3306 up
@@ -69,7 +69,10 @@ int main(int argc, char **argv)
             got = attack_order(FARG(0), FARG(2), ARG(4));
         else if (!strcmp(r, "done"))
             move_done(FARG(0), FARG(2), ARG(4), ARG(5));
-        else if (!strcmp(r, "menu"))
+        else if (!strcmp(r, "step")) {
+            got = view_step(FARG(0), FARG(2), ARG(4), FARG(5), ARG(7));
+            ax &= 0xFF;
+        } else if (!strcmp(r, "menu"))
             field_menu(FARG(0), ARG(2), ARG(3));
         else if (!strcmp(r, "unmark"))
             attack_unmark(FARG(0), ARG(2));

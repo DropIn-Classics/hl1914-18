@@ -2,7 +2,8 @@
  * and that draws nothing: HL.EXE's build_list (S131D:14D4) and, from
  * game_loop, the repairing (S066A:3156 to 32A9) and the building of a
  * unit (S066A:387A to 3A42) and the moving out of a unit (S066A:2F52 to
- * 3146), and the view's state 1 (field_menu, S0CB6:0EAA).  The texts the original
+ * 3146), and the view's states 1 and 0 (field_menu, S0CB6:0EAA, and
+ * view_step, S0CB6:0750).  The texts the original
  * then shows are returned, not shown.  port/README.md says how this was
  * compared with the original.
  */
@@ -495,4 +496,166 @@ void field_menu(Far view, uint16_t side, uint16_t bits)
         pwb(view, 0x18, 0);
         pwb(view, 0x1B, 5);
     }
+}
+
+/* the second press of a step entered with 400h in game_state's word 4
+ * (byte 5 of the input record, or 8 in the side's word of `sides`, which
+ * is cleared): whether it came */
+static int second_press(Far rec, uint16_t side)
+{
+    uint16_t s = (uint16_t)(A_sides + side * 0x17);
+
+    if (!pb(rec, 5) && !(frw(S_sides, s) & 8))
+        return 0;
+    fww(S_sides, s, frw(S_sides, s) & 0xFFF7);
+    return 1;
+}
+
+/* a step that waits for a second press: 400h in game_state's word 4 and a
+ * timer of kind 7 over 4 passes */
+static void second_wait(void)
+{
+    SETW(game_state, 4, NW(game_state, 4) | 0x400);
+    timer_set(7, 4, 0);
+}
+
+/* S0CB6:0750 (view_step): state 0 of a view (byte 17h), by its step (byte
+ * 18h), with the input record `rec` (byte 8 a press, byte 5 a second
+ * press), the input bits of side_input and the side's map.  A press acts
+ * only when byte 30h of the view says the button was let go before (a
+ * press with 30h 0 only sets it).
+ * 16h: move_aim; its result goes to 30h; with 10h (a refusal) the view
+ *   waits in 17h (second_wait), else goes to 3 with 30h 0.
+ * 17h: with 400h a second press gives the move up (move_done with 10h);
+ *   without (the timer ran out) back to 16h.
+ * 3: move_start; with 10h in its result the view waits in 18h, else goes
+ *   to step 19h with pointer 5 and move_done with the result.
+ * 18h: with 400h a second press gives the move up; without, move_range
+ *   again with the arguments it kept at S3306:000A (the drawing left out),
+ *   100h in game_state's word 4, site_taken 0, back to 16h.
+ * 13h: attack_order; given, step 19h with pointer 5 and attack_unmark;
+ *   else the view waits in 1Ah.
+ * 1Ah: with 400h a second press gives the attack up (step 19h, pointer 5,
+ *   100h, site_taken 1, attack_unmark); without back to 13h.
+ * 19h: a press (byte 8) is taken and the step becomes 0.
+ * Else (0) the button takes the side's text away (4, 8 for the second
+ * side, leaves game_state's word 0) and goes to state 1, step 1.
+ * Byte 8 of the record is cleared after each of the steps 16h to 1Ah that
+ * acted.  Returns 0 with the button in `bits`, else 1. */
+uint8_t view_step(Far view, Far rec, uint16_t bits, Far map, uint16_t side)
+{
+    uint8_t step = pb(view, 0x18), r;
+    int press = (bits & 0x10) != 0;
+
+    if (step == 0x16 || step == 3 || step == 0x13) {
+        if (pb(rec, 8) && !pb(view, 0x30)) {
+            pwb(view, 0x30, 1);
+            return !press;
+        }
+        if (!press || !pb(view, 0x30))
+            return !press;
+    }
+    switch (step) {
+    case 0x16:
+        r = (uint8_t)move_aim(view, map, side);
+        pwb(view, 0x30, r);
+        if (r & 0x10) {
+            second_wait();
+            pwb(view, 0x18, 0x17);
+        } else {
+            pwb(view, 0x18, 3);
+            pwb(view, 0x30, 0);
+        }
+        pwb(rec, 8, 0);
+        break;
+    case 0x17:
+    case 0x18:
+        if (NW(game_state, 4) & 0x400) {
+            if (second_press(rec, side)) {
+                pwb(view, 0x30, 0x10);
+                move_done(view, map, side, 0x10);
+                pwb(view, 0x30, 0);
+                pwb(rec, 5, 0);
+            }
+        } else if (step == 0x17)
+            pwb(view, 0x18, 0x16);
+        else {
+            Far buf, m;
+            uint16_t a = A_move_args;
+            buf.off = frw(S_move_args, (uint16_t)(a + 2));
+            buf.seg = frw(S_move_args, (uint16_t)(a + 4));
+            m.off = frw(S_move_args, (uint16_t)(a + 0x0E));
+            m.seg = frw(S_move_args, (uint16_t)(a + 0x10));
+            move_range((int16_t)frw(S_move_args, a), buf, frw(S_move_args, (uint16_t)(a + 6)),
+                       (int16_t)frw(S_move_args, (uint16_t)(a + 8)), frw(S_move_args, (uint16_t)(a + 0x0A)),
+                       frw(S_move_args, (uint16_t)(a + 0x0C)), m);
+            SETW(game_state, 4, NW(game_state, 4) | 0x100);
+            SETW(site_taken, 0, 0);
+            pwb(view, 0x30, 0);
+            pwb(view, 0x18, 0x16);
+        }
+        pwb(rec, 8, 0);
+        break;
+    case 3:
+        r = (uint8_t)move_start(view, side);
+        pwb(view, 0x30, r);
+        if (r & 0x10) {
+            second_wait();
+            pwb(rec, 5, 0);
+            pwb(view, 0x18, 0x18);
+        } else {
+            pwb(view, 0x17, 0);
+            pwb(view, 0x18, 0x19);
+            pwb(view, 0x1B, 5);
+            move_done(view, map, side, (uint16_t)(int8_t)r);
+            pwb(view, 0x30, 0);
+        }
+        pwb(rec, 8, 0);
+        break;
+    case 0x13:
+        r = (uint8_t)attack_order(view, map, side);
+        pwb(view, 0x30, r);
+        if (r) {
+            pwb(view, 0x17, 0);
+            pwb(view, 0x18, 0x19);
+            pwb(view, 0x1B, 5);
+            attack_unmark(view, side);
+        } else {
+            pwb(view, 0x18, 0x1A);
+            pwb(rec, 5, 0);
+            second_wait();
+        }
+        pwb(view, 0x30, 0);
+        pwb(rec, 8, 0);
+        break;
+    case 0x1A:
+        if (!(NW(game_state, 4) & 0x400))
+            pwb(view, 0x18, 0x13);
+        else if (second_press(rec, side)) {
+            pwb(view, 0x17, 0);
+            pwb(view, 0x18, 0x19);
+            pwb(view, 0x1B, 5);
+            SETW(game_state, 4, NW(game_state, 4) | 0x100);
+            SETW(site_taken, 0, 1);
+            pwb(view, 0x30, 0);
+            pwb(rec, 5, 0);
+            attack_unmark(view, side);
+        }
+        pwb(rec, 8, 0);
+        break;
+    case 0x19:
+        if (pb(rec, 8)) {
+            pwb(rec, 8, 0);
+            pwb(view, 0x18, 0);
+        }
+        break;
+    default:
+        if (press) {
+            show_message(0xFFFF, side);
+            SETW(game_state, 0, NW(game_state, 0) & (side ? 0xFFF7 : 0xFFFB));
+            pwb(view, 0x17, 1);
+            pwb(view, 0x18, 1);
+        }
+    }
+    return !press;
 }

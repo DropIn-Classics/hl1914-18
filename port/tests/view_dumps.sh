@@ -37,3 +37,13 @@ d mak4 m0_k4.keys 60 move_aim 1 &
 for n in 1 30 60 73; do MAP8=1 d mad5_$n m8_d5r.keys 300 move_aim $n & done
 wait
 
+# field_menu (S0CB6:0EAA): the entry, a held button and the releases
+# (the calls before S0CB6:106C was reached, found with run.py -log)
+for n in 2 3 10 16; do d fmk4_$n m0_k4.keys 60 field_menu $n & done
+for n in 30 43 45 71 85 98; do d fms4_$n m0_s4.keys 130 field_menu $n & done
+wait
+for n in 32 51 54 70 99; do d fmhq_$n m0_hq.keys 130 field_menu $n & done
+for n in 30 44 58 160; do MAP8=1 d fmd5_$n m8_d5r.keys 130 field_menu $n & done
+wait
+for n in 16 30 44 146; do MAP8=1 d fmsite_$n m8_site.keys 125 field_menu $n & done
+wait

@@ -202,6 +202,7 @@
     X(S0E56, field_draw, 0x145A) \
     X(S0E56, site_find, 0x1726) \
     X(S0E56, view_to_field, 0x177C) \
+    X(S0E56, depot_places, 0x18A3) \
     X(S0E56, footprint, 0x1A97) \
     X(S0E56, aim_grounds_set, 0x1B57) \
     X(S0E56, map_copy, 0x1D9B) \
@@ -274,6 +275,7 @@
     X(S3310, name_prefix, 0x007D) \
     X(S3310, name_buf, 0x00B9) \
     X(S331F, around_percent, 0x0009) \
+    X(S331F, depot_steps, 0x0021) \
     X(S331F, foot_steps, 0x0049) \
     X(S331F, aim_steps, 0x0059) \
     X(S331F, aim_grounds, 0x00C5) \

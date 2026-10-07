@@ -147,6 +147,7 @@ void view_copy(Far view, int back);
 void move_out(Far view, uint16_t side);
 uint16_t side_input(Far rec, Far view);
 void show_message(uint16_t text, uint16_t side);
+void field_menu(Far view, uint16_t side, uint16_t bits);
 
 /* names.c */
 Far file_name(uint16_t where, int16_t dir, Far name, int16_t ext);

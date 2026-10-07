@@ -595,3 +595,15 @@ anything the game needs before the first release.
   ground closed to the unit, a text from `move_target`, no way, 48h).
   With this all of `view_step`'s callees are in the port.
 
+- `field_menu` (2026-10-07, Linux; `src/side.c`, `S0CB6:0EAA`) with
+  `depot_places` (`S0E56:18A3`, named now: where the builder of depots
+  may build; marks and the drawing left out). 23 calls of the runs k4,
+  s4, hq (map 0), d5r and site (map 8), found with `run.py -log` on the
+  entry and on `S0CB6:106C` (the button let go): the entry of state 1,
+  a held button with up, and the releases with the pointers 4 (a move,
+  `move_range` finding fields), 0 (an attack by `attack_range`), 9, 0Ah
+  and 3, of both views; the game's state the same in all, outside it
+  only the bytes the drawing and the interrupts change. Not covered:
+  pointer 2, the refusals (texts 53h, 54h, 4Bh, 4Ch, 4Dh, 6Fh), the
+  builder (`depot_places`) and a unit with 2000h in word 6, and a held
+  down, left or right.

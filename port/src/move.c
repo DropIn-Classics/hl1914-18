@@ -707,3 +707,63 @@ uint16_t move_aim(Far view, Far map, uint16_t side)
     pww(unit, 0x11, field);
     return r;
 }
+
+/* the unit's order taken back (byte 14h loses 1, word 4 4200h) */
+static void undo_marks(Far unit)
+{
+    pwb(unit, 0x14, (uint8_t)(pb(unit, 0x14) & 0xFE));
+    pww(unit, 4, pw(unit, 4) & 0xBDFF);
+}
+
+/* S10E1:1514 (order_undo): the arrival a unit's byte 13h records (as
+ * move_arrive wrote it) taken back on `side`'s map, for a unit attacks_run
+ * frees: 1 puts the taken unit (byte 16h) back on the unit's field with its
+ * flags (word 17h) and empties its place in the carrier's row; 2 empties
+ * the unit's place in the carrier's row (record by byte 15h); 3 and 4 empty
+ * the unit's field (and its other half's); 5 empties its place in the
+ * site's row (sites_40 by 4, sites_400 by 8 in word 17h, else sites_100).
+ * Byte 13h becomes 0. */
+void order_undo(uint8_t no, Far map, uint16_t side)
+{
+    Far unit = unit_at(no);
+    uint16_t pos = pw(unit, (uint16_t)(0x0B + 2 * side));
+
+    switch (pb(unit, 0x13)) {
+    case 1: {
+        uint8_t o = pb(unit, 0x16);
+
+        pwb(map, pos, o);
+        SETW(unit_pos, o * UNIT_SIZE + 2 * side, pos);
+        SETW(unit_flags, o * UNIT_SIZE, pw(unit, 0x17));
+        SETB(unit_marks, o * UNIT_SIZE, 0);
+        pwb(carrier_of(unit), (uint16_t)(side * 7 + pb(unit, 0x19)), 0xFF);
+        undo_marks(unit);
+        break;
+    }
+    case 2:
+        pwb(site_at(A_carriers, pb(unit, 0x15)), (uint16_t)(side * 7 + pb(unit, 0x19)), 0xFF);
+        undo_marks(unit);
+        break;
+    case 3:
+    case 4:
+        pwb(map, pos, 0xFF);
+        if (pw(unit, 4) & 0x40) {
+            uint8_t h = (uint8_t)(pw(unit, 4) & 0x80 ? no + 1 : no - 1);
+
+            pwb(map, NW(unit_pos, h * UNIT_SIZE + 2 * side), 0xFF);
+            undo_marks(unit_at(h));
+        }
+        undo_marks(unit);
+        break;
+    case 5: {
+        uint16_t t = pw(unit, 0x17) & 4 ? A_sites_40 : pw(unit, 0x17) & 8 ? A_sites_400 : A_sites_100;
+
+        pwb(site_at(t, pb(unit, 0x15)), (uint16_t)(side * 7 + pb(unit, 0x19)), 0xFF);
+        undo_marks(unit);
+        break;
+    }
+    default:
+        break;
+    }
+    pwb(unit, 0x13, 0);
+}

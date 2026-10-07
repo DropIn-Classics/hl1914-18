@@ -53,12 +53,19 @@ static uint32_t far_lin(Far p) { return lin(p.seg, p.off); }
  * neighbours, move_rec) and move_args (S3306:000A, 12h bytes); and
  * S3AEC:0000 to 0007, which only code in S2138 (computer_queue) was seen
  * writing; 2 else, and name_buf (S3310:00B9, 40h bytes here), the name of
- * the last file opened, which the pictures the port does not draw change */
+ * the last file opened, and S3AEE, the fight pictures' data, which the
+ * pictures the port does not draw change */
 static int region(uint32_t a)
 {
     uint32_t scratch = ((uint32_t)S_units << 4) + A_free_depth;
     uint32_t args = ((uint32_t)S_move_args << 4) + A_move_args;
     uint32_t name = ((uint32_t)S_name_buf << 4) + A_name_buf;
+    /* S3AEE, the data of the fight's pictures (only S2532, which
+     * fight_show calls, uses it) */
+    uint32_t pics = (uint32_t)(HL_S3AEE + HL_BASE) << 4, pics_end = (uint32_t)(HL_S3B5D + HL_BASE) << 4;
+    /* S3812, the data of S1A39, which shows the picture of a site taken
+     * (it writes nothing else of the program's) */
+    uint32_t film = (uint32_t)(HL_S3812 + HL_BASE) << 4, film_end = (uint32_t)(HL_S39B6 + HL_BASE) << 4;
 
     uint32_t s3306 = (uint32_t)(HL_S3306 + HL_BASE) << 4, comp = (uint32_t)(HL_S39B6 + HL_BASE) << 4;
     uint32_t comp_end = ((uint32_t)(HL_S3AEC + HL_BASE) << 4) + 8, data = (uint32_t)(HL_DATA + HL_BASE) << 4;
@@ -69,6 +76,8 @@ static int region(uint32_t a)
     if ((a >= comp && a < comp_end) || (a >= scratch && a < scratch + 0x2A) || (a >= args && a < args + 0x12))
         return 1;
     if (a >= name && a < name + 0x40)
+        return 2;
+    if ((a >= pics && a < pics_end) || (a >= film && a < film_end))
         return 2;
     if (a >= s3306 && a < data)
         return 0;

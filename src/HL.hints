@@ -1138,6 +1138,31 @@ name S2474:0005 fight_show
 ; (FFh there) as the field's unit and sets 4 in the unit's unit_marks; the
 ; same for the other half of a two-part unit. Read, not stepped.
 name S02E6:208E unit_destroy
+; carrier_losses(side, unit, loss), called by attacks_run after a fight
+; for a fighter with 1000h in unit_flags: each unit in the side's row of
+; seven of the carrier's record (byte 0Ah) loses `loss` of unit_count; one
+; with no more than that gets 4 in unit_marks and its place FFh. Read,
+; translated (port/src/orders.c); compared in the fights of m8_site only
+; where no carrier fought (not checked otherwise).
+name S02E6:2556 carrier_losses
+; pictures_load(free end, work, ...): loads the battle's screen pictures
+; again after a fight picture or a site taken (attacks_run): the file of
+; S331F:024C, a palette named by the number at S37FF:0112 (to
+; S0CB6:187F with 300h) and the libraries of S331F:0159 and 01E5 through
+; S0C66:0009; returns the new free end. Read; nothing the port keeps was
+; seen to change by it (presumably only pictures and name_buf).
+name S02E6:2B87 pictures_load
+; unit_panel(unit, side): draws a unit's panel for a fight (its count and
+; experience) after show_message(-1, side). Read; only the drawing.
+name S10AF:0131 unit_panel
+; fight_panel(fight record, pictures): draws the fight's panel; with
+; pictures 0 it calls fight_losses itself (fight_show does when they are
+; on). Sets fight_rec_ptr. Read, not stepped.
+name S131D:178D fight_panel
+; Set when the fights are not shown as pictures: then fight_panel works
+; the losses out and attacks_run counts the blasts down on the map itself
+; (presumably an option of the setup; 0 in the key-script runs).
+name S37FF:0115 no_fight_pics
 ; Byte 14h of a unit: 4 is set by unit_destroy and by S02E6:2556, and
 ; attacks_run frees the units that have it. 1 was seen in units ordered to
 ; move; what else the byte holds is not known.

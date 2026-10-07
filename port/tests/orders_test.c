@@ -57,7 +57,7 @@ int main(int argc, char **argv)
         uint16_t m;
         uint8_t result = 0xFF;
         Far map, p;
-        int k, left;
+        int k;
 
         if (sscanf(argv[i], "%x:%x", &ss, &bp) != 2 || sscanf(argv[i + 1], "%x", &di) != 1
             || !load(argv[i + 2], entry) || !load(argv[i + 3], leave))
@@ -70,9 +70,7 @@ int main(int argc, char **argv)
         for (u = 0; u <= 0xF0; u++)
             if (!(NW(unit_flags, u * UNIT_SIZE) & 0x8000) && NB(units, u * UNIT_SIZE + 0x13))
                 printf(" %02X:%X", u, NB(units, u * UNIT_SIZE + 0x13));
-        left = orders_run(m, (uint16_t)di, map, &result);
-        if (left)
-            printf("; %d not carried out by the port", left);
+        orders_run(m, (uint16_t)di, map, &result);
         if (result != 0xFF)
             printf("; result %u", result);
         lo_state = (uint32_t)(HL_S3306 + HL_BASE) << 4;
@@ -100,7 +98,7 @@ int main(int argc, char **argv)
         }
         printf("; state %u, only the original's %u, elsewhere %u; bytes orders_run changed %u\n",
                d_state, d_apart, d_else, changed);
-        if (d_state || left)
+        if (d_state)
             bad++;
         calls++;
     }

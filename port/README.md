@@ -87,9 +87,14 @@ count of passes. With it `attacks_run` (`src/orders.c`) has its frame
 around the orders: the round's end that makes the two sides' records and
 maps the same and turns the halves round (`rows_sync`,
 `units_drop_empty`, the mending of units, who is left). Left out: what
-draws, sounds and waits, the keys F2 to F9, Esc and saving, and the
-fights (`attacks_run` stops and says so when a side has attackers, as
-for order 1 and the routine run for a site taken). What the keyboard
+draws, sounds and waits, and the keys F2 to F9, Esc and saving.
+`attacks_run` now carries the fights out too (`fights_run`: `fight_rec`
+filled, `fight_percent` and `fight_losses`, destroyed units, losses of a
+carrier's load (`carrier_losses`), experience, the blasts counted down
+when the fights are not pictures), frees the units marked 4 with
+`order_undo` (`src/move.c`), and order 1 (`order_capture`); the
+pictures shown meanwhile and loaded again after them (`pictures_load`,
+`S02E6:2B87`) are left out. What the keyboard
 handler and the computer's player give a pass comes in from outside
 (`SideIn`): the computer's planning is not translated. Nothing calls
 the pass yet but `tests/loop_test.c`.
@@ -773,3 +778,19 @@ anything the game needs before the first release.
   `game_state`'s word 2 (not set in these passes), and a human second
   side. The pass is not yet played by the port's program: it runs only
   in the test, from the original's memory.
+- The fights in the pass (2026-10-07, Linux; `fights_run`,
+  `carrier_losses`, `order_capture` in `src/orders.c`, `order_undo` in
+  `src/move.c`): `tests/loop_dumps.py m8_site.keys 400` runs the original
+  to 400 s (6,582 passes; `attacks_run` in passes 291, 1939, 2615, 4284,
+  4543 and 6215) and `tests/loop_test.sh` compares 16 passes (50 to 6581,
+  each round's end and the pass after it): the game's state the same at
+  all of them. Seven fights were carried out in passes 2615, 4284 and
+  4543 (fight pictures on: `S37FF:0115`, `no_fight_pics`, is 0), and a
+  site was taken in 6215 (order 4 with `pictures_load` after it). Counted
+  apart now besides what was before: `S3AEE`, the data of the fight's
+  pictures (used only by `S2532`, which `fight_show` calls), and
+  `S3812`, the data of `S1A39`, the picture of a site taken; both
+  differed and nothing else of the program's reads them. Not reached in
+  these passes (counted with an instrumented build): a unit destroyed in
+  a fight, `carrier_losses`, the freeing of units marked 4, `order_undo`,
+  order 1 and the blasts with fight pictures off.

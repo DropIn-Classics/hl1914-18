@@ -134,9 +134,10 @@ void view_cursor(uint16_t side);
 uint32_t defence_sum(void);
 
 /* orders.c */
-int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result);
+void orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result);
+void order_undo(uint8_t unit, Far map, uint16_t side);
 void income_add(uint16_t side);
-uint8_t attacks_run(const char **missing);
+uint8_t attacks_run(void);
 
 /* computer.c */
 uint16_t computer_input(uint16_t side);

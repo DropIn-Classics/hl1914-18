@@ -607,9 +607,7 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
             key = 0;
             SETW(site_taken, 0, NB(sides, a * SIDE_SIZE + 0x15) ? 1 : 0);
             SETB(take_picture, 0, 0);
-            res = attacks_run(&missing);
-            if (missing)
-                return;
+            res = attacks_run();
             view_to_field(0, f0);
             view_to_field(1, f1);
             if (!(res & 0x80)) {

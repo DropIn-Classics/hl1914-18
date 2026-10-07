@@ -2009,9 +2009,47 @@ emulation error (2026-10-02).
     - In `m8_site` `attacks_run` runs in passes 291 (48.41 s) and 1939
       (111.43 s) without fights; its third call (150.53 s) has the first
       fights (`fight_percent` at 151.04 s).
-    Not translated in the pass: the keys F2 to F9, Esc and saving, the
-    fights, order 1 (`order_undo`), `S02E6:2B87`, and what draws, sounds
-    and waits; the computer's player beyond what comes in as input.
+    Not translated in the pass: the keys F2 to F9, Esc and saving, and
+    what draws, sounds and waits (the fights, order 1, `order_undo` and
+    `S02E6:2B87` followed, see the next bullet); the computer's player beyond what comes in as input.
+  - The fights of `attacks_run` (2026-10-07, Linux; `S02E6:0122` to
+    `0D48`, `0D63` to `0E9C`, order 1 at `0ED9`, `order_undo`, read and
+    translated, `port/src/orders.c` and `move.c`). Learned on the way:
+    - Each attacker of side a's list: the first half of a two-part unit
+      (40h without 80h is the second, the first is the one before) fights
+      the unit byte of the map at its `unit_aim`; nothing when that is
+      above F0h. `fight_rec` gets the far pointer game_loop passes first
+      (the end of the sides' lists) at 52h, and 1000h is set in
+      `game_state` before the first fight, so `pictures_load`
+      (`S02E6:2B87`, now named) always runs at the end of a round with
+      fights.
+    - With fight pictures (`no_fight_pics`, `S37FF:0115`, 0)
+      `fight_panel` (`S131D:178D`) and `fight_show` draw, the latter
+      calling `fight_losses` and keeping the counts before and after at
+      `S3AEC:000C` to `000F`; without them `fight_panel` calls
+      `fight_losses` itself and `attacks_run` counts the blasts down on
+      the map and puts the fields back.
+    - After the losses: a unit left with nothing is destroyed
+      (`unit_destroy`, slot 0 for the attacker, 2 for the target); a
+      carrier that lost passes the loss on to each unit of its row
+      (`carrier_losses`, `S02E6:2556`; one with no more than the loss is
+      marked 4 and leaves the row); each side's experience (byte 1)
+      rises, at most to 6, by one for the other unit destroyed and one
+      for a loss it took that is not of a kind with 20h in word 6.
+    - Then every unit marked 4 is freed (`unit_free` for side m), after
+      `order_undo` when it has 1 in `unit_marks`, and for a carrier so
+      are the units of side a's row of its record.
+    - Order 1 (the mover took the unit in its byte 16h into its carrier's
+      row): that unit goes over to side m like the units of a site taken
+      (counts of the sides, serial number of its kind); if it was freed
+      meanwhile only its place in the row becomes FFh.
+    - `order_undo` (`S10E1:1514`) by byte 13h: 1 puts the taken unit back
+      on the field with its flags (word 17h), 2 and 5 empty the place in
+      the carrier's or site's row, 3 and 4 the unit's field (both halves);
+      byte 14h loses 1 and word 4 4200h, byte 13h becomes 0.
+    - `unit_panel` (`S10AF:0131`) and `pictures_load` change nothing the
+      port keeps (read); the pictures' data in `S3AEE` and `S3812` does
+      change and is counted apart in the comparison (port/README.md).
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

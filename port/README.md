@@ -355,3 +355,23 @@ anything the game needs before the first release.
   (those the runner lists), so the dumps do
   not tell the change apart; which routine sets it otherwise was not looked
   at.
+- The orders at a round's end (2026-10-07, Linux): `sh
+  port/tests/orders_test.sh` runs `orders_run` (`src/orders.c`,
+  `attacks_run` from `S02E6:0E9C` to `19B8`) on dumps at the loop's first
+  entry and at `19B8`, the side that moved and its map read from
+  `attacks_run`'s frame, the other side from DI. Three passes from the
+  key-script runs (`build/n2/orders_test.args`): with a unit of order 5
+  (not a carrier) and with one of order 2 the original changes no byte of
+  the game's state and neither does the port; with order 4 (unit 06 onto
+  `sites_100` 0, map 0) the port's 24 changed bytes are the original's
+  (word 19h of the site 0012h to 0010h, byte 18h 28h to 05h, side 0's row
+  copied from side 1's and the unit in its first free place, 1, the unit
+  4204h at the site's field). 14 bytes only the original writes: three in
+  the libraries' records (`S331F:0167` to `016A`) and eleven below
+  `S331F` (linear 3391Dh to 33927h), presumably the libraries loaded
+  again and the music, which the port leaves out (not checked one by
+  one). 3 passes, 0 different.
+  Not covered: order 5 of a carrier with goods (the stock and the freeing),
+  a site of the other side, `sites_40` and `sites_400`, the second side's
+  orders; the orders 1, 0Bh, 0Dh and 11h are not translated (`orders_run`
+  counts them and the test fails a pass that has one).

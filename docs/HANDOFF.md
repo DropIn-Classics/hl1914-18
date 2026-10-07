@@ -1490,6 +1490,46 @@ emulation error (2026-10-02).
     place.
     Not translated: the part draws and waits in between; the state it
     changes could be translated apart, as was done for `move_step`.
+  - The first side played by a key script (2026-10-07, Linux; scripts
+    and dumps in ignored `build/n2/`, `build/n2/tools/keys.py` writes the
+    key files). START and the right flag (Germany) give map 0 with side 0
+    human (word 0 of its `sides` record 0, the other 2) on the left view;
+    the left flag makes side 0 the computer's. Side 0 is driven by the
+    keyboard: the arrows move its cursor (a tap under about 0.08 s is
+    sometimes lost; past the view's edge the view scrolls and the cursor
+    jumps two fields) and Space is the button. Word 0 of a view is the
+    cursor's map offset (what `field_menu` reads), so a script's cursor
+    can be checked in a dump. Button held, up, button let go: the move
+    (pointer 4); Space on the aim and Space again: `move_aim` and
+    `move_start`. Button held, left, let go on a field without 400h:
+    pointer 9, state 5; then an F1 pair, sent after the other view is in
+    state 5 too, makes the round's end (`attacks_run`); an F1 pair alone,
+    or one sent before, changes nothing. The six long runs never did this
+    for side 0.
+    - Kind 5 (unit 00 into `sites_40` 0), kind 2 (unit 0D into carrier
+      record 1) and kind 4 (unit 06, three moves later, onto
+      `sites_100` 0 at (10,9), the one of its four fields whose ground
+      has 100h; word 19h 0012h) were reached and compared
+      (port/README.md, "Checked"). A unit moved into a site gets the
+      site's word 0Eh as its place, without the +1 of a place on the map.
+    - The loop of `attacks_run` from `0E9C` to `19B8` is translated for
+      the orders 2 to 5 (`port/src/orders.c`): 2 and 3 go to `19AA`
+      (nothing), 5 to `1071`, 4 to `11B1`; its jump table at
+      `S02E6:206C`. Besides what the bullet above says, order 4 sets
+      1000h in `game_state` and the word at `S331F:4CAA` to 1, puts the
+      other side's view on the site (`view_to_field`), marks the site's
+      field with 30h in `field_bits` while the view is drawn and clears
+      it again, and writes 1 to `S3303:0021` before the picture. The
+      side that moved is `[BP-2]` of `attacks_run`, its map `[BP-6]`,
+      the other side DI.
+    - Map 8 (RATIO) has a unit with 4000h in word 6 (unit 0C) and map 2
+      (MOUSE) one with 2000h (unit 22, in a site at the start). The
+      attack gesture with unit 0C called `S0E56:18A3` and showed text
+      4Bh ("NOT POSSIBLE TO SET UP DEPOT"): no field around (18,5) was
+      accepted. That routine was read only in part: presumably a field
+      counts when its ground is the byte at `S331F:4C92` or its
+      neighbours' grounds have 8000h and no unit (not checked). So 0Bh,
+      0Dh and 11h are still not reached.
   - Next there: `S0CB6:05F1`, `S131D:1745`, `S0E56:1A97` and `1B57`, and
     `S1C74:000B`, the computer's turn; a scripted run of the first side
     that moves into a site and a carrier and takes a site, to compare

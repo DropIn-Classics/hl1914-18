@@ -85,6 +85,7 @@ void unit_destroy(uint8_t unit, uint8_t put, uint8_t put2, int8_t slot, uint16_t
 void site_free(Far site, uint16_t row);
 void unit_free(uint8_t unit, uint16_t row);
 uint16_t carrier_find(uint16_t mask);
+uint8_t unit_find(uint16_t mask);
 void site_add_400(uint16_t n, uint16_t field, uint16_t flags);
 void site_add_100(uint16_t n, uint16_t field, uint16_t flags);
 void site_add_40(uint16_t field, uint16_t side);
@@ -127,6 +128,10 @@ void view_to_field(uint16_t side, uint16_t field);
 /* orders.c */
 int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result);
 void income_add(uint16_t side);
+
+/* side.c */
+void build_list(uint16_t points, uint16_t side);
+uint16_t repair(Far view, uint16_t side);
 
 /* names.c */
 Far file_name(uint16_t where, int16_t dir, Far name, int16_t ext);

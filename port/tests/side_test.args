@@ -1,0 +1,4 @@
+build 3EA4:0F90 ../build/n2/o/s4b1_build_list_in.ram ../build/n2/o/s4b1_build_list_out.ram
+build 3EA4:0F90 ../build/n2/o/hqb1_build_list_in.ram ../build/n2/o/hqb1_build_list_out.ram
+build 3EA4:0F90 ../build/n2/o/hqb2_build_list_in.ram ../build/n2/o/hqb2_build_list_out.ram
+repair 3EA4:0FEA 0 ../build/n2/o/hqr1_repair_in.ram ../build/n2/o/hqr1_repair_out.ram

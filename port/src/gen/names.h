@@ -211,9 +211,11 @@
     X(S1273, save_game, 0x0005) \
     X(S1273, load_game, 0x0399) \
     X(S1273, save_blocks, 0x0662) \
+    X(S131D, build_list, 0x14D4) \
     X(S131D, row_load, 0x15FB) \
     X(S1571, file_name, 0x02CD) \
     X(S15C5, unit_add, 0x0005) \
+    X(S15C5, unit_find, 0x01A7) \
     X(S15C5, carrier_find, 0x01F7) \
     X(S15C5, site_add_400, 0x024A) \
     X(S15C5, site_add_100, 0x032C) \

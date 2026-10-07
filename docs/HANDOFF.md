@@ -1705,6 +1705,22 @@ emulation error (2026-10-02).
     of `sites_400` of the side (map 8: record 1), not done. Next:
     building and moving out, and a repair carried out (a damaged unit
     and 0Fh points).
+  - Building (2026-10-07, Linux): `S066A:387A` to `3A42` builds the
+    kind at `build_kinds`[word 0Eh + word 20h of the view] on the place
+    in word 0Ah; the new unit's side is bit 0 of the site's word 19h, the
+    price is taken from the side whose view it is. Translated
+    (`build_unit`) and compared on one build on map 8 (port/README.md).
+    Map-8 key script notes (`port/tests/keys/make_m8.py`): taps must be
+    held 0.08 s and spaced about 1 s, else some are lost or the cursor
+    jumps; right/left on row 3 step two map columns from column 13 on;
+    the first side's view starts at map offset 0136h+30h (row 7, col 11);
+    4 up and 4 right reach B2h, a field of `sites_400` record 1. A round's
+    end waits for a key once the computer is done, so F1 is pressed every
+    5 s in the windows where the first side waits; any key pressed later
+    starts it instead, which shifts all later times. `build_list`'s other
+    caller is `S1CC6:07B7`, an entry of the computer's nine-entry dispatch
+    at `S1CC6:0A23` (it passes its DI less 3Dh as the points and SI as the
+    side); not named here.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

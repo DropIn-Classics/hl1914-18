@@ -471,3 +471,18 @@ anything the game needs before the first release.
   covered: a repair that is carried out (text 51h) or refused as full
   (50h), a unit with 4000h, the second side, a list with more than one
   kind; building and moving out are not translated.
+- Building a unit (2026-10-07, Linux): `build_unit` (`src/side.c`,
+  `game_loop` from `S066A:387A` to `3A42`) makes the unit `unit_find`
+  gives with `unit_add` on the site's field for the site's side, sets
+  4600h in `unit_flags`, empties its two 9-byte records at `S39B6:09AB`
+  and `0132`, puts it in the place, raises `unit_total` and the side's
+  byte 2 of `sides`, takes the kind's price, calls `build_list` and sets
+  100h in `game_state`'s word 4 (word 6 0), the view to step 0Dh. The
+  map-8 run site (`port/tests/keys/m8_site.keys`, from `make_m8.py`;
+  the arguments are in `side_dumps.sh`) enters record 1 of `sites_400`
+  in the first side's attack halves and in the third round builds the
+  first kind of the list: `side_test` (`unit`) the same, `unit_total` 65
+  to 66, points 48 to 13; with it two more `build_list` calls (48 points:
+  3 kinds, 13: none), the same. Not covered: a list scrolled (word 20h
+  not 0), the second side, a carrier's kind (1000h in word 0Dh).
+

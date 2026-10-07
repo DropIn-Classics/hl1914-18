@@ -3,12 +3,14 @@
  *
  *     side_test build SS:SP ENTRY.ram EXIT.ram [...]
  *     side_test repair SS:BP SI ENTRY.ram EXIT.ram [...]
+ *     side_test unit SS:BP SI ENTRY.ram EXIT.ram [...]
  *
  * build: a call of S131D:14D4, its arguments (points, side) read from the
  * stack at SS:SP of the entry dump, the exit dump at its RETF (S131D:15FA).
  * repair: game_loop at S066A:3156 and at 32A9, the view's far pointer at
  * SS:BP-3Ah and the side in SI; the text the port returns is compared with
- * the original's word at SS:BP-46h.  Memory after the port's routine is
+ * the original's word at SS:BP-46h.  unit: the building of a unit,
+ * game_loop at S066A:387A and at 3A42, view and side as for repair.  Memory after the port's routine is
  * compared with the exit dump in the game's state (from segment S3306 up
  * to DATA).  port/tests/side_test.sh builds this.
  */
@@ -42,14 +44,14 @@ int main(int argc, char **argv)
     int i = 1, bad = 0, calls = 0;
 
     while (i < argc) {
-        int rep = !strcmp(argv[i], "repair"), n = rep ? 5 : 4;
+        int unit = !strcmp(argv[i], "unit"), rep = unit || !strcmp(argv[i], "repair"), n = rep ? 5 : 4;
         unsigned ss, sp, si = 0, d = 0;
         uint32_t a, lo = (uint32_t)(HL_S3306 + HL_BASE) << 4, hi = (uint32_t)(HL_DATA + HL_BASE) << 4;
         const char *in, *out;
 
         if ((!rep && strcmp(argv[i], "build")) || i + n > argc || sscanf(argv[i + 1], "%x:%x", &ss, &sp) != 2
             || (rep && sscanf(argv[i + 2], "%x", &si) != 1)) {
-            fprintf(stderr, "usage: side_test build SS:SP IN OUT | repair SS:BP SI IN OUT ...\n");
+            fprintf(stderr, "usage: side_test build SS:SP IN OUT | repair|unit SS:BP SI IN OUT ...\n");
             return 2;
         }
         in = argv[i + n - 2];
@@ -57,7 +59,10 @@ int main(int argc, char **argv)
         memset(mem, 0, MEM_SIZE);
         if (!load(in, mem) || !load(out, leave))
             return 2;
-        if (rep) {
+        if (unit) {
+            build_unit(far_at((uint16_t)ss, (uint16_t)(sp - 0x3A)), (uint16_t)si);
+            printf("unit %s: side %u, unit_total %u", out, si, NB(unit_total, 0));
+        } else if (rep) {
             uint16_t got = repair(far_at((uint16_t)ss, (uint16_t)(sp - 0x3A)), (uint16_t)si);
             uint16_t want = (uint16_t)(leave[(ss << 4) + (uint16_t)(sp - 0x46)]
                                        | leave[(ss << 4) + (uint16_t)(sp - 0x45)] << 8);

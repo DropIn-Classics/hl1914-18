@@ -438,18 +438,42 @@ anything the game needs before the first release.
   a side owning a depot or a `sites_400` record at the time (the depot of
   d5 is built after the last call dumped), and whether an unused record
   (word 19h 8000h, side bits 0) ever has a byte 16h that is not 0.
-- The computer's input (2026-10-07, Mac): `computer_input`
-  (`S1E4B:0001`, `port/src/computer.c`), the last link of the computer's
-  player: the next word of direction and button bits from the side's
-  script of input codes. `port/tests/computer_test.sh` runs it on pairs
-  of dumps at `S1E4B:0023` and `S1E4B:011D` (`build/n4/input1.py` and
-  `input2.py` make them; the result is read from the routine's frame in
-  the second dump) and compares the whole dump but the routine's frame:
-  52 calls from the first 150 s of two runs, 26 of side 1 (the long run
-  `w0`) and 26 of side 0 (`k24`, the map of code 24), 28 spread over all
-  calls (24 of them with no script) and 24 of those that returned 0 and
-  the calls behind them; single codes, the sequences 11h, 14h and 18h and
-  a script's end are among them. 52 calls, 0 different.
+- The computer's input and steps (2026-10-07, Mac; `port/src/computer.c`,
+  the end of the computer's player): `computer_input` (`S1E4B:0001`), the
+  next word of direction and button bits from the side's script of input
+  codes, and `computer_step` (`S1E4B:012E`), which carries on the step at
+  hand of the side's list: `step_move`, `step_attack`, `step_end_round`
+  and `cursor_script` with `cursor_scroll` and `cursor_step`, which write
+  the script (and `step_move` calls `move_target`). The steps of the
+  kinds 4, 6 and 7 (`step_unit_out`, `step_site_menu`, `step_build`) are
+  not translated: `computer_step` does nothing for them and says so.
+  `port/tests/computer_dumps.py` plays two battles on the runner (the
+  computer's second side on the map of code 0, its first side on that of
+  code 24; the codes are read from the game's `CODES.DAT`), logs the
+  calls of both routines for 1500 s and dumps memory behind the entry
+  code and before the return of chosen calls, into ignored
+  `build/computer/`; `port/tests/computer_test.sh` runs the port's
+  routine on each entry dump and compares the result and the whole dump
+  but the stack below the routine's frame. A byte the port wrote, or one
+  of the game's state (segment `S3306` up to `DATA`), must be the same; a
+  byte elsewhere that only the original wrote is listed apart (three
+  calls had the same five, one below `S3306` and four in `DATA`: an
+  interrupt's, presumably; not looked at).
+  229 calls, 0 different, 123 of them of side 0: 51 of `computer_input`
+  (single codes, the sequences 11h, 14h and 18h, a script's end, no
+  script) and 178 of `computer_step`: 60 of `step_move` in all its eight
+  states and all six of `cursor_script`, 48 of `step_attack` (states 0
+  to 3 and 5), 64 of `step_end_round` (states 0, 1, 3 and 4) and 6 ends
+  of a list. 4 more calls are of kind 4 and only counted.
+  Not covered: `step_attack`'s state 4 (the button again after a field
+  that is not marked), `step_end_round`'s state 2 (the code 82h), a step
+  of kind 5, a field off the map; of `computer_input` the codes 81h and
+  84h and the diagonals. The dumps were made with `stage2` runs after
+  the first log run, whose log lines of the list's end were renamed by
+  hand from `0363` to `0372` (the same passes); the script as committed
+  was not run from its beginning. `computer_assess`, `computer_plan` and
+  `computer_queue` are not translated, so the port's program does not
+  play a side yet.
   
   has byte 16h or 17h not 0. Not covered: other maps, a depot or site
   whose byte 16h is not 0 newly taken by the second side.

@@ -131,6 +131,7 @@ void income_add(uint16_t side);
 
 /* computer.c */
 uint16_t computer_input(uint16_t side);
+uint16_t computer_step(uint16_t side, int *left);
 
 /* side.c */
 void build_list(uint16_t points, uint16_t side);

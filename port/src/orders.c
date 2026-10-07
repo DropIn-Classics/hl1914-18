@@ -10,6 +10,7 @@
 
 #define SITE_SIZE 0x1Cu     /* a record of `carriers` and the like */
 #define SIDE_SIZE 0x17u     /* a record of `sides` */
+#define VIEW_SIZE 0x31u     /* a record of `views` */
 
 /* S331F:4CAA site_taken (a word order 4 sets to 1) and S3303:0021
  * take_picture (set to 1 before the picture of a site taken): names.h */
@@ -316,4 +317,219 @@ static uint16_t side_income(uint16_t side)
 void income_add(uint16_t side)
 {
     SETW(side_points, side * 2, NW(side_points, side * 2) + side_income(side));
+}
+
+/* S02E6:23F0 (rows_sync): for each of the n records of the table without
+ * 8000h and 2 in word 19h, a record of side m (same_side) has m's row of
+ * seven copied to a's row, a freed unit (8000h in unit_flags) becoming FFh
+ * in both; any other record has a's row copied to m's.  An empty place
+ * (FFh) is looked up as a unit too, as the original does. */
+static void rows_sync(uint16_t table, uint16_t a, uint16_t m, uint8_t n)
+{
+    uint8_t r, p;
+
+    for (r = 0; r < n; r++) {
+        Far rec;
+
+        rec.seg = S_carriers;
+        rec.off = (uint16_t)(table + r * SITE_SIZE);
+        if (pw(rec, 0x19) & 0x8002)
+            continue;
+        for (p = 0; p < 7; p++) {
+            if (same_side(m, pw(rec, 0x19))) {
+                uint8_t u = pb(rec, (uint16_t)(m * 7 + p));
+
+                if (NW(unit_flags, u * UNIT_SIZE) & 0x8000) {
+                    pwb(rec, (uint16_t)(m * 7 + p), 0xFF);
+                    u = 0xFF;
+                }
+                pwb(rec, (uint16_t)(a * 7 + p), u);
+            } else
+                pwb(rec, (uint16_t)(m * 7 + p), pb(rec, (uint16_t)(a * 7 + p)));
+        }
+    }
+}
+
+/* S02E6:2B28 (units_drop_empty): 8000h in unit_flags of every unit in use
+ * whose unit_count is 0 */
+static void units_drop_empty(void)
+{
+    uint16_t u;
+
+    for (u = 0; u <= 0xF0; u++) {
+        Far unit = unit_at((uint8_t)u);
+
+        if (!(pw(unit, 4) & 0x8000) && pb(unit, 2) == 0)
+            pww(unit, 4, pw(unit, 4) | 0x8000);
+    }
+}
+
+/* the kind's bytes 3 and 4 (kind word 0Fh with 4: byte 3 of the unit up
+ * to byte 4 of the kind, else unit_count up to byte 3): a unit that mends
+ * by itself at a round's end */
+static void unit_mend(Far unit)
+{
+    uint16_t k = (uint16_t)(A_unit_dat + pb(unit, 8) * KIND_SIZE);
+
+    if (frw(S_unit_dat, (uint16_t)(k + 0x0F)) & 4) {
+        if (frb(S_unit_dat, (uint16_t)(k + 4)) > pb(unit, 3))
+            pwb(unit, 3, (uint8_t)(pb(unit, 3) + 1));
+    } else if (frb(S_unit_dat, (uint16_t)(k + 3)) > pb(unit, 2))
+        pwb(unit, 2, (uint8_t)(pb(unit, 2) + 1));
+}
+
+/* S02E6:000F (attacks_run), the round's end after both sides ended their
+ * half: the attacks of side a (the one with 2 in its view's byte 16h) are
+ * carried out, then the orders of the side m that moved (orders_run),
+ * then each side's records and maps are made the same and the halves
+ * turned round (S02E6:19B8 to 205B).  Not translated: the fights (the loop
+ * from S02E6:0122 to 0D48 and the blasts after them), order_undo, the
+ * routine S02E6:2B87 run with 1000h in game_state (a site taken), and
+ * what draws, plays music and waits.  When the state needs one of them
+ * nothing is changed after that point and *missing names it; else *missing
+ * is NULL.  Returns the result byte ([BP-7]): FFh, or the side that took a
+ * headquarters. */
+uint8_t attacks_run(const char **missing)
+{
+    uint8_t result = 0xFF;
+    uint16_t a, m, u, c0 = 0, c1 = 0;
+    Far map, other, v0, v1;
+
+    *missing = NULL;
+    field_bits_clear(0xFF);
+    show_message(0xFFFF, 0);
+    show_message(0xFFFF, 1);
+    SETW(game_state, 0, NW(game_state, 0) & 0xFFF3);
+    if (NB(attack_pick, 0) == 2)
+        a = 0, m = 1;
+    else
+        a = 1, m = 0;
+    map = a ? far_at(S_map2_ptr, A_map2_ptr) : far_at(S_map_ptr, A_map_ptr);
+    other = a ? far_at(S_map_ptr, A_map_ptr) : far_at(S_map2_ptr, A_map2_ptr);
+    if (NB(sides, a * SIDE_SIZE + 0x15)) {
+        *missing = "fights (S02E6:0122 to 0D48)";
+        return result;
+    }
+    /* S02E6:0D63: the units with 4 in unit_marks (none without fights,
+     * as far as read) are freed, with order_undo for those with 1 */
+    for (u = 0; u <= 0xF0; u++) {
+        Far unit = unit_at((uint8_t)u);
+
+        if (!(pw(unit, 4) & 0x8000) && pb(unit, 0x14) & 4) {
+            *missing = "freeing units marked 4 (S02E6:0D9A)";
+            return result;
+        }
+    }
+    show_message(0xFFFF, 0);
+    show_message(0xFFFF, 1);
+    if (orders_run(m, a, map, &result)) {
+        *missing = "order 1 (S02E6:0ED9)";
+        return result;
+    }
+    if (NW(game_state, 0) & 0x1000) {
+        *missing = "S02E6:2B87 (game_state 1000h)";
+        return result;
+    }
+    rows_sync(A_carriers, a, m, 0x46);
+    rows_sync(A_sites_100, a, m, 0x0A);
+    rows_sync(A_sites_400, a, m, 0x0A);
+    rows_sync(A_sites_40, a, m, 2);
+    for (u = 1; (int16_t)u < (int16_t)NW(map_bytes, 0); u += 2)
+        pwb(map, u, 0xFF);
+    for (u = 0; u <= 0xF0; u++) {
+        Far unit = unit_at((uint8_t)u);
+        uint16_t f = pw(unit, 4);
+
+        if (f & 0x8000)
+            continue;
+        if (m ? f & 1 : !(f & 3)) {
+            pww(unit, (uint16_t)(0x0B + 2 * a), pw(unit, (uint16_t)(0x0B + 2 * m)));
+            pwb(unit, (uint16_t)(0x0F + a), pb(unit, (uint16_t)(0x0F + m)));
+        }
+    }
+    units_drop_empty();
+    for (u = 0; u <= 0xF0; u++) {
+        Far unit = unit_at((uint8_t)u);
+
+        if (!(pw(unit, 4) & 0xC000))
+            pwb(map, pw(unit, 0x0B), (uint8_t)u);
+    }
+    map_copy(map, other);
+    v0.seg = v1.seg = S_views;
+    v0.off = A_views;
+    v1.off = (uint16_t)(A_views + VIEW_SIZE);
+    pwb(v1, 0x17, 0); pwb(v0, 0x17, 0);
+    pwb(v1, 0x18, 0); pwb(v0, 0x18, 0);
+    pwb(v1, 0x19, 0); pwb(v0, 0x19, 0);
+    pwb(v1, 0x1B, 5); pwb(v0, 0x1B, 5);
+    if (pb(v0, 0x16) == 1)
+        pwb(v0, 0x16, 2), pwb(v1, 0x16, 1);
+    else
+        pwb(v0, 0x16, 1), pwb(v1, 0x16, 2);
+    SETB(sides, SIDE_SIZE + 0x15, 0);
+    SETB(sides, 0x15, 0);
+    if (NB(attack_pick, 0) == 1) {
+        show_message(0x35, 0);
+        show_message(0x36, 1);
+    } else {
+        show_message(0x36, 0);
+        show_message(0x35, 1);
+    }
+    SETW(game_state, 4, NW(game_state, 4) | 0x18);
+    if (NB(attack_pick, 0) == 1)
+        SETW(round_count, 0, NW(round_count, 0) + 1);
+    field_bits_clear(0xFF);
+    for (u = 0; u <= 0xF0; u++) {
+        Far unit = unit_at((uint8_t)u);
+        uint16_t k = (uint16_t)(A_unit_dat + pb(unit, 8) * KIND_SIZE);
+
+        pww(unit, 4, pw(unit, 4) & 0xF0FF);
+        if (!(pw(unit, 4) & 0x8000) && pb(unit, 0x14) & 1
+            && frw(S_unit_dat, (uint16_t)(k + 0x0F)) & 1 && !(pw(unit, 4) & 0x4000)) {
+            unit_mark((uint8_t)u, 0x200, pw(unit, 4) & 1 ? 1 : 0, 1);
+            pww(unit, 4, pw(unit, 4) | 0x200);
+        }
+        if (pw(unit, 6) & 0x8000) {
+            unit_mend(unit);
+            if (pw(unit, 4) & 0x1000) {
+                Far rec;
+                uint8_t p;
+
+                rec.seg = S_carriers;
+                rec.off = (uint16_t)(A_carriers + (int8_t)pb(unit, 0x0A) * SITE_SIZE);
+                for (p = 0; p < 7; p++)
+                    if (pb(rec, p) <= 0xF0)
+                        unit_mend(unit_at(pb(rec, p)));
+            }
+        }
+        pwb(unit, 0x14, 0);
+        pww(unit, 0x11, 0);
+        pwb(unit, 0x16, 0);
+        pwb(unit, 0x15, 0);
+        pwb(unit, 0x13, 0);
+    }
+    for (u = 0; u <= 0xF0; u++) {
+        Far unit = unit_at((uint8_t)u);
+        uint16_t f = pw(unit, 4);
+
+        if (f & 0x8000 || pw(unit, 6) & 0x24)
+            continue;
+        if (!(f & 3))
+            c0++;
+        else if (f & 1)
+            c1++;
+    }
+    if (!c0 || !c1) {
+        pwb(v1, 0x17, 7);
+        pwb(v0, 0x17, 7);
+        pww(v0, 0x22, !c0 && !c1 ? 0x15 : !c0 ? 0x12 : 0x11);
+        pww(v1, 0x22, !c0 && !c1 ? 0x15 : !c0 ? 0x11 : 0x12);
+    }
+    {
+        uint32_t sum = defence_sum();
+
+        SETW(game_state, 0x8B, sum);
+        SETW(game_state, 0x8D, sum >> 16);
+    }
+    return result;
 }

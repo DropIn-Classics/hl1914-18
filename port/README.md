@@ -77,6 +77,23 @@ walk and gives the unit its order; with them `field_dir`, `row_count`,
 the end are left out (`move_step` returns the text's number). Nothing
 calls them yet.
 
+Then `src/loop.c`, a pass of the original's main loop (`game_loop`,
+`S066A:0EE9` to `45D7`) for both sides: the input word of each side,
+`view_step`, the cursor's moves and the view's scrolling, `field_menu`,
+the small map, what is on a field, going into a site or carrier and what
+is done there (moving out, repairing, building), the end of a half and
+the round's end, the battle's end, the timers (`timer_fire`) and the
+count of passes. With it `attacks_run` (`src/orders.c`) has its frame
+around the orders: the round's end that makes the two sides' records and
+maps the same and turns the halves round (`rows_sync`,
+`units_drop_empty`, the mending of units, who is left). Left out: what
+draws, sounds and waits, the keys F2 to F9, Esc and saving, and the
+fights (`attacks_run` stops and says so when a side has attackers, as
+for order 1 and the routine run for a site taken). What the keyboard
+handler and the computer's player give a pass comes in from outside
+(`SideIn`): the computer's planning is not translated. Nothing calls
+the pass yet but `tests/loop_test.c`.
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -717,3 +734,42 @@ anything the game needs before the first release.
   looked at. Not covered: steps 18h and 1Ah (a move whose start gave 10h,
   an attack not ordered; neither came in these runs, so `move_start`'s
   12h is still not compared) and a second press by 8 in the side's word.
+- The pass of `game_loop` (2026-10-07, Linux; `src/loop.c`,
+  `S066A:0EE9` to `45D7`, and `attacks_run`'s frame in `src/orders.c`)
+  over the first round of the key script `m8_site` on map 8 (the first
+  side human, the computer the second), from the original's memory at
+  its first pass: `tests/loop_dumps.py` runs the original up to 145 s
+  (2,523 passes, before the first fight at 150 s) and logs by
+  registers what each side's part reads from outside the translated
+  code (the key, the input record's keys as `side_input` finds them and
+  its bytes 5 and 8 as `view_step` tests them, the computer's input word
+  and text, 80h set in `game_state`'s word 2 by the computer's phase,
+  and 8 set in its side's word by `computer_step`); `tests/loop_test.sh`
+  plays those passes and compares memory at the beginning of 26 passes
+  (50 to 2522, among them the two round's ends in passes 291 and 1939 and
+  the passes after them) with dumps of the original: the game's state the
+  same at all of them (S3306 to DATA without the computer's segments,
+  the two maps, the sides' work buffers). Counted apart: the computer's
+  segments and what its planning leaves between the passes (from pass
+  292 on, logged: 15 calls of `move_range`, 6 of `attack_range`, 186 of
+  `field_neighbours` and some 360 of `move_target` inside the computer's
+  turn): `move_args`, `S331F:17F2` to `181B` (the way, `neighbours`,
+  `move_rec`) and `S3AEC:0000` to `0007` (written by code in `S2138`);
+  and outside the state the pictures, the input records and `name_buf`
+  (the original loads `LIB\BIGUNIT.LIB` from 83 s on to draw a unit).
+  The first comparisons differed by two things, both in the replay, not
+  in the translated code: a key was given to the side before (it is read
+  before `S066A:1006`, so a side's part is logged from `0FC3`), and 8 in
+  the computer's word of `sides` (from `computer_step`) was missing.
+  Reached in the compared passes (counted with an instrumented build of
+  the test): states 0 (the computer's steps 3, 13h, 16h, 17h and 19h, the
+  first side's 0 and 19h), 1, 2 (steps 0Ah,
+  0Bh with pointers 1, 4 and 5: entering and leaving a site, a unit moved
+  out by the computer), 3 (the small map, by the computer's side, 124
+  passes) and 5 of both sides, and the round's end twice. Not covered:
+  the fights (`attacks_run` refuses them), order 1, `S02E6:2B87`, the
+  keys but F1, states 4 and 7, repairing and building inside the loop
+  (they come later in `m8_site`), the computer's part with 80h in
+  `game_state`'s word 2 (not set in these passes), and a human second
+  side. The pass is not yet played by the port's program: it runs only
+  in the test, from the original's memory.

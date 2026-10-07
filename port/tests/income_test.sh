@@ -1,7 +1,7 @@
 #!/bin/sh
 # Builds port/tests/income_test.c and runs it on pairs of dumps of
-# S131D:1745 (see there).  Without arguments: the calls in every
-# build/n2/income_test*.args (map 8, the key scripts d4.2 and d5).
+# S131D:1745 (see there).  Without arguments: the calls in
+# tests/income_test.args (made by tests/sites_dumps.sh).
 set -e
 cd "$(dirname "$0")/.."
 CC=${CC:-cc}
@@ -12,4 +12,4 @@ if [ $# -gt 0 ]; then
     exec build/income_test "$@"
 fi
 # shellcheck disable=SC2046
-exec build/income_test $(cat ../build/n2/income_test*.args)
+exec build/income_test $(cat tests/income_test.args)

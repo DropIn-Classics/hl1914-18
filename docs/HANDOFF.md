@@ -1671,6 +1671,15 @@ emulation error (2026-10-02).
       `sides`, and could be next; `computer_assess`, `computer_plan` and
       `computer_queue` (`S1CC6`, `S202F`, `S2138`, some 9,000 lines of
       the generated source) are read only at their beginnings.
+    Also on seven calls on map 0 (run s4), where side 0 takes record 0
+    of `sites_100` and its income goes from 5 to 20. In 81 dumps of maps
+    0 and 8 no unused record has byte 16h or 17h not 0
+    (`port/tests/sites_scan.py`), so the unused records of side 0 add
+    nothing there; other maps not looked at. Both sides' bytes 16h and
+    17h were equal in every record seen (why there are two was not
+    found). The dumps for this and the second side's arrivals are made
+    by `port/tests/sites_dumps.sh`; kind 1 of `move_arrive` still has no
+    known writer.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a
@@ -1678,6 +1687,7 @@ emulation error (2026-10-02).
     kinds and this part, and the income with a side that holds a depot.
     The human-input routine `S0CB6:05F1` has been read, but its port
     behavior is not implemented.
+
   - The three routines are translated (`port/src/range.c`) and compared
     with 108 calls of the original from the six long runs
     (`port/tests/range_test.sh`, dumps by `build/n2/range2.py`,

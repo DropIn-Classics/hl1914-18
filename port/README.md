@@ -334,3 +334,15 @@ anything the game needs before the first release.
   and `unit_mark` only setting 200h, both inside `move_step`.
   `order_undo` is not translated; the logs show no call of it nor of
   `row_move` in the six runs.
+- The arrivals (2026-10-07, Linux): `move_test` takes `arrive` for calls
+  of `move_arrive` (dumps at `S10E1:0AF0` and at its RETF `S10E1:0F70`),
+  and `move_test.sh` reads every `build/n2/move_test*.args`. Three calls
+  from runs where the first side is played by a key script (map 0, the
+  German side; `build/n2/move_test_sides.args`, dumps under `build/n2/o/`,
+  local): a unit into a site of its side (kind 5), into a carrier (kind
+  2) and onto a site of nobody (kind 4). Result 38h and the game's state
+  the same in all three; elsewhere only the stack and, in the kind 4
+  call, five bytes outside the state (`DATA:0D5F` to `0D62` and one at
+  linear 3187Eh, presumably interrupts as in the other tests; not
+  checked). Not covered: kind 1, a two-part unit, a carrier that moves
+  in with units (`row_move`), the second side.

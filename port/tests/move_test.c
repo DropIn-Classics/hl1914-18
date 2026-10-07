@@ -1,12 +1,13 @@
-/* move_test.c - move_target and move_step against the original.
+/* move_test.c - move_target, move_step and move_arrive against the
+ * original.
  *
- *     move_test (target|step) SS:SP AX ENTRY.ram EXIT.ram [...]
+ *     move_test (target|step|arrive) SS:SP AX ENTRY.ram EXIT.ram [...]
  *
  * Each set of five is one call in HL.EXE: which routine, SS:SP (hex) at its
  * entry, AX (hex) at its end, dosrun's -ram dump at the entry and the one
  * at the routine's end (before the registers are taken back from the
- * stack).  move_target's arguments are read from the stack of the first
- * dump and its result compared with AX; move_step has neither (the text
+ * stack).  move_target's and move_arrive's arguments are read from the
+ * stack of the first dump and their result compared with AX; move_step has neither (the text
  * the port's routine returns is printed).  Memory after the port's routine
  * is compared with the second dump in the game's state (from segment S3306
  * up to DATA, the two maps and the two sides' work buffers, 2580h bytes of
@@ -50,7 +51,7 @@ int main(int argc, char **argv)
     int i, bad = 0, calls = 0;
 
     if (argc < 6 || (argc - 1) % 5) {
-        fprintf(stderr, "usage: move_test (target|step) SS:SP AX ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: move_test (target|step|arrive) SS:SP AX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     for (i = 1; i < argc; i += 5) {
@@ -78,8 +79,14 @@ int main(int argc, char **argv)
             printf("%s %s: kind %u, result %Xh", argv[i], argv[i + 4], NB(move_rec, 0x0C), got);
             if (got != want)
                 printf(" (the original's %Xh)", want);
+        } else if (!strcmp(argv[i], "arrive")) {
+            got = move_arrive(frw(s, arg), far_at(s, (uint16_t)(arg + 2)));
+            want = ax;
+            printf("%s %s: kind %u, result %Xh", argv[i], argv[i + 4], NB(move_rec, 0x0C), got);
+            if (got != want)
+                printf(" (the original's %Xh)", want);
         } else {
-            fprintf(stderr, "%s: target or step\n", argv[i]);
+            fprintf(stderr, "%s: target, step or arrive\n", argv[i]);
             return 2;
         }
         lo_stack = lin(s, 0);

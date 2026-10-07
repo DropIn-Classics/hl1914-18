@@ -5,3 +5,4 @@ repair 3EA4:0FEA 0 ../build/n2/o/hqr1_repair_in.ram ../build/n2/o/hqr1_repair_ou
 build 3EA4:0F90 ../build/n2/o/m8b2_build_list_in.ram ../build/n2/o/m8b2_build_list_out.ram
 build 3EA4:0F90 ../build/n2/o/m8b3_build_list_in.ram ../build/n2/o/m8b3_build_list_out.ram
 unit 3EA4:0FEA 0 ../build/n2/o/m8u1_build_unit_in.ram ../build/n2/o/m8u1_build_unit_out.ram
+repair 3EA4:0FEA 0 ../build/n2/o/m8r1_repair_in.ram ../build/n2/o/m8r1_repair_out.ram

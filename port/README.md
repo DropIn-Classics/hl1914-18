@@ -485,4 +485,11 @@ anything the game needs before the first release.
   to 66, points 48 to 13; with it two more `build_list` calls (48 points:
   3 kinds, 13: none), the same. Not covered: a list scrolled (word 20h
   not 0), the second side, a carrier's kind (1000h in word 0Dh).
+- A repair of a full unit (2026-10-07, Linux): the map-8 run site goes on
+  to its fifth round, enters the factory again, steps to the unit built
+  there (place 2) and repairs it: `side_test` (`repair`) text 50h like
+  the original, nothing changed (37 points). The unit on the cursor's
+  place must exist for the menu to offer repairing (word 1Eh of the view
+  FFh: no 100h in word 1Ch). Still not covered: a repair carried out
+  (51h), which needs a damaged unit.
 

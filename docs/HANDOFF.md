@@ -1721,6 +1721,16 @@ emulation error (2026-10-02).
     caller is `S1CC6:07B7`, an entry of the computer's nine-entry dispatch
     at `S1CC6:0A23` (it passes its DI less 3Dh as the points and SI as the
     side); not named here.
+  - Repairing in the place menu is offered (100h in word 1Ch of the
+    view, just before `S066A:2EA9`) only in the attack half for the unit in word 1Eh
+    of the view whose word 6 has no 4; not for a carrier (word 22h 2
+    clears 100h and 80h). The run site's fifth round repairs its built
+    unit: 50h, as the port. Moving out (`S066A:2F52` to the view's step
+    16h) calls `S0CB6:0445`, `view_to_field`, `move_range`,
+    `S0E56:0D44`, `0F36` and `145A` (not read), and it is offered only
+    in the move half (10h in word 1Ch) to a unit without 100h, 200h and
+    2 in `unit_flags`: a unit built (4600h) cannot move out in the half
+    it was built in; not translated yet.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

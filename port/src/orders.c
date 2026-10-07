@@ -1,9 +1,9 @@
 /* orders.c - what a round's end does with the orders of the side that
  * moved: HL.EXE's attacks_run from S02E6:0E9C to 19B8, the loop over the
  * units by their byte 13h, translated over the program's memory for the
- * orders 2, 3, 4 and 5.  What the original draws, plays and waits for in
- * between (the music, the views, the picture of a site taken, the
- * libraries loaded again) is left out, as in move_step.  port/README.md
+ * orders 2, 3, 4, 5, 0Bh and 0Dh.  What the original draws, plays and
+ * waits for in between (the music, the views, the picture of a site
+ * taken, the libraries loaded again) is left out, as in move_step.  port/README.md
  * says how this was compared with the original.
  */
 #include "hl.h"
@@ -20,6 +20,23 @@
 #define A_site_taken 0x4CAAu
 #define S_take_picture (HL_S3303 + HL_BASE)
 #define A_take_picture 0x0021u
+
+/* S331F:0049, 004D, 0051, 0055: the column and row steps (four signed
+ * bytes each) from a field to the four fields of a depot, for an even and
+ * an odd column (foot_steps; PENDING LEAD NAME) */
+#define S_foot_steps (HL_S331F + HL_BASE)
+#define A_foot_cols_even 0x0049u
+#define A_foot_rows_even 0x004Du
+#define A_foot_cols_odd 0x0051u
+#define A_foot_rows_odd 0x0055u
+/* S331F:4C92 and 4C97: the grounds a prepared field and a depot's three
+ * other fields get (inside amok_dat, its bytes 18h and 1Dh) */
+#define A_prepared (0x4C92u - 0x4C7Au)
+#define A_depot (0x4C97u - 0x4C7Au)
+/* S331F:4CAE: the count of the depots built, the next record of
+ * sites_100 (depot_count; PENDING LEAD NAME) */
+#define S_depot_count (HL_S331F + HL_BASE)
+#define A_depot_count 0x4CAEu
 
 static Far unit_at(uint8_t unit)
 {
@@ -43,6 +60,70 @@ static Far order_site(Far unit)
     p.seg = S_carriers;
     p.off = (uint16_t)(t + pb(unit, 0x15) * SITE_SIZE);
     return p;
+}
+
+/* S0E56:1A97 (footprint; PENDING LEAD NAME): the four fields of a depot
+ * on `field` as map offsets into `neighbours`: the field, then by the
+ * steps at S331F:0049 (an odd column: 0051).  No test of the map's edge. */
+static void footprint(uint16_t field)
+{
+    int16_t w = (int16_t)NW(map_width, 0), f = (int16_t)((int16_t)field >> 1);
+    int16_t col = (int16_t)(f % w), row = (int16_t)(f / w);
+    uint16_t cols = col & 1 ? A_foot_cols_odd : A_foot_cols_even;
+    uint16_t rows = col & 1 ? A_foot_rows_odd : A_foot_rows_even;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        int16_t c = (int16_t)(col + (int8_t)frb(S_foot_steps, (uint16_t)(cols + i)));
+        int16_t r = (int16_t)(row + (int8_t)frb(S_foot_steps, (uint16_t)(rows + i)));
+        SETW(neighbours, 2 * i, (uint16_t)(c * 2 + w * 2 * r));
+    }
+}
+
+/* order 0Bh (S02E6:17C3): a field is prepared for a depot when its four
+ * fields still have 8000h in their ground's word 0 and no unit on side
+ * m's map; they get the grounds at S331F:4C92 and the unit's byte 0Ah
+ * (what it has left to build with) goes down by 1 */
+static void order_prepare(Far unit, uint16_t m, Far map)
+{
+    Far own = far_at(S_map_ptr, m ? A_map2_ptr : A_map_ptr);
+    int i, free = 0;
+
+    footprint(pw(unit, 0x11));
+    for (i = 0; i < 4; i++) {
+        uint16_t at = NW(neighbours, 2 * i);
+        if (NW(ww1gnds_dat, pb(own, at) * 6) & 0x8000 && pb(own, (uint16_t)(at + 1)) > 0xF0)
+            free++;
+    }
+    if (free != 4)
+        return;
+    for (i = 0; i < 4; i++)
+        pwb(map, NW(neighbours, 2 * i), NB(amok_dat, A_prepared + i));
+    pwb(unit, 0x0A, (uint8_t)(pb(unit, 0x0A) - 1));
+}
+
+/* order 0Dh (S02E6:189E): side a builds a depot on the unit's aim, the
+ * next record of sites_100, with no stock; its fields get the grounds at
+ * S331F:4C97 and the first that of a depot of side a (amok_dat byte 3 or
+ * 4); the side's count of them goes up and the unit's byte 0Ah down */
+static void order_build(Far unit, uint16_t a, Far map)
+{
+    uint8_t n = frb(S_depot_count, A_depot_count);
+    Far rec;
+    int i;
+
+    fwb(S_depot_count, A_depot_count, (uint8_t)(n + 1));
+    site_add_100(n, pw(unit, 0x11), a);
+    SETB(sides, a * SIDE_SIZE + 4, NB(sides, a * SIDE_SIZE + 4) + 1);
+    rec.seg = S_sites_100;
+    rec.off = (uint16_t)(A_sites_100 + n * SITE_SIZE);
+    pwb(rec, 0x17, 0);
+    pwb(rec, 0x16, 0);
+    footprint(pw(unit, 0x11));
+    for (i = 1; i < 4; i++)
+        pwb(map, NW(neighbours, 2 * i), NB(amok_dat, A_depot + i - 1));
+    pwb(map, NW(neighbours, 0), NB(amok_dat, a ? 4 : 3));
+    pwb(unit, 0x0A, (uint8_t)(pb(unit, 0x0A) - 1));
 }
 
 /* order 5 (S02E6:1071): a carrier in a site of its side leaves its goods
@@ -152,7 +233,7 @@ static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, ui
  * side that moved ([BP-2] of attacks_run), a the other (DI), map m's map
  * ([BP-6]); *result is attacks_run's result byte ([BP-7]), set to m when
  * a headquarters is taken.  Returns the number of units with an order the
- * port does not carry out (1, 0Bh, 0Dh and 11h; read, not translated). */
+ * port does not carry out (1 and 11h; read, not translated). */
 int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result)
 {
     int left = 0;
@@ -170,9 +251,13 @@ int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result)
         case 5:
             order_into_site(unit, m);
             break;
-        case 1:
         case 0x0B:
+            order_prepare(unit, m, map);
+            break;
         case 0x0D:
+            order_build(unit, a, map);
+            break;
+        case 1:
         case 0x11:
             left++;
             break;

@@ -375,3 +375,18 @@ anything the game needs before the first release.
   a site of the other side, `sites_40` and `sites_400`, the second side's
   orders; the orders 1, 0Bh, 0Dh and 11h are not translated (`orders_run`
   counts them and the test fails a pass that has one).
+- Building at a round's end (2026-10-07, Linux): `orders_run` carries out
+  0Bh (`S02E6:17C3`: the four fields of a depot, from `S0E56:1A97`, get
+  the grounds at `S331F:4C92` when they still have 8000h and no unit on
+  the side's map, and byte 0Ah goes down by 1) and 0Dh (`S02E6:189E`: the
+  next record of `sites_100`, the count at `S331F:4CAE` and the side's
+  byte 4 up by 1, stock 0, the grounds at `S331F:4C97` and `amok_dat`
+  byte 3 or 4). `orders_test.sh` reads every
+  `build/n2/orders_test*.args`; two passes from a key-script run on map 8
+  (`orders_test_build.args`, unit 0C; DI 0 there, the side that built):
+  the 0Bh pass (byte 0Ah 2 to 1, grounds 15h, 18h, 16h, 17h) and the 0Dh
+  pass (`sites_100` record 1 on 0170h, `4CAE` 1 to 2, side 0's byte 4 0
+  to 1, byte 0Ah 1 to 0) are the same, nothing written only by the
+  original; with the three earlier passes 5, 0 different.
+  Not covered: a 0Bh whose fields are no longer free, the second side's
+  depots, the field at a map's edge (`S0E56:1A97` does not test it).

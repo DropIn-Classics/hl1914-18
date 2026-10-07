@@ -175,6 +175,7 @@
     X(S02E6, units_drop_empty, 0x2B28) \
     X(S066A, game_loop, 0x000D) \
     X(S0AE0, attack_order, 0x0008) \
+    X(S0AE0, attack_unmark, 0x02E3) \
     X(S0B15, field_bits_clear, 0x000B) \
     X(S0B15, buf_neighbours, 0x005B) \
     X(S0B15, field_neighbours, 0x0162) \

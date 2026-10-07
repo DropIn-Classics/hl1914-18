@@ -1771,6 +1771,22 @@ emulation error (2026-10-02).
     frame (BP 0FEAh). `S331F:17AE` is the far pointer to the map the move
     is made on (`map_cur` in side.c, PENDING LEAD NAME). `S1CC6:07B7`
     was not named: its role beyond calling `build_list` was not read.
+  - A repair carried out (51h) on map 8: the builder (unit 0Ch, kind
+    16, word 6 4300h) after building the depot stands at map offset
+    143h beside it with byte 0Ah 0; moved into the depot (one step down
+    from where the cursor stood reaches the depot's field 170h; the
+    field right of it is one of the depot's four fields, where the end
+    gesture enters the site) and repaired in the following attack half: 51h, 32h
+    points (72 to 22; byte 0Ah 0 to 2, 0A00h in `unit_flags`). A step
+    up or down moved the cursor by one row of `map_width` in some places
+    and by two in others (from row 5 down to 7 and 9 here); why was not
+    looked at, so a script's cursor is checked by dumping the view's
+    word 0. The button with right on a plain field shows the field's
+    information (state 3).
+  - Moving out of a carrier: none of the computer's moves out in the
+    map-8 and map-0 runs left a carrier (`S066A:2FA7`, the step back
+    for 20h in the record's word 19h, never hit); the run `m0_s2c.keys`
+    does it for the first side (port/README.md), the same as the port.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

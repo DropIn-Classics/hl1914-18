@@ -1614,13 +1614,70 @@ emulation error (2026-10-02).
     record of `sites_40`. Translated (`port/src/orders.c`) and compared
     on four calls on map 8 (port/README.md); 24 and 57 a round there.
     None of the four had a side holding a depot or a `sites_400` record.
-  - Next there: translate the computer's turn (`S1C74:000B`) with
-    comparisons, including a run where side 0 is the computer; then a
-    scripted run of the first side that moves into a site and a carrier
-    and takes a site, to compare `move_arrive`'s other kinds and this
-    part, and the income with a side that holds a depot. The human-input
-    routine `S0CB6:05F1` has been read, but its port behavior is not
-    implemented.
+  - The computer's turn (2026-10-07, Mac; scratch scripts, logs and
+    dumps in ignored `build/n4/`). `S1C74:000B` is `computer_turn(side)`;
+    the names and what each routine does are in `src/HL.hints` (the block
+    "The computer's player").
+    - How it plays: through the hand a human has. `computer_queue` makes
+      a list of up to ten steps (`computer_steps`, 7 bytes a step, added
+      by `step_add`), `computer_step` turns the step at hand into a
+      script of input codes (`computer_script`), and `computer_input`
+      gives `game_loop` one word of direction and button bits a pass
+      (`computer_out`, which `game_loop` reads into DI where a human's
+      input from `S0CB6:05F1` would be). The codes: 0 to 9 nothing, the
+      four directions, the button, the four diagonals (`script_bits`);
+      80h to 83h the button held with a direction and then let go, 84h
+      the button twice (`script_gestures`). So the code 80h is the
+      gesture of a move the key scripts use (button, up).
+    - The phases, stepped: every call of `computer_turn` and what the
+      phase's routine returned was logged (`-log` at `S1C74:002C`, behind
+      each of the five calls and at `01AE`; `build/n4/phases.py` sums a
+      log up) in the long runs `w0` and `w1` (the computer's side 1;
+      1500 s each) and in two new runs with the codes 24 and 30 of
+      `build/n2/codes.txt` (`build/n4/k24`, `k30`, made by `gen.py` with
+      mode FS, 1500 s), where side 0 is the computer's: so a computer's
+      first side is reached by a map's code, and it goes through the
+      same phases. Side 0 at the start, and side 1 from its second time
+      on: `computer_assess` 0 five times and then 1, `computer_plan` 0
+      some 320 to 1650 times and then 1 (15 s and 87 s of the game's
+      time in `k24` and `k30`, 8 s in `w0`), `computer_queue` 0 5 to 81
+      times and then 1. Side 1's first time, at the battle's start, is
+      short (`computer_assess` and `computer_plan` 0 once and then 1).
+      In the pass `computer_queue` returns 1,
+      `computer_step` is called at once (0) and `computer_input` after it
+      (1: no script yet). From there a pass is `computer_step` 0 and
+      `computer_input` 1, or `computer_input` alone while a script is
+      played (0, then 1 at its end). `computer_step` FFFFh (the list's
+      end) leads back to `computer_queue`, which adds the next steps
+      (about one unit's a time, by the counts of `step_add`: 41 and 48
+      calls in 400 s). After the round's end the phase is 20h again
+      (seen: the call after a `computer_queue` 0 is `computer_assess`);
+      what sets it was not looked at (not `computer_turn`; `game_loop`
+      sets 4 there, and `computer_reset` writes 20h).
+    - The kinds of step seen in 400 s of `w0` and of `k24` (`-log` at the
+      seven entries of the table at `S1E4B:0381`): kind 1 492 and 623
+      calls, kind 3 4,916 and 4,333, kind 4 40 and 68 (first at 310 s and
+      357 s), the kinds 2, 5, 6 and 7 none. Kind 1 is a unit's move
+      (read: its handler `S1E4B:0484` goes through the cursor to the
+      unit, the code 80h, the cursor to the aim, `move_target` and the
+      button). Kind 3 is presumably the round's end at the headquarters,
+      called every pass while the side waits (it gets word 0Eh of the
+      side's record of `sites_40`; its handler was not read). What the
+      kinds 2 and 4 to 7 are was not found: their handlers were not read,
+      and the lead's reading of them is not in this branch.
+    - `computer_input` is translated (`port/src/computer.c`) and compared
+      (port/README.md). The rest is not: `computer_step`'s handlers
+      change state only through the script, `move_target` and one bit of
+      `sides`, and could be next; `computer_assess`, `computer_plan` and
+      `computer_queue` (`S1CC6`, `S202F`, `S2138`, some 9,000 lines of
+      the generated source) are read only at their beginnings.
+  - Next there: the rest of the computer's turn (`computer_step` and its
+    handlers first, then `computer_assess`, `computer_plan`,
+    `computer_queue`); a scripted run of the first side that moves into a
+    site and a carrier and takes a site, to compare `move_arrive`'s other
+    kinds and this part, and the income with a side that holds a depot.
+    The human-input routine `S0CB6:05F1` has been read, but its port
+    behavior is not implemented.
   - The three routines are translated (`port/src/range.c`) and compared
     with 108 calls of the original from the six long runs
     (`port/tests/range_test.sh`, dumps by `build/n2/range2.py`,

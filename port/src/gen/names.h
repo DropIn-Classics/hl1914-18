@@ -229,23 +229,23 @@
     X(S15C5, carrier_moved, 0x0804) \
     X(S1C74, computer_turn, 0x000B) \
     X(S1C74, computer_reset, 0x01B4) \
-    X(S1CC6, ai_queue, 0x0000) \
-    X(S1CC6, ai_assess, 0x0A35) \
-    X(S1E4B, ai_keys_play, 0x0001) \
-    X(S1E4B, ai_step_run, 0x012E) \
-    X(S1E4B, ai_step_push, 0x038F) \
-    X(S1E4B, ai_move, 0x0484) \
-    X(S1E4B, ai_attack, 0x06DF) \
-    X(S1E4B, ai_end_round, 0x08ED) \
-    X(S1E4B, ai_unit_out, 0x0A26) \
-    X(S1E4B, ai_site_menu, 0x0D88) \
-    X(S1E4B, ai_build, 0x0FB8) \
-    X(S1E4B, ai_cursor_to, 0x128E) \
-    X(S1E4B, ai_scroll_to, 0x1464) \
-    X(S1E4B, ai_cursor_step, 0x15E8) \
-    X(S1E4B, ai_unit_holder, 0x1734) \
+    X(S1CC6, computer_queue, 0x0000) \
+    X(S1CC6, computer_assess, 0x0A35) \
+    X(S1E4B, computer_input, 0x0001) \
+    X(S1E4B, computer_step, 0x012E) \
+    X(S1E4B, step_add, 0x038F) \
+    X(S1E4B, step_move, 0x0484) \
+    X(S1E4B, step_attack, 0x06DF) \
+    X(S1E4B, step_end_round, 0x08ED) \
+    X(S1E4B, step_unit_out, 0x0A26) \
+    X(S1E4B, step_site_menu, 0x0D88) \
+    X(S1E4B, step_build, 0x0FB8) \
+    X(S1E4B, cursor_script, 0x128E) \
+    X(S1E4B, cursor_scroll, 0x1464) \
+    X(S1E4B, cursor_step, 0x15E8) \
+    X(S1E4B, unit_holder, 0x1734) \
     X(S1E4B, rec_find_unit, 0x1827) \
-    X(S2138, ai_plan, 0x000C) \
+    X(S2138, computer_plan, 0x000C) \
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
     X(S2892, num_text, 0x0001) \
@@ -310,15 +310,14 @@
     X(S331F, sides, 0x4D33) \
     X(S331F, views, 0x4D92) \
     X(S331F, attack_pick, 0x4DA8) \
-    X(S39B6, ai_keys, 0x1224) \
-    X(S39B6, ai_steps, 0x126B) \
-    X(S39B6, computer_rec, 0x12FD) \
-    X(S39B6, ai_input, 0x1315) \
-    X(S39B6, computer_text, 0x1317) \
-    X(S3AE8, ai_code_bits, 0x0004) \
-    X(S3AE8, ai_sequences, 0x000E) \
-    X(S3AE8, ai_holder_ptr, 0x001D) \
-    X(S3AE8, ai_target_field, 0x0021) \
+    X(S39B6, computer_script, 0x1224) \
+    X(S39B6, computer_steps, 0x126B) \
+    X(S39B6, computer_phase, 0x12FD) \
+    X(S39B6, computer_out, 0x1315) \
+    X(S3AE8, script_bits, 0x0004) \
+    X(S3AE8, script_gestures, 0x000E) \
+    X(S3AE8, holder_ptr, 0x001D) \
+    X(S3AE8, step_target_field, 0x0021) \
     X(S3AEC, fight_rec_ptr, 0x0008) \
     X(S3AED, ground_bonus, 0x0000) \
     X(DATA, rand_state, 0x11F6) \

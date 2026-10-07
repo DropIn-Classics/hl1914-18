@@ -1280,88 +1280,36 @@ name S131D:1745 income_add
 ; a guess, and an unused record (8000h, whose low bits are 0) would count
 ; for side 0 unless its stock bytes are 0 (not checked).
 name S131D:1685 side_income
-; computer_turn(side): the computer player's turn for a side with 2 in
-; word 0 of its sides record: a phase machine over word 0 of the side's
-; computer_rec (20h assess, 40h plan, 8 queue, 2 run steps, 1 play keys),
-; each phase storing a text number at computer_text. The side-1 sequence
-; 20h to 40h to 8 to 2 and the texts 4Eh, 4Fh, 60h to 63h were seen in a
-; run (6392 hits, all side 1); side 0 as the computer's was not met.
-name S1C74:000B computer_turn
-; Two 0Ch-byte records (side*0Ch) of the computer's player in S39B6: word
-; 0 the phase bits, byte 0Bh a toggle. Seen in a run for side 1.
-name S39B6:12FD computer_rec
-; A word per side (side*4): the message number the loop shows for the
-; computer's side. Seen in a run (4Eh, 4Fh, 60h to 63h).
-name S39B6:1317 computer_text
-; The computer's phases, read in S1C74:000B's callees (nothing of them
-; stepped; the returns below were seen in a run for side 1). ai_assess
-; (phase 20h) walks the units by byte 5 of the computer's record (0 to
-; 5) and fills their 9-byte records; it returns 1 past 5 (S1CC6:1823),
-; else 0. ai_plan (phase 40h) works byte 4 (0 to 0Ch) and is the only
-; phase calling move_range, attack_range and field_distance; 1 past 0Ch
-; (S2138:2C47), else 0. ai_queue (phase 8) works byte 3 (0 to 8),
-; queuing through ai_step_push; 1 after one action queued, 0 with
-; nothing to do; past 8 back to phase 20h. ai_step_run (phase 2) runs
-; the 0Ah 7-byte steps at ai_steps (byte 46h the index) through the
-; table at S1E4B:0381; 0 while the list holds steps, FFFFh when it is
-; used up. ai_keys_play (phase 1) plays the ai_keys script as the
-; side's input bits; 1 at its FFh end (then back to phase 2), else 0.
-; ai_step_push appends 7 bytes to the step list (at most 0Ah); it does
-; nothing past that. The assess/plan/queue role words are guesses.
-name S1CC6:0A35 ai_assess
-name S2138:000C ai_plan
-name S1CC6:0000 ai_queue
-name S1E4B:012E ai_step_run
-name S1E4B:0001 ai_keys_play
-name S1E4B:038F ai_step_push
-; The seven step helpers behind the table at S1E4B:0381 (read, none
-; stepped; the opcodes are byte 0 of a step minus 1). ai_move and
-; ai_attack move a unit and order an attack by scripted input; ai_end_round
-; goes to the side's sites_40 field and waits for the round's end bit;
-; ai_unit_out and ai_site_menu (guesses) pick from a 1Ch record through
-; ai_unit_holder; ai_build walks the build_kinds list; ai_cursor_to only
-; moves the cursor. ai_scroll_to and ai_cursor_step write cursor moves
-; into ai_keys. What 80h to 83h press is in ai_code_bits.
-name S1E4B:0484 ai_move
-name S1E4B:06DF ai_attack
-name S1E4B:08ED ai_end_round
-name S1E4B:0A26 ai_unit_out
-name S1E4B:0D88 ai_site_menu
-name S1E4B:0FB8 ai_build
-name S1E4B:128E ai_cursor_to
-name S1E4B:1464 ai_scroll_to
-name S1E4B:15E8 ai_cursor_step
-; ai_steps: two 49h bytes (side*49h): 0Ah steps of 7 bytes, then byte
-; 46h the index (computer_turn clears it). ai_keys: two 20h bytes
-; (side*20h): the script of input codes, bytes 1Eh and 1Fh the positions;
-; written by the helpers, played by ai_keys_play, reset by
-; computer_reset; saved with the game (in save_blocks after ai_steps;
-; the load side not read). ai_input: a word per side (side*4): the input
-; bits game_loop takes. ai_code_bits: codes 0 to 9 to input bits (1, 2,
-; 4, 8 the directions, 10h the button, 5, 9, 6, 0Ah the diagonals, so
-; read with the directions from HANDOFF). ai_sequences: 3 bytes per
-; sequence of 5 at most: 80h button+up, 81h +down, 82h +left, 83h +right
-; (each then release), 84h button held twice (written by nothing seen).
-; In game_loop terms these pick field_menu's pointers and confirm.
-name S39B6:126B ai_steps
-name S39B6:1224 ai_keys
-name S39B6:1315 ai_input
-name S3AE8:0004 ai_code_bits
-name S3AE8:000E ai_sequences
-; ai_unit_holder(side, b1): the 1Ch record of opcodes 4 and 6 (read;
+; The step handlers behind the table at S1E4B:0381 (computer_step; the
+; kind is byte 0 of a step, read from the code only, none stepped but
+; step_move, see computer_step below). step_move and step_attack move a
+; unit and order an attack by scripted input; step_end_round goes to the
+; side's sites_40 field and waits for the round's end bit; step_unit_out
+; and step_site_menu (names are guesses) pick from a 1Ch record through
+; unit_holder; step_build walks the build_kinds list. cursor_scroll and
+; cursor_step write cursor moves into computer_script.
+name S1E4B:0484 step_move
+name S1E4B:06DF step_attack
+name S1E4B:08ED step_end_round
+name S1E4B:0A26 step_unit_out
+name S1E4B:0D88 step_site_menu
+name S1E4B:0FB8 step_build
+name S1E4B:1464 cursor_scroll
+name S1E4B:15E8 cursor_step
+; unit_holder(side, b1): the 1Ch record of the kinds 4 and 6 (read;
 ; returns S331F, verified at its RETFs) and rec_find_unit (not read
 ; past its start). move_targets_list(work buffer, unit, from, side,
 ; map): lists the marked fields move_target gives 0 for at a far
-; pointer, counted in path_len (HL.hints:1450 already says so); it does
-; not call path_find. ai_holder_ptr and ai_target_field are the far
-; pointer and the chosen field (mislabeled DATA in the source; used
-; with DS=S3AE8, as is S3AEB:0006 to 000F in ai_plan: the rebuild is
-; unaffected since only offsets encode).
-name S1E4B:1734 ai_unit_holder
+; pointer, counted in path_len; it does not call path_find.
+; holder_ptr and step_target_field are the far pointer and the chosen
+; field (mislabeled DATA in the source; used with DS=S3AE8, as is
+; S3AEB:0006 to 000F in computer_plan: the rebuild is unaffected since
+; only offsets encode).
+name S1E4B:1734 unit_holder
 name S1E4B:1827 rec_find_unit
 name S0B15:13EC move_targets_list
-name S3AE8:001D ai_holder_ptr
-name S3AE8:0021 ai_target_field
+name S3AE8:001D holder_ptr
+name S3AE8:0021 step_target_field
 ; clock_seed(far value): keeps the value at DATA:0AF1, or for 0 one made of
 ; the BIOS's count of timer ticks. Presumably the start of a random
 ; sequence (who reads it was not looked at).
@@ -1646,3 +1594,98 @@ name S331F:0059 aim_steps
 ; entry finds an aim worked on before (presumably; not checked that all
 ; three are A5h or above for every entry).
 name S331F:00C5 aim_grounds
+; ---- The computer's player (2026-10-07). It plays a side through the same
+; hand a human has: what it wants to do becomes a list of steps, a step
+; becomes a script of input codes, and each pass of game_loop takes one
+; word of direction and button bits from that script in place of what
+; S0CB6:05F1 reads for a human.
+; computer_turn(side): one pass of a computer's side, called by game_loop
+; in place of reading the side's input. Sets the side's text in
+; computer_out to 4Eh and then serves the phase word of computer_phase:
+; 20h computer_assess (text 61h), 40h computer_plan (text 62h or 63h, byte
+; 0Bh of the record flips each pass), 8 computer_queue (text 60h); each
+; phase's routine is called once a pass and the phase goes on (20h to 40h
+; to 8 to 2, byte 46h of computer_steps set to 0) when it returns not 0.
+; Then, in the same pass: 2 computer_step (text 4Fh), not 0 from it goes
+; back to 8, 0 on to 1 with the script's place (byte 1Eh of
+; computer_script) set to 0; and 1 computer_input (text 4Fh), not 0 from
+; it back to 2. Read and stepped: runs of both sides logged every call and
+; what each routine returned, in this order (the second side on map 0, the
+; first on the maps of the codes 24 and 30).
+name S1C74:000B computer_turn
+; A record of 0Ch bytes for each side. Word 0 the phase (20h, 40h, 8, 2,
+; 1 as computer_turn has them; game_loop sets 4 after a round's end, not
+; read here what for), byte 3 the state of computer_queue (0 to 8), byte
+; 0Bh which of the two texts computer_plan's phase shows. The other bytes
+; were not read.
+name S39B6:12FD computer_phase
+; A record of 20h bytes for each side: the script of input codes, ended by
+; FFh; byte 1Eh the place in it, byte 1Fh the place in a code's sequence.
+; Its first byte is FFh while there is none.
+name S39B6:1224 computer_script
+; A record of 49h bytes for each side: up to ten steps of 7 bytes (byte 0
+; the kind, 1 to 7, FFh ends the list; the rest what the kind needs), byte
+; 46h the number of steps while they are queued and the step being carried
+; out afterwards, byte 47h the state inside a step (0 to 7 for kind 1),
+; byte 48h not read.
+name S39B6:126B computer_steps
+; Two words for each side: the direction and button bits game_loop takes
+; as the side's input (1, 2, 4, 8 up, down, left, right, 10h the button),
+; and the number of the text it shows for the side.
+name S39B6:1315 computer_out
+; computer_assess(side), computer_plan(side) and computer_queue(side): the
+; routines of the phases 20h, 40h and 8; each does a part of its work a
+; call and returns not 0 when done (seen: 6 calls of computer_assess, 321
+; to 1650 of computer_plan, 6 to 82 of computer_queue a time).
+; computer_queue goes by byte 3 of computer_phase through nine states
+; (table at S1CC6:0A23) and adds the steps with step_add; its first state
+; sets word 2 to FFFFh in the record of each unit of the side in the table
+; of 9-byte records (S39B6:0132 or 09AB by attack_pick). Only the
+; beginnings of the three were read; what they decide by is not known yet.
+name S1CC6:0A35 computer_assess
+name S2138:000C computer_plan
+name S1CC6:0000 computer_queue
+; computer_step(side): carries on the step byte 46h of computer_steps
+; names, by its kind through the table at S1E4B:0381, with the map offset
+; of the side's cursor (word 0 of its view): 1 S1E4B:0484 (bytes 1 and 3,
+; a unit and a word: moves the unit, see below), 2 S1E4B:06DF (bytes 1 and
+; 3), 3 S1E4B:08ED (word 0Eh of the side's record of sites_40: presumably
+; goes to the headquarters and ends the side's round there; nearly all
+; calls are this one, repeated while it waits), 4 S1E4B:0A26 (byte 1), 5
+; cursor_script (word 1), 6 S1E4B:0D88 (byte 1), 7 S1E4B:0FB8 (bytes 1 and
+; 3). A handler returns not 0 when its step is done and byte 46h goes up.
+; Returns 0, or FFFFh at the list's end (the list is emptied). In two runs
+; of 400 s only the kinds 1, 3 and 4 came up; the handlers of 2, 4, 6 and
+; 7 were not read.
+name S1E4B:012E computer_step
+; computer_input(side): puts the next word of input into computer_out (0
+; when there is none) from the code at the script's place: a code below
+; 80h is one word, script_bits by the code; 80h and above is a sequence of
+; script_gestures, a word a call. Returns 1 when the script is at its end
+; after that (and empties it), else 0. Read; the port's translation agreed
+; with the original on the calls dumped (port/README.md).
+name S1E4B:0001 computer_input
+; step_add(side, step): copies the 7 bytes of a step to the end of the
+; side's list in computer_steps and ends the list behind it; nothing with
+; ten steps there. Read.
+name S1E4B:038F step_add
+; S1E4B:0484, the step of kind 1 (side, cursor, unit, word, the side's
+; computer_steps): by byte 47h, 0 waits while 80h is set in game_state's
+; word 4; 1 cursor_script to the unit's place; 2 the code 80h (button and
+; up: the gesture of a move); 3 S1E4B:15E8 with the step's word
+; (presumably the cursor to the aim; not read); 4 move_target for the
+; field, and 8 set in word 0 of the side's record of sides when the field
+; is not marked for the side in field_bits or move_target refuses it, then
+; the code 5 (the button); 5 nothing; 6 the code 5 again; 7 done. Read,
+; not stepped.
+; cursor_script(side, cursor, field, the side's computer_steps): presumably
+; writes the codes that take the cursor to the field (called by every
+; handler; only its head was read).
+name S1E4B:128E cursor_script
+; The input word of each code 0 to 9: nothing, up, down, left, right, the
+; button, and the four diagonals.
+name S3AE8:0004 script_bits
+; The sequences of the codes 80h to 84h, three bytes each, ended by FFh:
+; the button with up, down, left or right and then nothing, and the button
+; twice.
+name S3AE8:000E script_gestures

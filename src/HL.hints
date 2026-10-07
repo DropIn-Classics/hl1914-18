@@ -1257,6 +1257,99 @@ name S02E6:29D4 defence_sum
 ; 9 bytes a unit). Called in the setup for a side with 2 in word 0 of its
 ; record.
 name S1C74:01B4 computer_reset
+; income_add(side): side_points[side] += side_income(side). Called once
+; from game_loop's state 5 after attacks_run (S066A:3F2A, read). Verified
+; in the generated source (the side in SI, the call, the add); no run
+; reached a round's end, so 0 hits there.
+name S131D:1745 income_add
+; side_income(side): the sum of byte 16h+side of the side's records in
+; sites_100 and sites_400 (word 19h low bits the side) plus that byte of
+; the side's sites_40 record. Read; the owner meaning of the word bits is
+; a guess, and an unused record (8000h, whose low bits are 0) would count
+; for side 0 unless its stock bytes are 0 (not checked).
+name S131D:1685 side_income
+; computer_turn(side): the computer player's turn for a side with 2 in
+; word 0 of its sides record: a phase machine over word 0 of the side's
+; computer_rec (20h assess, 40h plan, 8 queue, 2 run steps, 1 play keys),
+; each phase storing a text number at computer_text. The side-1 sequence
+; 20h to 40h to 8 to 2 and the texts 4Eh, 4Fh, 60h to 63h were seen in a
+; run (6392 hits, all side 1); side 0 as the computer's was not met.
+name S1C74:000B computer_turn
+; Two 0Ch-byte records (side*0Ch) of the computer's player in S39B6: word
+; 0 the phase bits, byte 0Bh a toggle. Seen in a run for side 1.
+name S39B6:12FD computer_rec
+; A word per side (side*4): the message number the loop shows for the
+; computer's side. Seen in a run (4Eh, 4Fh, 60h to 63h).
+name S39B6:1317 computer_text
+; The computer's phases, read in S1C74:000B's callees (nothing of them
+; stepped; the returns below were seen in a run for side 1). ai_assess
+; (phase 20h) walks the units by byte 5 of the computer's record (0 to
+; 5) and fills their 9-byte records; it returns 1 past 5 (S1CC6:1823),
+; else 0. ai_plan (phase 40h) works byte 4 (0 to 0Ch) and is the only
+; phase calling move_range, attack_range and field_distance; 1 past 0Ch
+; (S2138:2C47), else 0. ai_queue (phase 8) works byte 3 (0 to 8),
+; queuing through ai_step_push; 1 after one action queued, 0 with
+; nothing to do; past 8 back to phase 20h. ai_step_run (phase 2) runs
+; the 0Ah 7-byte steps at ai_steps (byte 46h the index) through the
+; table at S1E4B:0381; 0 while the list holds steps, FFFFh when it is
+; used up. ai_keys_play (phase 1) plays the ai_keys script as the
+; side's input bits; 1 at its FFh end (then back to phase 2), else 0.
+; ai_step_push appends 7 bytes to the step list (at most 0Ah); it does
+; nothing past that. The assess/plan/queue role words are guesses.
+name S1CC6:0A35 ai_assess
+name S2138:000C ai_plan
+name S1CC6:0000 ai_queue
+name S1E4B:012E ai_step_run
+name S1E4B:0001 ai_keys_play
+name S1E4B:038F ai_step_push
+; The seven step helpers behind the table at S1E4B:0381 (read, none
+; stepped; the opcodes are byte 0 of a step minus 1). ai_move and
+; ai_attack move a unit and order an attack by scripted input; ai_end_round
+; goes to the side's sites_40 field and waits for the round's end bit;
+; ai_unit_out and ai_site_menu (guesses) pick from a 1Ch record through
+; ai_unit_holder; ai_build walks the build_kinds list; ai_cursor_to only
+; moves the cursor. ai_scroll_to and ai_cursor_step write cursor moves
+; into ai_keys. What 80h to 83h press is in ai_code_bits.
+name S1E4B:0484 ai_move
+name S1E4B:06DF ai_attack
+name S1E4B:08ED ai_end_round
+name S1E4B:0A26 ai_unit_out
+name S1E4B:0D88 ai_site_menu
+name S1E4B:0FB8 ai_build
+name S1E4B:128E ai_cursor_to
+name S1E4B:1464 ai_scroll_to
+name S1E4B:15E8 ai_cursor_step
+; ai_steps: two 49h bytes (side*49h): 0Ah steps of 7 bytes, then byte
+; 46h the index (computer_turn clears it). ai_keys: two 20h bytes
+; (side*20h): the script of input codes, bytes 1Eh and 1Fh the positions;
+; written by the helpers, played by ai_keys_play, reset by
+; computer_reset; saved with the game (in save_blocks after ai_steps;
+; the load side not read). ai_input: a word per side (side*4): the input
+; bits game_loop takes. ai_code_bits: codes 0 to 9 to input bits (1, 2,
+; 4, 8 the directions, 10h the button, 5, 9, 6, 0Ah the diagonals, so
+; read with the directions from HANDOFF). ai_sequences: 3 bytes per
+; sequence of 5 at most: 80h button+up, 81h +down, 82h +left, 83h +right
+; (each then release), 84h button held twice (written by nothing seen).
+; In game_loop terms these pick field_menu's pointers and confirm.
+name S39B6:126B ai_steps
+name S39B6:1224 ai_keys
+name S39B6:1315 ai_input
+name S3AE8:0004 ai_code_bits
+name S3AE8:000E ai_sequences
+; ai_unit_holder(side, b1): the 1Ch record of opcodes 4 and 6 (read;
+; returns S331F, verified at its RETFs) and rec_find_unit (not read
+; past its start). move_targets_list(work buffer, unit, from, side,
+; map): lists the marked fields move_target gives 0 for at a far
+; pointer, counted in path_len (HL.hints:1450 already says so); it does
+; not call path_find. ai_holder_ptr and ai_target_field are the far
+; pointer and the chosen field (mislabeled DATA in the source; used
+; with DS=S3AE8, as is S3AEB:0006 to 000F in ai_plan: the rebuild is
+; unaffected since only offsets encode).
+name S1E4B:1734 ai_unit_holder
+name S1E4B:1827 rec_find_unit
+name S0B15:13EC move_targets_list
+name S3AE8:001D ai_holder_ptr
+name S3AE8:0021 ai_target_field
 ; clock_seed(far value): keeps the value at DATA:0AF1, or for 0 one made of
 ; the BIOS's count of timer ticks. Presumably the start of a random
 ; sequence (who reads it was not looked at).

@@ -1530,6 +1530,26 @@ emulation error (2026-10-02).
       counts when its ground is the byte at `S331F:4C92` or its
       neighbours' grounds have 8000h and no unit (not checked). So 0Bh,
       0Dh and 11h are still not reached.
+    - Building reached (2026-10-07, Linux; the rule found on the Mac:
+      `S0E56:18A3` takes a field whose ground is the byte at
+      `S331F:4C92`, or whose four fields (it, the one below, lower left
+      and lower right) are on the map, have 8000h in their ground's word
+      0 and hold no unit). Map 8, unit 0C (word 6 4300h, byte 0Ah 2)
+      moved from (18,5) to (17,6) (field 0142h); its 200h was cleared at
+      the half's end, so in the next half the attack gesture offered
+      building: `field_bits` 4 at 1D0h only, the press on 0170h gave
+      0Bh, aim 0170h, 200h, result 1, the text "DEPOT BEING SET UP" on
+      the screen. The round's end (19B8 at 125.24 s): byte 0Ah 2 to 1,
+      the grounds of 0170h, 0172h, 01A0h, 016Eh 15h, 18h, 16h, 17h (the
+      bytes at 4C92 to 4C95). In the next build half the same press gave
+      0Dh (ground 15h); the round's end (237.94 s): `S331F:4CAE` 1 to 2,
+      record 1 of `sites_100` on 0170h with word 19h 10h and byte 18h
+      0Ah, side 0's byte 4 0 to 1, byte 0Ah 1 to 0, the grounds 10h,
+      14h, 12h, 13h (the last three from 4C97 to 4C99; 10h presumably
+      `amok_dat` byte 3, not checked). Byte 13h stays 0Dh after the
+      loop. Dumps (ignored `build/n2/o/`): `d3_attack_order`,
+      `d4r_orders`, `d5_attack_order`, `d5r_orders`, entry and exit.
+      `orders_run` does not carry out 0Bh and 0Dh yet.
   - Next there: `S0CB6:05F1`, `S131D:1745`, `S0E56:1A97` and `1B57`, and
     `S1C74:000B`, the computer's turn; a scripted run of the first side
     that moves into a site and a carrier and takes a site, to compare

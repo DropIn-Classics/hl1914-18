@@ -1,6 +1,7 @@
 """make_m8.py STEP... > m8_site.keys - the key script of a map-8 run
 (port/tests/side_dumps.sh) for the first side, from where its view starts
-(one row below its headquarters).  Each STEP is a letter and a time:
+(one row below its headquarters), or steps appended to another script
+(m8_d5r.keys: m8_d5.keys and its steps, see side_dumps.sh).  Each STEP is a letter and a time:
   eT  end the half (the button and left on a plain field, F1 twice)
   ET  the same without the F1s
   fT  F1 alone (a round's end waits for a key once the computer is done)
@@ -41,8 +42,10 @@ for arg in sys.argv[1:]:
         for d in (['up'] * 4 + ['right'] * 4 if c == 'g' else ['left'] * 4 + ['down'] * 4):
             tap(t, d)
             t += 1
-    elif c in 'srol':
-        gesture(t, {'s': 'left', 'r': 'down', 'o': 'up', 'l': 'right'}[c])
+    elif c == 'a':
+        ev.append((t, 'space'))
+    elif c in 'srolm':
+        gesture(t, {'s': 'left', 'r': 'down', 'o': 'up', 'm': 'up', 'l': 'right'}[c])
     else:
         tap(t, {'d': 'down', 'u': 'up', 'L': 'left', 'R': 'right'}[c])
 for t, k in sorted(ev):

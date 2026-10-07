@@ -525,4 +525,16 @@ anything the game needs before the first release.
   `0B2B`, presumably what the left-out drawing writes (not checked); no
   byte of a map differs. Not covered: a carrier (20h in the record's
   word 19h), a unit with 4 or 10h in word 6.
+- A repair carried out (2026-10-07, Linux): the run `m8_d5r.keys`
+  (`m8_d5.keys`, which builds the depot, and the steps of `D5R` in
+  `port/tests/side_dumps.sh`) moves the builder, unit 0Ch (4000h in word
+  6, byte 0Ah 0 after building), into the depot in the next move half and
+  repairs it there in the attack half after (72 points): `side_test`
+  (`repair`) text 51h like the original, points 72 to 22, byte 0Ah 2,
+  nothing different, outside the state neither. A unit with 4000h is
+  repaired at full count while its byte 0Ah is not 2, so no fight was
+  needed. The move into the depot (`move_arrive` kind 5, the 63rd call
+  of the run; `port/tests/move_test_m8.args`) is the same as well.
+  Not covered: a repair of a unit with lost count (no unit without
+  4000h in a site was damaged in the runs).
 

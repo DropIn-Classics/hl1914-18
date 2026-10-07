@@ -10,3 +10,8 @@ unmark 3EA4:0F6C - ../build/n2/o/au9_attack_unmark_in.ram ../build/n2/o/au9_atta
 order 3EA4:0F68 0001 ../build/n2/o/ao1_attack_order_in.ram ../build/n2/o/ao1_attack_order_out.ram
 order 3EA4:0F68 0001 ../build/n2/o/ao5_attack_order_in.ram ../build/n2/o/ao5_attack_order_out.ram
 order 3EA4:0F68 0001 ../build/n2/o/ao9_attack_order_in.ram ../build/n2/o/ao9_attack_order_out.ram
+done 3EA4:0F66 - ../build/n2/o/mdk4_move_done_in.ram ../build/n2/o/mdk4_move_done_out.ram
+done 3EA4:0F66 - ../build/n2/o/mds2c_5_move_done_in.ram ../build/n2/o/mds2c_5_move_done_out.ram
+done 3EA4:0F66 - ../build/n2/o/mdd5_40_move_done_in.ram ../build/n2/o/mdd5_40_move_done_out.ram
+done 3EA4:0F66 - ../build/n2/o/mdd5_88_move_done_in.ram ../build/n2/o/mdd5_88_move_done_out.ram
+done 3EA4:0F66 - ../build/n2/o/mdsite_101_move_done_in.ram ../build/n2/o/mdsite_101_move_done_out.ram

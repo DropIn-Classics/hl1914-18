@@ -588,3 +588,59 @@ uint16_t attack_order(Far view, Far map, uint16_t side)
     }
     return given;
 }
+
+/* S10E1:000F (move_done): the end of choosing a move for the view's unit
+ * (word 1Eh) on map `map`: the side's marks 1 (2 for the second side) are
+ * cleared in field_bits.  With 10h in `flags` the move is given up: 100h
+ * leaves the unit's flags (and its other half's: the next unit with 80h,
+ * else the one before), the marks 40h (80h) are cleared, the view goes to
+ * step 19h of state 0 with pointer 5, game_state's word 4 gets 100h and
+ * site_taken becomes 1.  A view in step 3 (a unit moving out of a site or
+ * carrier) is taken back from view_copy and goes to step 9 of state 2;
+ * with 10h the unit goes back into its place, its place on the side's map
+ * becomes the record's field again, and F4h (on a carrier then the
+ * record's byte 1Bh) is written at the map's offset plus the unit's place
+ * - in the segment of the units, not of the map (DX holds the map's
+ * segment but is not used; presumably meant for the map; kept as the
+ * original does it).  The drawing is left out. */
+void move_done(Far view, Far map, uint16_t side, uint16_t flags)
+{
+    uint8_t no = (uint8_t)pw(view, 0x1E);
+    Far unit = unit_at(no);
+    uint16_t pos = (uint16_t)(0x0B + side * 2);
+
+    field_bits_clear(side ? 2 : 1);
+    if (flags & 0x10) {
+        pww(unit, 4, pw(unit, 4) & 0xFEFF);
+        if (pw(unit, 4) & 0x40) {
+            Far half = unit_at((uint8_t)(pw(unit, 4) & 0x80 ? no + 1 : no - 1));
+            pww(half, 4, pw(half, 4) & 0xFEFF);
+        }
+        field_bits_clear(side ? 0x80 : 0x40);
+        pwb(view, 0x17, 0);
+        pwb(view, 0x18, 0x19);
+        pwb(view, 0x1B, 5);
+        SETW(game_state, 4, NW(game_state, 4) | 0x100);
+        SETW(site_taken, 0, 1);
+    }
+    if (pb(view, 0x19) != 3)
+        return;
+    if (flags & 0x10) {
+        Far rec = far_at(view.seg, (uint16_t)(view.off + 0x24));
+        fwb(unit.seg, (uint16_t)(map.off + pw(unit, pos)), 0xF4);
+        pww(unit, pos, pw(rec, 0x0E));
+        if ((rec.off | rec.seg) && (pw(rec, 0x19) & 0x20))
+            fwb(unit.seg, (uint16_t)(map.off + pw(unit, pos)), pb(rec, 0x1B));
+    }
+    view_copy(view, 1);
+    if (flags & 0x10) {
+        Far rec = far_at(view.seg, (uint16_t)(view.off + 0x24));
+        pwb(rec, (uint16_t)(side * 7 + pw(view, 0x0E)), no);
+    }
+    pwb(view, 0x17, 2);
+    pwb(view, 0x18, 9);
+    pwb(view, 0x19, 0);
+    pwb(view, 0x1B, 5);
+    pww(view, 0x0C, pw(view, 4));
+    pww(view, 0x0E, pw(view, 6));
+}

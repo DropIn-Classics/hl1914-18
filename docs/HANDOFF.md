@@ -1815,7 +1815,13 @@ emulation error (2026-10-02).
     calls). `attack_order` is translated and compared on three calls;
     `show_message` writes state too: 4 (8 for the second side) in
     `game_state`'s word 0 for a text, cleared by `timer_fire` (so the
-    port has its state part). Next: `move_aim`, `move_done`, then
+    port has its state part). `move_done` is translated and compared on
+    five calls, all with flags 1. Its giving up of a move out of a site
+    or carrier (flags 10h, view step 3) writes F4h and the record's byte
+    1Bh at S331F:(map offset + the unit's place), with ES still the units'
+    segment where the map's was presumably meant (DX holds it unused);
+    as the map's offset is 0Ah or 0Ch this lands inside S331F's first
+    bytes plus the place, not checked in a run. Next: `move_aim`, then
     `field_menu` and `view_step`.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,

@@ -23,4 +23,12 @@ for n in 1 5 9; do
     MAP8=1 d ao$n m8_d5r.keys 330 attack_order $n &
 done
 wait
+# move_done (S10E1:000F): the first side's in k4, the computer's in s2c,
+# d5r and site
+d mdk4 m0_k4.keys 60 move_done 1 &
+d mds2c_5 m0_s2c.keys 108 move_done 5 &
+MAP8=1 d mdd5_40 m8_d5r.keys 405 move_done 40 &
+MAP8=1 d mdd5_88 m8_d5r.keys 405 move_done 88 &
+MAP8=1 d mdsite_101 m8_site.keys 405 move_done 101 &
+wait
 

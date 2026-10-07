@@ -579,4 +579,12 @@ anything the game needs before the first release.
   `show_message` was added the first call differed in `game_state`'s
   word 0. Not covered: a field not marked (text 45h), the builder's
   orders 0Bh, 0Dh and the depot limit (47h), order 11h.
+- `move_done` (2026-10-07, Linux; `src/move.c`, `S10E1:000F`): five
+  calls (the first side's in k4 and the computer's in s2c, d5r and site)
+  the same in the game's state; all have the flags 1, so only the
+  clearing of the side's marks is covered. Not covered: a move given up
+  (10h in the flags) and a view in step 3 (a unit taken back into its
+  site or carrier). There the original writes F4h and the record's byte
+  1Bh through the units' segment at the map's offset plus the unit's
+  place, not into the map; the port does the same (not compared).
 

@@ -188,6 +188,7 @@
     X(S0CB6, timer_set, 0x0272) \
     X(S0CB6, timer_fire, 0x035A) \
     X(S0CB6, view_copy, 0x0445) \
+    X(S0CB6, side_input, 0x05F1) \
     X(S0CB6, view_step, 0x0750) \
     X(S0CB6, view_reset, 0x0CDA) \
     X(S0CB6, field_menu, 0x0EAA) \

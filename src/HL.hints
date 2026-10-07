@@ -1378,6 +1378,12 @@ name S0CB6:0EAA field_menu
 ; S331F:4D61, or back from it with back not 0 (moving out keeps the view
 ; there; presumably for going back to it, not followed).
 name S0CB6:0445 view_copy
+; side_input(far input record, far view): the input word of a human side
+; (game_loop puts it in DI): 10h the button, 4 left or 8 right, 1 up or 2
+; down from the record's bytes (left, right, up, down, button; cleared),
+; directions only when the view's repeat counter (byte 2Ch, from the
+; delays at 28h by the stage in 2Bh) has run out or they changed.
+name S0CB6:05F1 side_input
 ; view_draw(field, side): draws the 9 by 7 fields of a view from field
 ; (grounds by S331F:0153, units by S331F:013F through S2931:000E); a
 ; foreign unit with 2 in word 6 is not drawn. Presumably draws only (no

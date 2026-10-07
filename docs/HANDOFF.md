@@ -1566,7 +1566,16 @@ emulation error (2026-10-02).
       loop. Dumps (ignored `build/n2/o/`): `d3_attack_order`,
       `d4r_orders`, `d5_attack_order`, `d5r_orders`, entry and exit.
       `orders_run` does not carry out 0Bh and 0Dh yet.
-  - Next there: `S0CB6:05F1`, `S131D:1745`, `S0E56:1A97` and `1B57`, and
+  - `S131D:1745` (`income_add`) is the round's income: it adds
+    `S131D:1685` (`side_income`) to the side's word of `side_points`.
+    `side_income` reads all ten records of `sites_100` and of `sites_400`
+    with no test of use, takes those whose word 19h AND 3 is the side
+    (an unused record has 8000h there, so it counts for side 0; its byte
+    16h is presumably 0, not checked) and sums byte 16h plus the side
+    (16h for side 0, 17h for side 1), then adds that byte of the side's
+    record of `sites_40`. Translated (`port/src/orders.c`) and compared
+    on four calls on map 8 (port/README.md); 24 and 57 a round there.
+  - Next there: `S0CB6:05F1`, `S0E56:1A97` and `1B57`, and
     `S1C74:000B`, the computer's turn; a scripted run of the first side
     that moves into a site and a carrier and takes a site, to compare
     `move_arrive`'s other kinds and this part.

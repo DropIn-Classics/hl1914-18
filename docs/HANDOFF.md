@@ -1870,6 +1870,43 @@ emulation error (2026-10-02).
     17h: a second press within the timer's four passes gives the move
     up, otherwise the view goes back to 16h for another aim. Steps 18h
     and 1Ah were not reached in the six key scripts.
+  - A pass of `game_loop` (2026-10-07, Linux): `S066A:0EE9` to `45D7`
+    read again for what changes the state and translated
+    (`port/src/loop.c`), with `attacks_run`'s frame around the orders
+    (`S02E6:000F` to `0122` and `0D48` to `0E9C`, `19B8` to `205B`,
+    `rows_sync`, `units_drop_empty`; `port/src/orders.c`). Compared over
+    the first round of `m8_site` (port/README.md). Learned on the way:
+    - The key of a side's part is read at `S066A:0FE6` to `1003`, before
+      `1006`, into `[BP-3Bh]`, which only the pass's beginning and the
+      round's end clear: a key read in the first side's part is still
+      there in the second's. In `m8_site` the F1 pair's first F1 is read
+      in pass 291 by side 0 and runs the round's end; the second is read
+      by side 1 in the same pass and does nothing there.
+    - Byte 8 of a human's input record is written FFh by the timer's
+      interrupt (`S27FE:0326`) whenever the record's button (byte 4) is
+      not held: so it means "the button is up", and `view_step` clears it
+      when it has used it. Byte 5 was not traced (presumably a press, as
+      the 2026-10-04 reading says).
+    - The computer's turn (`S1C74:000B`) calls `move_range`,
+      `attack_range`, `field_neighbours` and `move_target` while it
+      plans (logged in `m8_site` between the computer's `S066A:0FC3` and
+      `1243` from pass 292 on: 15, 6, 186 and some 360 calls), so the
+      way (`S331F:17F2` on), `neighbours`, `move_rec` and `move_args` hold
+      what its planning left; `S3AEC:0002` is written by code in `S2138`
+      (`computer_queue`). `computer_step` sets 8 in its side's word of
+      `sides` (`S1E4B:0610`, `063C`, `0886`, `0C78`), which `view_step`
+      takes as a second press.
+    - The computer's side used state 3 (the small map, step 5) in 124
+      passes of the first round; why was not looked at.
+    - `LIB\BIGUNIT.LIB` is loaded during play (from 83 s in `m8_site`,
+      several times), presumably to draw a unit's picture; it changes
+      `name_buf`.
+    - In `m8_site` `attacks_run` runs in passes 291 (48.41 s) and 1939
+      (111.43 s) without fights; its third call (150.53 s) has the first
+      fights (`fight_percent` at 151.04 s).
+    Not translated in the pass: the keys F2 to F9, Esc and saving, the
+    fights, order 1 (`order_undo`), `S02E6:2B87`, and what draws, sounds
+    and waits; the computer's player beyond what comes in as input.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

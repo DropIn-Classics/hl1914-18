@@ -1656,16 +1656,15 @@ name S2138:000C computer_plan
 name S1CC6:0000 computer_queue
 ; computer_step(side): carries on the step byte 46h of computer_steps
 ; names, by its kind through the table at S1E4B:0381, with the map offset
-; of the side's cursor (word 0 of its view): 1 S1E4B:0484 (bytes 1 and 3,
-; a unit and a word: moves the unit, see below), 2 S1E4B:06DF (bytes 1 and
-; 3), 3 S1E4B:08ED (word 0Eh of the side's record of sites_40: presumably
-; goes to the headquarters and ends the side's round there; nearly all
-; calls are this one, repeated while it waits), 4 S1E4B:0A26 (byte 1), 5
-; cursor_script (word 1), 6 S1E4B:0D88 (byte 1), 7 S1E4B:0FB8 (bytes 1 and
-; 3). A handler returns not 0 when its step is done and byte 46h goes up.
-; Returns 0, or FFFFh at the list's end (the list is emptied). In two runs
-; of 400 s only the kinds 1, 3 and 4 came up; the handlers of 2, 4, 6 and
-; 7 were not read.
+; of the side's cursor (word 0 of its view): 1 step_move (bytes 1 and 3, a
+; unit and a field), 2 step_attack (bytes 1 and 3, two units), 3
+; step_end_round (word 0Eh of the side's record of sites_40), 4
+; step_unit_out (byte 1, a unit), 5 cursor_script (word 1, a field), 6
+; step_site_menu (byte 1, a unit), 7 step_build (bytes 1 and 3, a kind
+; and a record of sites_400). A handler returns not 0 when its step is
+; done and byte 46h goes up. Returns 0, or FFFFh at the list's end (the
+; list is emptied). In runs only the kinds 1, 3 and 4 came up. Read;
+; translated for the kinds 1, 2, 3 and 5 and compared (port/README.md).
 name S1E4B:012E computer_step
 ; computer_input(side): puts the next word of input into computer_out (0
 ; when there is none) from the code at the script's place: a code below
@@ -1678,18 +1677,72 @@ name S1E4B:0001 computer_input
 ; side's list in computer_steps and ends the list behind it; nothing with
 ; ten steps there. Read.
 name S1E4B:038F step_add
-; S1E4B:0484, the step of kind 1 (side, cursor, unit, word, the side's
-; computer_steps): by byte 47h, 0 waits while 80h is set in game_state's
-; word 4; 1 cursor_script to the unit's place; 2 the code 80h (button and
-; up: the gesture of a move); 3 S1E4B:15E8 with the step's word
-; (presumably the cursor to the aim; not read); 4 move_target for the
-; field, and 8 set in word 0 of the side's record of sides when the field
-; is not marked for the side in field_bits or move_target refuses it, then
-; the code 5 (the button); 5 nothing; 6 the code 5 again; 7 done. Read,
-; not stepped.
-; cursor_script(side, cursor, field, the side's computer_steps): presumably
-; writes the codes that take the cursor to the field (called by every
-; handler; only its head was read).
+; The step handlers and their helpers, named above with side_income
+; ("The step handlers behind the table at S1E4B:0381"), as read on the Mac
+; (2026-10-07), one paragraph each:
+; step_move(side, cursor, unit, aim, the side's computer_steps), a step of
+; kind 1: by byte 47h, 0 waits while 80h is set in game_state's word 4; 1
+; cursor_script to the unit's place; 2 the code 80h (button and up: the
+; gesture of a move); 3 cursor_step towards the aim until the cursor is
+; there; 4 move_target for the cursor's field, and 8 set in word 0 of the
+; side's record of sides when the field is not marked for the side in
+; field_bits (1, the second side 2) or move_target refuses it, then the
+; code 5 (the button); 5 nothing; 6 the code 5 again; 7 done. Read; the
+; port's translation agreed with the original (port/README.md).
+; step_attack(side, cursor, unit, target, steps), kind 2: 0 cursor_script
+; to the unit; 1 the code 80h; 2 cursor_step towards the target unit's
+; place; 3 the button, and on to 5 when the target's field is marked for
+; the side's attack in field_bits (4, the second side 8), else 8 in the
+; side's word 0; 4 the button; 5 done. Read and translated; no call of it
+; was seen in a run.
+; step_end_round(side, cursor, field, steps), kind 3, with word 0Eh of the
+; side's record of sites_40 (its headquarters): 0 cursor_script to the
+; field; 1 cursor_step towards the field a row below it; 2 the code 82h
+; (button and left) once 80h is clear in game_state's word 4; 3 waits for
+; 4 in the side's computer_phase, which game_loop sets after the round's
+; end, and clears it; 4 done. So the computer ends its round below its
+; headquarters and waits there. Read; translated and compared.
+; step_unit_out(side, cursor, unit, steps), kind 4: a unit leaves the site
+; or carrier it is in. 0 unit_holder into holder_ptr (none: done); 1
+; cursor_script to the holder's field (word 0Eh); 2 the code 82h; 3 the
+; codes 2 or 1 (down, up) until word 0Eh of the view is the unit's place in
+; the side's row; 4 waits while 80h is set in game_state's word 4; 5 the
+; code 80h; 6 nothing; 7 move_targets_list with the far pointer at byte 9
+; of the side's record of sides: step_target_field becomes its first
+; field, or with path_len 0 the holder's own field and 8 in the side's
+; word 0; 8 cursor_step towards it; 9 and 0Ah the button; 0Bh the code
+; 83h; 0Ch done. Read, not translated (move_targets_list is not).
+; step_site_menu(side, cursor, unit, steps), kind 6: as step_unit_out up
+; to the unit's row in its holder (the pointer at S3AE8:0023), then the
+; code 81h (button and down) and the code 83h. What that gesture does to
+; the unit was not seen (no call in a run). Read.
+; step_build(side, cursor, kind, site, steps), kind 7: cursor_script to
+; the field of the record `site` of sites_400 (pointer at S3AE8:0027), the
+; code 82h, a row of the side's seven places chosen as in step_unit_out
+; (what is looked for there was not read), 82h again, the code 2 (down)
+; until the view's word 0Eh plus word 20h reaches the kind's place in
+; build_kinds, 82h, 83h. Read in outline; no call in a run.
+; unit_holder(side, unit): a far pointer to the record that has the unit
+; in the side's row, looked for with rec_find_unit in sites_400 (10
+; records), sites_100 (10), carriers (70) and sites_40 (2); FFFFh:FFFFh
+; for none. Read.
+; rec_find_unit(side, unit, table, count): the number of the first of the
+; table's 1Ch-byte records, without 2 and 8000h in word 19h, that has the
+; unit among the seven places of the side's row; FFFFh for none. Read.
+; cursor_scroll(side, column, row): one move of the side's view (its
+; words 0Ch and 0Eh) towards the place that has the field five columns
+; and four rows in, kept inside the map and even: the codes 3 or 4 (left,
+; right) and 1 or 2 into computer_script. Returns 1 when the view is
+; there or the field is off the map. Read; translated and compared.
+; cursor_step(side, cursor, field): the same for the cursor, a field a
+; call towards the field. Returns 1 when it is there, or the field is off
+; the map or in its last column or row. Read; translated and compared.
+; cursor_script(side, cursor, field, the side's computer_steps): takes the
+; cursor to the field, a part a call, by byte 48h of the steps: 0 chooses
+; (4 at once when the field is less than five columns and rows away or
+; byte 18h of the view is set); 1 the code 83h (button and right); 2
+; cursor_scroll until the view is there; 3 the button; 4 cursor_step until
+; the cursor is there; 5 done, returns 1. Read; translated and compared.
 name S1E4B:128E cursor_script
 ; The input word of each code 0 to 9: nothing, up, down, left, right, the
 ; button, and the four diagonals.

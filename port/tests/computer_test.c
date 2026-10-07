@@ -1,15 +1,25 @@
 /* computer_test.c - the computer's player (port/src/computer.c) against
  * the original.
  *
- *     computer_test input SIDE SS:BP ENTRY.ram EXIT.ram [...]
+ *     computer_test KIND SIDE SS:BP ENTRY.ram EXIT.ram [...]
  *
- * Each set of five is one call of computer_input in HL.EXE: the side, SS
- * and BP of the routine's frame, dosrun's -ram dump at S1E4B:0023 (behind
- * the routine's entry code) and the one at S1E4B:011D (before its result
- * is loaded from [BP-8]).  The result and the memory after the port's
- * routine are compared with the second dump; the routine's own frame (the
- * 0Ah bytes below BP) is left out.  port/tests/computer_test.sh builds
- * this.
+ * Each set of five is one call of a routine in HL.EXE: the side, SS and
+ * BP of the routine's frame, and dosrun's -ram dumps behind the routine's
+ * entry code and before its return.  KIND:
+ *   input    computer_input, dumps at S1E4B:0023 and S1E4B:011D (before
+ *            its result is loaded from [BP-8], where it is read here);
+ *   step     computer_step, dumps at S1E4B:014F and S1E4B:035B (result 0);
+ *   stepend  the same with the exit S1E4B:0372 (result FFFFh).
+ * The result and the memory after the port's routine are compared with
+ * the second dump; the stack below the routine's BP is left out (the 0Ah
+ * bytes of computer_input's frame, 400h bytes for computer_step and what
+ * it calls).  A call is different when a byte the port wrote has another
+ * value in the second dump, or a byte of the game's state (from segment
+ * S3306 up to DATA) has that the port did not write; a byte elsewhere
+ * that only the original wrote (an interrupt's, presumably) is counted
+ * apart and listed.  A call of computer_step whose step the port does not carry
+ * out is counted apart and not compared.  port/tests/computer_test.sh
+ * builds this; port/tests/computer_dumps.py makes the dumps.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,42 +49,71 @@ static int load(const char *path, uint8_t *to)
 
 int main(int argc, char **argv)
 {
-    int i, bad = 0, calls = 0;
+    int i, bad = 0, calls = 0, skipped = 0;
 
     if (argc < 6 || (argc - 1) % 5) {
-        fprintf(stderr, "usage: computer_test input SIDE SS:BP ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: computer_test KIND SIDE SS:BP ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     for (i = 1; i < argc; i += 5) {
-        unsigned side, ss, bp, diff = 0, changed = 0;
-        uint32_t a, frame;
+        unsigned side, ss, bp, diff = 0, apart = 0, changed = 0;
+        uint32_t a, frame, below;
+        uint32_t lo_state = (uint32_t)(HL_S3306 + HL_BASE) << 4;
+        uint32_t hi_state = (uint32_t)(HL_DATA + HL_BASE) << 4;
         uint16_t got, want;
+        int input = !strcmp(argv[i], "input"), left = 0;
 
-        if (strcmp(argv[i], "input") || sscanf(argv[i + 1], "%u", &side) != 1
+        if ((!input && strcmp(argv[i], "step") && strcmp(argv[i], "stepend"))
+            || sscanf(argv[i + 1], "%u", &side) != 1
             || sscanf(argv[i + 2], "%x:%x", &ss, &bp) != 2
             || !load(argv[i + 3], entry) || !load(argv[i + 4], leave))
             return 2;
         memset(mem, 0, MEM_SIZE);
         memcpy(mem, entry, RAM);
-        got = computer_input((uint16_t)side);
-        frame = lin((uint16_t)ss, (uint16_t)(bp - 0x0A));
-        want = (uint16_t)(leave[frame + 2] | leave[frame + 3] << 8);
-        printf("%s: side %u, input %04X, result %u", argv[i + 4], side,
-               NW(computer_out, side * 4), got);
+        below = input ? 0x0A : 0x400;
+        frame = lin((uint16_t)ss, (uint16_t)(bp - below));
+        if (input) {
+            got = computer_input((uint16_t)side);
+            want = (uint16_t)(leave[frame + 2] | leave[frame + 3] << 8);
+            printf("%s: side %u, input %04X, result %u", argv[i + 4], side,
+                   NW(computer_out, side * 4), got);
+        } else {
+            uint8_t at = NB(computer_steps, side * 0x49 + 0x46);
+            uint8_t kind = NB(computer_steps, side * 0x49 + at * 7);
+            uint8_t s47 = NB(computer_steps, side * 0x49 + 0x47);
+            uint8_t s48 = NB(computer_steps, side * 0x49 + 0x48);
+
+            got = computer_step((uint16_t)side, &left);
+            want = argv[i][4] ? 0xFFFF : 0;
+            printf("%s: side %u, step %u kind %02X at %u/%u, result %04X", argv[i + 4], side,
+                   at, kind, s47, s48, got);
+            if (left) {
+                printf("; not carried out by the port\n");
+                skipped++;
+                continue;
+            }
+        }
         for (a = 0; a < RAM; a++) {
             changed += mem[a] != entry[a];
-            if (mem[a] == leave[a] || (a >= frame && a < frame + 0x0A))
+            if (mem[a] == leave[a] || (a >= frame && a < frame + below))
                 continue;
-            if (diff++ < 8)
-                printf(" %05X", (unsigned)a);
+            if (mem[a] != entry[a] || (a >= lo_state && a < hi_state)) {
+                if (diff++ < 8)
+                    printf(" %05X", (unsigned)a);
+            } else if (apart++ < 8)
+                printf(" [%05X]", (unsigned)a);
         }
         if (got != want)
-            printf("; the original's result %u", want);
-        printf("; different %u; bytes the port changed %u\n", diff, changed);
+            printf("; the original's result %04X", want);
+        printf("; different %u, only the original's elsewhere %u; bytes the port changed %u\n",
+               diff, apart, changed);
         if (diff || got != want)
             bad++;
         calls++;
     }
-    printf("%d calls, %d different\n", calls, bad);
+    printf("%d calls, %d different", calls, bad);
+    if (skipped)
+        printf(", %d of steps not translated", skipped);
+    printf("\n");
     return bad != 0;
 }

@@ -1672,15 +1672,46 @@ emulation error (2026-10-02).
       unit, the code 80h, the cursor to the aim, `move_target` and the
       button). Kind 3 is presumably the round's end at the headquarters,
       called every pass while the side waits (it gets word 0Eh of the
-      side's record of `sites_40`; its handler was not read). What the
-      kinds 2 and 4 to 7 are was not found: their handlers were not read,
-      and the lead's reading of them is not in this branch.
-    - `computer_input` is translated (`port/src/computer.c`) and compared
-      (port/README.md). The rest is not: `computer_step`'s handlers
-      change state only through the script, `move_target` and one bit of
-      `sides`, and could be next; `computer_assess`, `computer_plan` and
+      side's record of `sites_40`). The kinds 2 and 4 to 7 are in the
+      next bullet.
+    - The steps, read and translated (2026-10-07, Mac; the handlers'
+      names are the lead's, what each does by its byte 47h is in
+      `src/HL.hints`). `computer_input`, and `computer_step` with
+      `step_move` (kind 1), `step_attack` (2), `step_end_round` (3) and
+      `cursor_script` (5), `cursor_scroll` and `cursor_step` are in
+      `port/src/computer.c`, compared (port/README.md). Not translated:
+      `step_unit_out` (4), `step_site_menu` (6), `step_build` (7); read,
+      the first needs `move_targets_list`.
+      - A step never acts on the game by itself but for `step_move`'s
+        state 4 (`move_target` for the cursor's field, and 8 in the
+        side's word 0 of `sides` when the field is not marked or the
+        move is refused) and `step_attack`'s 8 there; everything else is
+        codes for the hand. The cursor goes to a field in two ways
+        (`cursor_script`): near (less than five columns and rows) a
+        field a pass by `cursor_step`; far, the code 83h, the view
+        scrolled by `cursor_scroll`, the button, then `cursor_step`.
+      - `step_end_round` settles kind 3: the cursor to the side's
+        headquarters (word 0Eh of its `sites_40` record), a row below
+        it, the code 82h (button and left) once 80h is clear in
+        `game_state`'s word 4, then it waits for 4 in the side's
+        `computer_phase`, which `game_loop` sets after the round's end.
+        That is what the many calls of kind 3 are.
+      - Counts in 1500 s (`port/tests/computer_dumps.py`'s logs), the
+        second side on the map of code 0 and the first on that of code
+        24: kind 1 1,164 and 1,744 calls, kind 2 23 and 145 (so attacks
+        come up, later than 400 s), kind 3 21,340 and 18,977, kind 4 83
+        and 142, the kinds 5, 6 and 7 none; 97 and 135 lists ended.
+      - The dump scripts are in the repository now:
+        `port/tests/computer_dumps.py` makes the two runs' input (the
+        same as `w0` and `k24` up to its end), the logs, the dumps and
+        the test's arguments in ignored `build/computer/`. Of the
+        scratch scripts in `build/n4/` only `phases.py`, which sums up
+        a log of `computer_turn`, has no copy there.
+    - Still to do there: `computer_assess`, `computer_plan` and
       `computer_queue` (`S1CC6`, `S202F`, `S2138`, some 9,000 lines of
-      the generated source) are read only at their beginnings.
+      the generated source), read only at their beginnings; the steps of
+      the kinds 4, 6 and 7; `computer_turn` itself is a few lines once
+      its phases are there.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

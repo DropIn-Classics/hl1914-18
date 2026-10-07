@@ -254,6 +254,11 @@
     X(S1E4B, cursor_step, 0x15E8) \
     X(S1E4B, unit_holder, 0x1734) \
     X(S1E4B, rec_find_unit, 0x1827) \
+    X(S1FD8, unit_worth, 0x00E8) \
+    X(S1FD8, unit_of_kind, 0x02B2) \
+    X(S1FD8, unit_reaches, 0x0368) \
+    X(S202F, sites_list, 0x0BA7) \
+    X(S202F, plan_to_site, 0x0EAA) \
     X(S2138, computer_plan, 0x000C) \
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
@@ -287,6 +292,7 @@
     X(S331F, build_kinds, 0x17BF) \
     X(S331F, free_depth, 0x17F2) \
     X(S331F, path_len, 0x17F3) \
+    X(S331F, unit_worth_out, 0x17F5) \
     X(S331F, neighbours, 0x17FB) \
     X(S331F, move_rec, 0x180F) \
     X(S331F, fight_rec, 0x181C) \
@@ -323,10 +329,14 @@
     X(S331F, sides, 0x4D33) \
     X(S331F, views, 0x4D92) \
     X(S331F, attack_pick, 0x4DA8) \
+    X(S39B6, kind_worth, 0x0000) \
+    X(S39B6, unit_plans2, 0x0132) \
+    X(S39B6, unit_plans, 0x09AB) \
     X(S39B6, computer_script, 0x1224) \
     X(S39B6, computer_steps, 0x126B) \
     X(S39B6, computer_phase, 0x12FD) \
     X(S39B6, computer_out, 0x1315) \
+    X(S3AE7, guard_order, 0x000E) \
     X(S3AE8, script_bits, 0x0004) \
     X(S3AE8, script_gestures, 0x000E) \
     X(S3AE8, holder_ptr, 0x001D) \

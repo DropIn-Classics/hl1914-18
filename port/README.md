@@ -474,8 +474,35 @@ anything the game needs before the first release.
   in no site at `step_unit_out`'s state 0, `move_targets_list` with no
   field, a field off the map; of `computer_input` the codes 81h and 84h
   and the diagonals (81h is what `step_site_menu` would write).
-  `computer_assess`, `computer_plan` and `computer_queue` are not
-  translated, so the port's program does not play a side yet.
+  `computer_plan` and `computer_queue` are not translated, so the port's
+  program does not play a side yet.
+- The computer's assessment (2026-10-07, Mac; `port/src/plan.c`):
+  `computer_assess` (`S1CC6:0A35`), the phase 20h of `computer_turn`,
+  with `unit_worth` (`S1FD8:00E8`), `unit_of_kind` (`S1FD8:02B2`),
+  `unit_reaches` (`S1FD8:0368`, which calls `path_find`), `sites_list`
+  (`S202F:0BA7`) and `plan_to_site` (`S202F:0EAA`). What its five states
+  do is in `src/HL.hints`. `port/tests/computer_dumps.py plan` plays the
+  same four battles, logs the routine's entry, its two exits and the
+  entries of its states (and five branches inside them) for 1500 s, and
+  dumps the first three calls of every set of places a run went through;
+  `port/tests/computer_test.sh` compares them as it does the steps (its
+  kinds `assess` and `assessend`, the side read from the frame as well).
+  75 calls, 0 different: 36 of side 0 and 39 of side 1, six of each of
+  the states 1 to 5 for each side and six and nine of state 0 (three of
+  them with a carrier among the side's units). 29 of the calls had bytes
+  only the original wrote outside the game's state (the same kind as
+  with the steps).
+  Not covered: in state 0 a unit with the plan 9 (the search with
+  `sites_list` and `unit_reaches`: neither ran) and a carrier that holds
+  a unit with 4 in its word 6 (`plan_to_site`: not run either); in state
+  1 a unit near the headquarters only on the map of code 25 (three
+  calls); in state 4 no unit was listed in any call (one byte changed),
+  so that loop and whether its first test passed were not seen. All
+  calls are from the first 835 s of four maps.
+  `port/tests/computer_test.sh` now links `side.c` and what that needs:
+  `move.c` calls `show_message` and `view_copy` since the last merge, so
+  the script did not link on `master` (nor does
+  `port/tests/move_test.sh` there; left as it is).
 - A side's part in a site, first steps (2026-10-07, Linux):
   `src/side.c` has `build_list` (`S131D:14D4`, which makes `build_kinds`
   and `build_count` anew from the side's points) and the repairing that

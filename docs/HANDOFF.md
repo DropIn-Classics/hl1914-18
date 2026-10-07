@@ -1737,7 +1737,38 @@ emulation error (2026-10-02).
         handler (their addresses from the jump tables in the player's
         `HL.EXE`) and dumps three calls of each state, from four
         battles (the codes 0, 24 and, for the kinds 4 and 7, 1 and 25).
-    - Still to do there: `computer_assess`, `computer_plan` and
+    - `computer_assess` read in full and translated (2026-10-07, Mac,
+      branch `mac/computer-assess`; `port/src/plan.c`, compared on 75
+      calls, port/README.md). What it is: the round's bookkeeping before
+      the planning. Its five states (byte 5 of `computer_phase`): the
+      two sides weighed against each other by `unit_worth` (word 9 of
+      `computer_phase` 1, 2 or 3, presumably how careful to be) and the
+      side's plans emptied; every unit of the other side given its
+      worth as a target (word 6 of its record in `unit_plans`); then
+      the side's list of aims (6
+      bytes an entry behind the far pointer at byte 9 of the side's
+      record of `sides`, counted in byte 6 of `computer_phase`): the
+      other side's headquarters and every site that is not the side's
+      (kind 1), the fields around the own headquarters (kind 3) and
+      units with 4 in word 6 and 2 in `unit_flags` (kind 4).
+      - The plans: `unit_plans` (`S39B6:09AB`) and `unit_plans2`
+        (`S39B6:0132`), 9 bytes a unit; a side uses the second with 2
+        in its `attack_pick`, the first otherwise. So `attack_pick` (1
+        or 2) tells the two halves of a round apart for a side, and
+        each half has its own table of plans; code of one half writes
+        the other half's table directly in places (what a unit is to do
+        in the half that follows).
+      - `kind_worth` (`S39B6:0000`), 6 bytes a kind of unit: byte 0 its
+        worth as a target, word 2 the bits the computer picks kinds by.
+        Its bytes come from the computer's file of the map, presumably
+        (`computer_reset`; not checked here).
+      - Slips of the original kept as they are: the fields around a
+        unit near the headquarters are taken of the halved map offset
+        (state 1), and `plan_to_site` takes its distance of map offsets
+        not halved.
+      - Not seen in a run: a unit with the plan 9 or a carrier with a
+        unit to bring back in state 0, a unit listed in state 4.
+    - Still to do there: `computer_plan` and
       `computer_queue` (`S1CC6`, `S202F`, `S2138`, some 9,000 lines of
       the generated source), read only at their beginnings;
       `computer_turn` itself is a few lines once its phases are there.

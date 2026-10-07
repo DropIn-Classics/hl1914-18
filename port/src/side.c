@@ -1,7 +1,8 @@
 /* side.c - what a side does inside a site or a carrier in its attack half
  * and that draws nothing: HL.EXE's build_list (S131D:14D4) and, from
  * game_loop, the repairing (S066A:3156 to 32A9) and the building of a
- * unit (S066A:387A to 3A42).  The texts the original
+ * unit (S066A:387A to 3A42) and the moving out of a unit (S066A:2F52 to
+ * 3146).  The texts the original
  * then shows are returned, not shown.  port/README.md says how this was
  * compared with the original.
  */
@@ -19,6 +20,11 @@ static void pww(Far p, uint16_t o, uint16_t v)
 {
     fww(p.seg, (uint16_t)(p.off + o), v);
 }
+
+/* S331F:17AE: a far pointer to the map moves are made on (map_cur;
+ * PENDING LEAD NAME, presumably the side's map of the half; not checked) */
+#define S_map_cur (HL_S331F + HL_BASE)
+#define A_map_cur 0x17AEu
 
 #define KIND(k, o) (A_unit_dat + (k) * KIND_SIZE + (o))
 
@@ -121,4 +127,61 @@ void build_unit(Far view, uint16_t side)
     SETW(game_state, 4, NW(game_state, 4) | 0x100);
     SETW(game_state, 6, 0);
     pwb(view, 0x18, 0x0D);
+}
+
+/* S0CB6:0445 (view_copy): the view's bytes 0 to 27h to the copy at
+ * S331F:4D61 (back from it with `back`) */
+void view_copy(Far view, int back)
+{
+    uint16_t i, s = S_views, o = 0x4D61;
+
+    for (i = 0; i < 0x28; i++)
+        if (back)
+            pwb(view, i, frb(s, (uint16_t)(o + i)));
+        else
+            fwb(s, (uint16_t)(o + i), pb(view, i));
+}
+
+/* S066A:2F52 to 3146: the unit on the cursor's place of the site or
+ * carrier at view+24h leaves it, in the move half: the place becomes FFh,
+ * the unit's place on side `side`'s map (word 0Bh, 0Dh for the second
+ * side) the record's field (word 0Eh, one less with 20h in its word 19h,
+ * a carrier) plus 1, the view is kept (view_copy) and put on the field,
+ * move_range marks where the unit can go (range 4 with 10h in its word 6,
+ * else 8; mask 6 with 1 in unit_flags, else 3, with 18h more for 4 in word
+ * 6) in the side's work buffer on the map at S331F:17AE, the unit is put
+ * on that map, gets 100h in unit_flags and its field 40h (80h for the
+ * second side) in field_bits, and the view goes to step 16h of state 0
+ * with the unit in word 1Eh and pointer 4.  The drawing in between
+ * (S0E56:0D44, 0F36, 145A) is left out. */
+void move_out(Far view, uint16_t side)
+{
+    Far site = far_at(view.seg, (uint16_t)(view.off + 0x24));
+    uint16_t slot = (uint16_t)(side * 7 + pw(view, 0x0E));
+    uint8_t no = pb(site, slot);
+    Far unit = unit_at(no), map = far_at(S_map_cur, A_map_cur), buf;
+    uint16_t field = pw(site, 0x0E), mask, w = NW(map_width, 0);
+    int16_t p;
+
+    if (pw(site, 0x19) & 0x20)
+        field--;
+    pwb(site, slot, 0xFF);
+    pww(unit, (uint16_t)(0x0B + side * 2), (uint16_t)(field + 1));
+    view_copy(view, 0);
+    view_to_field(side, field);
+    mask = pw(unit, 4) & 1 ? 6 : 3;
+    if (pw(unit, 6) & 4)
+        mask |= 0x18;
+    buf = far_at(S_sides, (uint16_t)(A_sides + side * 0x17 + 0x0D));
+    move_range((int16_t)field, buf, no, pw(unit, 6) & 0x10 ? 4 : 8, side, mask, map);
+    fwb(map.seg, (uint16_t)(map.off + field + 1), no);
+    p = (int16_t)pw(unit, (uint16_t)(0x0B + side * 2)) >> 1;
+    pww(unit, 4, pw(unit, 4) | 0x100);
+    SETB(field_bits, (p % (int16_t)w) + (p / (int16_t)w) * 0x40,
+         NB(field_bits, (p % (int16_t)w) + (p / (int16_t)w) * 0x40) | (side ? 0x80 : 0x40));
+    pwb(view, 0x17, 0);
+    pwb(view, 0x18, 0x16);
+    pwb(view, 0x19, 3);
+    pww(view, 0x1E, no);
+    pwb(view, 0x1B, 4);
 }

@@ -510,4 +510,19 @@ anything the game needs before the first release.
   place must exist for the menu to offer repairing (word 1Eh of the view
   FFh: no 100h in word 1Ch). Still not covered: a repair carried out
   (51h), which needs a damaged unit.
+- Moving a unit out of a site (2026-10-07, Linux): `move_out`
+  (`src/side.c`, `game_loop` from `S066A:2F52` to `3146`) with
+  `view_copy` (`S0CB6:0445`) and the port's `view_to_field` and
+  `move_range`; the three drawing calls (`S0E56:0D44`, `0F36`, `145A`)
+  are left out. The map-8 run site goes on to its sixth round and moves
+  the unit it built out of the factory (call 41); the block also serves
+  the computer's moves out, of which calls 1, 2 and 20 (the second side)
+  are dumped too. `side_test` (`out`): all four the same in the game's
+  state. `side_test` now also counts differences outside it but the
+  stack's segment, where the maps lie: in the four moves out about 22
+  each, the timer and interrupt bytes seen before (`0046C`, `3187E`,
+  `3E4AF` to `3E4B2`) and `DATA:0308` to `0410` and `DATA:0B19` to
+  `0B2B`, presumably what the left-out drawing writes (not checked); no
+  byte of a map differs. Not covered: a carrier (20h in the record's
+  word 19h), a unit with 4 or 10h in word 6.
 

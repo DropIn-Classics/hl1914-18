@@ -1762,7 +1762,15 @@ emulation error (2026-10-02).
     `S0E56:0D44`, `0F36` and `145A` (not read), and it is offered only
     in the move half (10h in word 1Ch) to a unit without 100h, 200h and
     2 in `unit_flags`: a unit built (4600h) cannot move out in the half
-    it was built in; not translated yet.
+    it was built in. Translated (`move_out`) and compared on four calls
+    (port/README.md): `S0CB6:0445` is `view_copy` (the view to
+    `S331F:4D61`); `S0E56:0D44` (`view_draw`), `0F36` (`marks_draw`)
+    and `145A` (`field_draw`) only draw, as far as read (names guessed).
+    The computer's moves out go through the same block of `game_loop`
+    (40 calls before the first side's in the run site), with `game_loop`'s
+    frame (BP 0FEAh). `S331F:17AE` is the far pointer to the map the move
+    is made on (`map_cur` in side.c, PENDING LEAD NAME). `S1CC6:07B7`
+    was not named: its role beyond calling `build_list` was not read.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

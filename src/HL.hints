@@ -1361,6 +1361,23 @@ name S0CB6:0750 view_step
 ; button is let go, begins a move or an attack or sets the view's state (3
 ; the map, 4 the field's unit, 5 the round's end, 6 into a site). Read.
 name S0CB6:0EAA field_menu
+; view_copy(far view, back): bytes 0 to 27h of a view to the copy at
+; S331F:4D61, or back from it with back not 0 (moving out keeps the view
+; there; presumably for going back to it, not followed).
+name S0CB6:0445 view_copy
+; view_draw(field, side): draws the 9 by 7 fields of a view from field
+; (grounds by S331F:0153, units by S331F:013F through S2931:000E); a
+; foreign unit with 2 in word 6 is not drawn. Presumably draws only (no
+; write to the game's state seen); the name is a guess.
+name S0E56:0D44 view_draw
+; marks_draw(field, side): the view's fields' marks in field_bits (55h
+; for the first side, AAh for the second) drawn through S0E56:24ED.
+; Presumably draws only; the name is a guess.
+name S0E56:0F36 marks_draw
+; field_draw(side, field, ...): draws one field when it lies in the
+; side's view and the view is in state 0, 1, 7 or 8. Presumably draws
+; only; the name is a guess.
+name S0E56:145A field_draw
 ; rows_sync(table, side, other side, records): attacks_run calls it at a
 ; round's end for carriers, sites_100, sites_400 and sites_40 with the side
 ; whose attacks it carried out and the other. For each record without 8000h

@@ -598,11 +598,9 @@ uint16_t attack_order(Far view, Far map, uint16_t side)
  * site_taken becomes 1.  A view in step 3 (a unit moving out of a site or
  * carrier) is taken back from view_copy and goes to step 9 of state 2;
  * with 10h the unit goes back into its place, its place on the side's map
- * becomes the record's field again, and F4h (on a carrier then the
- * record's byte 1Bh) is written at the map's offset plus the unit's place
- * - in the segment of the units, not of the map (DX holds the map's
- * segment but is not used; presumably meant for the map; kept as the
- * original does it).  The drawing is left out. */
+ * becomes the record's field again: F4h is written into the map at the
+ * old place, and on a carrier the record's byte 1Bh at the new one.  The
+ * drawing is left out. */
 void move_done(Far view, Far map, uint16_t side, uint16_t flags)
 {
     uint8_t no = (uint8_t)pw(view, 0x1E);
@@ -627,10 +625,10 @@ void move_done(Far view, Far map, uint16_t side, uint16_t flags)
         return;
     if (flags & 0x10) {
         Far rec = far_at(view.seg, (uint16_t)(view.off + 0x24));
-        fwb(unit.seg, (uint16_t)(map.off + pw(unit, pos)), 0xF4);
+        fwb(map.seg, (uint16_t)(map.off + pw(unit, pos)), 0xF4);
         pww(unit, pos, pw(rec, 0x0E));
         if ((rec.off | rec.seg) && (pw(rec, 0x19) & 0x20))
-            fwb(unit.seg, (uint16_t)(map.off + pw(unit, pos)), pb(rec, 0x1B));
+            fwb(map.seg, (uint16_t)(map.off + pw(unit, pos)), pb(rec, 0x1B));
     }
     view_copy(view, 1);
     if (flags & 0x10) {

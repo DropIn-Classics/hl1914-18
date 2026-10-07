@@ -37,3 +37,28 @@ d mak4 m0_k4.keys 60 move_aim 1 &
 for n in 1 30 60 73; do MAP8=1 d mad5_$n m8_d5r.keys 300 move_aim $n & done
 wait
 
+# field_menu (S0CB6:0EAA): the entry, a held button and the releases
+# (the calls before S0CB6:106C was reached, found with run.py -log)
+for n in 2 3 10 16; do d fmk4_$n m0_k4.keys 60 field_menu $n & done
+for n in 30 43 45 71 85 98; do d fms4_$n m0_s4.keys 130 field_menu $n & done
+wait
+for n in 32 51 54 70 99; do d fmhq_$n m0_hq.keys 130 field_menu $n & done
+for n in 30 44 58 160; do MAP8=1 d fmd5_$n m8_d5r.keys 130 field_menu $n & done
+wait
+for n in 16 30 44 146; do MAP8=1 d fmsite_$n m8_site.keys 125 field_menu $n & done
+wait
+# view_step (S0CB6:0750): calls found with run.py -log on its branches
+# (S0CB6:080F, 0837, 0909, 0B24, 0C90): a press in step 0, the aim (16h),
+# the move's start (3), 19h after it, a call without a press, the wait
+# after a refused aim (17h) and the attack's order (13h)
+for n in 32 100 204 231 232; do d vsk4_$n m0_k4.keys 60 view_step $n & done
+for n in 233 260; do d vss4_$n m0_s4.keys 130 view_step $n & done
+wait
+for n in 990 1572 1600 2045; do MAP8=1 d vsd5_$n m8_d5r.keys 130 view_step $n & done
+for n in 1395 1868; do MAP8=1 d vssite_$n m8_site.keys 125 view_step $n & done
+wait
+# refused aims of d5r (move_aim 15 and 16, from view_step 1571 and 1585,
+# found with run.py -log S0CB6:07C1 and S10E1:02EB)
+for n in 1571 1585; do MAP8=1 d vsd5_$n m8_d5r.keys 130 view_step $n & done
+for n in 15 16; do MAP8=1 d mad5r_$n m8_d5r.keys 100 move_aim $n & done
+wait

@@ -2,7 +2,8 @@
  * and that draws nothing: HL.EXE's build_list (S131D:14D4) and, from
  * game_loop, the repairing (S066A:3156 to 32A9) and the building of a
  * unit (S066A:387A to 3A42) and the moving out of a unit (S066A:2F52 to
- * 3146).  The texts the original
+ * 3146), and the view's states 1 and 0 (field_menu, S0CB6:0EAA, and
+ * view_step, S0CB6:0750).  The texts the original
  * then shows are returned, not shown.  port/README.md says how this was
  * compared with the original.
  */
@@ -240,4 +241,421 @@ void show_message(uint16_t text, uint16_t side)
 {
     if (text != 0xFFFF)
         SETW(game_state, 0, NW(game_state, 0) | (side ? 8 : 4));
+}
+
+/* S0E56:18A3 (depot_places): the ten fields at depot_steps from `field`
+ * (a map offset) into `neighbours`, each kept when its ground is
+ * amok_dat's byte 18h or its four fields of foot_steps lie on the map
+ * with a ground with 8000h and no unit, else FFFFh; the number kept */
+static uint16_t depot_places(uint16_t field, Far map)
+{
+    int16_t w = (int16_t)NW(map_width, 0), p = (int16_t)field >> 1;
+    int16_t col = p % w, row = p / w, i, j;
+    uint16_t kept = 0, steps = (uint16_t)(A_depot_steps + (col & 1 ? 0x14 : 0));
+
+    for (i = 0; i < 10; i++) {
+        int16_t c = (int16_t)(col + (int8_t)frb(S_depot_steps, (uint16_t)(steps + i)));
+        int16_t r = (int16_t)(row + (int8_t)frb(S_depot_steps, (uint16_t)(steps + 10 + i)));
+        uint16_t place = (uint16_t)(c * 2 + w * 2 * r), foot = (uint16_t)(A_foot_steps + (c & 1 ? 8 : 0));
+        uint8_t n = 0;
+
+        SETW(neighbours, 2 * i, place);
+        if (frb(map.seg, (uint16_t)(map.off + place)) == NB(amok_dat, 0x18))
+            n = 4;
+        else
+            for (j = 0; j < 4; j++) {
+                int16_t cc = (int16_t)(c + (int8_t)frb(S_foot_steps, (uint16_t)(foot + j)));
+                int16_t rr = (int16_t)(r + (int8_t)frb(S_foot_steps, (uint16_t)(foot + 4 + j)));
+                uint16_t q;
+                if (cc < 0 || cc >= w || rr < 0 || (int16_t)NW(map_height, 0) <= rr)
+                    continue;
+                q = (uint16_t)(cc * 2 + w * 2 * rr);
+                if ((NW(ww1gnds_dat, frb(map.seg, (uint16_t)(map.off + q)) * 6) & 0x8000)
+                    && frb(map.seg, (uint16_t)(map.off + q + 1)) > 0xF0)
+                    n++;
+            }
+        if (n != 4)
+            SETW(neighbours, 2 * i, 0xFFFF);
+        else
+            kept++;
+    }
+    return kept;
+}
+
+/* a field (a map offset) marked in field_bits with `bits` */
+static void field_mark(uint16_t field, uint8_t bits)
+{
+    int16_t p = (int16_t)field >> 1, w = (int16_t)NW(map_width, 0);
+    uint16_t i = (uint16_t)((p % w) + (p / w) * 0x40);
+
+    SETB(field_bits, i, NB(field_bits, i) | bits);
+}
+
+/* what field_menu does when it shows a refusal: the text, and 8 (10h for
+ * the second side) in game_state's word 4 */
+static void menu_refuse(uint16_t text, uint16_t side)
+{
+    SETW(game_state, 4, NW(game_state, 4) | (side ? 0x10 : 8));
+    show_message(text, side);
+}
+
+/* the view goes to the unit's attack: step 13h of state 0, pointer 0, the
+ * unit in word 1Eh and marked 100h (marks_draw, drawing, left out) */
+static void menu_attack(Far view, uint16_t no, uint16_t side)
+{
+    pwb(view, 0x17, 0);
+    pwb(view, 0x18, 0x13);
+    pww(view, 0x1E, no);
+    pwb(view, 0x1B, 0);
+    unit_mark((uint8_t)no, 0x100, side, 1);
+}
+
+/* S0CB6:0EAA (field_menu): state 1 of a view, the choice on the cursor's
+ * field (word 0) of the side's map.  On entry (step 1) word 1Ch gets what
+ * may be chosen and the step becomes 2: 2, 4 and 8; 200h without 80h in
+ * game_state's word 4; on a unit of the side (same_side) without 2 and
+ * 200h in unit_flags 10h in the move half (byte 16h 1, and not 80h) or
+ * else 1; 400h for a carrier (1000h or 2000h; with 8 in game_state's word
+ * 2 only for one with same_side the other way round and without 2) or a
+ * ground with 80h, 200h or 40h (with 8, only one with 1 in its word 0 for
+ * the second side, 4 for the first).  While the button (10h in `bits`) is
+ * held: up picks pointer 4 (with 10h) or 0 (with 1) but, when the side's
+ * attackers (byte 15h of `sides`) have reached byte 16h and its word 0
+ * has no 2, 5 with text 53h; down 2, left 0Ah (400h) or 9 (200h), right
+ * 3, none 1.  When it is let go the pointer acts:
+ * 4: move_range from the unit's place (the first half of a unit of two)
+ * with its byte 0 as range; above 1 marks the unit (unit_mark 100h) and
+ * goes to step 16h of state 0, else marks_erase and text 54h back to step
+ * 0 with pointer 5; game_state's word 4 gets 100h and site_taken 0 or 1.
+ * 2: state 4.  0: an attack (step 0 of state 0, pointer 5, unless marks
+ * are found, then menu_attack): a unit with 4000h in word 6 by
+ * depot_places (text 4Ch when its byte 0Ah is not above 0, 4Bh for none),
+ * one with 2000h by the six neighbours whose ground has 8000h (6Fh), else
+ * attack_range with the kind's bytes 9 and 8 (4Dh); 100h and site_taken
+ * as for 4.  0Ah: state 6, 9: state 5, 3: state 3 with step 4 and pointer
+ * 0Bh (6 unless the word at S331F:0008 is 1); anything else step 0 of
+ * state 0 with pointer 5.  The drawing is left out. */
+void field_menu(Far view, uint16_t side, uint16_t bits)
+{
+    Far map = side ? far_at(S_map2_ptr, A_map2_ptr) : far_at(S_map_ptr, A_map_ptr);
+    uint16_t field = pw(view, 0), s = (uint16_t)(A_sides + side * 0x17);
+    uint8_t ground = frb(map.seg, (uint16_t)(map.off + field));
+    uint16_t no = frb(map.seg, (uint16_t)(map.off + field + 1));
+    Far buf = far_at(S_sides, (uint16_t)(s + 0x0D));
+
+    if (pb(view, 0x18) == 1) {
+        pww(view, 0x1C, 0x0E);
+        if (!(NW(game_state, 4) & 0x80))
+            pww(view, 0x1C, pw(view, 0x1C) | 0x200);
+        if (no <= 0xF0) {
+            uint16_t f = NW(unit_flags, no * UNIT_SIZE);
+            if (same_side(side, f) && !(f & 2) && !(f & 0x200)) {
+                if (pb(view, 0x16) & 1) {
+                    if (!(NW(game_state, 4) & 0x80))
+                        pww(view, 0x1C, pw(view, 0x1C) | 0x10);
+                } else
+                    pww(view, 0x1C, pw(view, 0x1C) | 1);
+            }
+            if ((f & 0x1000) || (f & 0x2000)) {
+                if (!(NW(game_state, 2) & 8) || (same_side(f, side) && !(f & 2)))
+                    pww(view, 0x1C, pw(view, 0x1C) | 0x400);
+            }
+        } else {
+            uint16_t g = NW(ww1gnds_dat, ground * 6);
+            if ((g & 0x80) || (g & 0x200) || (g & 0x40)) {
+                if (!(NW(game_state, 2) & 8) || (g & (side & 1 ? 1 : 4)))
+                    pww(view, 0x1C, pw(view, 0x1C) | 0x400);
+            }
+        }
+        pwb(view, 0x18, 2);
+    }
+    if (bits & 0x10) {
+        uint16_t can = pw(view, 0x1C);
+        if (bits & 1) {
+            if (can & 0x10)
+                pwb(view, 0x1B, 4);
+            else if (can & 1)
+                pwb(view, 0x1B, 0);
+            if (frb(S_sides, (uint16_t)(s + 0x15)) >= frb(S_sides, (uint16_t)(s + 0x16))
+                && !(frw(S_sides, s) & 2)) {
+                pwb(view, 0x1B, 5);
+                show_message(0x53, side);
+                SETW(game_state, 4, NW(game_state, 4) | (side ? 0x10 : 8));
+            }
+        } else if ((bits & 2) && (can & 4))
+            pwb(view, 0x1B, 2);
+        else if (bits & 4) {
+            if (can & 0x400)
+                pwb(view, 0x1B, 0x0A);
+            else if (can & 0x200)
+                pwb(view, 0x1B, 9);
+        } else if ((bits & 8) && (can & 8))
+            pwb(view, 0x1B, 3);
+        else
+            pwb(view, 0x1B, 1);
+        return;
+    }
+    switch (pb(view, 0x1B)) {
+    case 4: {
+        uint16_t mover = no, mask, taken;
+        Far unit = unit_at((uint8_t)mover);
+        if ((pw(unit, 4) & 0x40) && !(pw(unit, 4) & 0x80))
+            unit = unit_at((uint8_t)--mover);
+        mask = pw(unit, 6) & 1 ? 0xFFFF : pw(unit, 4) & 1 ? 6 : 3;
+        if (move_range((int16_t)(pw(unit, (uint16_t)(0x0B + side * 2)) - 1), buf, mover, pb(unit, 0),
+                       side, mask, map) > 1) {
+            unit_mark((uint8_t)no, 0x100, side, 1);
+            taken = 0;
+            pwb(view, 0x17, 0);
+            pwb(view, 0x18, 0x16);
+            pww(view, 0x1E, mover);
+        } else {
+            field_bits_clear(side ? 2 : 1); /* marks_erase, then again */
+            menu_refuse(0x54, side);
+            taken = 1;
+            pwb(view, 0x17, 0);
+            pwb(view, 0x18, 0);
+            pwb(view, 0x1B, 5);
+        }
+        SETW(game_state, 4, NW(game_state, 4) | 0x100);
+        SETW(site_taken, 0, taken);
+        break;
+    }
+    case 2:
+        pwb(view, 0x17, 4);
+        pwb(view, 0x18, 0);
+        pwb(view, 0x1B, 5);
+        break;
+    case 0: {
+        Far unit = unit_at((uint8_t)no);
+        uint16_t taken = 1, place = (uint16_t)(pw(unit, (uint16_t)(0x0B + side * 2)) - 1), i;
+        uint8_t mark = side ? 8 : 4;
+        pwb(view, 0x17, 0);
+        pwb(view, 0x18, 0);
+        pwb(view, 0x1B, 5);
+        if (pw(unit, 6) & 0x4000) {
+            if ((int8_t)pb(unit, 0x0A) <= 0)
+                menu_refuse(0x4C, side);
+            else if (depot_places(place, map)) {
+                for (i = 0; i < 10; i++)
+                    if ((int16_t)NW(neighbours, 2 * i) >= 0)
+                        field_mark(NW(neighbours, 2 * i), mark);
+                menu_attack(view, no, side);
+                taken = 0;
+            } else
+                menu_refuse(0x4B, side);
+        } else if (pw(unit, 6) & 0x2000) {
+            int16_t n = 0;
+            field_neighbours(place);
+            for (i = 0; i < 6; i++) {
+                int16_t q = (int16_t)NW(neighbours, 2 * i);
+                if (q < 0 || !(NW(ww1gnds_dat, frb(map.seg, (uint16_t)(map.off + q)) * 6) & 0x8000))
+                    continue;
+                n++;
+                field_mark((uint16_t)q, mark);
+            }
+            if (n > 0) {
+                menu_attack(view, no, side);
+                taken = 0;
+            } else
+                menu_refuse(0x6F, side);
+        } else {
+            uint8_t found = 0, kind = pb(unit, 8), r;
+            uint16_t w6 = frw(S_unit_dat, (uint16_t)KIND(kind, 6));
+            r = frb(S_unit_dat, (uint16_t)KIND(kind, 9));
+            if (r > 1)
+                found = (uint8_t)(found + attack_range(buf, (int16_t)field, r, side, no, w6 & 0xFFEF, map));
+            r = frb(S_unit_dat, (uint16_t)KIND(kind, 8));
+            if (r > 1)
+                found = (uint8_t)(found + attack_range(buf, (int16_t)field, r, side, no, w6 & 0xFFD3, map));
+            if (found) {
+                menu_attack(view, no, side);
+                taken = 0;
+            } else
+                menu_refuse(0x4D, side);
+        }
+        SETW(game_state, 4, NW(game_state, 4) | 0x100);
+        SETW(site_taken, 0, taken);
+        break;
+    }
+    case 0x0A:
+        pwb(view, 0x17, 6);
+        pwb(view, 0x18, 0);
+        break;
+    case 9:
+        pwb(view, 0x17, 5);
+        pwb(view, 0x18, 0);
+        break;
+    case 3:
+        pwb(view, 0x17, 3);
+        pwb(view, 0x18, 4);
+        pwb(view, 0x1B, frw(HL_S331F + HL_BASE, 8) == 1 ? 0x0B : 6);
+        break;
+    default:
+        pwb(view, 0x17, 0);
+        pwb(view, 0x18, 0);
+        pwb(view, 0x1B, 5);
+    }
+}
+
+/* the second press of a step entered with 400h in game_state's word 4
+ * (byte 5 of the input record, or 8 in the side's word of `sides`, which
+ * is cleared): whether it came */
+static int second_press(Far rec, uint16_t side)
+{
+    uint16_t s = (uint16_t)(A_sides + side * 0x17);
+
+    if (!pb(rec, 5) && !(frw(S_sides, s) & 8))
+        return 0;
+    fww(S_sides, s, frw(S_sides, s) & 0xFFF7);
+    return 1;
+}
+
+/* a step that waits for a second press: 400h in game_state's word 4 and a
+ * timer of kind 7 over 4 passes */
+static void second_wait(void)
+{
+    SETW(game_state, 4, NW(game_state, 4) | 0x400);
+    timer_set(7, 4, 0);
+}
+
+/* S0CB6:0750 (view_step): state 0 of a view (byte 17h), by its step (byte
+ * 18h), with the input record `rec` (byte 8 a press, byte 5 a second
+ * press), the input bits of side_input and the side's map.  A press acts
+ * only when byte 30h of the view says the button was let go before (a
+ * press with 30h 0 only sets it).
+ * 16h: move_aim; its result goes to 30h; with 10h (a refusal) the view
+ *   waits in 17h (second_wait), else goes to 3 with 30h 0.
+ * 17h: with 400h a second press gives the move up (move_done with 10h);
+ *   without (the timer ran out) back to 16h.
+ * 3: move_start; with 10h in its result the view waits in 18h, else goes
+ *   to step 19h with pointer 5 and move_done with the result.
+ * 18h: with 400h a second press gives the move up; without, move_range
+ *   again with the arguments it kept at S3306:000A (the drawing left out),
+ *   100h in game_state's word 4, site_taken 0, back to 16h.
+ * 13h: attack_order; given, step 19h with pointer 5 and attack_unmark;
+ *   else the view waits in 1Ah.
+ * 1Ah: with 400h a second press gives the attack up (step 19h, pointer 5,
+ *   100h, site_taken 1, attack_unmark); without back to 13h.
+ * 19h: a press (byte 8) is taken and the step becomes 0.
+ * Else (0) the button takes the side's text away (4, 8 for the second
+ * side, leaves game_state's word 0) and goes to state 1, step 1.
+ * Byte 8 of the record is cleared after each of the steps 16h to 1Ah that
+ * acted.  Returns 0 with the button in `bits`, else 1. */
+uint8_t view_step(Far view, Far rec, uint16_t bits, Far map, uint16_t side)
+{
+    uint8_t step = pb(view, 0x18), r;
+    int press = (bits & 0x10) != 0;
+
+    if (step == 0x16 || step == 3 || step == 0x13) {
+        if (pb(rec, 8) && !pb(view, 0x30)) {
+            pwb(view, 0x30, 1);
+            return !press;
+        }
+        if (!press || !pb(view, 0x30))
+            return !press;
+    }
+    switch (step) {
+    case 0x16:
+        r = (uint8_t)move_aim(view, map, side);
+        pwb(view, 0x30, r);
+        if (r & 0x10) {
+            second_wait();
+            pwb(view, 0x18, 0x17);
+        } else {
+            pwb(view, 0x18, 3);
+            pwb(view, 0x30, 0);
+        }
+        pwb(rec, 8, 0);
+        break;
+    case 0x17:
+    case 0x18:
+        if (NW(game_state, 4) & 0x400) {
+            if (second_press(rec, side)) {
+                pwb(view, 0x30, 0x10);
+                move_done(view, map, side, 0x10);
+                pwb(view, 0x30, 0);
+                pwb(rec, 5, 0);
+            }
+        } else if (step == 0x17)
+            pwb(view, 0x18, 0x16);
+        else {
+            Far buf, m;
+            uint16_t a = A_move_args;
+            buf.off = frw(S_move_args, (uint16_t)(a + 2));
+            buf.seg = frw(S_move_args, (uint16_t)(a + 4));
+            m.off = frw(S_move_args, (uint16_t)(a + 0x0E));
+            m.seg = frw(S_move_args, (uint16_t)(a + 0x10));
+            move_range((int16_t)frw(S_move_args, a), buf, frw(S_move_args, (uint16_t)(a + 6)),
+                       (int16_t)frw(S_move_args, (uint16_t)(a + 8)), frw(S_move_args, (uint16_t)(a + 0x0A)),
+                       frw(S_move_args, (uint16_t)(a + 0x0C)), m);
+            SETW(game_state, 4, NW(game_state, 4) | 0x100);
+            SETW(site_taken, 0, 0);
+            pwb(view, 0x30, 0);
+            pwb(view, 0x18, 0x16);
+        }
+        pwb(rec, 8, 0);
+        break;
+    case 3:
+        r = (uint8_t)move_start(view, side);
+        pwb(view, 0x30, r);
+        if (r & 0x10) {
+            second_wait();
+            pwb(rec, 5, 0);
+            pwb(view, 0x18, 0x18);
+        } else {
+            pwb(view, 0x17, 0);
+            pwb(view, 0x18, 0x19);
+            pwb(view, 0x1B, 5);
+            move_done(view, map, side, (uint16_t)(int8_t)r);
+            pwb(view, 0x30, 0);
+        }
+        pwb(rec, 8, 0);
+        break;
+    case 0x13:
+        r = (uint8_t)attack_order(view, map, side);
+        pwb(view, 0x30, r);
+        if (r) {
+            pwb(view, 0x17, 0);
+            pwb(view, 0x18, 0x19);
+            pwb(view, 0x1B, 5);
+            attack_unmark(view, side);
+        } else {
+            pwb(view, 0x18, 0x1A);
+            pwb(rec, 5, 0);
+            second_wait();
+        }
+        pwb(view, 0x30, 0);
+        pwb(rec, 8, 0);
+        break;
+    case 0x1A:
+        if (!(NW(game_state, 4) & 0x400))
+            pwb(view, 0x18, 0x13);
+        else if (second_press(rec, side)) {
+            pwb(view, 0x17, 0);
+            pwb(view, 0x18, 0x19);
+            pwb(view, 0x1B, 5);
+            SETW(game_state, 4, NW(game_state, 4) | 0x100);
+            SETW(site_taken, 0, 1);
+            pwb(view, 0x30, 0);
+            pwb(rec, 5, 0);
+            attack_unmark(view, side);
+        }
+        pwb(rec, 8, 0);
+        break;
+    case 0x19:
+        if (pb(rec, 8)) {
+            pwb(rec, 8, 0);
+            pwb(view, 0x18, 0);
+        }
+        break;
+    default:
+        if (press) {
+            show_message(0xFFFF, side);
+            SETW(game_state, 0, NW(game_state, 0) & (side ? 0xFFF7 : 0xFFFB));
+            pwb(view, 0x17, 1);
+            pwb(view, 0x18, 1);
+        }
+    }
+    return !press;
 }

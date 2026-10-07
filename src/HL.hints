@@ -1447,6 +1447,9 @@ name S0B15:0A01 move_costs
 ; side) or 2 in field_bits; returns their number, the unit's own among
 ; them. Read, not stepped.
 name S0B15:0371 move_range
+; The nine argument words of the last move_range call; view_step's step
+; 18h calls it again with them.
+name S3306:000A move_args
 ; attack_range(buffer, field, range, side, unit, mask, map): whom the unit
 ; can attack. Marks the fields less than the range away (those around the
 ; unit's own are taken out with 40h in the mask) and of them keeps those
@@ -1614,6 +1617,19 @@ name S15C5:0804 carrier_moved
 ; records with the field among its four map offsets (0Eh on), FFFFh for
 ; none. Read.
 name S0E56:1726 site_find
+; depot_places(field, map): field_menu's test for a unit with 4000h in
+; word 6 (the builder of depots). The ten fields at depot_steps from the
+; field (a map offset) go into `neighbours`; one is kept when its ground is
+; amok_dat's byte 18h (presumably a depot's) or when its four fields of
+; foot_steps all lie on the map with a ground with 8000h and no unit (byte
+; 1 above F0h), else its entry becomes FFFFh. No test of the map's edge for
+; the ten. Returns the number kept. Read; the port's translation agreed
+; with the original through field_menu (port/README.md).
+name S0E56:18A3 depot_places
+; Ten signed column steps and ten row steps for a field in an even column
+; (0021, 002B), then the same for an odd one (0035, 003F); depot_places
+; reads them.
+name S331F:0021 depot_steps
 ; footprint(field): the four fields of a depot on the field (a map offset)
 ; as map offsets into `neighbours`: column and row of the field plus the
 ; signed steps of foot_steps, the first of which is the field itself (the

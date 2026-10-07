@@ -1847,13 +1847,29 @@ emulation error (2026-10-02).
     port has its state part). `move_done` is translated and compared on
     five calls, all with flags 1. Its giving up of a move out of a site
     or carrier (flags 10h, view step 3) writes F4h and the record's byte
-    1Bh at S331F:(map offset + the unit's place), with ES still the units'
-    segment where the map's was presumably meant (DX holds it unused);
-    as the map's offset is 0Ah or 0Ch this lands inside S331F's first
-    bytes plus the place, not checked in a run. `move_aim` is translated
+    1Bh into the map at the unit's place. (This said first that the write
+    went through the units' segment: a misreading, `MOV ES,DX` follows
+    `MOV BX,AX`; the comparison of `view_step` showed it.) `move_aim` is translated
     and compared on five calls (all finding a way); `S0E56:1217` is
-    `marks_erase` (draws, then clears the mask). Next: `field_menu`, then
-    `view_step`.
+    `marks_erase` (draws, then clears the mask). `field_menu` is
+    translated and compared on 23 calls (port/README.md). It has two
+    details the 2026-10-04 reading did not say: the two calls of
+    `same_side` take their arguments in opposite orders (`(side, flags)`
+    for the unit's own part, `(flags, side)` for a carrier), and for a
+    unit with 4000h in word 6 the attack's fields come from
+    `S0E56:18A3`, now `depot_places`: of ten fields around the unit (the
+    steps at `S331F:0021`, `depot_steps`), those whose ground is
+    `amok_dat`'s byte 18h or whose four fields (`foot_steps`) all lie on
+    the map with a ground with 8000h and no unit. So the builder's
+    "attack" is the choice of where a depot goes (not compared: no run
+    had one). Releases are found with `run.py -log S0CB6:106C` beside
+    the entry: the call before each hit is one with the button let go.
+    `view_step` is translated and compared on 15 calls; its steps are as
+    the 2026-10-04 reading says. Its result is only AL (AH is left as it
+    was). The refused aim (move_aim's 12h has 10h) is what leads to step
+    17h: a second press within the timer's four passes gives the move
+    up, otherwise the view goes back to 16h for another aim. Steps 18h
+    and 1Ah were not reached in the six key scripts.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

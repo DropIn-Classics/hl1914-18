@@ -10,9 +10,6 @@
 #define BUF_BYTES 0x1104u
 #define CLOSED 0xB0u        /* a field the unit cannot enter */
 
-/* where move_range keeps its nine argument words */
-#define S_move_args (HL_S3306 + HL_BASE)
-#define A_move_args 0x000Au
 
 /* S0B15:005B with S0B15:025F: the places in the buffer of the six fields
  * around a field into `neighbours`, clockwise from the one above; FFFFh

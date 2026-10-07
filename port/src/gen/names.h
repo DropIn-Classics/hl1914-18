@@ -175,6 +175,7 @@
     X(S02E6, units_drop_empty, 0x2B28) \
     X(S066A, game_loop, 0x000D) \
     X(S0AE0, attack_order, 0x0008) \
+    X(S0AE0, attack_unmark, 0x02E3) \
     X(S0B15, field_bits_clear, 0x000B) \
     X(S0B15, buf_neighbours, 0x005B) \
     X(S0B15, field_neighbours, 0x0162) \
@@ -197,6 +198,7 @@
     X(S0E56, map_load, 0x0329) \
     X(S0E56, view_draw, 0x0D44) \
     X(S0E56, marks_draw, 0x0F36) \
+    X(S0E56, marks_erase, 0x1217) \
     X(S0E56, field_draw, 0x145A) \
     X(S0E56, site_find, 0x1726) \
     X(S0E56, view_to_field, 0x177C) \

@@ -554,4 +554,44 @@ anything the game needs before the first release.
   times): results 8, 0, 0, 10h, 10h, 11h, 11h and the record and view
   the same, also outside the game's state. `view_step` and
   `field_menu`, which the word drives, are not translated yet.
+- `move_start` (2026-10-07, Linux; `src/move.c`, `S10E1:05D1`), the
+  first of `view_step`'s callees: the confirmed move puts the unit into
+  the side's list of movers and starts the walk's timer. `sh
+  port/tests/view_test.sh` (dumps by `port/tests/view_dumps.sh`) compares
+  six calls from the runs k4, s2, s4 (map 0) and d5r (map 8), the first
+  side's and the computer's: result 1 and memory the same, also outside
+  the game's state. Not covered: the result 12h (the cursor not on the
+  field move_aim took) and a unit with 40h in `unit_flags`.
+- `attack_unmark` (2026-10-07, Linux; `src/move.c`, `S0AE0:02E3`): after
+  `attack_order` the side's attack marks are cleared in `field_bits`
+  (`field_bits_clear`, now shared from `src/range.c`) and the view's unit
+  loses 100h; the redrawing is left out. Three calls of the run d5r (the
+  first side's and two of the computer's): the game's state the same;
+  outside it eight bytes, the interrupt bytes and `DATA:0308`, `0B19`,
+  as with the other routines that draw.
+- `attack_order` (2026-10-07, Linux; `src/move.c`, `S0AE0:0008`) and the
+  state part of `show_message` (`src/side.c`, `S10AF:000F`: 4 or 8 in
+  `game_state`'s word 0 for a text shown, which `timer_fire` takes away;
+  the drawing left out). Three calls of the run d5r (the first side's
+  and two of the computer's, all orders given): the game's state the
+  same, outside it the interrupt bytes and bytes around linear 2B0B0h
+  that `show_message`'s drawing presumably writes (not checked). Before
+  `show_message` was added the first call differed in `game_state`'s
+  word 0. Not covered: a field not marked (text 45h), the builder's
+  orders 0Bh, 0Dh and the depot limit (47h), order 11h.
+- `move_done` (2026-10-07, Linux; `src/move.c`, `S10E1:000F`): five
+  calls (the first side's in k4 and the computer's in s2c, d5r and site)
+  the same in the game's state; all have the flags 1, so only the
+  clearing of the side's marks is covered. Not covered: a move given up
+  (10h in the flags) and a view in step 3 (a unit taken back into its
+  site or carrier). There the original writes F4h and the record's byte
+  1Bh through the units' segment at the map's offset plus the unit's
+  place, not into the map; the port does the same (not compared).
+- `move_aim` (2026-10-07, Linux; `src/move.c`, `S10E1:02EB`) with
+  `marks_erase` (`S0E56:1217`, of which only its `field_bits_clear` is
+  state): five calls (the first side's in k4 and d5r, the computer's in
+  d5r) the same in the game's state, all with a way found (result 1).
+  Not covered: the refusals (12h: a field not marked, the unit's own, a
+  ground closed to the unit, a text from `move_target`, no way, 48h).
+  With this all of `view_step`'s callees are in the port.
 

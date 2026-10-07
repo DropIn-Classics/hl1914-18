@@ -1397,6 +1397,11 @@ name S0E56:0F36 marks_draw
 ; side's view and the view is in state 0, 1, 7 or 8. Presumably draws
 ; only; the name is a guess.
 name S0E56:145A field_draw
+; marks_erase(field, side, mask): the view's fields from field that have
+; mask in field_bits drawn again (without the marks), then
+; field_bits_clear(mask). move_aim calls it before marking the way. The
+; name is a guess.
+name S0E56:1217 marks_erase
 ; rows_sync(table, side, other side, records): attacks_run calls it at a
 ; round's end for carriers, sites_100, sites_400 and sites_40 with the side
 ; whose attacks it carried out and the other. For each record without 8000h
@@ -1466,6 +1471,11 @@ name S0E56:1DDB unit_mark
 ; is marked with 200h (unit_mark). Any other field: text 45h. Returns 1
 ; when an order was given. Read, not stepped.
 name S0AE0:0008 attack_order
+; attack_unmark(far view, side): what view_step does after attack_order
+; (step 13h): field_bits_clear with 4 (8 for the second side), unit_mark of
+; the view's unit (word 1Eh) taking 100h away, then view_draw and
+; marks_draw. The name is a guess from what it changes.
+name S0AE0:02E3 attack_unmark
 ; move_aim(view, map, side): the button on a field while a unit chooses
 ; where to move. Refuses (12h) a field not marked 1 or 2 for the side, the
 ; unit's own, a ground with 4000h in its word 0 for a unit with 10h in

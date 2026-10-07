@@ -317,7 +317,8 @@ uint8_t attack_range(Far buf, int16_t field, int16_t range, uint16_t side,
 #define NODES 0x316
 #define PATH 0x1F40u        /* the way's fields, in the same buffer */
 
-static void bits_clear(uint8_t mask)            /* field_bits_clear, S0B15:000B */
+/* S0B15:000B: clears the bits of `mask` in every byte of field_bits */
+void field_bits_clear(uint8_t mask)
 {
     uint16_t i;
     for (i = 0; i < BUF_BYTES; i++)
@@ -413,10 +414,10 @@ int16_t path_find(Far buf, uint16_t unit, int16_t from, int16_t to, uint16_t sid
             }
         }
     } while (at != 0);
-    bits_clear(seen);
+    field_bits_clear(seen);
     return 0;
 none:
-    bits_clear(seen);
+    field_bits_clear(seen);
     SETW(path_len, 0, 0);
     return -1;
 #undef NB_

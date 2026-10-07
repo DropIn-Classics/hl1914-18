@@ -1808,6 +1808,23 @@ emulation error (2026-10-02).
     of an odd column does not enter into it. A key script that wants
     one step holds the key for less than a pass or checks the view's
     word 0. Translated (`side_input`) and compared on seven calls.
+  - `view_step`'s callees (2026-10-07, Linux): `move_start`
+    (`S10E1:05D1`) is used by the computer as well (49 calls in the run
+    s4, 63 in d5r up to 260 s). Translated and compared (port/README.md).
+    `S0AE0:02E3` is `attack_unmark` (named, translated, compared on three
+    calls). `attack_order` is translated and compared on three calls;
+    `show_message` writes state too: 4 (8 for the second side) in
+    `game_state`'s word 0 for a text, cleared by `timer_fire` (so the
+    port has its state part). `move_done` is translated and compared on
+    five calls, all with flags 1. Its giving up of a move out of a site
+    or carrier (flags 10h, view step 3) writes F4h and the record's byte
+    1Bh at S331F:(map offset + the unit's place), with ES still the units'
+    segment where the map's was presumably meant (DX holds it unused);
+    as the map's offset is 0Ah or 0Ch this lands inside S331F's first
+    bytes plus the place, not checked in a run. `move_aim` is translated
+    and compared on five calls (all finding a way); `S0E56:1217` is
+    `marks_erase` (draws, then clears the mask). Next: `field_menu`, then
+    `view_step`.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

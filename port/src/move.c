@@ -472,3 +472,240 @@ uint16_t move_step(void)
     }
     return text ? text : 0xFFFF;
 }
+
+/* S10E1:05D1 (move_start): the button again on the field move_aim took.
+ * The unit in word 1Eh of the view becomes move_rec's walker; 1 is
+ * returned when its word 11h is the cursor's field (the view's word 0),
+ * else 12h, with 8 more for 40h in its unit_flags.  Only with 1: the unit
+ * goes into the side's list of movers (the far list at 11h of its record
+ * of `sides`, its count at byte 15h), its word 11h becomes its place on
+ * the side's map, path_len goes down by 2, move_rec's bytes 2 and 3 are
+ * FFh (byte 2 the place's byte 1Bh of the record at view+24h for a view
+ * in step 3 of a site), game_state's word 4 gets 80h and 100h, a timer of
+ * kind 4 is set, and site_taken becomes 0. */
+uint16_t move_start(Far view, uint16_t side)
+{
+    uint8_t no = (uint8_t)pw(view, 0x1E);
+    Far unit = unit_at(no);
+    uint16_t r = pw(unit, 0x11) == pw(view, 0) ? 1 : 0x12, s = (uint16_t)(A_sides + side * 0x17);
+    Far list;
+
+    if (pw(unit, 4) & 0x40)
+        r |= 8;
+    SETB(move_rec, MR_UNIT, no);
+    if (!(r & 1))
+        return r;
+    list = far_at(S_sides, (uint16_t)(s + 0x11));
+    fwb(list.seg, (uint16_t)(list.off + frb(S_sides, (uint16_t)(s + 0x15))), no);
+    fwb(S_sides, (uint16_t)(s + 0x15), (uint8_t)(frb(S_sides, (uint16_t)(s + 0x15)) + 1));
+    pww(unit, 0x11, pw(unit, (uint16_t)(0x0B + side * 2)));
+    SETW(path_len, 0, NW(path_len, 0) - 2);
+    SETB(move_rec, MR_UNDER2, 0xFF);
+    SETB(move_rec, MR_UNDER, 0xFF);
+    if (pb(view, 0x19) == 3) {
+        Far rec = far_at(view.seg, (uint16_t)(view.off + 0x24));
+        SETB(move_rec, MR_UNDER, pb(rec, 0x1B));
+    }
+    SETW(game_state, 4, NW(game_state, 4) | 0x80);
+    timer_set(4, 0, 0);
+    SETW(game_state, 4, NW(game_state, 4) | 0x100);
+    SETW(site_taken, 0, 0);
+    return r;
+}
+
+/* S0AE0:02E3 (attack_unmark): after an attack was ordered or given up,
+ * the side's marks of the fields that can be attacked (4 in field_bits,
+ * 8 for the second side) are cleared and the view's unit (word 1Eh) loses
+ * 100h in unit_flags (unit_mark); the view is drawn again (left out). */
+void attack_unmark(Far view, uint16_t side)
+{
+    field_bits_clear(side ? 8 : 4);
+    unit_mark((uint8_t)pb(view, 0x1E), 0x100, side, 0);
+}
+
+/* S0AE0:0008 (attack_order): the button on the cursor's field (the view's
+ * word 0) while the view's unit (word 1Eh) chooses what to attack, on map
+ * `map`.  Only a field marked for the side in field_bits (4 or 8 under 55h
+ * or AAh) takes an order, else nothing (text 45h).  A unit with 4000h in
+ * word 6 gets 0Dh on a field whose ground is amok_dat's byte 18h (while
+ * fewer than 0Ah depots were built; text 46h, else 47h and nothing) and
+ * 0Bh on others; one with 2000h gets 11h (text 6Eh); any other unit
+ * attacks a unit on the field (9, its byte 14h 2, onto the side's list of
+ * movers; text 49h), with no unit there nothing (45h).  With an order the
+ * unit is marked 200h (unit_mark) and gets the field in word 11h, and
+ * game_state's word 4 gets 100h with site_taken 0.  After the text
+ * (show_message) game_state's word 4 always gets 8 (10h for the second
+ * side).  Returns 1 when an order was given. */
+uint16_t attack_order(Far view, Far map, uint16_t side)
+{
+    uint8_t no = (uint8_t)pw(view, 0x1E), order = 0;
+    Far unit = unit_at(no);
+    uint16_t field = pw(view, 0), given = 0, taken = 0xFF, text = 0x45;
+    int16_t p = (int16_t)field >> 1, w = (int16_t)NW(map_width, 0);
+    uint8_t bits;
+
+    if (pw(unit, 6) & 0x4000)
+        order = 0x0C;
+    else if (pw(unit, 6) & 0x2000)
+        order = 0x10;
+    else if (frb(map.seg, (uint16_t)(map.off + field + 1)) <= 0xF0)
+        order = 9;
+    bits = (uint8_t)(NB(field_bits, (p % w) + (p / w) * 0x40) & (side ? 0xAA : 0x55));
+    if (!(bits & 0x0C))
+        order = 0;
+    if (order == 0x0C) {
+        if (frb(map.seg, (uint16_t)(map.off + field)) == frb(S_amok_dat, A_amok_dat + 0x18)) {
+            if (NB(depot_count, 0) < 0x0A)
+                order = 0x0D;
+            else {
+                order = 0;
+                text = 0x47;
+            }
+        } else
+            order = 0x0B;
+    }
+    if (order) {
+        unit_mark(no, 0x200, side, 1);
+        pww(unit, 0x11, field);
+        if (order == 9) {
+            uint16_t s = (uint16_t)(A_sides + side * 0x17);
+            Far list = far_at(S_sides, (uint16_t)(s + 0x11));
+            pwb(unit, 0x14, 2);
+            pwb(unit, 0x13, 9);
+            fwb(list.seg, (uint16_t)(list.off + frb(S_sides, (uint16_t)(s + 0x15))), no);
+            fwb(S_sides, (uint16_t)(s + 0x15), (uint8_t)(frb(S_sides, (uint16_t)(s + 0x15)) + 1));
+        } else
+            pwb(unit, 0x13, order == 0x10 ? 0x11 : order);
+        text = order == 9 ? 0x49 : order == 0x10 ? 0x6E : 0x46;
+        taken = 0;
+        given = 1;
+    }
+    show_message(text, side);
+    SETW(game_state, 4, NW(game_state, 4) | (side ? 0x10 : 8));
+    if (taken != 0xFF) {
+        SETW(game_state, 4, NW(game_state, 4) | 0x100);
+        SETW(site_taken, 0, taken);
+    }
+    return given;
+}
+
+/* S10E1:000F (move_done): the end of choosing a move for the view's unit
+ * (word 1Eh) on map `map`: the side's marks 1 (2 for the second side) are
+ * cleared in field_bits.  With 10h in `flags` the move is given up: 100h
+ * leaves the unit's flags (and its other half's: the next unit with 80h,
+ * else the one before), the marks 40h (80h) are cleared, the view goes to
+ * step 19h of state 0 with pointer 5, game_state's word 4 gets 100h and
+ * site_taken becomes 1.  A view in step 3 (a unit moving out of a site or
+ * carrier) is taken back from view_copy and goes to step 9 of state 2;
+ * with 10h the unit goes back into its place, its place on the side's map
+ * becomes the record's field again, and F4h (on a carrier then the
+ * record's byte 1Bh) is written at the map's offset plus the unit's place
+ * - in the segment of the units, not of the map (DX holds the map's
+ * segment but is not used; presumably meant for the map; kept as the
+ * original does it).  The drawing is left out. */
+void move_done(Far view, Far map, uint16_t side, uint16_t flags)
+{
+    uint8_t no = (uint8_t)pw(view, 0x1E);
+    Far unit = unit_at(no);
+    uint16_t pos = (uint16_t)(0x0B + side * 2);
+
+    field_bits_clear(side ? 2 : 1);
+    if (flags & 0x10) {
+        pww(unit, 4, pw(unit, 4) & 0xFEFF);
+        if (pw(unit, 4) & 0x40) {
+            Far half = unit_at((uint8_t)(pw(unit, 4) & 0x80 ? no + 1 : no - 1));
+            pww(half, 4, pw(half, 4) & 0xFEFF);
+        }
+        field_bits_clear(side ? 0x80 : 0x40);
+        pwb(view, 0x17, 0);
+        pwb(view, 0x18, 0x19);
+        pwb(view, 0x1B, 5);
+        SETW(game_state, 4, NW(game_state, 4) | 0x100);
+        SETW(site_taken, 0, 1);
+    }
+    if (pb(view, 0x19) != 3)
+        return;
+    if (flags & 0x10) {
+        Far rec = far_at(view.seg, (uint16_t)(view.off + 0x24));
+        fwb(unit.seg, (uint16_t)(map.off + pw(unit, pos)), 0xF4);
+        pww(unit, pos, pw(rec, 0x0E));
+        if ((rec.off | rec.seg) && (pw(rec, 0x19) & 0x20))
+            fwb(unit.seg, (uint16_t)(map.off + pw(unit, pos)), pb(rec, 0x1B));
+    }
+    view_copy(view, 1);
+    if (flags & 0x10) {
+        Far rec = far_at(view.seg, (uint16_t)(view.off + 0x24));
+        pwb(rec, (uint16_t)(side * 7 + pw(view, 0x0E)), no);
+    }
+    pwb(view, 0x17, 2);
+    pwb(view, 0x18, 9);
+    pwb(view, 0x19, 0);
+    pwb(view, 0x1B, 5);
+    pww(view, 0x0C, pw(view, 4));
+    pww(view, 0x0E, pw(view, 6));
+}
+
+/* S0E56:1217 (marks_erase): the view's fields marked with `mask` drawn
+ * without the marks (left out), then the mask cleared in field_bits */
+static void marks_erase(uint8_t mask)
+{
+    field_bits_clear(mask);
+}
+
+/* S10E1:02EB (move_aim): the button on the cursor's field (the view's
+ * word 0) while the view's unit (word 1Eh) chooses where to move, on map
+ * `map`.  Refused (12h): a field not marked 1 or 2 for the side, the
+ * unit's own field, a ground with 4000h in its word 0 for a unit with 10h
+ * in unit_flags, one move_target gives a text for (shown; game_state's
+ * word 4 gets 8 or 10h), and one path_find finds no way to (text 48h, the
+ * marks 40h or 80h cleared).  Else the marks 1 (2) are cleared but for
+ * the way's fields (path_len of them at 1F40h of the side's work buffer),
+ * the field goes to the unit's word 11h and 1 is returned.  8 is added for
+ * a unit with 40h in unit_flags.  The unit is move_rec's walker either
+ * way.  The drawing is left out. */
+uint16_t move_aim(Far view, Far map, uint16_t side)
+{
+    uint8_t no = (uint8_t)pw(view, 0x1E), mark = side ? 2 : 1;
+    Far unit = unit_at(no);
+    uint16_t field = pw(view, 0), r = 1, pos = (uint16_t)(0x0B + side * 2);
+    int16_t p = (int16_t)field >> 1, w = (int16_t)NW(map_width, 0);
+    Far buf = far_at(S_sides, (uint16_t)(A_sides + side * 0x17 + 0x0D));
+
+    if (!(NB(field_bits, (p % w) + (p / w) * 0x40) & (side ? 0xAA : 0x55) & 3))
+        r = 0x12;
+    if (pw(unit, pos) == field + 1)
+        r = 0x12;
+    if ((pw(unit, 4) & 0x10)
+        && (frw(S_ww1gnds_dat, (uint16_t)(A_ww1gnds_dat + frb(map.seg, (uint16_t)(map.off + field)) * 6)) & 0x4000))
+        r = 0x12;
+    SETB(move_rec, MR_UNIT, no);
+    if (r & 1) {
+        uint16_t text = move_target(field, side, map);
+        if (text) {
+            show_message(text, side);
+            SETW(game_state, 4, NW(game_state, 4) | (side ? 0x10 : 8));
+            r = 0x12;
+        }
+    }
+    if (pw(unit, 4) & 0x40)
+        r |= 8;
+    if (!(r & 1))
+        return r;
+    if (path_find(buf, no, (int16_t)(pw(unit, pos) - 1), (int16_t)field, side, map)) {
+        field_bits_clear(side ? 0x80 : 0x40);
+        show_message(0x48, side);
+        SETW(game_state, 4, NW(game_state, 4) | (side ? 0x10 : 8));
+        return 0x12;
+    }
+    {
+        int16_t n = (int16_t)NW(path_len, 0);
+        marks_erase(mark);
+        field_bits_clear(mark);
+        while (n-- > 0) {
+            int16_t q = (int16_t)frw(buf.seg, (uint16_t)(buf.off + 0x1F40 + 2 * n)) >> 1;
+            SETB(field_bits, (q % w) + (q / w) * 0x40, NB(field_bits, (q % w) + (q / w) * 0x40) | mark);
+        }
+    }
+    pww(unit, 0x11, field);
+    return r;
+}

@@ -231,3 +231,13 @@ uint16_t side_input(Far rec, Far view)
     }
     return cx;
 }
+
+/* S10AF:000F (show_message): the text with number `text` in the side's
+ * message line; the drawing is left out.  What stays in the game's state:
+ * game_state's word 0 gets 4 (8 for the second side) for a text, not for
+ * FFFFh (which only takes the line off), until timer_fire clears it. */
+void show_message(uint16_t text, uint16_t side)
+{
+    if (text != 0xFFFF)
+        SETW(game_state, 0, NW(game_state, 0) | (side ? 8 : 4));
+}

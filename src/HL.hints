@@ -1397,6 +1397,11 @@ name S0E56:0F36 marks_draw
 ; side's view and the view is in state 0, 1, 7 or 8. Presumably draws
 ; only; the name is a guess.
 name S0E56:145A field_draw
+; marks_erase(field, side, mask): the view's fields from field that have
+; mask in field_bits drawn again (without the marks), then
+; field_bits_clear(mask). move_aim calls it before marking the way. The
+; name is a guess.
+name S0E56:1217 marks_erase
 ; rows_sync(table, side, other side, records): attacks_run calls it at a
 ; round's end for carriers, sites_100, sites_400 and sites_40 with the side
 ; whose attacks it carried out and the other. For each record without 8000h

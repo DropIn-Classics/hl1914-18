@@ -1,7 +1,7 @@
 /* orders.c - what a round's end does with the orders of the side that
  * moved: HL.EXE's attacks_run from S02E6:0E9C to 19B8, the loop over the
  * units by their byte 13h, translated over the program's memory for the
- * orders 2, 3, 4, 5, 0Bh and 0Dh.  What the original draws, plays and
+ * orders 2, 3, 4, 5, 0Bh, 0Dh and 11h.  What the original draws, plays and
  * waits for in between (the music, the views, the picture of a site
  * taken, the libraries loaded again) is left out, as in move_step.  port/README.md
  * says how this was compared with the original.
@@ -77,6 +77,40 @@ static void footprint(uint16_t field)
         int16_t c = (int16_t)(col + (int8_t)frb(S_foot_steps, (uint16_t)(cols + i)));
         int16_t r = (int16_t)(row + (int8_t)frb(S_foot_steps, (uint16_t)(rows + i)));
         SETW(neighbours, 2 * i, (uint16_t)(c * 2 + w * 2 * r));
+    }
+}
+
+/* S331F:0059 and 00C5 (aim_steps and aim_grounds; PENDING LEAD NAME):
+ * by the column's parity (36h bytes each), the aim's column (12h) and row
+ * (6) less the unit's plus 1, three pairs of signed column and row steps
+ * from the unit's field, and at 00C5 with the same index the ground each
+ * of the three fields gets (only the first byte of each pair is read) */
+#define S_aim_tables (HL_S331F + HL_BASE)
+#define A_aim_steps 0x0059u
+#define A_aim_grounds 0x00C5u
+
+/* S0E56:1B57 (aim_grounds_set; PENDING LEAD NAME): order 11h, a unit with
+ * 2000h in its word 6.  Three fields around the unit's place, chosen by
+ * where the aim lies, get new grounds when their ground has 8000h in its
+ * word 0: those of the table at 00C5 while the aim's ground is below A5h,
+ * else 51h.  No test of the map's edge, as in the original. */
+static void aim_grounds_set(uint16_t place, uint16_t aim, Far map)
+{
+    int16_t w = (int16_t)NW(map_width, 0);
+    int16_t p = (int16_t)((int16_t)place >> 1), q = (int16_t)((int16_t)aim >> 1);
+    int16_t col = (int16_t)(p % w), row = (int16_t)(p / w);
+    int16_t dc = (int16_t)(q % w - col + 1), dr = (int16_t)(q / w - row + 1);
+    int undo = pb(map, (uint16_t)(q * 2)) >= 0xA5;
+    int i;
+
+    for (i = 0; i < 3; i++) {
+        uint16_t at = (uint16_t)((col % 2) * 0x36 + dc * 0x12 + dr * 6 + i * 2);
+        int16_t c = (int16_t)(col + (int8_t)frb(S_aim_tables, (uint16_t)(A_aim_steps + at)));
+        int16_t r = (int16_t)(row + (int8_t)frb(S_aim_tables, (uint16_t)(A_aim_steps + at + 1)));
+        uint16_t f = (uint16_t)(c * 2 + w * 2 * r);
+
+        if (NW(ww1gnds_dat, pb(map, f) * 6) & 0x8000)
+            pwb(map, f, undo ? 0x51 : frb(S_aim_tables, (uint16_t)(A_aim_grounds + at)));
     }
 }
 
@@ -233,7 +267,7 @@ static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, ui
  * side that moved ([BP-2] of attacks_run), a the other (DI), map m's map
  * ([BP-6]); *result is attacks_run's result byte ([BP-7]), set to m when
  * a headquarters is taken.  Returns the number of units with an order the
- * port does not carry out (1 and 11h; read, not translated). */
+ * port does not carry out (only 1 now; read, not translated). */
 int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result)
 {
     int left = 0;
@@ -257,8 +291,10 @@ int orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result)
         case 0x0D:
             order_build(unit, a, map);
             break;
+        case 0x11:      /* S02E6:1986: the place on side a's map */
+            aim_grounds_set(pw(unit, (uint16_t)(0x0B + 2 * a)), pw(unit, 0x11), map);
+            break;
         case 1:
-        case 0x11:
             left++;
             break;
         default:        /* 2, 3 and anything else: nothing more */

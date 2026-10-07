@@ -1483,7 +1483,23 @@ emulation error (2026-10-02).
       such a unit builds, and its byte 0Ah is what it has left to build
       with; `sites_100` is presumably a depot (not seen on the screen).
     - 11h, a unit with 2000h in word 6: `S0E56:1B57(its place, unit_aim,
-      map)`, not read.
+      map)`, read (2026-10-07, Windows): from the place's and the aim's
+      column and row, an index (the place's column parity times 36h, the
+      aim's column less the place's plus 1 times 12h, the rows' the same
+      times 6, and 0, 2, 4) chooses three column/row steps at
+      `S331F:0059` and three grounds at `S331F:00C5`; each of the three
+      fields whose ground has 8000h gets its ground, or 51h when the
+      aim's ground is A5h or above (presumably taking the work back; that
+      branch not seen run). Seen once on map 51 (unit 1F, kind 14, aim
+      01FAh): 01FAh, 0228h and 022Ch of the map at `[BP-6]` went from 51h
+      to A7h, AAh and ABh; side 1's map was not changed. There `[BP-2]`
+      was 1 and DI 0, and `[BP-6]` was `map_ptr`, side 0's map: the map of
+      the side whose orders are carried out, not that of `[BP-2]`, at
+      least in this pass. Only kind 14 has 2000h in word 11h of
+      `UNIT.DAT`; on map 2 such units start in a site with 2 in
+      `unit_flags` (from the `.SHP` record's flag byte 02, presumably),
+      and `game_loop`'s state 2 (`S066A:2E3A`) does not offer moving out
+      a unit with 2.
     `S331F:4C92` to `4C99` lie inside `amok_dat` (36 bytes from
     `S331F:4C7A`; its bytes 18h to 1Fh), as does `blast_time` (byte 8):
     that file is a table of grounds and settings the program uses by

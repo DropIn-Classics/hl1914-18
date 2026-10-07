@@ -306,12 +306,284 @@ static uint16_t step_end_round(uint16_t side, int16_t cursor, int16_t field, Far
     return 0;
 }
 
+/* move_targets_list (S0B15:13EC): the fields marked for the side in
+ * field_bits (1, the second side 2) that move_target takes for the unit,
+ * as map offsets at `buf`, column by column; their number in path_len (at
+ * most 316h). */
+void move_targets_list(Far buf, uint16_t side, uint8_t unit)
+{
+    Far map = far_at(S_map_ptr, side ? A_map2_ptr : A_map_ptr);
+    uint8_t mask = side ? 2 : 1;
+    int16_t col, row;
+
+    SETW(path_len, 0, 0);
+    SETB(move_rec, 0, unit);
+    for (col = 0; col < (int16_t)NW(map_width, 0); col++)
+        for (row = 0; row < (int16_t)NW(map_height, 0); row++) {
+            uint16_t f;
+
+            if (!(NB(field_bits, (uint16_t)(col + (row << 6))) & mask))
+                continue;
+            f = (uint16_t)((NW(map_width, 0) * row + col) << 1);
+            if (move_target(f, side, map))
+                continue;
+            fww(buf.seg, (uint16_t)(buf.off + NW(path_len, 0) * 2), f);
+            SETW(path_len, 0, NW(path_len, 0) + 1);
+            if ((int16_t)NW(path_len, 0) >= 0x316)
+                return;
+        }
+}
+
+/* rec_find_unit (S1E4B:1827): the number of the first of the table's
+ * `count` records in use (neither 2 nor 8000h in word 19h) with the unit
+ * in the side's row; FFFFh for none */
+static uint16_t rec_find_unit(uint16_t side, uint8_t unit, uint16_t table, uint8_t count)
+{
+    uint8_t r, i;
+
+    for (r = 0; r < count; r++) {
+        uint16_t rec = (uint16_t)(table + r * 0x1C);
+
+        if (frw(S_sites_40, (uint16_t)(rec + 0x19)) & 0x8002)
+            continue;
+        for (i = 0; i < 7; i++)
+            if (frb(S_sites_40, (uint16_t)(rec + side * 7 + i)) == unit)
+                return r;
+    }
+    return 0xFFFF;
+}
+
+/* unit_holder (S1E4B:1734): the record that has the unit in the side's
+ * row: of sites_400, sites_100, carriers or sites_40; FFFFh:FFFFh for
+ * none */
+static Far unit_holder(uint16_t side, uint8_t unit)
+{
+    static const struct { uint16_t table; uint8_t count; } T[4] = {
+        { A_sites_400, 0x0A }, { A_sites_100, 0x0A }, { A_carriers, 0x46 }, { A_sites_40, 2 } };
+    Far p;
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        uint16_t r = rec_find_unit(side, unit, T[i].table, T[i].count);
+
+        if (r != 0xFFFF) {
+            p.seg = S_sites_40;
+            p.off = (uint16_t)(T[i].table + r * 0x1C);
+            return p;
+        }
+    }
+    p.seg = p.off = 0xFFFF;
+    return p;
+}
+
+/* the far pointers the steps keep between calls, behind holder_ptr:
+ * step_site_menu's at S3AE8:0023, step_build's at S3AE8:0027 */
+static void keep_ptr(uint16_t o, Far p)
+{
+    SETW(holder_ptr, o, p.off);
+    SETW(holder_ptr, o + 2, p.seg);
+}
+
+/* one move of the view's row (its word 0Eh) towards `place` of a site's
+ * list: the code 2 (down) or 1 (up); 1 when it is there */
+static int row_script(uint16_t side, int16_t place)
+{
+    int16_t at = (int16_t)NW(views, side * VIEW_SIZE + 0x0E);
+
+    if (place > at)
+        script_add(script_of(side), 2);
+    else if (place < at)
+        script_add(script_of(side), 1);
+    else
+        return 1;
+    return 0;
+}
+
+/* the last of the seven places of the side's row in `rec` that holds
+ * `what` (a unit, or FFh: a free place); 0 for none */
+static int16_t row_place(Far rec, uint16_t side, uint8_t what)
+{
+    int16_t place = 0;
+    uint8_t i;
+
+    for (i = 0; i < 7; i++)
+        if (pb(rec, (uint16_t)(side * 7 + i)) == what)
+            place = i;
+    return place;
+}
+
+/* step_unit_out (S1E4B:0A26), a step of kind 4: the unit leaves the site
+ * or carrier it is in: 0 finds that (none: done), 1 the cursor to its
+ * field, 2 the code 82h, 3 the list's row to the unit, 4 waits while 80h
+ * is set in game_state's word 4, 5 the code 80h, 6 nothing, 7 the fields
+ * the unit can go to (move_targets_list into the side's buffer): the
+ * first becomes step_target_field, with none the holder's own field and 8
+ * in the side's word 0; 8 the cursor towards it, 9 and 0Ah the button,
+ * 0Bh the code 83h and done: returns 1. */
+static uint16_t step_unit_out(uint16_t side, int16_t cursor, uint8_t unit, Far steps)
+{
+    Far s = script_of(side), holder = far_at(S_holder_ptr, A_holder_ptr);
+
+    switch (pb(steps, 0x47)) {
+    case 0:
+        holder = unit_holder(side, unit);
+        keep_ptr(0, holder);
+        if (holder.seg == 0xFFFF && holder.off == 0xFFFF) {
+            pwb(steps, 0x47, 0);
+            return 1;
+        }
+        break;
+    case 1:
+        if (!cursor_script(side, cursor, (int16_t)pw(holder, 0x0E), steps))
+            return 0;
+        break;
+    case 2:
+        script_add(s, 0x82);
+        break;
+    case 3:
+        if (!row_script(side, row_place(holder, side, unit)))
+            return 0;
+        break;
+    case 4:
+        if (NW(game_state, 4) & 0x80)
+            return 0;
+        break;
+    case 5:
+        script_add(s, 0x80);
+        break;
+    case 6:
+        break;
+    case 7: {
+        Far buf = far_at(S_sides, (uint16_t)(A_sides + side * SIDE_SIZE + 9));
+
+        move_targets_list(buf, side, unit);
+        if (NW(path_len, 0) == 0) {
+            SETW(step_target_field, 0, pw(holder, 0x0E));
+            side_refused(side);
+        } else
+            SETW(step_target_field, 0, pw(buf, 0));
+        SETW(path_len, 0, 0);
+        break;
+    }
+    case 8:
+        if (!cursor_step(side, cursor, (int16_t)NW(step_target_field, 0)))
+            return 0;
+        break;
+    case 9:
+    case 0x0A:
+        script_add(s, 5);
+        break;
+    case 0x0B:
+        script_add(s, 0x83);
+        pwb(steps, 0x47, 0);
+        return 1;
+    default:
+        pwb(steps, 0x47, 0);
+        return 1;
+    }
+    NEXT(steps);
+    return 0;
+}
+
+/* step_site_menu (S1E4B:0D88), a step of kind 6: as step_unit_out up to
+ * the list's row of the unit in its site or carrier, then the code 81h
+ * (button and down), the code 83h and done */
+static uint16_t step_site_menu(uint16_t side, int16_t cursor, uint8_t unit, Far steps)
+{
+    Far s = script_of(side), holder = far_at(S_holder_ptr, (uint16_t)(A_holder_ptr + 6));
+
+    switch (pb(steps, 0x47)) {
+    case 0:
+        holder = unit_holder(side, unit);
+        keep_ptr(6, holder);
+        if (holder.seg == 0xFFFF && holder.off == 0xFFFF) {
+            pwb(steps, 0x47, 0);
+            return 1;
+        }
+        break;
+    case 1:
+        if (!cursor_script(side, cursor, (int16_t)pw(holder, 0x0E), steps))
+            return 0;
+        break;
+    case 2:
+        script_add(s, 0x82);
+        break;
+    case 3:
+        if (!row_script(side, row_place(holder, side, unit)))
+            return 0;
+        break;
+    case 4:
+        script_add(s, 0x81);
+        break;
+    case 5:
+        script_add(s, 0x83);
+        pwb(steps, 0x47, 0);
+        return 1;
+    default:
+        pwb(steps, 0x47, 0);
+        return 1;
+    }
+    NEXT(steps);
+    return 0;
+}
+
+/* step_build (S1E4B:0FB8), a step of kind 7: a unit of the kind is built
+ * in the record `site` of sites_400: 0 the cursor to its field, 1 the
+ * code 82h, 2 the list's row to the last free place of the side's row, 3
+ * the code 82h, 4 the code 2 (down) until the view's row plus its word
+ * 20h reaches the kind's place in build_kinds, 5 the code 82h, 6 the code
+ * 83h, 7 done */
+static uint16_t step_build(uint16_t side, int16_t cursor, uint8_t kind, uint8_t site, Far steps)
+{
+    Far s = script_of(side), holder;
+
+    switch (pb(steps, 0x47)) {
+    case 0:
+        holder.seg = S_sites_400;
+        holder.off = (uint16_t)(A_sites_400 + site * 0x1C);
+        keep_ptr(0x0A, holder);
+        if (!cursor_script(side, cursor, (int16_t)pw(holder, 0x0E), steps))
+            return 0;
+        break;
+    case 1:
+    case 3:
+    case 5:
+        script_add(s, 0x82);
+        break;
+    case 2:
+        holder = far_at(S_holder_ptr, (uint16_t)(A_holder_ptr + 0x0A));
+        if (!row_script(side, row_place(holder, side, 0xFF)))
+            return 0;
+        break;
+    case 4: {
+        int16_t place = 0;
+        uint8_t i;
+
+        for (i = 0; i < NB(build_count, 0); i++)
+            if (NB(build_kinds, i) == kind)
+                place = i;
+        if (place > (int16_t)(NW(views, side * VIEW_SIZE + 0x0E) + NW(views, side * VIEW_SIZE + 0x20)))
+            script_add(s, 2);
+        else
+            break;
+        return 0;
+    }
+    case 6:
+        script_add(s, 0x83);
+        break;
+    default:
+        pwb(steps, 0x47, 0);
+        return 1;
+    }
+    NEXT(steps);
+    return 0;
+}
+
 /* computer_step (S1E4B:012E): carries on the step byte 46h of the side's
  * computer_steps names, by its kind, with the map offset of the side's
  * cursor; byte 46h goes up when the step is done.  Returns 0, or FFFFh at
- * the list's end (the list is emptied).  The kinds 4, 6 and 7
- * (step_unit_out, step_site_menu, step_build) are not translated: for
- * them nothing is done and *left is set. */
+ * the list's end (the list is emptied).  *left stays 0: every kind is
+ * translated now. */
 uint16_t computer_step(uint16_t side, int *left)
 {
     Far steps, step;
@@ -342,10 +614,14 @@ uint16_t computer_step(uint16_t side, int *left)
         done = cursor_script(side, cursor, (int16_t)pw(step, 1), steps);
         break;
     case 4:
+        done = step_unit_out(side, cursor, pb(step, 1), steps);
+        break;
     case 6:
+        done = step_site_menu(side, cursor, pb(step, 1), steps);
+        break;
     case 7:
-        *left = 1;
-        return 0;
+        done = step_build(side, cursor, pb(step, 1), pb(step, 3), steps);
+        break;
     default:
         pwb(steps, 0, 0xFF);
         pwb(steps, 0x46, 0);

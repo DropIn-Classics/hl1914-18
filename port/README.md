@@ -439,38 +439,43 @@ anything the game needs before the first release.
   the end of the computer's player): `computer_input` (`S1E4B:0001`), the
   next word of direction and button bits from the side's script of input
   codes, and `computer_step` (`S1E4B:012E`), which carries on the step at
-  hand of the side's list: `step_move`, `step_attack`, `step_end_round`
-  and `cursor_script` with `cursor_scroll` and `cursor_step`, which write
-  the script (and `step_move` calls `move_target`). The steps of the
-  kinds 4, 6 and 7 (`step_unit_out`, `step_site_menu`, `step_build`) are
-  not translated: `computer_step` does nothing for them and says so.
-  `port/tests/computer_dumps.py` plays two battles on the runner (the
-  computer's second side on the map of code 0, its first side on that of
-  code 24; the codes are read from the game's `CODES.DAT`), logs the
-  calls of both routines for 1500 s and dumps memory behind the entry
-  code and before the return of chosen calls, into ignored
-  `build/computer/`; `port/tests/computer_test.sh` runs the port's
-  routine on each entry dump and compares the result and the whole dump
-  but the stack below the routine's frame. A byte the port wrote, or one
-  of the game's state (segment `S3306` up to `DATA`), must be the same; a
-  byte elsewhere that only the original wrote is listed apart (three
-  calls had the same five, one below `S3306` and four in `DATA`: an
-  interrupt's, presumably; not looked at).
-  229 calls, 0 different, 123 of them of side 0: 51 of `computer_input`
-  (single codes, the sequences 11h, 14h and 18h, a script's end, no
-  script) and 178 of `computer_step`: 60 of `step_move` in all its eight
-  states and all six of `cursor_script`, 48 of `step_attack` (states 0
-  to 3 and 5), 64 of `step_end_round` (states 0, 1, 3 and 4) and 6 ends
-  of a list. 4 more calls are of kind 4 and only counted.
-  Not covered: `step_attack`'s state 4 (the button again after a field
-  that is not marked), `step_end_round`'s state 2 (the code 82h), a step
-  of kind 5, a field off the map; of `computer_input` the codes 81h and
-  84h and the diagonals. The dumps were made with `stage2` runs after
-  the first log run, whose log lines of the list's end were renamed by
-  hand from `0363` to `0372` (the same passes); the script as committed
-  was not run from its beginning. `computer_assess`, `computer_plan` and
-  `computer_queue` are not translated, so the port's program does not
-  play a side yet.
+  hand of the side's list, every kind of it: `step_move`, `step_attack`,
+  `step_end_round`, `step_unit_out` (with `move_targets_list`,
+  `S0B15:13EC`, `unit_holder` and `rec_find_unit`), `step_site_menu`,
+  `step_build`, and `cursor_script` with `cursor_scroll` and
+  `cursor_step`. They write the script; `step_move` and
+  `move_targets_list` call `move_target`.
+  `port/tests/computer_dumps.py` plays four battles on the runner (the
+  computer's second side on the maps of the codes 0 and 1, its first
+  side on those of 24 and 25; the codes are read from the game's
+  `CODES.DAT`), logs the calls of both routines and the entry of each
+  state of each handler for 1500 s, and dumps memory behind the entry
+  code and before the return of chosen calls (three of each state),
+  into ignored `build/computer/`; about an hour.
+  `port/tests/computer_test.sh` runs the port's routine on each entry
+  dump and compares the result and the whole dump but the stack below
+  the routine's frame. A byte the port wrote, or one of the game's state
+  (segment `S3306` up to `DATA`), must be the same; a byte elsewhere
+  that only the original wrote is listed apart.
+  279 calls, 0 different, 143 of them of side 0 (the script run once
+  from its beginning): 51 of `computer_input` (single codes, the
+  sequences 11h, 14h and 18h, a script's end, no script) and 228 of
+  `computer_step`: 48 of `step_move` (six of each of its eight states),
+  24 of `step_attack` (states 0 to 3 and 5), 30 of `step_end_round`
+  (all five states), 72 of `step_unit_out` (six of each state 0 to 0Bh;
+  in the six of state 7 `move_targets_list` wrote the fields), 48 of
+  `step_build` (six of each of its eight states) and 6 ends of a list.
+  Ten calls had the same five bytes only the original wrote, one below
+  `S3306` and four in `DATA`, among them all six of `step_unit_out`'s
+  state 7, the longest call: a timer's interrupt, presumably (not
+  looked at).
+  Not covered: `step_site_menu` and a step of kind 5 (no such step in
+  1500 s on 16 maps), `step_attack`'s state 4 (the same), a unit that is
+  in no site at `step_unit_out`'s state 0, `move_targets_list` with no
+  field, a field off the map; of `computer_input` the codes 81h and 84h
+  and the diagonals (81h is what `step_site_menu` would write).
+  `computer_assess`, `computer_plan` and `computer_queue` are not
+  translated, so the port's program does not play a side yet.
 - A side's part in a site, first steps (2026-10-07, Linux):
   `src/side.c` has `build_list` (`S131D:14D4`, which makes `build_kinds`
   and `build_count` anew from the side's points) and the repairing that

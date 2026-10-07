@@ -451,3 +451,23 @@ anything the game needs before the first release.
   the calls behind them; single codes, the sequences 11h, 14h and 18h and
   a script's end are among them. 52 calls, 0 different.
   
+  has byte 16h or 17h not 0. Not covered: other maps, a depot or site
+  whose byte 16h is not 0 newly taken by the second side.
+- A side's part in a site, first steps (2026-10-07, Linux):
+  `src/side.c` has `build_list` (`S131D:14D4`, which makes `build_kinds`
+  and `build_count` anew from the side's points) and the repairing that
+  `game_loop` does inline (`S066A:3156` to `32A9`, `repair`, returning
+  the text; the text shown, `S331F:4CA8` and the view's steps after it
+  are not translated), and `src/units.c` `unit_find` (`S15C5:01A7`).
+  `sh port/tests/side_test.sh` compares them on dumps made by
+  `sh port/tests/side_dumps.sh` (`port/tests/side_test.args`): three
+  calls of `build_list` (map 0, side 0, 5, 15 and 35 points: 0, 0 and 1
+  kinds) and one repair (side 0 with 5 points: text 4Ah, nothing
+  changed); the game's state the same. The run hq
+  (`port/tests/keys/m0_hq.keys`, made by `make_hq.py`) moves a unit into
+  the headquarters and enters it in an attack half; its later rounds do
+  not go as planned (the halves' times depend on the computer's turn), so
+  only its first entry and repair and one later entry are used. Not
+  covered: a repair that is carried out (text 51h) or refused as full
+  (50h), a unit with 4000h, the second side, a list with more than one
+  kind; building and moving out are not translated.

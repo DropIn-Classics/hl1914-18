@@ -1050,6 +1050,9 @@ name S331F:38BE sites_40
 ; (mask): the number of the first record of carriers whose flags have a bit
 ; of the mask, FFFFh for none; unit_add asks for 8000h, an unused one.
 name S15C5:01F7 carrier_find
+; unit_find(mask): the first of the units 0 to F0h with a bit of mask in
+; unit_flags, FFh for none (8000h: a free record).
+name S15C5:01A7 unit_find
 
 ; From a -ram dump after 300 s of play on a map of 32 by 24 (107 units):
 ; three units had 0200h in unit_flags and another offset in word 0Dh than in
@@ -1336,9 +1339,15 @@ name S0CB6:035A timer_fire
 ; repairing one (0Fh, or 32h with 4000h in the unit's word 6) is taken
 ; from; shown at most as 2710h. Where it comes from was not looked at.
 name S331F:02B5 side_points
-; The number of kinds a site offers to build and their list (who fills
-; them was not looked at).
+; The number of kinds a site offers to build and their list, filled by
+; build_list.
 name S331F:17BE build_count
+; build_list(points, side): build_kinds and build_count anew, the kinds the
+; side may build for points (port/src/side.c says which); called when a
+; site is entered in the attack half and after a repair (game_loop
+; S066A:3232). Presumably also from where else it was seen to run at a
+; round's end (map 0 run s4, t=208); that caller was not looked for.
+name S131D:14D4 build_list
 name S331F:17BF build_kinds
 ; view_step(view, input record, input bits, far pointer, side): what
 ; game_loop calls for a side whose view is in state 0 (byte 17h); by byte

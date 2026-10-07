@@ -136,6 +136,18 @@ static Far site_at(uint16_t seg, uint16_t table, uint16_t n)
     return p;
 }
 
+/* S15C5:01A7: the first of the units 0 to F0h whose unit_flags have a bit
+ * of `mask` (FFh for none); with 8000h a free record */
+uint8_t unit_find(uint16_t mask)
+{
+    unsigned u;
+
+    for (u = 0; u <= 0xF0; u++)
+        if (NW(unit_flags, u * UNIT_SIZE) & mask)
+            return (uint8_t)u;
+    return 0xFF;
+}
+
 /* S15C5:01F7: the first of the 70 records of `carriers` whose flags have a
  * bit of `mask`; FFFFh when there is none */
 uint16_t carrier_find(uint16_t mask)

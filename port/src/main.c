@@ -2,6 +2,8 @@
  * installed copy of the original game.
  *
  *     history-line [-game DIR | -gog FILE|FOLDER|SETUP.exe] [-map N] [-ram FILE]
+ *                  [-keys FILE] [-passes N] [-start T] [-seed N] [-clock FILE]
+ *                  [-dump N FILE]... [-inputs FILE]
  *
  * DIR is the game's unpacked files: -game, else $HISTORY_LINE_GAME, else the first
  * folder `game` holding HL14-18.EXE beside the program, in the current
@@ -28,10 +30,24 @@
  * without -map, and from them the battle's units and sites), says what
  * it found and waits for Esc.  -ram writes that memory to FILE as
  * dosrun's -ram does (for doskit/tools/memcmp.py) and ends the program.
+ *
+ * With -keys, -passes or -clock the program then plays the battle by
+ * itself without drawing it (play.c): the passes of the original's loop,
+ * the human's keys from the key script FILE (the runner's format, the
+ * first pass at T seconds of its time, 0 without -start), the computer's
+ * side by its own turn, until the battle is over, N passes are played or
+ * something comes that is not translated; it says how far it came and
+ * ends.  -seed is the BIOS's count of ticks at the setup, from which the
+ * random numbers start (without it the time of day's); -clock runs the
+ * passes by the times of a log of the original (port/tests/play_dumps.py)
+ * instead of the port's own clock; -dump writes the memory as -ram does at
+ * the beginning of pass N, -inputs what each side's part read.  All of
+ * them are aids for this work, not for players.
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "cdimage.h"
 #include "hl.h"
 #include "inno.h"
@@ -183,7 +199,7 @@ static int get_game(const char *given, const char *gog, char *out, size_t n)
 /* HL.EXE into the program's memory and the translated parts of its
  * start and of a battle's setup for map `map`; a line about the result
  * in `line`.  0 if it failed. */
-static int start_game(const char *game, int map, char *line, size_t n)
+static int start_game(const char *game, int map, uint32_t bios, char *line, size_t n)
 {
     char exe[SYS_PATH], err[256];
     int r;
@@ -197,6 +213,7 @@ static int start_game(const char *game, int map, char *line, size_t n)
         return 0;
     }
     hl_game_dir = game;
+    play_bios(bios);
     r = start_setup();
     if (r == 0)
         r = menu_result((uint16_t)map);
@@ -213,11 +230,61 @@ static int start_game(const char *game, int map, char *line, size_t n)
     return 1;
 }
 
+/* the BIOS's count of ticks for the time of day */
+static uint32_t bios_now(void)
+{
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+
+    if (!tm)
+        return 0;
+    return (uint32_t)((tm->tm_hour * 3600L + tm->tm_min * 60L + tm->tm_sec) * (1193182.0 / 65536.0));
+}
+
+#define DUMPS 64
+static struct { unsigned long pass; const char *file; } dumps[DUMPS];
+static int dumps_n;
+
+/* the battle played from the setup on (play.c), at most `passes` passes
+ * (0: no limit but a million); a line about how far it came in `line`.
+ * 0 if a dump could not be written. */
+static int play_game(unsigned long passes, double start, int clocked, char *line, size_t n)
+{
+    const char *why = NULL;
+    int i, ok = 1;
+
+    if (!passes)
+        passes = 1000000;
+    play_begin(start);
+    for (;;) {
+        play_sync();
+        for (i = 0; i < dumps_n; i++)
+            if (dumps[i].pass == play_passes + 1 && rm_write(dumps[i].file) != 0)
+                ok = 0;
+        if (play_passes >= passes)
+            break;
+        if (!(NW(game_state, 0) & 2)) {
+            why = "the battle is over";
+            break;
+        }
+        why = play_pass();
+        if (why)
+            break;
+    }
+    snprintf(line, n, "%lu passes played%s%s.", play_passes, why ? ", then: " : "", why ? why : "");
+    if (clocked)
+        snprintf(line + strlen(line), n - strlen(line), " %lu places where the clock's file did not fit.",
+                 play_misses);
+    return ok;
+}
+
 int main(int argc, char **argv)
 {
-    const char *given = NULL, *gog = NULL, *ram = NULL;
+    const char *given = NULL, *gog = NULL, *ram = NULL, *keys = NULL, *clock_file = NULL, *why = NULL;
     char game[SYS_PATH], line[300];
-    int i, map = 0, ok;
+    int i, map = 0, ok, play = 0, seeded = 0;
+    unsigned long passes = 0, seed = 0;
+    double start = 0;
 
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-game") && i + 1 < argc)
@@ -228,10 +295,34 @@ int main(int argc, char **argv)
             map = atoi(argv[++i]);
         else if (!strcmp(argv[i], "-ram") && i + 1 < argc)
             ram = argv[++i];
-        else {
-            fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n");
+        else if (!strcmp(argv[i], "-keys") && i + 1 < argc)
+            keys = argv[++i], play = 1;
+        else if (!strcmp(argv[i], "-clock") && i + 1 < argc)
+            clock_file = argv[++i], play = 1;
+        else if (!strcmp(argv[i], "-passes") && i + 1 < argc)
+            passes = strtoul(argv[++i], NULL, 0), play = 1;
+        else if (!strcmp(argv[i], "-start") && i + 1 < argc)
+            start = atof(argv[++i]);
+        else if (!strcmp(argv[i], "-seed") && i + 1 < argc)
+            seed = strtoul(argv[++i], NULL, 0), seeded = 1;
+        else if (!strcmp(argv[i], "-inputs") && i + 1 < argc)
+            play_inputs(argv[++i]);
+        else if (!strcmp(argv[i], "-dump") && i + 2 < argc && dumps_n < DUMPS) {
+            dumps[dumps_n].pass = strtoul(argv[++i], NULL, 0);
+            dumps[dumps_n++].file = argv[++i];
+        } else {
+            fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
+                            "       [-keys FILE] [-passes N] [-start T] [-seed N] [-clock FILE] [-dump N FILE]...\n");
             return 2;
         }
+    }
+    if (keys)
+        why = play_keys(keys);
+    if (!why && clock_file)
+        why = play_clock(clock_file);
+    if (why) {
+        fprintf(stderr, "%s\n", why);
+        return 2;
     }
     sys_set_app("Battle Isle Historyline 1914-1918", "history-line");
     sys_data_migrate(old_files);
@@ -241,9 +332,13 @@ int main(int argc, char **argv)
         plat_shutdown();
         return 1;
     }
-    ok = start_game(game, map, line, sizeof line);
-    if (ram) {
-        if (ok && rm_write(ram) != 0)
+    ok = start_game(game, map, seeded ? (uint32_t)seed : bios_now(), line, sizeof line);
+    if (ok && play) {
+        fprintf(stderr, "%s\n", line);
+        ok = play_game(passes, start, clock_file != NULL, line, sizeof line);
+    }
+    if (ram || play) {
+        if (ok && ram && rm_write(ram) != 0)
             ok = 0;
         fprintf(stderr, "%s\n", line);
         plat_shutdown();

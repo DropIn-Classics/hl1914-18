@@ -145,6 +145,7 @@ uint16_t computer_step(uint16_t side, int *left);
 void move_targets_list(Far buf, uint16_t side, uint8_t unit);
 
 /* plan.c */
+int16_t rand_next(void);
 uint16_t computer_assess(uint16_t side);
 void step_add(uint16_t side, Far step);
 uint16_t computer_queue(uint16_t side);
@@ -187,9 +188,34 @@ typedef struct {
     uint32_t seed;
 } SideIn;
 extern int loop_replay;
+/* where loop_hook is called in a pass: a side's part begins (before its
+ * key is taken from SideIn); a human's input record is about to be read
+ * by side_input; view_step is about to be called; computer_turn has
+ * returned in the loop that runs while the computer thinks (SideIn's
+ * `turns` set to the calls so far ends it); attacks_run is about to be
+ * called; it has returned (SideIn's `seeded` and `seed` are read next) */
+enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT };
+extern void (*loop_hook)(int at, uint16_t side);
 void timer_fire(uint16_t kind, uint16_t timer);
 const char *loop_pass(const SideIn in[2]);
 void loop_reset(void);
+
+/* input.c */
+void key_irq(uint8_t code);
+const char *input_tick(void);
+
+/* play.c */
+/* the port's program plays a battle by itself: the human's keys from a
+ * key script, the time from its own clock or from the original's
+ * (port/tests/play_dumps.py).  Each returns NULL or what went wrong. */
+const char *play_keys(const char *path);
+const char *play_clock(const char *path);
+void play_inputs(const char *path);
+void play_bios(uint32_t ticks);
+void play_begin(double start);
+void play_sync(void);
+const char *play_pass(void);
+extern unsigned long play_passes, play_misses;
 
 /* names.c */
 Far file_name(uint16_t where, int16_t dir, Far name, int16_t ext);

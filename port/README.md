@@ -98,8 +98,29 @@ pictures shown meanwhile and loaded again after them (`pictures_load`,
 `computer_turn` (`src/plan.c`); what the keyboard handler gives a pass
 comes in from outside (`SideIn`), as do two things of the clock's: how
 long a human's key lets the computer think on in one pass, and the
-number the fight's pictures start the random numbers with. Nothing
-calls the pass yet but `tests/loop_test.c`.
+number the fight's pictures start the random numbers with.
+
+Then the program plays a battle by itself, without drawing it
+(`src/play.c`, `src/input.c`): after its own setup it runs the passes
+with a key script as the human's input (`-keys FILE`, the format of
+`tests/keys`), through translations of the original's keyboard interrupt
+and of the routine its timer calls, which fill the sides' input records
+(`key_irq`, `input_tick`; the joysticks and the mouse are left out). The
+port's own clock calls that routine 72.8 times a second, lets a pass
+last as many calls as the original waits for at its end and everything
+else no time, and starts the random numbers from the BIOS's count of
+ticks, which runs with it from the time of day or from `-seed N`, at
+the setup and after a round's end with fight pictures. `-clock FILE`
+runs the same by the times of a log of the original instead
+(`tests/play_dumps.py`), for the comparison below. `-passes N` ends
+after N passes, `-start T` is the key script's time at the first pass,
+`-dump N FILE` writes the memory at the beginning of pass N. The play
+stops with a line saying why at the battle's end and at what is not
+translated (the keys F2 to F9, Esc, saving). The start now also sets the
+far pointer to the table of keys and the twelve keys beside it
+(`start_setup`, from `S1650:0003`), and `move_step` shows the text of a
+walk's end. These options are aids for this work, not for players: the
+window still only says which map was set up.
 
 ## Build and run
 
@@ -107,6 +128,7 @@ calls the pass yet but `tests/loop_test.c`.
     port\build.bat            # Windows (MSVC)
     port/build/history-line -game game
     port/build/history-line-headless -game game -map 5 -ram build/map5.ram
+    port/build/history-line-headless -game game -map 8 -keys port/tests/keys/m8_site.keys -start 31.1 -seed 563 -passes 2000 -ram build/played.ram
 
 Both scripts define `PORT_VERSION` (a string) for the compiler when
 there is a version: the environment's `PORT_VERSION`, else the tag of the
@@ -127,6 +149,50 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The program's own play (2026-10-08, macOS): `python3
+  port/tests/play_dumps.py KEYS UNTIL` runs the original with a key
+  script and logs its clock (the timer's routine, the keyboard's
+  interrupt, the places where a pass reads the input, `clock_seed`,
+  `rand_next`, the waits' and pictures' clearing of the keys) and what
+  each side's part read, and dumps memory at the beginning of chosen
+  passes; `sh port/tests/play_test.sh TAG` starts the port's program from
+  its own setup with the same key script and that clock
+  (`-keys`, `-clock`, `-dump`) and `tests/play_cmp.py` compares. Nothing
+  of the game's state comes from the original. Results, each "the
+  inputs, the game's state and the computer's the same at every pass
+  compared", with no place where the clock's file did not fit:
+  - `m8_site` (map 8, 400 s): 6,582 passes played; the 13,164 parts read
+    the same key and input word, and where the original's `view_step`
+    tested bytes 5 and 8 of the record the port had the same; 17 passes
+    compared (1, 50, 200, 400, each pass with `attacks_run` and the one
+    after it: 291, 1939, 2615, 4284, 4543, 6215, and 6581).
+  - `m0_hq` (map 0, 300 s): 4,574 passes, 9,148 parts, 15 passes
+    compared (rounds' ends 373, 1036, 1131, 2431, 2937).
+  - `m8_d5r` (map 8, 300 s): 4,428 passes, 8,856 parts, 42 passes
+    compared (rounds' ends 530, 2176, 2265, 3896, and 420 to 439 one by
+    one, where a difference was looked for).
+  The game's state is compared as `loop_test` does (`S3306` up to `DATA`
+  but the computer's segments, the two maps, the sides' work buffers),
+  the computer's likewise (its segments, `S331F:17F2` to `181B`,
+  `move_args`, `S3AEC:0000` to `0007`, `rand_words`). Counted apart: the
+  setup's differences (772 bytes of the game's state at map 8's first
+  pass: the pictures' records and pointers, a letter of three file
+  names, the map's number as text and the menu's code; listed by the
+  test and in docs/HANDOFF.md), the two far pointers of grounds'
+  pictures a fight puts into `fight_rec` (1Eh, 22h; the port has none),
+  and the rest of memory (pictures, the interrupts' data, the stack).
+  `sh port/tests/loop_test.sh` still says the same for `m8_site` with
+  the changed `loop.c`, and of `move_test.sh` the 40 steps whose dumps
+  are on this machine are as before with the text shown in `move_step`.
+  Not checked: the port's own clock against anything (it leaves the
+  original after pass 291 of `m8_site`, as it must: its passes are
+  shorter); a battle played to its end; maps other than 0 and 8; a
+  second human side's keys; a computer first side; a thinking loop ended
+  by a key; a run with the fight pictures switched off; `move_test`'s,
+  `view_test`'s, `side_test`'s, `orders_test`'s and `income_test`'s dumps
+  that are only on the Linux worker's machine (not rerun here after the
+  change to `move_step`); Windows and Linux builds of the new files
+  (`build.bat` names them, not built).
 - The fight (2026-10-04, macOS): `sh port/tests/fight_test.sh` builds
   `tests/fight_test.c` and runs it on 39 fights of the original, each a
   pair of dosrun `-ram` dumps made at `-break fight_losses` and at the

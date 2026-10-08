@@ -415,7 +415,7 @@ uint16_t computer_assess(uint16_t side)
 
 /* rand_next (S2C9A:0008): the next number of the four words of
  * rand_words; rand_range (S0CB6:0713): one from lo to hi of it */
-static int16_t rand_next(void)
+int16_t rand_next(void)
 {
     uint16_t w0 = NW(rand_words, 0), x = (uint16_t)(w0 ^ NW(rand_words, 2));
     uint16_t w6 = NW(rand_words, 6);

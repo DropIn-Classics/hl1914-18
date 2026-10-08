@@ -506,6 +506,7 @@ static void state_inside(Far view, uint16_t side, uint16_t di, Far rec)
                 break;
             }
         place_xy(view, side);
+        site_screen(side, site);
         if (pw(view, 0x22) == 1 && pb(view, 0x16) & 2) {
             uint16_t pts = NW(side_points, side * 2);
 
@@ -541,16 +542,8 @@ static void state_inside(Far view, uint16_t side, uint16_t di, Far rec)
                 }
             }
             if (pb(view, 0x1A) == 1) {
-                /* what is shown of the place: only the unit's number in
-                 * word 1Eh stays, and texts that only take the line off */
-                pww(view, 0x1E, pb(site, (uint16_t)(row0 + pw(view, 0x0E))));
-                if (pw(view, 0x1E) != 0xFF) {
-                    uint16_t f = NW(unit_flags, pw(view, 0x1E) * UNIT_SIZE);
-
-                    if (f & 0x400 || f & 0x800)
-                        show_message(0xFFFF, side);
-                } else
-                    show_message(0xFFFF, side);
+                /* the place shown (S066A:296E), its unit into word 1Eh */
+                site_info(view, side);
                 pwb(view, 0x1A, 0);
             }
             effect(e);
@@ -631,6 +624,7 @@ static void state_inside(Far view, uint16_t side, uint16_t di, Far rec)
             pwb(view, 0x1B, 5);
             pww(view, 0x10, side & 1 ? 0x0D + 0xA0 : 0x0D);
             pww(view, 0x12, 0x8B);
+            build_rows(side, pw(view, 0x20));
             pwb(view, 0x1A, 2);
             pwb(view, 0x19, 4);
         }
@@ -668,7 +662,8 @@ static void state_inside(Far view, uint16_t side, uint16_t di, Far rec)
                     }
                 }
                 if (pb(view, 0x1A) == 2) {
-                    pww(view, 0x1E, NB(build_kinds, pw(view, 0x0E) + pw(view, 0x20)));
+                    /* the kind shown (S066A:3677), into word 1Eh */
+                    build_info(view, side);
                     pwb(view, 0x1A, 0);
                 }
                 effect(e);
@@ -682,12 +677,15 @@ static void state_inside(Far view, uint16_t side, uint16_t di, Far rec)
                     pwb(view, 0x18, 0x0D);
                 else
                     pwb(view, 0x19, 4);
-            } else if (di & 4)
-                pwb(view, 0x1B, 7);
-            else if (di & 8)
-                pwb(view, 0x1B, 1);
-            else
-                pwb(view, 0x1B, 5);
+            } else {
+                if (di & 4)
+                    pwb(view, 0x1B, 7);
+                else if (di & 8)
+                    pwb(view, 0x1B, 1);
+                else
+                    pwb(view, 0x1B, 5);
+                build_rows(side, pw(view, 0x20));
+            }
         }
     }
     if (pb(view, 0x18) == 0x0D) {
@@ -712,6 +710,8 @@ static void state_inside(Far view, uint16_t side, uint16_t di, Far rec)
         show_message(0xFFFF, side);
         gs_and(4, side ? 0xFFEF : 0xFFF7);
         pwb(rec, 8, 0);
+        view_draw(pw(view, 2), side);
+        marks_draw(pw(view, 2), side);
     }
 }
 

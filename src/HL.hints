@@ -1645,6 +1645,24 @@ name S131D:178D fight_panel
 ; y negated, in places other than 1, the unit lower by byte 09D6h, halved
 ; there), the kind's name in 71h. Translated (port/src/draw.c).
 name S131D:0C50 big_unit
+; site_units(x, y, side, far site): the side's row of a site or carrier
+; (seven bytes at side*7, above F0h none), each unit by its kind's second
+; picture of the table S331F:013F at x 0Dh + 11h*place (+A0h for the
+; second side), y 8Bh less 0Ch on odd places; colours 20h/30h by the
+; unit's bits 0 and 1, B0h/C0h for one with 200h of the side or 2. The
+; x and y given are not used. Translated (port/src/draw.c).
+name S131D:087A site_units
+; site_screen(side, far site): the third picture of the list at
+; S331F:0207 (packed, colours F0h), site_units, and text 3, 5, 4 or 6 by
+; 4, 8, 10h of the site's word 19h. game_loop's state 2 calls it on
+; entering and for each place shown. Translated (port/src/draw.c).
+name S131D:0A1C site_screen
+; build_rows(x, y, side, first): the build list's seven places from
+; build_kinds[first]: picture 12 of the table S331F:0167 (colours F4h)
+; and each kind's second picture, colours 30h with bit 0 of S331F:4CB0,
+; else 20h (whose colours that byte says was not checked). x and y are
+; not used. Translated (port/src/draw.c).
+name S131D:0B07 build_rows
 ; panel_whole(far unit, x, y, base): a unit of a kind with 40h in word 4
 ; on the fight's panel, two of the unit pictures. Translated, not met.
 name S131D:1F0D panel_whole

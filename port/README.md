@@ -394,6 +394,60 @@ clock in a fade), a `-keylog` of a play from the menu played back with
 `-keys`, an attack by the second side in the window, a fight's pictures
 in video memory frame by frame against the original in the window.
 
+2026-10-08 (`debian/window4`): a site's screens and the mouse in the
+window. Inside a site or carrier (state 2) the port now draws what
+`game_loop` draws there (`src/draw.c`): `site_screen` (`S131D:0A1C`: the
+background, the side's row of units by `site_units`, `S131D:087A`, and
+the site's kind), `site_info` (`S066A:296E` to `2DB8`: the place under
+the cursor, a unit's values and large picture or the texts 8, 9 and 2,
+and a site's points or a carrier's weight and room), `build_rows`
+(`S131D:0B07`, the build list's places) and `build_info` (`S066A:3677`
+to `382F`: the kind under the cursor, its price and picture); leaving
+the site draws the view and its marks again. The state was already
+translated; only the drawing was missing.
+The mouse: with `-map` the port now opens the mouse as the menu's return
+does (`menu_mouse`; before, a `-map` battle had no mouse at all) and puts
+the pointer to the middle, where the original's first `input_mouse` in
+the setup leaves it. In the window the platform's motions are kept with
+their picture's time and handed to the driver by the clock (as the keys
+since `debian/window3`); `-micelog FILE` writes where each moved the
+driver as `T X,Y,B` lines, the runner's `-mice` format, and `-mice FILE`
+plays such a file. `play_dumps.py` and `play_test.sh` take
+`tests/keys/TAG.mice` when it is there, and `live` gives the window the
+motions of `TAG.moves` (`live_keys.py --moves`). `make_m8.py` has mouse
+steps (`M` before a step).
+`m8_mouse` (map 8, 406 s) is `m8_site`'s steps with the site's gestures
+made by the mouse: `make_m8.py -moves m8_mouse.moves` with
+`e45 g55 s64 l67 d69 E70 f95 f100 f105 f110 E116 f150 f155 f160 f165 f170
+u182 L183 Ms185 Ms189 Ms192 Ml195 d197 E198 f205 f210 f215 f220 f225 f230
+f235 E245 f250 f255 f260 f265 f270 f275 f280 f285 f290 f295 f300 u312 L313
+Ms315 Mr322 Ml325 d327 E328 f335 f340 f345 f350 f355 f360 f365 f370 f375
+u388 L389 Ms391 Mo398 MR400 Ma401`, played in the headless window, and
+`m8_mouse.keys` and `.mice` are what the window wrote. By the mouse the
+first side enters the site, opens the build list and builds (unit 41h,
+kind 12h, points 48 to 13), enters again and repairs that unit (offered,
+answered by a text, no points taken: it was not damaged; which text was
+not read), and moves it out and orders it to a field (view step 3).
+(`m8_site`'s R steps were left out: the keys' left still held after
+entering steps the cursor back, the mouse leaves no direction held.)
+Compared with the original's run of the same files (`play_dumps.py`,
+`VRAM=1`, `PASSES` at 186 to 405 s: 2858 2940 2994 3040 4788 4915 4969
+6460 6570 6620 6675), rerun after the merge of origin/master 8273158:
+- `play_test.sh m8_mouse`: 13,384 parts' inputs the same, the game's
+  state and the computer's the same at all 28 passes, both pages of
+  video memory the same at all of them, the site's screen, build list,
+  built unit, repair and move out included. With the new drawing taken
+  out the pages differ by 47,864 bytes at those passes;
+- `live`: the window's play and the `-keys`/`-mice` play the same in
+  15,532 parts and all 26 dumps;
+- `rounds`: the same to round 3, then a few bytes differ, as
+  `m8_site rounds` does without the mouse (not looked into).
+`m8_site` and `m48_attack` still the same at every pass, pages included.
+Not done or checked: the SDL window by hand, a real repair (text 51h)
+and a carrier's screen by the mouse (`m0_s2c` keeps them by keys, its
+pages not compared), a scrolled build list, the mouse's mickeys left
+over below a pixel (`-micelog` does not keep them).
+
 2026-10-08, the field menu's information (`unit_info`, `unit_values`,
 `info_rect` and `battle_info` in `src/draw.c`, the original's
 `S131D:0483`, `0148`, `0008` and `0EE5`; `state_field` of `src/loop.c`

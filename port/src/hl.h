@@ -180,6 +180,13 @@ void flag_draw(uint16_t x, uint16_t y, uint16_t c1, uint16_t c2, uint16_t c3, in
 void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base);
 void pic_draw_save(uint16_t x, uint16_t y, Far src, Far save, uint8_t base);
 void pic_unpack_draw(uint16_t x, uint16_t y, Far src, uint8_t base, Far work);
+/* a site's or carrier's screen (state 2): the screen, the build list's
+ * places, the place under the cursor and the kind under it shown (each
+ * also sets the view's word 1Eh as the original does there) */
+void site_screen(uint16_t side, Far site);
+void build_rows(uint16_t side, uint16_t first);
+void site_info(Far view, uint16_t side);
+void build_info(Far view, uint16_t side);
 /* the field menu's information: on a unit, on a field without one;
  * info_hook is called at their entry (0) and return (1), `which` 0 for the
  * unit's and 1 for the battle's */
@@ -351,6 +358,8 @@ uint16_t mouse_hide(void);
 uint16_t mouse_show(void);
 void mouse_motion(int dx, int dy, int buttons);
 void mouse_ratio(uint16_t x, uint16_t y);
+void mouse_set(uint16_t x, uint16_t y, int buttons);
+void mouse_where(uint16_t *x, uint16_t *y, int *buttons);
 void pointer_erase(Far save);
 
 /* menu.c */
@@ -395,6 +404,8 @@ int play_idle(void);
 const char *play_stopped(void);
 void play_inputs(const char *path);
 void play_keylog(const char *path);
+void play_micelog(const char *path);
+const char *play_mice(const char *path);
 void play_rounds(const char *path);
 void play_ends(const char *path);
 void play_bios(uint32_t ticks);

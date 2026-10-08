@@ -371,6 +371,90 @@ static void live_key(uint8_t code)
     }
 }
 
+/* the mouse, as the keys: a script of -mice (the runner's format, "T X,Y,B"
+ * a line: the mouse put at the driver's X, Y with the buttons B at time T)
+ * is handed to the driver when the clock reaches T (mice_to, at a call of
+ * the timer's routine); in the window each motion the platform reports
+ * is kept with the time of the picture it came with and given to the
+ * driver (mouse_motion) when the clock gets there, and -micelog writes
+ * where that put the mouse as such a line (when it moved it or changed
+ * its buttons), so that -mice and the runner's -mice play the window's
+ * mouse again.  A motion's mickeys not yet a pixel are not in the line:
+ * the driver keeps them, -mice does not (presumably never a difference
+ * where the battle's pointer goes to the middle after each direction;
+ * not checked). */
+typedef struct { double t; int rel, x, y, b; } MouseEv;
+
+static MouseEv *mice;
+static long mice_n, mice_at;
+static FILE *micelog;
+
+void play_micelog(const char *path)
+{
+    micelog = fopen(path, "w");
+}
+
+static void mouse_add(double t, int rel, int x, int y, int b)
+{
+    MouseEv *m;
+
+    if (!(mice_n & 255)) {
+        m = realloc(mice, (size_t)(mice_n + 256) * sizeof *mice);
+        if (!m)
+            return;
+        mice = m;
+    }
+    m = &mice[mice_n++];
+    m->t = t;
+    m->rel = rel;
+    m->x = x;
+    m->y = y;
+    m->b = b;
+}
+
+const char *play_mice(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    char line[100];
+
+    if (!f)
+        return "the mouse's script cannot be opened";
+    while (fgets(line, sizeof line, f)) {
+        char *c = strchr(line, '#');
+        double t;
+        int x, y, b;
+
+        if (c)
+            *c = 0;
+        if (sscanf(line, "%lf %d,%d,%d", &t, &x, &y, &b) == 4)
+            mouse_add(t, 0, x, y, b);
+    }
+    fclose(f);
+    return NULL;
+}
+
+static void mice_to(double t)
+{
+    for (; mice_at < mice_n && mice[mice_at].t <= t; mice_at++) {
+        const MouseEv *m = &mice[mice_at];
+
+        if (m->rel) {
+            uint16_t x0, y0, x, y;
+            int b0, b;
+
+            mouse_where(&x0, &y0, &b0);
+            mouse_motion(m->x, m->y, m->b);
+            mouse_where(&x, &y, &b);
+            /* a motion that left the driver as it was is none */
+            if (micelog && (x != x0 || y != y0 || b != b0)) {
+                fprintf(micelog, "%.6f %u,%u,%d\n", m->t, x, y, b);
+                fflush(micelog);
+            }
+        } else
+            mouse_set((uint16_t)m->x, (uint16_t)m->y, m->b);
+    }
+}
+
 /* a file that gets a line for each round's end on the port's own clock:
  * the pass, when its part began, when attacks_run was called and when the
  * round's end was over (seconds of the key script's time) */
@@ -428,6 +512,7 @@ static void tick(double t)
 
     if (!by_k || in_menu)
         keys_to(t);
+    mice_to(t);
     why = input_tick();
     if (why && !stopped)
         stopped = why;
@@ -444,7 +529,7 @@ static void live_picture(void)
     if (!frame_wait() && !stopped)
         stopped = "the window was closed";
     if (plat_mouse_motion(&dx, &dy, &b))
-        mouse_motion(dx, dy, b);
+        mouse_add(floor(key_time * 1e6 + 0.5) / 1e6, 1, dx, dy, b);
 }
 
 /* live: a wait of the screen's routines (screen_hook): a retrace_wait or
@@ -563,7 +648,7 @@ static void own_wait_press(void)
     }
     press_clear();
     while (!pressed()) {
-        if (!live && keys_at >= keys_n && ++idle > 16) {
+        if (!live && keys_at >= keys_n && mice_at >= mice_n && ++idle > 16) {
             if (!stopped)
                 stopped = "the battle's end waits for a press the key script does not have";
             break;
@@ -901,7 +986,7 @@ static void hook(int at, uint16_t side)
          * for this wait */
         static int idle;
 
-        idle = keys_at >= keys_n ? idle + 1 : 0;
+        idle = keys_at >= keys_n && mice_at >= mice_n ? idle + 1 : 0;
         if (have_clock || idle > 400)
             loop_abort = 1;
         else
@@ -922,7 +1007,7 @@ static void hook(int at, uint16_t side)
             } else
                 loop_abort = 1;
         } else {
-            idle = keys_at >= keys_n ? idle + 1 : 0;
+            idle = keys_at >= keys_n && mice_at >= mice_n ? idle + 1 : 0;
             if (idle > 400)
                 loop_abort = 1;
             else
@@ -1081,7 +1166,7 @@ void play_setup(void)
 
 int play_idle(void)
 {
-    return live ? stopped != NULL : keys_at >= keys_n;
+    return live ? stopped != NULL : keys_at >= keys_n && mice_at >= mice_n;
 }
 
 /* why the play cannot go on (the window was closed, the timer's routine

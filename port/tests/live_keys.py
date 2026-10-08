@@ -5,6 +5,7 @@ program in the window (play_live, port/src/play.c) run headless
 picture shown at its time, as a player's key comes in the window.
 
     python3 port/tests/live_keys.py KEYS START [FIRST]
+    python3 port/tests/live_keys.py --moves MOVES START [FIRST]
 
 START is the first pass's time (-start); FIRST the number plat_null
 gives the window's first picture after the setup (default 38, the setup
@@ -41,6 +42,8 @@ def code(name, down):
 
 
 def main():
+    if sys.argv[1] == '--moves':
+        return moves(sys.argv[2:])
     path, start = sys.argv[1], float(sys.argv[2])
     first = int(sys.argv[3]) if len(sys.argv) > 3 else 38
     ev = []
@@ -55,6 +58,20 @@ def main():
             ev += [(t, n, code(name, True)), (t + 0.15, n, code(name, False))]
     ev.sort()
     print(' '.join('%d:%s' % (first + round((t - start) / RETRACE), c) for t, _, c in ev if t >= start))
+
+
+def moves(argv):
+    """the mouse's motions of a moves file ("T DX,DY,B" a line, the
+    window's counts and buttons) as DK_MOUSEMOVE, at the picture shown at
+    each time"""
+    path, start = argv[0], float(argv[1])
+    first = int(argv[2]) if len(argv) > 2 else 38
+    out = []
+    for line in open(path):
+        f = line.split('#')[0].split()
+        if len(f) == 2 and float(f[0]) >= start:
+            out.append('%d:%s' % (first + round((float(f[0]) - start) / RETRACE), f[1]))
+    print(' '.join(out))
 
 
 if __name__ == '__main__':

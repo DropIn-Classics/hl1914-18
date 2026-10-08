@@ -27,6 +27,11 @@ m48_aim.keys, m48_build.keys, m54_end.keys, m57_site.keys, m57_last.keys and m48
 -keylog of its arguments) what port/README.md says.  The second side's keys are those of its table
 in HL.EXE (docs/HANDOFF.md, "The keyboard").  No game data is kept in
 this file.
+
+m60_fights.keys was made with steps of /0.06 and gestures of /0.03 (the
+direction let go 0.03 s after the button), which the port's own clock and
+the original's sample alike (docs/HANDOFF.md, "A battle ended by fights
+alone").
 """
 import sys
 

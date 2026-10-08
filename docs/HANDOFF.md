@@ -3160,6 +3160,52 @@ emulation error (2026-10-02).
     `m48_steps` did beyond moving the cursor and opening what its
     button opens (its units' records did not change; not looked at
     which states its views went through).
+  - A battle ended by fights alone (2026-10-09, Windows; `m60_fights`,
+    port/README.md). Map 60 (64 by 32) is the only map with one unit a
+    side: a cavalry (kind 15h) each, at (5,2) and (59,26); its other 73
+    units have 4006h in `unit_flags` (in sites, nobody's) and are
+    counted for neither side. The two cavalries were walked together
+    over 78 halves (side 1 alone for the last ones) and fought in
+    the last five rounds: five fights, each costing both one figure but the
+    last (the first side 1 to 0, the second 2 to 1), and the first
+    side is the one left without units: both views in state 7 with
+    word 22h 12h for the first and 11h for the second, texts 42h and
+    41h in both parts of pass 22903, pictures CDh with 1 and CFh with
+    2 behind the loop. No poke. So the count at `S02E6:1EFC` (hints
+    comment) is reached by play, and the side that loses can be the
+    first; 15h (both without units) was not reached.
+    Learned on the way:
+    - The keys' timing. `side_input` steps the cursor only on a pass
+      where the directions changed or the view's repeat counter (byte
+      2Ch) ran out, and the counter is set from the bytes at 28h, which
+      are 1, 2, 1 here: a direction held over more than one pass
+      (about 55 ms on the original) can step twice, and how often
+      depends on the clock. The gesture of make_two.py let the direction
+      go 0.2 s after the button, which stepped the cursor once or twice
+      more after the menu. With taps of 0.06 s and the direction let go
+      0.03 s after the button (`SxT/H`) a script played the same on the
+      port's own clock and on the original's (checked on the runner to
+      half 7 before the whole run), so the script was found on the
+      port's own clock, about a second a try, and run on the original
+      once. While the button is held every pass counts as a change
+      (word 2Eh keeps 10h with the directions, the test compares
+      without it), so the menu's pointer follows the direction steadily.
+      A tap of 0.05 s was lost once on the port's own clock (taps fall
+      between its calls of the timer's routine there).
+    - A cavalry (classes 32h in byte 5 of its kind) cannot enter a
+      ground whose byte 2 in `ww1gnds_dat` has none of those bits
+      (25h, 2Bh and 2Ch on map 60, a band from (39,18) east); the way
+      round was found with that rule and the ground's byte 3 as cost
+      (`move_costs`), not by `move_range` itself.
+    - A press of the button on a field that is not marked does not take
+      back a move aim (the unit keeps 100h); the gesture was only sent
+      when a field nearer was marked.
+    - The end of a half (button and left) on a site's field goes into
+      the site (state 2); button and right leaves it.
+    - `play_dumps.py` listed only dumps with four digits in
+      `passes.txt`, so in a run of more than 9,999 passes the later
+      ones (the loop's exit among them) were dumped but not compared;
+      fixed with this change.
   - The fights of `attacks_run` (2026-10-07, Linux; `S02E6:0122` to
     `0D48`, `0D63` to `0E9C`, order 1 at `0ED9`, `order_undo`, read and
     translated, `port/src/orders.c` and `move.c`). Learned on the way:

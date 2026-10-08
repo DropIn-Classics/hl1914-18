@@ -2164,3 +2164,126 @@ name S3AE8:0004 script_bits
 ; the button with up, down, left or right and then nothing, and the button
 ; twice.
 name S3AE8:000E script_gestures
+
+; The interrupts' segment S27FE (read 2026-10-08 on the Mac; input_tick,
+; input_side0/1 and key_irq are translated in port/src/input.c and
+; compared through port/tests/play_test.sh, the rest is read only;
+; docs/HANDOFF.md, "The port's program plays a battle by itself" and
+; "The port's own clock").
+; input_install: pit_install, then input_tick is given to the timer with
+; the period 3FFFh (pit_add), S2B9B:000A is called (not read), and
+; interrupt 24h is set to crit_error, the old one kept at S27FE:000E.
+name S27FE:0013 input_install
+; input_remove: interrupt 24h back, then pit_remove.
+name S27FE:0060 input_remove
+; input_tick: the routine the timer calls 72.8 times a second. Counts the
+; word at DATA:0308 game_loop waits by; a key the BIOS has (INT 16h) or the
+; one key_irq left at DATA:0B2B goes into the record at DATA:045C; on
+; every fourth call (DATA:0B19) the joysticks and the mouse are read and
+; the two sides' input records filled (input_side0, input_side1).
+name S27FE:008C input_tick
+; input_side0, input_side1 (SI the five bytes found now, DI those of the
+; call before, BX the counts of holds and gaps, BP the side's record):
+; with the side's joystick switched on the directions and the button come
+; from it, else from the side's table of keys (input_keys).
+name S27FE:0175 input_side0
+name S27FE:020E input_side1
+; input_keys (AX the table of keys, seven bytes a key): the bytes of every
+; key of the table that is held are ORed into the five at SI, the mouse is
+; asked for the record the word at DATA:0418 names (input_mouse), and
+; input_record follows.
+name S27FE:029E input_keys
+; input_record: what was found goes into the record at BP: FFh into byte 8
+; when the button is up, the directions into bytes 0 to 3, FFh into byte 4
+; for the button and into byte 5 for a second press within 19h calls
+; (bytes 6 and 7 keep how far that has come); then the five pairs of
+; counts at BX.
+name S27FE:0320 input_record
+; input_mouse: the mouse's part of a record: its distance from the middle
+; (A0h, 64h) beyond the word at DATA:0420 gives a direction, the word at
+; DATA:0444 the button. Read, not translated, not seen in a run.
+name S27FE:03D4 input_mouse
+; mouse_center: puts the mouse back to the middle (INT 33h, 4) unless a
+; button is held.
+name S27FE:04D0 mouse_center
+; key_irq: interrupt 9. The byte read goes to DATA:0B2B, the key's bit in
+; the 16 bytes at DATA:0B1B is cleared for a key down and set for one up;
+; nothing is passed on to the BIOS.
+name S27FE:04F4 key_irq
+; crit_error: interrupt 24h while the game runs: 2 into the word at
+; DATA:0B17 and AL 0. Found as the vector input_install sets, not seen in
+; a run.
+code S27FE:055C crit_error
+; key_install, key_remove: interrupt 9 to key_irq and back (the old one at
+; S27FE:000A, the byte at S27FE:0012 says it is set).
+name S27FE:056C key_install
+name S27FE:05AB key_remove
+; pit_install: the timer's interrupt 8 goes to pit_irq, which shares the
+; timer's counts out among up to sixteen routines, each with a period of
+; counts (32 bits: the words at DATA:0D1F and 0D3F), what is left of it
+; (0D5F, 0D7F), a far pointer (0DFF) and a flag that it is due (0D9F);
+; DATA:0D1D is the last one's index, 0E47 the shortest period, which the
+; timer is set to. The first routine is pit_bios with the period 10000h.
+name S27FE:0606 pit_install
+; pit_bios: calls the interrupt 8 that was there (DATA:0E43), which counts
+; the BIOS's ticks.
+name S27FE:0692 pit_bios
+; pit_remove: interrupt 8 back and the timer to its full period.
+name S27FE:0699 pit_remove
+; pit_irq: takes the period the timer ran with off what each routine has
+; left; a routine with nothing left is due, gets its period added and is
+; called, the last added first. Then the timer is set to the shortest
+; period when that has changed. So the BIOS's count of ticks, from which
+; clock_seed starts the random numbers, depends on which routines there
+; are: besides input_tick the two of S30EF (presumably the sound's). From
+; the number of input_tick's calls alone the count is found only to within
+; a tick (tried on the logs of three runs: the fraction between the two
+; is another in each run).
+name S27FE:06D2 pit_irq
+; pit_add (DX:AX the routine, CX:BX its period): returns its number in AX.
+; pit_del (AX the number). pit_period (AX the number, CX:BX the new
+; period). Read; pit_del and pit_period's callers were not looked at.
+name S27FE:0783 pit_add
+name S27FE:07E8 pit_del
+name S27FE:0882 pit_period
+
+; retrace_wait: waits until the screen's next vertical retrace begins
+; (8 in the byte read from the port the word at DATA:0AFD names); display_wait until one is over.
+; The waits and the changes of the screen's colours count their steps by
+; these: 70 a second in the runs.
+name S2945:000A retrace_wait
+name S2947:0006 display_wait
+; wait_frames(n): n + 1 calls of retrace_wait.
+name S0CB6:0001 wait_frames
+; wait_input(n): the routine that waits for the player. While the first
+; side's button (byte 4 of the record behind DATA:00A6) is held or the
+; key's word 4 (behind DATA:00BE) is 1 it clears both and waits three
+; frames (wait_frames(3)); then it clears both and waits again in steps
+; of three, n counted down by 3 until it is below 0, as long as neither
+; comes. Returns 1 for the key of entry 0 of the table of keys or when the
+; time ran out, else 0. Seen with 96h after a fight's marks on the
+; map and before its pictures (S131D:1CAE, after six wait_frames(6) and a
+; wait_frames(0Ch); in m8_site ended after 42 steps by a key of the
+; script), and with 50h in attacks_run for a fight without pictures (not
+; seen in a run).
+name S0CB6:0036 wait_input
+; start_setup(far pointer): called once at the program's start (from
+; S066A:0294 on; when, against the menu, was not looked at). Sets the screen's record behind DATA:0092 to
+; 320 by 200, makes two file names (file_name with 0Ah and with 5) and
+; loads and shows them (L2BAA, S28A5:000C: not read), then sets the far
+; pointer to the table of keys S331F:0292 at S331F:02D3 and copies twelve
+; of its entries to S331F:02C7. The port does the last part
+; (start_setup in port/src/battle.c).
+name S1650:0003 start_setup
+; fade_grey(far palette): makes of the 300h bytes of colours a grey of
+; each ((2 * first + second + third) / 4, into the buffer behind
+; S3303:0028) and changes the screen's colours to it in 20h and then 40h
+; steps, a retrace_wait each. game_loop calls it before attacks_run when
+; the side that ends the round has 0 in byte 15h of its record in sides.
+; fade_back(far palette): the way back after attacks_run, 40h and 20h
+; steps. Together 192 retraces, 2.74 s: what a round's end without fights
+; lasts in the runs (pass 291 of m8_site: 96 calls of retrace_wait before
+; attacks_run and 96 after it). The other branch (site_taken 1) calls
+; S28E0:002B and S28E0:0004, 64 steps of S2AFE:000C each (not read).
+name S0E56:21D8 fade_grey
+name S0E56:1F91 fade_back

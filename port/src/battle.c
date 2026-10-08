@@ -142,7 +142,7 @@ int menu_result(uint16_t map)
     return 0;
 }
 
-void (*battle_hook)(uint16_t picture, uint16_t arg);
+void (*battle_hook)(uint16_t picture, uint16_t arg, Far work);
 
 /* S167A:3610 (scores_load): the map's four best scores, dwords at buf,
  * and their names of six bytes from buf + 10h on: zeros and four times
@@ -169,7 +169,8 @@ void scores_load(Far buf, Far work, int16_t map, Far name)
  * units (2000h), the next map and whether this was the last (20h) when a
  * human has won (10h), else no score; a score above the lowest of the
  * map's four best draws a random number, which in three of eight cases
- * chooses a picture (battle_hook; not shown here) */
+ * chooses a picture (battle_hook; its work buffer is where battle_score's
+ * own has been moved on to: 2710h, 3E8h and 32h behind `work`) */
 static void battle_score(Far work)
 {
     Far codes = far_add(work, 0x2710), best = far_add(work, 0x2710 + 0x3E8), name;
@@ -212,7 +213,7 @@ static void battle_score(Far work)
     t = NW(views, 0x22);
     i = (uint16_t)rand_next() & 7;
     if (i < 3 && battle_hook)
-        battle_hook(t == 0x0F || t == 0x11 ? 0xCE : 0xCF, i);
+        battle_hook(t == 0x0F || t == 0x11 ? 0xCE : 0xCF, i, far_add(work, 0x2710 + 0x3E8 + 0x32));
 }
 
 /* game_loop behind its loop, S066A:45E8 to 4728: with 10h in game_state
@@ -224,8 +225,10 @@ static void battle_score(Far work)
  * own after the last, 20h); after the last map 100h is set and 1 and 2
  * cleared, which ends the program with 7Bh; 6030h cleared.  Returns that
  * 7Bh or 0.  The music is faded out first when it is on (S066A:45E8).
- * The pictures are not shown (battle_hook is told each); left out too:
- * fade_out and S2AF3:000A. */
+ * Before the pictures fade_out and unders_restore (S2AF3:000A); left
+ * out: the music's end (S2F39:1058).  battle_hook is told each picture,
+ * which it shows (play.c, events.c), and with AFTER_FADE and
+ * AFTER_SCORE when the fade is done and battle_score begins. */
 uint16_t battle_after(void)
 {
     uint16_t result = 0, gs = NW(game_state, 0);
@@ -233,12 +236,18 @@ uint16_t battle_after(void)
     if (gs & 0x40)
         music_fade(4);
 
+    fade_out();
+    if (battle_hook)
+        battle_hook(AFTER_FADE, 0, game_mem.gfx);
+    unders_restore();
     if (gs & 0x10 && battle_hook)
-        battle_hook(gs & 0x2000 ? 0xCD : 0xD0, NW(views, 0x22) == 0x0F ? 0 : 1);
-    battle_score(game_mem.lists_end);
+        battle_hook(gs & 0x2000 ? 0xCD : 0xD0, NW(views, 0x22) == 0x0F ? 0 : 1, game_mem.gfx);
+    if (battle_hook)
+        battle_hook(AFTER_SCORE, 0, game_mem.gfx);
+    battle_score(game_mem.gfx);
     gs = NW(game_state, 0);
     if (!(NW(game_state, 2) & 2) && (int16_t)NW(map_number, 0) < 0x30 && battle_hook)
-        battle_hook(gs & 0x6000 && !(gs & 0x20) ? NW(map_number, 0) - 1 : NW(map_number, 0), 0);
+        battle_hook(gs & 0x6000 && !(gs & 0x20) ? NW(map_number, 0) - 1 : NW(map_number, 0), 0, game_mem.gfx);
     if (gs & 0x20) {
         result = 0x7B;
         gs = (gs | 0x100) & 0xFFFC;

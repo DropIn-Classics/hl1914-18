@@ -36,6 +36,7 @@ maps from 48 on are for two human sides) up to UNTIL emulated seconds
     066A:42FC  the battle's end (state 7) is about to show its texts
     10AF:009F  show_message has its text's number (AX; DI 0 for the
                first side, A0h for the second)
+    0CB6:0DA9  wait_press is entered (the battle's end's texts shown)
     0CB6:0DE4, 0E30, 0E51  wait_press (S0CB6:0DA9, the battle's end) has
                cleared the first input record's button and the key
     066A:45E8  the loop is left (the battle is over)
@@ -43,6 +44,8 @@ maps from 48 on are for two human sides) up to UNTIL emulated seconds
                side at game_loop's first call, SI the picture at its
                second, DI the argument at battle_score's)
     063F:0009  battle_score; 063F:0277, 027E  it chooses picture CEh, CFh
+    1A39:0BE6, 0EF6, 10AF, 1359  a frame of a picture behind the loop
+               begins (port/src/events.c)
     066A:4728  what follows the loop is done
 
 and writes into build/play/TAG/ (ignored):
@@ -63,7 +66,11 @@ and writes into build/play/TAG/ (ignored):
                 pass's: memory at S066A:45E8, which the port's program
                 has after its last pass; and when S066A:4728 was reached
                 one with the number after that: memory there, behind
-                what follows the loop
+                what follows the loop.  At a battle's end also eN.ram at
+                the N-th entry of wait_press (the texts shown) and
+                fNNNN.ram at the frames 1, 11, 21 ... of the pictures
+                behind the loop, counted over all of them (the port's
+                -evdump)
     passes.txt  their numbers
     ends.txt    a line for each time the battle's end showed its texts
                 and waited: pass, side, the first side's text and the
@@ -171,11 +178,12 @@ R8 = ('0CB6:0799', '0CB6:08DA', '0CB6:0AF5', '0CB6:0C7C')
 R5 = ('0CB6:084D', '0CB6:09C5', '0CB6:0BDA')
 WAITS = ('0CB6:0075', '0CB6:00C1', '0CB6:00E2')
 PRESS = ('0CB6:0DE4', '0CB6:0E30', '0CB6:0E51')
+FRAMES = ('1A39:0BE6', '1A39:0EF6', '1A39:10AF', '1A39:1359')
 RELEASE = ('167A:2FEF', '167A:30B2')
 LOGS = ('27FE:008C', '066A:0EE9', '066A:0FC3', '066A:1003', '0CB6:05F1', '0CB6:0658', '0CB6:0750',
         '066A:10D6', '2C95:0024', '2C95:004A', '02E6:000F', '27FE:04F4', '2C9A:0008',
         '2532:0137', '066A:45E8', '066A:42FC', '10AF:009F',
-        '1A39:0001', '063F:0009', '063F:0277', '063F:027E', '066A:4728') + R8 + R5 + WAITS + PRESS + RELEASE
+        '1A39:0001', '063F:0009', '063F:0277', '063F:027E', '066A:4728', '0CB6:0DA9') + R8 + R5 + WAITS + PRESS + RELEASE + FRAMES
 if menu_keys:
     LOGS += ('167A:130B',)      # a pass of the menu's loop
 
@@ -211,6 +219,9 @@ left = False        # the loop was left
 after = False       # S066A:4728 was reached
 scored = False      # battle_score was called
 pic = None          # the picture battle_score chose
+waits = 0           # wait_press's entries
+frames = []         # the pictures' frames: (address, its hit there)
+local = {}
 for line in open(log):
     m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=(\S+) hit=\d+ regs (.*)', line)
     if not m:
@@ -249,6 +260,13 @@ for line in open(log):
             end[3 if reg('DI') else 2] = reg('AX')
             if None not in end:
                 end = None
+    elif at == '0CB6:0DA9':
+        waits += 1
+        clock.append('%s Q' % t)
+    elif at in FRAMES:
+        local[at] = local.get(at, 0) + 1
+        frames.append((at, local[at]))
+        clock.append('%s F' % t)
     elif at in RELEASE:
         clock.append('%s Y' % t)
     elif at in PRESS:
@@ -316,10 +334,26 @@ def dump(p):
 
 with ThreadPoolExecutor(8) as pool:
     list(pool.map(dump, chosen))
-if left and not os.path.exists(os.path.join(out, 'p%04d.ram' % (passes + 1))):
-    run(['-break', 'S066A:45E8', '-ram', os.path.join(out, 'p%04d.ram' % (passes + 1))])
-if after and not os.path.exists(os.path.join(out, 'p%04d.ram' % (passes + 2))):
-    run(['-break', 'S066A:4728', '-ram', os.path.join(out, 'p%04d.ram' % (passes + 2))])
+# the battle's end: the memory where the loop is left, and behind what
+# follows it; the end's waits and every tenth frame of the pictures
+ends_at = []
+if left:
+    ends_at.append(('S066A:45E8', 'p%04d' % (passes + 1)))
+if after:
+    ends_at.append(('S066A:4728', 'p%04d' % (passes + 2)))
+ends_at += [('S0CB6:0DA9#%d' % (n + 1), 'e%d' % (n + 1)) for n in range(waits)]
+ends_at += [('S%s#%d' % f, 'f%04d' % (n + 1)) for n, f in enumerate(frames) if n % 10 == 0]
+
+
+def dump_at(a):
+    where, name = a
+    path = os.path.join(out, name + '.ram')
+    if not os.path.exists(path):
+        run(['-break', where, '-ram', path] + (['-vram', path[:-4] + '.vram'] if os.environ.get('VRAM') else []))
+
+
+with ThreadPoolExecutor(8) as pool:
+    list(pool.map(dump_at, ends_at))
 have = sorted(int(f[1:5]) for f in os.listdir(out) if re.match(r'p\d{4}\.ram$', f))
 with open(os.path.join(out, 'passes.txt'), 'w') as f:
     f.write(' '.join(str(p) for p in have) + '\n')

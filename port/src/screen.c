@@ -42,7 +42,7 @@ void pointer_erase(Far save)
 }
 
 /* S2945:000A (retrace_wait): until the next vertical retrace begins */
-static void retrace_wait(void)
+void retrace_wait(void)
 {
     uint16_t port = DW(0x0AFD);
 
@@ -337,7 +337,7 @@ void fade_out(void)
 /* S2A62:0008: the colours first to last - 1 to the DAC at step `step` of
  * `steps` from the palette `from` to `to` (300h bytes each, 0 to 255):
  * from + (to - from) * step / steps, a quarter of it */
-static void pal_blend(Far from, Far to, uint16_t first, uint16_t last, int16_t steps, int16_t step)
+void pal_blend(Far from, Far to, uint16_t first, uint16_t last, int16_t steps, int16_t step)
 {
     uint16_t i;
 

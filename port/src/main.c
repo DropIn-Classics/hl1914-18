@@ -4,7 +4,7 @@
  *     history-line [-game DIR | -gog FILE|FOLDER|SETUP.exe] [-map N] [-ram FILE]
  *                  [-keys FILE] [-passes N] [-until T] [-start T] [-seed N]
  *                  [-clock FILE] [-seeds FILE] [-dump N FILE]... [-inputs FILE]
- *                  [-ends FILE] [-keylog FILE] [-poke ADDR HEX]... [-briefdump DIR]
+ *                  [-ends FILE] [-evdump PREFIX] [-keylog FILE] [-poke ADDR HEX]... [-briefdump DIR]
  *                  [-infodump DIR]
  *
  * DIR is the game's unpacked files: -game, else $HISTORY_LINE_GAME, else the first
@@ -53,7 +53,9 @@
  * takes from such a log only what the fights' pictures did to the random
  * numbers; -until ends the play at T seconds of the own clock; -dump writes the memory as -ram does at
  * the beginning of pass N (the video memory when FILE ends in .vram), -inputs what each side's part read, -ends the
- * texts a battle's end showed each time it waited for a press, -keylog
+ * texts a battle's end showed each time it waited for a press, -evdump
+ * the memory and video memory at those waits and at every tenth frame of
+ * the pictures behind the loop (PREFIXeN, PREFIXfNNNN; play.c), -keylog
  * (in the window) the player's keys as a key script that -keys plays the
  * same (play.c, play_keylog), -poke
  * writes the bytes HEX at the linear address ADDR (hex) of the memory
@@ -428,7 +430,7 @@ static int play_game(unsigned long passes, double start, double until, int clock
             uint16_t r = play_after();
 
             for (i = 0; i < dumps_n; i++)
-                if (dumps[i].pass == play_passes + 2 && rm_write(dumps[i].file) != 0)
+                if (dumps[i].pass == play_passes + 2 && dump_write(dumps[i].file) != 0)
                     ok = 0;
             why = r ? "the battle is over, and it was the last (7Bh)" : "the battle is over";
             break;
@@ -580,6 +582,8 @@ int main(int argc, char **argv)
             play_rounds(argv[++i]);
         else if (!strcmp(argv[i], "-ends") && i + 1 < argc)
             play_ends(argv[++i]);
+        else if (!strcmp(argv[i], "-evdump") && i + 1 < argc)
+            play_evdump(argv[++i]);
         else if (!strcmp(argv[i], "-nopics"))
             nopics = 1;
         else if (!strcmp(argv[i], "-saves") && i + 1 < argc)

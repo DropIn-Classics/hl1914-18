@@ -52,7 +52,11 @@
  *       TIME E          S0CB6:0DE4, 0E30, 0E51: wait_press (S0CB6:0DA9, the
  *                       battle's end) has cleared the first record's
  *                       button and the key
+ *       TIME Q          S0CB6:0DA9, wait_press is entered (the battle's
+ *                       end's texts are shown)
  *       TIME L          S066A:45E8, the loop is left
+ *       TIME F          S1A39:0BE6, 0EF6, 10AF, 1359: a frame of a picture
+ *                       behind the loop begins (events.c)
  *       TIME B          S063F:0009, battle_score is called behind the loop
  *       TIME M          S066A:4728, what follows the loop is done
  *   The port's own keys, timer routine and passes are run in that order.
@@ -75,6 +79,7 @@
 #include "hl.h"
 #include "frame.h"
 #include "platform.h"
+#include "vga.h"
 
 #define S_DATA (HL_DATA + HL_BASE)
 #define TICK (0x3FFF / 1193182.0)       /* the timer routine's period, s */
@@ -97,6 +102,17 @@
 #define T_ROUND_END 0.31    /* attacks_run's end to the round's, without pictures or with a site */
 #define T_SITE_FRAMES 1.84  /* site_picture's frames (their number is in its stream) */
 #define T_SITE_BACK 3.04    /* after it: S2F39:1058 and the battle's pictures loaded again */
+#define T_AFTER 0.42      /* the loop's end to event_picture behind its fade_out (music_fade(4), unders_restore; m57_win: 1.125 s against 0.70) */
+/* the pictures behind the loop: their loading and first drawing, from
+ * inputs_release's end to the first frame less what the port counts
+ * (m57_win's CDh, m54_end's D0h, m57_last's CEh) */
+static const double t_ev_load[] = {
+    0.70,   /* EV_LOAD_WON: D0h, 1.24 s */
+    0.76,   /* EV_LOAD_WIPED: CDh, 1.295 s */
+    0.34,   /* EV_LOAD_MEDAL: CEh, CFh, 0.88 s */
+    0.34,   /* EV_LOAD_MEDAL2: CEh's second stream, the gap of 2.44 s between them */
+    2.53,   /* EV_LOAD_MEDAL3: CEh's picture on its background, the last frame to S066A:4728 (9.96 s) */
+};
 #define T_SETUP 2.75        /* the menu's return (S066A:0390) to the loop's first pass (back walk: 20.18 to 22.93 s) */
 
 typedef struct { double t; uint8_t code[2]; int n; long order; } KeyEv;
@@ -467,6 +483,32 @@ void play_rounds(const char *path)
  * and waits (state 7): the pass, the side whose part it is, the first
  * side's text and the second's (hex), and on the port's own clock when the
  * wait began and ended */
+static const char *ev_prefix;   /* -evdump: where the end's screens go */
+static long ev_ends, ev_frames;
+
+/* -evdump PREFIX: the memory and video memory at each battle's end's
+ * wait (PREFIXeN.ram, .vram) and at every tenth frame of the pictures
+ * behind the loop, the first and the 11th and so on, counted over all of
+ * them (PREFIXfNNNN.ram, .vram), as play_dumps.py makes the original's */
+void play_evdump(const char *prefix)
+{
+    ev_prefix = prefix;
+}
+
+static void ev_dump(char kind, long n)
+{
+    char path[1024];
+
+    if (!ev_prefix || (kind == 'f' && n % 10 != 1))
+        return;
+    snprintf(path, sizeof path, kind == 'e' ? "%se%ld.ram" : "%sf%04ld.ram", ev_prefix, n);
+    if (rm_write(path) != 0)
+        fprintf(stderr, "%s: not written\n", path);
+    strcpy(path + strlen(path) - 4, ".vram");
+    if (vga_write_planes(path) != 0)
+        fprintf(stderr, "%s: not written\n", path);
+}
+
 void play_ends(const char *path)
 {
     ends = fopen(path, "w");
@@ -843,6 +885,8 @@ static void clock_run(long to, int round)
         case 'L':
         case 'B':
         case 'M':
+        case 'F':
+        case 'Q':
             break;
         default:
             play_misses++;
@@ -1019,6 +1063,18 @@ static void hook(int at, uint16_t side)
         double t = now;
 
         if (have_clock) {
+            /* up to wait_press's entry, where the dump is the original's */
+            long i;
+
+            for (i = clk_at; i < clk_n && clk[i].kind != 'Q' && clk[i].kind != 'P' && clk[i].kind != 'L'; i++)
+                ;
+            if (i < clk_n && clk[i].kind == 'Q') {
+                clock_run(i, 0);
+                clk_at = i + 1;
+            }
+        }
+        ev_dump('e', ++ev_ends);
+        if (have_clock) {
             /* wait_press's clearings, in the order of the original's
              * timer's routine and keys; the press that ends the wait
              * comes after the last */
@@ -1194,35 +1250,109 @@ void play_sync(void)
     }
 }
 
-static void after_hook(uint16_t picture, uint16_t arg)
+/* the original's clock run on to the next line of a kind in `kinds`
+ * before one of `stop` (taken: past it; else up to the last line of the
+ * kind, kept: before the stop); 0 when there is none */
+static int clock_upto(const char *kinds, const char *stop, int past)
 {
+    long i, last = -1;
+
+    for (i = clk_at; i < clk_n && !strchr(stop, clk[i].kind); i++)
+        if (strchr(kinds, clk[i].kind)) {
+            last = i;
+            if (past)
+                break;
+        }
+    if (last < 0) {
+        play_misses++;
+        return 0;
+    }
+    clock_run(last + !past, 0);
+    clk_at = last + 1;
+    return 1;
+}
+
+/* the pictures behind the loop (events.c) on the port's own clock or the
+ * original's: inputs_release (the log's Y lines up to the first frame),
+ * a frame's beginning (the log up to its F line, so that the timer's
+ * routine has counted what the original's had when the frame's count is
+ * set to 0), the waits (the port's own clock; on the original's they end
+ * at once and the log's calls come at the next frame) */
+static int ev_hook(int at, int n)
+{
+    switch (at) {
+    case EV_RELEASE:
+        if (have_clock)
+            clock_upto("Y", "FBM", 0);
+        else
+            inputs_release(0);
+        return !stopped;
+    case EV_FRAME:
+        if (have_clock)
+            clock_upto("F", "BM", 1);
+        ev_dump('f', ++ev_frames);
+        return 1;
+    case EV_RETRACES:
+        if (have_clock)
+            return 0;
+        own_retraces(n);
+        return !stopped;
+    case EV_FADE:
+        if (!have_clock)
+            own_fade();
+        return 1;
+    case EV_LEVEL:
+        if (!have_clock)
+            own_to(now + PAL_LEVEL);
+        return 1;
+    case EV_BUSY:
+        if (!have_clock)
+            own_busy(t_ev_load[n]);
+        return 1;
+    default:
+        return 1;
+    }
+}
+
+/* battle_after's pictures shown (events.c, with the work buffer their
+ * caller gives and the place 2710h bytes behind it), each told the ends'
+ * file;
+ * the fade before them, battle_score's call (the original's clock run on
+ * to it) */
+static void after_hook(uint16_t picture, uint16_t arg, Far work)
+{
+    if (picture == AFTER_FADE) {
+        if (!have_clock) {
+            own_fade();
+            own_busy(T_AFTER);
+        }
+        return;
+    }
+    if (picture == AFTER_SCORE) {
+        if (have_clock)
+            clock_upto("B", "M", 1);
+        return;
+    }
     if (ends) {
         fprintf(ends, "after %X %X\n", (unsigned)picture, (unsigned)arg);
         fflush(ends);
     }
+    event_hook = ev_hook;
+    event_picture(far_add(work, 0x2710), work, picture, arg);
 }
 
 /* what follows the loop once the battle is over (battle_after); its
- * pictures go into the ends' file as "after KIND ARGUMENT".  On the
- * original's clock the log's lines up to battle_score's call come first,
- * with what the picture before it did to the random numbers, and the
- * rest up to S066A:4728 after (the calls of rand_next there are
- * battle_score's own).  The pictures take no time here. */
+ * pictures are shown (after_hook) and go into the ends' file as "after
+ * KIND ARGUMENT".  On the original's clock the log is run on at the
+ * pictures' frames (ev_hook), to battle_score's call and at the end to
+ * S066A:4728 (the calls of rand_next there are battle_score's own; the
+ * pictures make none). */
 uint16_t play_after(void)
 {
     uint16_t r;
     long i;
 
     battle_hook = after_hook;
-    if (have_clock) {
-        for (i = clk_at; i < clk_n && clk[i].kind != 'B' && clk[i].kind != 'M'; i++)
-            ;
-        if (i < clk_n) {
-            clock_run(i, 1);
-            clk_at = i;
-        } else
-            play_misses++;
-    }
     r = battle_after();
     if (have_clock) {
         for (i = clk_at; i < clk_n && clk[i].kind != 'M'; i++)

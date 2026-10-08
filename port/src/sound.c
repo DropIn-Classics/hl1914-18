@@ -23,6 +23,7 @@
  *
  * The port is the game with both devices found (snd_devices 3).
  */
+#include <stdio.h>
 #include "hl.h"
 
 #define DRV (HL_S30EF + HL_BASE)
@@ -991,4 +992,198 @@ uint16_t snd_init(uint16_t mask)
     SETW(snd_devices, 0, found);
     SETW(snd_started, 0, 1);
     return found;
+}
+
+/* ---- the fight's sounds: what the fight's pictures (S2532) and
+ * attacks_run (S02E6) ask of the routines above.  The pictures keep six
+ * sounds, three a side, in the slots 0 to 2 and 4 to 6 (pics_sounds
+ * loads them, fightpics.c): 0 and 4 what a side's standing figures sound
+ * like, 1 and 5 a figure that begins, 2 and 6 a volley's end.  A slot is
+ * its digital channel; without the Sound Blaster's part (S3303:0022 set)
+ * its AdLib channel is the word at S3AEE:011Fh. */
+#define S_FP (HL_S3AEE + HL_BASE)
+#define FB(o) frb(S_FP, (uint16_t)(o))
+#define FW(o) frw(S_FP, (uint16_t)(o))
+
+/* a test's: each trigger below ("play" the frame, the slot, the volume,
+ * how many times; "side" the frame and the side; "end" the channel;
+ * "blast") */
+void (*snd_fight)(const char *what, uint16_t a, uint16_t b, uint16_t c, uint16_t d);
+
+static int no_digital(void) { return frw(HL_S3303 + HL_BASE, 0x0022) != 0; }
+
+/* S2532:211E (pics_play): the sound of `slot`, if it has one.  The
+ * AdLib's way is read only (S3303:0022 was 0 in every run). */
+void pics_play(uint16_t slot, uint16_t vol, uint16_t times)
+{
+    Far p = far_at(S_FP, (uint16_t)(0x04B4 + slot * 4));
+
+    if (snd_fight)
+        snd_fight("play", FW(0x0680), slot, vol, times);
+    if (!(p.seg | p.off))
+        return;
+    if (!no_digital())
+        dig_play(slot, p, vol, times, FW(0x04A4 + slot * 2));
+    else
+        adl_play(FW(0x011F + slot * 2), p, vol, times);
+    snd_pass();
+}
+
+/* fight_frames, the code before S2532:0F8D: a volley's last frame,
+ * behind volley_end */
+void pics_volley_sound(uint16_t side)
+{
+    pics_play((uint16_t)(side * 4 + 2), 0xFF, 1);
+}
+
+/* fight_frames, S2532:0F8D to 0FB6: the first frame of a figure with 20h in its
+ * record's flags */
+void pics_begin_sound(uint16_t side)
+{
+    pics_play((uint16_t)(side * 4 + 1), 0xFF, 1);
+}
+
+/* fight_frames, S2532:148B to 155F: the byte at S3AEE:04D4h + 7 * side
+ * has changed to n.  64h (the side has no figures): chan_stop with the
+ * side's number, 0 or 1, and not with its slot, 0 or 4, so for the second
+ * side this stops the first side's slot 1; then snd_pass.  Else n of its
+ * figures stand: slot 0 or 4 a thousand times, the volume by their
+ * number, half of it for the second side.  The 64h way is read only: no
+ * run met a side without figures. */
+void pics_side_sound(uint16_t side, uint8_t n)
+{
+    if (n == 0x64) {
+        if (snd_fight)
+            snd_fight("side", FW(0x0680), side, 0, 0);
+        chan_stop(side);
+        snd_pass();
+    } else
+        pics_play((uint16_t)(side * 4), (uint16_t)((int16_t)(n * 0x28 + 0x0F) >> (side & 0x1F)), 0x3E8);
+}
+
+/* fight_pictures, the loops at S2532:0187 and 01A8: its end, the channels 0 to 7 stopped (8 to
+ * 0Bh without the Sound Blaster's part) */
+void pics_sounds_stop(void)
+{
+    uint16_t ch = no_digital() ? 8 : 0, end = no_digital() ? 0x0C : 8;
+
+    for (; ch < end; ch++) {
+        if (snd_fight)
+            snd_fight("end", ch, 0, 0, 0);
+        chan_stop(ch);
+    }
+}
+
+/* attacks_run, S02E6:0B2B: a fight without pictures has destroyed a
+ * unit; before the blasts' loop, with effects on */
+void fight_blast_sound(void)
+{
+    if (snd_fight)
+        snd_fight(NW(game_state, 0) & 0x80 ? "blast" : "blast, effects off", 0, 0, 0, 0);
+    if (NW(game_state, 0) & 0x80) {
+        sfx_play(8, 5, 0xDC, 1, 0x200);
+        snd_pass();
+    }
+}
+
+/* What a frame of fight_frames sounds, found from what the frame left in
+ * memory: fightpics.c does not call the four routines above yet, so this
+ * is called behind each frame instead (pics_hook's PICS_FRAME, main.c)
+ * and goes through the figures' records as the frame did.  It needs what
+ * the frame changed as it was before: the byte at 04D4h + 7 * side (a
+ * figure's record with number 0 that ended clears it, which is seen
+ * here) and, for the second side's figures, the marks at 068Fh as they
+ * were at the frame's beginning (the first side's volleys, which come
+ * later in the frame, change them; the second side's change the first
+ * side's before its figures are gone through).  Not the same as the
+ * original where a record of the third list (the pictures that belong to
+ * no side) ends a volley, which would change the second side's marks
+ * before they are read (told on stderr; not seen), or where a record's
+ * last frame was moved in this frame (flags 1 and 2, an end beyond 2EEh)
+ * and its side's offset at 006Dh is below -1 (not seen). */
+static uint8_t pics_stood[2], pics_marks[7];
+
+static void pics_frame_sounds(void)
+{
+    int16_t frame = (int16_t)FW(0x0680), side;
+    uint16_t i;
+
+    for (side = 2; side >= 0; side--) {
+        Far rec = far_at(S_FP, (uint16_t)(0x06A9 + side * 0x0C));
+        int cleared = 0;
+
+        for (; !(pb(rec, 0) & 0x80); rec.off = (uint16_t)(rec.off + 0x22)) {
+            uint8_t fl = pb(rec, 0), mark;
+            uint16_t di = pb(rec, 1);
+            int16_t start = (int16_t)(pw(rec, 2) + FW(0x006D + side * 2));
+            int16_t end = (int16_t)(pw(rec, 4) + FW(0x006D + side * 2));
+
+            mark = side == 1 && di < 7 ? pics_marks[di] : FB(0x0688 + side * 7 + di);
+            if (start > frame || end < frame || !(mark & fl) || ((fl & 0x40) && FB(0x013B)))
+                continue;
+            if ((fl & 0x10) && end == frame) {
+                if (side == 2)
+                    fprintf(stderr, "pics_frame_sounds: a volley of the third list, the second side's marks not followed\n");
+                pics_volley_sound((uint16_t)side);
+            }
+            if ((fl & 0x20) && frame == start)
+                pics_begin_sound((uint16_t)side);
+            if ((fl & 1) && frame + 1 >= end && side < 2 && !di)
+                cleared = 1;
+        }
+        if (side < 2) {
+            uint8_t now = FB(0x04D4 + side * 7);
+
+            if (now != (cleared ? 0 : pics_stood[side]))
+                pics_side_sound((uint16_t)side, now);
+            pics_stood[side] = now;
+        }
+    }
+    for (i = 0; i < 7; i++)
+        pics_marks[i] = FB(0x068F + i);
+}
+
+/* the pictures' sounds by pics_hook's places (hl.h): what the frames
+ * need kept when the loading is done, a frame's sounds, the channels
+ * stopped at the end */
+void fight_pics_sounds(int at)
+{
+    uint16_t i;
+
+    switch (at) {
+    case PICS_LOADED:
+        pics_stood[0] = FB(0x04D4);
+        pics_stood[1] = FB(0x04DB);
+        for (i = 0; i < 7; i++)
+            pics_marks[i] = FB(0x068F + i);
+        break;
+    case PICS_FRAME:
+        pics_frame_sounds();
+        break;
+    case PICS_END:
+        pics_sounds_stop();
+        break;
+    }
+}
+
+/* attacks_run's effect by orders_hook's places (hl.h): the blasts' loop
+ * of a fight without pictures runs only when a unit was destroyed, and
+ * the effect comes before its first turn */
+void fight_orders_sounds(int at, int n)
+{
+    static int due;
+
+    switch (at) {
+    case ORDERS_FIGHT:
+        due = !n;
+        break;
+    case ORDERS_BLAST:
+        if (due)
+            fight_blast_sound();
+        due = 0;
+        break;
+    case ORDERS_FOUGHT:
+        due = 0;
+        break;
+    }
 }

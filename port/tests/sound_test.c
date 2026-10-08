@@ -1,12 +1,13 @@
 /* sound_test.c - the sound's routines (port/src/sound.c) against the
  * original.
  *
- *     sound_test (init|play|dig|pass|stop|tick|mstart|mfade|mvol|ftick) SS:SP AX ENTRY.ram EXIT.ram [...]
+ *     sound_test (init|play|dig|pass|stop|tick|mstart|mfade|mvol|ftick|pics) SS:SP AX ENTRY.ram EXIT.ram [...]
  *
  * Each set of five is one call in HL.EXE: which routine (snd_init,
  * sfx_play, dig_play,
  * snd_pass, chan_stop, adl_tick, music_start, music_fade, music_volume,
- * fade_tick), SS:SP at its entry, AX at its
+ * fade_tick, the fight's pictures' pics_play, which has no result;
+ * port/tests/fsound_dumps.py makes its dumps), SS:SP at its entry, AX at its
  * end (hex), dosrun's -ram dump at the entry and the one at the routine's
  * end (port/tests/sound_dumps.py makes them and the argument list).  The
  * arguments are read from the stack of the first dump; after the port's
@@ -37,6 +38,10 @@
  * the port does not have the timer's tables) is taken from the original
  * and not judged.  fade_tick has no result.  music_start's copy of the
  * count of ticks (S30EF:0232) may be lower by the ticks that came in.
+ * Where digital channels play at the original's end (snd_pass behind a
+ * dig_play, the fight's pictures), the mixer has run there (dig_kick),
+ * which the port does not have: what it writes (is_mixer below) is
+ * counted and not judged.
  * port/tests/sound_test.sh builds this.
  */
 #include <stdio.h>
@@ -93,6 +98,25 @@ static int is_due(unsigned off)
     return off >= 8 && off < 0x22A && (off - 8) % 0x2A >= 0x1E && (off - 8) % 0x2A < 0x22;
 }
 
+/* what the mixer writes (dig_kick from snd_pass while digital channels
+ * play, dig_irq; not translated): its two buffers of 400h bytes with
+ * their headers of 8 bytes and the place they are moved to (S30EF:049B
+ * to 10B6), dig_irq's two flags (0496, 0499: which buffer plays),
+ * dig_mix's two sums (10C3, 10C5) and of a digital channel the place it
+ * has reached (the count of steps at +10h) and how often it is still
+ * played (+4, counted down when it begins again) */
+static unsigned mixed;
+
+static int is_mixer(unsigned off)
+{
+    if ((off >= 0x0496 && off < 0x10B7) || (off >= 0x10C3 && off < 0x10C7))
+        return 1;
+    if (off < 8 || off >= 8 + 8 * 0x2A)
+        return 0;
+    off = (off - 8) % 0x2A;
+    return (off >= 0x10 && off < 0x12) || (off >= 4 && off < 6);
+}
+
 /* the call of set i from the entry's memory, `pre` interrupts of the
  * timer before it and `post` behind it */
 static int16_t call(char **argv, int i, unsigned ss, unsigned sp, unsigned pre, unsigned post, int *has_r)
@@ -126,6 +150,9 @@ static int16_t call(char **argv, int i, unsigned ss, unsigned sp, unsigned pre, 
     else if (!strcmp(argv[i], "pass")) {
         snd_pass();
         *has_r = 0;
+    } else if (!strcmp(argv[i], "pics")) {
+        pics_play(frw(s, arg), frw(s, (uint16_t)(arg + 2)), frw(s, (uint16_t)(arg + 4)));
+        *has_r = 0;
     } else if (!strcmp(argv[i], "tick")) {
         adl_tick();
         *has_r = 0;
@@ -148,9 +175,15 @@ static unsigned drv_diff(uint32_t drv, uint32_t k, unsigned *due, int show)
     unsigned off, n = 0;
 
     *due = 0;
+    mixed = 0;
     for (off = 0; off < DRV_END; off++) {
         if (mem[drv + off] == leave[drv + off])
             continue;
+        /* digital channels play at the original's end: the mixer ran */
+        if ((leave[drv + A_dig_count] | leave[drv + A_dig_count + 1]) && is_mixer(off)) {
+            mixed++;
+            continue;
+        }
         if (k && is_due(off)) {
             ++*due;
             continue;
@@ -171,7 +204,7 @@ int main(int argc, char **argv)
     int i, bad = 0, calls = 0, between = 0;
 
     if (argc < 6 || (argc - 1) % 5) {
-        fprintf(stderr, "usage: sound_test (init|play|dig|pass|stop|tick|mstart|mfade|mvol|ftick) SS:SP AX ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: sound_test (init|play|dig|pass|stop|tick|mstart|mfade|mvol|ftick|pics) SS:SP AX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     snd_opl = opl_count;
@@ -251,6 +284,10 @@ int main(int argc, char **argv)
         printf("%s %s: ", argv[i], argv[i + 3]);
         if (!strcmp(argv[i], "play"))
             printf("effect %u on channel %u, ", frw(s, (uint16_t)(arg + 2)), frw(s, arg));
+        if (!strcmp(argv[i], "pics"))
+            printf("slot %u, volume %u, %u times, ", frw(s, arg), frw(s, (uint16_t)(arg + 2)), frw(s, (uint16_t)(arg + 4)));
+        if (!strcmp(argv[i], "stop"))
+            printf("channel %u, ", frw(s, arg));
         if (!strcmp(argv[i], "mstart"))
             printf("fade %u, volume %u, ", frw(s, (uint16_t)(arg + 4)), frw(s, (uint16_t)(arg + 6)));
         if (!strcmp(argv[i], "mfade"))
@@ -264,6 +301,8 @@ int main(int argc, char **argv)
                k ? ", ticks came in" : "");
         if (pre || post)
             printf(", %u ticks %s the call", pre + post, pre ? "before" : "behind");
+        if (mixed)
+            printf(", %u bytes of the mixer's not judged", mixed);
         printf("\n");
         if ((!init && d_drv) || (has_r && (uint16_t)r != ax))
             bad++;

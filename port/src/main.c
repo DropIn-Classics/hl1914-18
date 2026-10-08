@@ -322,6 +322,62 @@ static void mus_logged(int out, uint16_t a, uint16_t b, int16_t r)
             (unsigned long)((uint32_t)NW(game_state, 0x15) << 16 | NW(game_state, 0x13)));
     fflush(mus_log);
 }
+
+/* The fight's sounds (sound.c) from the places fightpics.c and orders.c
+ * call their hooks at, before what play.c has set there; play_begin sets
+ * the hooks anew, so this is done behind it. */
+static void (*pics_kept)(int at);
+static void (*orders_kept)(int at, int n);
+/* -fxlog FILE: each of the fight's sound triggers (sound.c, snd_fight)
+ * as port/tests/fsound_dumps.py writes the original's, and "fight N"
+ * when the N-th fight's pictures are loaded */
+static FILE *fx_log;
+static int fx_fights;
+
+static void fx_logged(const char *what, uint16_t a, uint16_t b, uint16_t c, uint16_t d)
+{
+    if (!strcmp(what, "play"))
+        fprintf(fx_log, "play %u %u %u %u\n", a, b, c, d);
+    else if (!strcmp(what, "side"))
+        fprintf(fx_log, "side %u %u\n", a, b);
+    else if (!strcmp(what, "end"))
+        fprintf(fx_log, "end %u\n", a);
+    else
+        fprintf(fx_log, "%s\n", what);
+    fflush(fx_log);
+}
+
+static void pics_sounded(int at)
+{
+    if (at == PICS_LOADED && fx_log) {
+        fprintf(fx_log, "fight %d\n", ++fx_fights);
+        fflush(fx_log);
+    }
+    fight_pics_sounds(at);
+    if (pics_kept)
+        pics_kept(at);
+    else if (at == PICS_SEED)
+        clock_seed_bios();
+}
+
+static void orders_sounded(int at, int n)
+{
+    fight_orders_sounds(at, n);
+    if (orders_kept)
+        orders_kept(at, n);
+}
+
+static void fight_sounds_wire(void)
+{
+    if (pics_hook != pics_sounded) {
+        pics_kept = pics_hook;
+        pics_hook = pics_sounded;
+    }
+    if (orders_hook != orders_sounded) {
+        orders_kept = orders_hook;
+        orders_hook = orders_sounded;
+    }
+}
 static struct { unsigned long at; const char *hex; } pokes[16];
 static int pokes_n;
 static struct { unsigned long pass; const char *file; } menu_dumps[8];
@@ -406,6 +462,7 @@ static int play_game(unsigned long passes, double start, double until, int clock
     if (!passes)
         passes = 1000000;
     play_begin(start);
+    fight_sounds_wire();
     dumps_ok = 1;
     if (nopics)
         SETB(no_fight_pics, 0, 1);
@@ -602,6 +659,11 @@ int main(int argc, char **argv)
             snd_log = fopen(argv[++i], "w");
             if (snd_log)
                 snd_played = snd_logged;
+        }
+        else if (!strcmp(argv[i], "-fxlog") && i + 1 < argc) {
+            fx_log = fopen(argv[++i], "w");
+            if (fx_log)
+                snd_fight = fx_logged;
         }
         else if (!strcmp(argv[i], "-muslog") && i + 1 < argc) {
             mus_log = fopen(argv[++i], "w");

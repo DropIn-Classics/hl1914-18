@@ -24,7 +24,9 @@ Compared:
     data with the items' rectangles and choices.
 
   * video memory at the passes menu_dumps.py kept the original's at: the
-    page drawn and the page shown (with the mouse's pointer).
+    page drawn and the page shown (with the mouse's pointer); and at
+    each screen of the saved game's question (askN.vram, the port's
+    -askvram).
 
 Exit status 0 when the order is the same and no byte differs.
 """
@@ -111,16 +113,19 @@ if os.path.exists(os.path.join(out, 'end.ram')):
 # (from A7E8:0004 on the original's start, whose part before the menu is
 # not translated, has left what the port's has not)
 shots = open(os.path.join(out, 'shots.txt')).read().split() if os.path.exists(os.path.join(out, 'shots.txt')) else []
-for t in shots:
-    v = open(os.path.join(out, 'shot%s.vram' % t), 'rb').read()
-    pv = os.path.join(out, 'port%s.vram' % t)
+asks = int(open(os.path.join(out, 'asks.txt')).read()) if os.path.exists(os.path.join(out, 'asks.txt')) else 0
+for what, vf, pf in [('at %5s s' % t, 'shot%s.vram' % t, 'port%s.vram' % t) for t in shots] + \
+        [('at screen %d of the saved game\'s question' % k, 'ask%d.vram' % k, 'portask%d.vram' % k)
+         for k in range(1, asks + 1)]:
+    v = open(os.path.join(out, vf), 'rb').read()
+    pv = os.path.join(out, pf)
     if not os.path.exists(pv):
-        print('  video memory at %s s: the port wrote none' % t)
+        print('  video memory %s: the port wrote none' % what)
         bad += 1
         continue
     w = open(pv, 'rb').read()
     d = [i >> 2 for i in range(len(v)) if v[i] != w[i]]
     pages = len([o for o in d if o < 0x8000 and o % 0x4000 < 200 * 80])
-    print('  video memory at %5s s: %d bytes differ in the two pages, %d behind them' % (t, pages, len(d) - pages))
+    print('  video memory %s: %d bytes differ in the two pages, %d behind them' % (what, pages, len(d) - pages))
     bad += bool(pages)
 sys.exit(1 if bad else 0)

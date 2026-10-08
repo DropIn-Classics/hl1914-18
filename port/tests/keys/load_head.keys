@@ -1,0 +1,5 @@
+# MISC, LOAD and the digit 1 with a file of ten bytes (0 and 7 are there, the rest of the header is what the first side's work buffer held; no block read);
+# port/tests/save_test.sh makes the file from the saved game of m48_save.
+# The F1 pair then asks for the round's end.
+34.00 f1
+35.00 f1

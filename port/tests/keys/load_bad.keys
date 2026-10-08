@@ -1,0 +1,5 @@
+# MISC, LOAD and the digit 0 with a file whose second byte is not 7 (load_game gives it up after the header: the menu's map 0 from its beginning);
+# port/tests/save_test.sh makes the file from the saved game of m48_save.
+# The F1 pair then asks for the round's end.
+34.00 f1
+35.00 f1

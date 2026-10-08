@@ -291,7 +291,7 @@ static uint32_t bios_now(void)
     return (uint32_t)((tm->tm_hour * 3600L + tm->tm_min * 60L + tm->tm_sec) * (1193182.0 / 65536.0));
 }
 
-#define DUMPS 64
+#define DUMPS 512
 static struct { unsigned long pass; const char *file; } dumps[DUMPS];
 static int dumps_n;
 static int nopics;      /* -nopics: the fights are not shown as pictures */
@@ -591,6 +591,11 @@ int main(int argc, char **argv)
 
             menu_shot(at, argv[++i]);
         }
+        else if (!strcmp(argv[i], "-askvram") && i + 2 < argc) {
+            int k = atoi(argv[++i]);
+
+            menu_ask_shot(k, argv[++i]);
+        }
         else if (!strcmp(argv[i], "-menudump") && i + 2 < argc && menu_dumps_n < 8) {
             menu_dumps[menu_dumps_n].pass = strtoul(argv[++i], NULL, 0);
             menu_dumps[menu_dumps_n++].file = argv[++i];
@@ -606,7 +611,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
                             "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-keylog FILE] [-poke ADDR HEX]... [-dump N FILE]...\n"
-                            "       [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]...\n"
+                            "       [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]... [-askvram N FILE]...\n"
                             "With -keys and no -map the program begins at the menu (at -start seconds).\n");
             return 2;
         }

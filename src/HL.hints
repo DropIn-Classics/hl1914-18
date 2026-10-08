@@ -936,6 +936,18 @@ name S1273:0005 save_game
 ; of its word 2 was not set before the blocks were read (no music, no
 ; effects on this machine); 0. game_loop ignores the result, loads the
 ; grounds and the battle's pictures again and clears 200h.
+; What a damaged file does follows from that and was seen in runs and
+; compared with the port's (port/tests/save_test.sh, load_bad, load_cut,
+; load_head, load_none; the state the same at every pass dumped): a file
+; whose second byte is not 7 leaves the menu's map as the setup made it
+; but for the 1Bh bytes read into the first side's work buffer, and the
+; battle of that map begins; so does an empty file here (no byte read,
+; the test is of what the buffer held, which was not 0 and 7 in the run);
+; a file that ends inside the header but has the 0 and the 7 gets the
+; rest of the header's fields from what the buffer held and no block; a
+; file that ends inside a block gives the blocks before it and that
+; block's beginning (file_read's result is not looked at), the rest
+; stays the setup's. No text is shown in any of these cases.
 name S1273:0399 load_game
 ; view_dim(side): the 9 by 7 fields of the side's view, as view_draw
 ; places them, each through mark_blit(x, y, 0, 5Fh, 90h): the view made
@@ -3061,6 +3073,31 @@ name S292E:000A pixel_put
 ; right, a button, a click on a flag): the first means map 18h. The
 ; saved game's digit (S167A:1780) goes to word 6 of game_state and sets
 ; 200h when the file file_name(2, -1, two digits, 5) is there.
+; That branch read whole (S167A:1780 to 1BED; translated, saved_game in
+; port/src/menu.c): the first picture drawn over the page and on it the
+; texts at C0h (line 6, the page's name) and E0h to 140h (lines 37h, 50h,
+; 69h, 82h: the question and "0 - 9"), page_flip, page_copy, pointer_to(
+; 122h, B5h); the key's word 4, both sides' byte 4 and the mouse's words
+; 30h and 34h cleared, key_remove (S167A:1929). Its loop (S167A:192E) has
+; no wait: a side's button or one of the mouse's two words leaves it; a
+; key of the BIOS's with the letter 30h to 39h is the number (word 6 of
+; game_state, site_taken's word in a battle) and one whose scancode is
+; entry 0 of the table of keys leaves it; every other key is passed over.
+; The keys being the BIOS's meanwhile, a side's key for its button does
+; not leave it (seen: space did nothing, Esc left). Then pointer_off,
+; key_install, the picture again, and with a number: the file's name as
+; load_game makes it, the word behind DATA:0096 0, file_open with 0; a
+; file there is closed, 200h set, the loop's flag ([BP-38h]) cleared and
+; fade_out called: the menu returns and game_loop loads it. Only that the
+; file can be opened is asked, not what it holds. Without the file
+; (S167A:1AD9) the texts at 160h and 180h (lines 50h and 69h: not found),
+; page_flip, page_copy, pointer_to, wait_frames(32h), inputs_release(1,
+; 1), which waits for a key or button (seen: the text stayed three
+; seconds until a key came), the picture again; the word behind DATA:0096
+; back to 1; page_draw and inputs_release(1, 0) in every case. Compared
+; with the port's (port/tests/menu_test.sh, the walk noload: what came
+; in, memory at the menu's return and video memory at the question's
+; three and the text's two screens, no byte different in the pages).
 ; After a battle with a score (S167A:078E) above the lowest of the map's
 ; four best the winner's name is typed (text_input into the text at 80h)
 ; and file_save writes the 28h bytes; the map is word 0Fh of game_state.

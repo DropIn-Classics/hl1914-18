@@ -372,6 +372,7 @@ void pointer_erase(Far save);
 extern const char *menu_stopped;
 void menu_log_to(const char *path);
 void menu_shot(double at, const char *file);
+void menu_ask_shot(int n, const char *file);
 void inputs_release(int wait);
 void text_mid_uncut(int16_t y, Far text, Far font, uint16_t base, int16_t gap);
 int menu_run(Far place);

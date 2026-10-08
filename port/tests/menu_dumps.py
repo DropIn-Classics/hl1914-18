@@ -20,6 +20,11 @@ the menu N times.  The walks (default: all):
              the program ends (S066A:4739); a second run is stopped where
              the end calls its last routine (input_remove, S27FE:0060)
              and its memory kept too (end.ram)
+    noload   MISC, LOAD and the digit 5 with no saved game there: the
+             text that it was not found, left by the button's key; LOAD
+             again, a letter, the backspace and the button's key (none of
+             them is taken), Esc (the question left); LOAD and the digit
+             0, not found again; then the main menu and as code57
     back     as code57, then in the battle Esc and the key that confirms
              (the battle is over, the menu again), START once more: the
              menu's second return
@@ -35,6 +40,11 @@ Written into build/menu/WALK/ (ignored):
     exit.ram   memory at the menu's last return
     shotT.vram video memory at the beginning of the first pass of the
                menu's loop at or after second T (shots.txt: the T's)
+    askN.vram  video memory at the N-th screen of the saved game's
+               question, as they come: the question drawn (S167A:1929,
+               where key_remove is called before its loop) or the text
+               that the file was not found (S167A:1B5A, before its wait);
+               asks.txt: how many
 
 No game data is kept in this file.
 """
@@ -77,6 +87,11 @@ WALKS = {
                (50, 'space'), (53, 'esc')] + code57(55), 1, 70, [9, 13, 25, 27, 34, 38, 46, 63]),
     'back': (code57(10) + [(30, 'esc'), (32, 'z'), (50, 'space')], 2, 60, [45]),
     'exit': ([(10, 'esc'), (12, 'space')], 1, 20, [11]),
+    'noload': ([(10, 'down'), (11, 'down'), (12, 'down'), (13, 'down'), (14, 'space'), (16, 'down'), (17, 'space'),
+                (19, '5'), (22, 'space'), (25, 'space'), (26, 'a'), (27, 'backspace'), (28, 'space'), (30, 'esc'),
+                (33, 'space'), (35, '0'), (38, 'space'), (40, 'esc')] + code57(42), 1, 58, [15, 23.5, 31.5, 39.5, 41]),
+    # (no pass kept after the code is typed here: text_input shows the other page every pass, so which
+    # of the two has the pointer afterwards depends on how many passes the typing took)
 }
 
 for walk in sys.argv[1:] or sorted(WALKS):
@@ -89,16 +104,20 @@ for walk in sys.argv[1:] or sorted(WALKS):
     a = ['-key', '3', 'enter', '-key', '6', 'enter']
     for t, k in keys:
         a += ['-key', str(t), k]
-    a += ['-log', 'S167A:130B', '-log', 'S066A:0390', '-until', str(until),
+    a += ['-log', 'S167A:130B', '-log', 'S066A:0390', '-log', 'S167A:1929', '-log', 'S167A:1B5A', '-until', str(until),
           '-break', 'S066A:0390#%d' % times, '-ram', os.path.join(out, 'exit.ram')]
     r = subprocess.run(['python3', KIT] + a + ['HL.EXE'], capture_output=True, text=True, cwd=out)
     open(os.path.join(out, 'log.txt'), 'w').write(r.stdout + r.stderr)
     acts, start, exits = [], None, []
     left = list(shots)      # the pass of the loop each shot's second falls to
     at = []
+    asks = []               # (address, hit) of each screen of the saved game's question
     for line in (r.stdout + r.stderr).split('\n'):
         m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=(\S+) hit=(\d+) regs .*?AX=([0-9A-F]{4})', line)
         if not m:
+            continue
+        if m.group(1) in ('167A:1929', '167A:1B5A'):
+            asks.append((m.group(1), int(m.group(3))))
             continue
         if m.group(1) == '167A:130B' and left and float(m.group(2)) >= left[0]:
             at.append((left.pop(0), int(m.group(3))))
@@ -118,6 +137,10 @@ for walk in sys.argv[1:] or sorted(WALKS):
     for t, n in at:
         subprocess.run(['python3', KIT] + a[:a.index('-log')] + ['-until', str(until), '-break', 'S167A:0D3C#%d' % n,
                        '-vram', os.path.join(out, 'shot%s.vram' % t)] + ['HL.EXE'], capture_output=True, text=True, cwd=out)
+    for i, (ad, n) in enumerate(asks):
+        subprocess.run(['python3', KIT] + a[:a.index('-log')] + ['-until', str(until), '-break', 'S%s#%d' % (ad, n),
+                       '-vram', os.path.join(out, 'ask%d.vram' % (i + 1))] + ['HL.EXE'], capture_output=True, text=True, cwd=out)
+    open(os.path.join(out, 'asks.txt'), 'w').write('%d\n' % len(asks))
     if walk == 'exit':
         subprocess.run(['python3', KIT] + a[:a.index('-log')] + ['-until', str(until), '-break', 'S27FE:0060',
                        '-ram', os.path.join(out, 'end.ram')] + ['HL.EXE'], capture_output=True, text=True, cwd=out)

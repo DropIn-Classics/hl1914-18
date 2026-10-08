@@ -1927,8 +1927,13 @@ name S10E1:0F82 move_target
 ;   word 0Eh.
 ; - 1: the unit on the field (byte 1) goes into the mover's own row and
 ;   gets 4200h, the mover takes the field (text 43h with 20h in the other
-;   unit's word 6, else 44h). No routine read so far writes kind 1 to
-;   move_rec; presumably not reached (not checked).
+;   unit's word 6, else 44h). Not reachable (2026-10-08): only move_target
+;   and move_arrive take move_rec's address (180Fh), the program names
+;   none of its bytes 0Ch to 0Eh directly, and move_target stores 3, 2, 4
+;   and 5 there and nothing else; byte 13h of a unit is written with a
+;   value from elsewhere only by S0AE0 (9, 0Bh, 0Dh, 11h) and by a loaded
+;   saved game; the map's units are made by unit_add. The word writes at
+;   offset 12h of records were not each followed to their record.
 ; Read.
 name S10E1:0AF0 move_arrive
 ; field_dir(from, to): the direction of a neighbouring field as map
@@ -1941,7 +1946,11 @@ name S10E1:144C field_dir
 ; off the map, 1 puts the other unit back on the field with its flags and
 ; empties the place in the mover's row. Clears 1 in unit_marks, 4200h in
 ; unit_flags and byte 13h. attacks_run calls it for a unit that is to be
-; freed (4 and 1 in unit_marks) and for the units in such a carrier. Read.
+; freed (4 and 1 in unit_marks) and for the units in such a carrier. Read;
+; seen once (m48_undo: a unit destroyed by a fight in the half it was
+; ordered to a free field, kind 3; a breakpoint here, AX the unit) and
+; compared with the port's translation there. Kinds 1, 2, 4 and 5 and the
+; call for a carrier's units not reached.
 name S10E1:1514 order_undo
 ; row_count(side, record, used): how many of the seven places of the
 ; side's row hold a unit (used not 0) or are free. Read.

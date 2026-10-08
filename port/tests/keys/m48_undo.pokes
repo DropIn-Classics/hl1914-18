@@ -1,0 +1,6 @@
+# m48_undo: m48_build's first four rounds with the second side's unit 14h
+# left with one figure when the first pass begins (unit_count is byte 2 of
+# a unit's 1Ah-byte record, 14h * 1Ah = 208h).  Not the game's own doing:
+# a poke, so that the first side's attack in round 4 destroys the unit the
+# second side has ordered to move in the same half (order_undo).
+unit_count+208 01

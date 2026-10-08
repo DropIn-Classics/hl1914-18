@@ -458,10 +458,14 @@ static void rec_unit(uint16_t which, uint8_t u, uint16_t field, Far map)
 }
 
 /* S02E6:208E's blasts counted down and the fields put back (the loop at
- * S02E6:0B61, when the fights are not pictures; what it draws is left
- * out): each turn every blast whose byte 2 is not negative counts down,
- * and one that goes below 0 gets its field's two bytes back */
-static void blasts_run(Far map)
+ * S02E6:0B61, when the fights are not pictures): each turn every blast
+ * whose byte 2 is not negative counts down, and one that goes below 0
+ * gets its field's two bytes back and is drawn again (field_draw); a
+ * page shown each turn.  Left out: S02E6:225C, called for a blast below
+ * blast_time (presumably its picture; not read), and the waits. */
+static void maps_swap(void);
+
+static void blasts_run(Far map, uint16_t m)
 {
     int active;
 
@@ -480,10 +484,21 @@ static void blasts_run(Far map)
             active++;
             SETB(blasts, b + 2, t - 1);
             if (t - 1 < 0) {
+                uint8_t st = NB(views, m * VIEW_SIZE + 0x17);
+
                 pwb(map, NW(blasts, b), NB(blasts, b + 3));
                 pwb(map, (uint16_t)(NW(blasts, b) + 1), NB(blasts, b + 5));
+                /* the field drawn again with the view's state 0 and the
+                 * maps exchanged */
+                SETB(views, m * VIEW_SIZE + 0x17, 0);
+                maps_swap();
+                field_draw(m, NW(blasts, b));
+                maps_swap();
+                SETB(views, m * VIEW_SIZE + 0x17, st);
             }
         }
+        page_flip();
+        page_copy();
     } while (active);
 }
 
@@ -516,14 +531,64 @@ static void exp_add(uint8_t u, uint8_t n)
     SETB(units, u * UNIT_SIZE + 1, e > 6 ? 6 : e);
 }
 
+/* map_ptr and map2_ptr exchanged */
+static void maps_swap(void)
+{
+    Far a = far_at(S_map_ptr, A_map_ptr), b = far_at(S_map2_ptr, A_map2_ptr);
+
+    fww(S_map_ptr, A_map_ptr, b.off);
+    fww(S_map_ptr, (uint16_t)(A_map_ptr + 2), b.seg);
+    fww(S_map2_ptr, A_map2_ptr, a.off);
+    fww(S_map2_ptr, (uint16_t)(A_map2_ptr + 2), a.seg);
+}
+
+/* bytes 0Fh and 10h (each side's picture) of all units exchanged */
+static void pics_swap(void)
+{
+    uint16_t u;
+
+    for (u = 0; u <= 0xF0; u++) {
+        Far unit = unit_at((uint8_t)u);
+        uint8_t b = pb(unit, 0x0F);
+
+        pwb(unit, 0x0F, pb(unit, 0x10));
+        pwb(unit, 0x10, b);
+    }
+}
+
+/* the mark of the field of unit u for side a taken off, and that of its
+ * other half for a two-part unit (the next unit with 80h, else the one
+ * before) */
+static void fight_unmark(uint8_t u, uint16_t a)
+{
+    int k;
+
+    for (k = 0; k < 2; k++) {
+        int16_t f = (int16_t)((int16_t)(NW(unit_pos, u * UNIT_SIZE + 2 * a) - 1) >> 1);
+        int16_t w = (int16_t)NW(map_width, 0);
+
+        SETB(field_bits, (uint16_t)((f / w) * 64 + f % w), 0);
+        if (k || !(NW(units, u * UNIT_SIZE + 4) & 0x40))
+            break;
+        u = (uint8_t)(NW(units, u * UNIT_SIZE + 4) & 0x80 ? u + 1 : u - 1);
+    }
+}
+
+/* word 1Ch of the screen's record behind DATA:0092 (pages_set reads it) */
+static void screen_word_1c(uint16_t v)
+{
+    Far r = far_at(HL_DATA + HL_BASE, 0x0092);
+
+    fww(r.seg, (uint16_t)(r.off + 0x1C), v);
+}
+
 /* S02E6:0122 to 0D48: side a's attacks, one a unit of its list (far
  * pointer at 11h of its `sides` record, their number in byte 15h); m is
- * the other side, map side a's.  Left out: what is drawn and played and
- * waited for (unit_panel but their show_message, the
- * view drawn on the attacker's field with the maps and the units' bytes
- * 0Fh and 10h exchanged and given back, fight_panel's and fight_show's
- * pictures, pictures_load (but for the digit the one at S02E6:19B8
- * writes last) and S02E6:3484 after a fight picture). */
+ * the other side, map side a's.  Drawn as the original draws (the view,
+ * the panels, fight_panel, the blasts); left out: what is played and
+ * waited for (the port's clock, play.c, through orders_hook), the
+ * fight's pictures (fight_pictures, S2532:0008), S2AF3:000A and
+ * S02E6:225C. */
 static void fights_run(uint16_t a, uint16_t m, Far map)
 {
     Far list = far_at(S_sides, (uint16_t)(A_sides + a * SIDE_SIZE + 0x11));
@@ -562,29 +627,61 @@ static void fights_run(uint16_t a, uint16_t m, Far map)
         fww(S_fight_rec, (uint16_t)(A_fight_rec + 0x38), NW(game_state, 0) & 0x80 ? 1 : 0);
         field = (uint16_t)(((int16_t)field >> 1) << 1);
 
-        /* the attacker's view put on its field (drawn with the other
-         * side's map; the marks set meanwhile are cleared again) */
+        /* S02E6:04D0 to 0835: the attacker's view put on its field and
+         * drawn with the maps exchanged, every field marked but the two
+         * units' (both halves of a two-part one) and the units' bytes 0Fh
+         * and 10h exchanged meanwhile; then the two units' panels */
+        maps_swap();
+        for (i = 0; i < 0x1104; i++)
+            SETB(field_bits, i, m ? 0x80 : 0x40);
+        fight_unmark(u, a);
+        fight_unmark(t, a);
+        pics_swap();
         view_to_field(m, field);
+        view_draw(NW(views, m * VIEW_SIZE + 2), m);
+        marks_draw(NW(views, m * VIEW_SIZE + 2), m);
+        pics_swap();
+        maps_swap();
         field_bits_clear(0xFF);
-        show_message(0xFFFF, m);        /* the two units' panels */
-        show_message(0xFFFF, a);
+        unit_panel(t, m);
+        unit_panel(u, a);
+        page_flip();
+        page_copy();
+        screen_word_1c(0);
+        pages_set();
+        page_flip();
 
-        /* the losses: fight_show or fight_panel (both set fight_rec_ptr,
-         * fight_show also keeps the counts before and after) */
+        /* the losses: fight_panel, and with pictures fight_show (it keeps
+         * the counts before and after and draws the pictures, S2532:0008:
+         * not translated), then pictures_load and libs_start again */
         fww(S_fight_rec_ptr, A_fight_rec_ptr, A_fight_rec);
         fww(S_fight_rec_ptr, (uint16_t)(A_fight_rec_ptr + 2), S_fight_rec);
         if (orders_hook)
             orders_hook(ORDERS_FIGHT, pictures);
         fought = 1;     /* [BP-0Eh], S02E6:08F5 */
         if (pictures) {
+            Far rec = { S_fight_rec, A_fight_rec }, p;
+
+            fight_panel(rec, 1);
             fwb(S_fight_rec_ptr, 0x0F, NB(unit_count, u * UNIT_SIZE));
             fwb(S_fight_rec_ptr, 0x0E, NB(unit_count, t * UNIT_SIZE));
-        }
-        fight_losses();
-        if (pictures) {
+            fight_losses();
             fwb(S_fight_rec_ptr, 0x0D, NB(unit_count, u * UNIT_SIZE));
             fwb(S_fight_rec_ptr, 0x0C, NB(unit_count, t * UNIT_SIZE));
+            p = game_mem.pics;
+            pictures_load(&p, game_mem.work, game_mem.save_buf);
+            page_flip();
+            page_copy();
+            p = game_mem.libs;
+            libs_start(&p);
+        } else {
+            Far rec = { S_fight_rec, A_fight_rec };
+
+            fight_panel(rec, 0);
         }
+        screen_word_1c(0xFFFF);
+        pages_set();
+        page_flip();
 
         lu = unit_left(u);
         lt = unit_left(t);
@@ -611,40 +708,28 @@ static void fights_run(uint16_t a, uint16_t m, Far map)
         exp_add(u, gain_u);
         exp_add(t, gain_t);
         fww(S_GAME, A_fight_wait, 4);
-        if (!pictures && destroyed)
-            blasts_run(map);
+        if (!pictures) {
+            /* S02E6:0AE6: the two units' panels again, then S2AF3:000A
+             * (not read, not translated) */
+            page_copy();
+            unit_panel(t, m);
+            unit_panel(u, a);
+            page_flip();
+            page_copy();
+            if (destroyed)
+                blasts_run(map, m);
+        }
         if (orders_hook)
             orders_hook(ORDERS_FOUGHT, pictures);
     }
-}
-
-/* the part of pictures_load (S02E6:3118 to 318B) that writes state the
- * port keeps: a digit of the file name at S331F:027E (byte 0284h) by the
- * ratio of the sides' unit counts (byte 2 of each `sides` record, plus
- * one; the side with 2 in its word 0 counts first when only one has it):
- * '1' above 140h/100h, '3' below C0h/100h, else '2'.  What the name loads
- * is left out. */
-static void pictures_digit(void)
-{
-    uint16_t x = (uint16_t)(NB(sides, 2) + 1), y = (uint16_t)(NB(sides, SIDE_SIZE + 2) + 1), r;
-    uint8_t c = '2';
-
-    if ((NW(sides, 0) & 2) != (NW(sides, SIDE_SIZE) & 2) && NW(sides, 0) & 2)
-        r = x, x = y, y = r;
-    r = (uint16_t)(((uint32_t)x << 8) / y);
-    if (r > 0x140)
-        c = '1';
-    if (r < 0xC0)
-        c = '3';
-    fwb(S_sides, 0x0284, c);
 }
 
 /* S02E6:000F (attacks_run), the round's end after both sides ended their
  * half: the attacks of side a (the one with 2 in its view's byte 16h) are
  * carried out, then the orders of the side m that moved (orders_run),
  * then each side's records and maps are made the same and the halves
- * turned round (S02E6:19B8 to 205B).  Left out: what draws, plays music
- * and waits.  Returns the result byte ([BP-7]): FFh, or the side that
+ * turned round (S02E6:19B8 to 205B).  Left out: what plays music and
+ * waits, and what fights_run leaves out.  Returns the result byte ([BP-7]): FFh, or the side that
  * took a headquarters. */
 uint8_t attacks_run(void)
 {
@@ -706,9 +791,14 @@ uint8_t attacks_run(void)
     show_message(0xFFFF, 1);
     orders_run(m, a, map, &result);
     /* S02E6:19B8: after a fight or a site taken the pictures are loaded
-     * again (pictures_load; of what it changes the port keeps one digit) */
-    if (NW(game_state, 0) & 0x1000)
-        pictures_digit();
+     * again (pictures_load to the battle's place for them) */
+    if (NW(game_state, 0) & 0x1000) {
+        Far p = game_mem.pics;
+
+        pictures_load(&p, game_mem.work, game_mem.save_buf);
+        page_flip();
+        page_copy();
+    }
     SETW(game_state, 0, NW(game_state, 0) & 0xEFFF);
     rows_sync(A_carriers, a, m, 0x46);
     rows_sync(A_sites_100, a, m, 0x0A);

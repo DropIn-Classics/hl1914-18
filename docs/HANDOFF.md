@@ -1124,8 +1124,7 @@ emulation error (2026-10-02).
     6. Last the fight: `fight_panel` (`S131D:178D`), the fight's pictures
        (`S2532`), and `S02E6:323E` with `lib_pick` for the parts' list.
        `S02E6:323E` done 2026-10-08 as `grounds_load` with `lib_pick` and
-       `ground_store` (`S28F5:0006`), in `port/src/pictures.c` and
-       `files.c`, called by `battle_setup` after `page_flip` as the
+       `ground_store` (`S28F5:0006`), in `port/src/pictures.c`, called by `battle_setup` after `page_flip` as the
        original does. It loads partS/partW (sorted) to the free end, the
        map's file and the file named at `S331F:0264` behind it, and
        stores in video memory from AC58:0 on, 90h bytes each, every
@@ -1139,6 +1138,39 @@ emulation error (2026-10-02).
        original's in memory and in its whole video memory on map 0 and
        map 8 (port/README.md). Not met: a file that cannot be loaded, the
        call after `load_game`, a winter map (partW).
+       `fight_panel` done 2026-10-08 (`port/src/draw.c`) with `big_unit`
+       (`S131D:0C50`), `panel_whole` (`1F0D`), `pic_draw` (`S2A6B:0008`
+       but its 'X' way), `pic_half` (`S2A95:000E`: a 'P' picture at -y
+       is drawn at half size; the large units of places 0 and 3 are) and
+       `pic_unpack_draw` (`S2A6F:0002`); the panel's picture is packed
+       (TPWM) and unpacked at the free end. Compared on the first fight of
+       m8_d5r with pictures and without (a poke of `no_fight_pics`): the
+       same in memory and video memory but for the sound's segment, the
+       timer count's high byte and the key's record (its waits and sounds
+       are left out). `attacks_run` now draws where the original does:
+       with the maps and the units' bytes 0Fh/10h exchanged, every field
+       marked (80h for side m 1, else 40h) but the two units' fields,
+       `view_draw` and `marks_draw` of side m, the two `unit_panel`s,
+       the pages, word 1Ch of the screen's record 0 around the panel
+       (`pages_set`), `fight_panel`, after a fight's pictures
+       `pictures_load` and `libs_start` (to the places the battle's
+       beginning had: game_loop's [BP-1Ch] and [BP-14h], now kept as
+       `game_mem.pics` and `libs`, checked against an entry dump of
+       `attacks_run`), without pictures the panels again and each
+       blast's field `field_draw`n with the maps exchanged and the view's
+       byte 17h 0; at its end (`S02E6:19B8`) the whole `pictures_load`
+       instead of its one digit, which loads `rnd` once more, so the
+       `rnd` record's list now is the original's after a fight (it
+       differed in `m8_site` from pass 4543 when only the libraries
+       after the pictures were loaded). Not translated: the fight's
+       pictures (`S2532`, its `rand_next` calls with them), `S2AF3:000A`
+       (after the panels without pictures), `S02E6:225C` (a blast below
+       `blast_time`), the panel's sounds (`S131D:1FF0`). Not met: a kind
+       with 40h in word 4 on the panel, a fight of the first side's
+       half (x 0), the blasts' drawing (no unit destroyed without
+       pictures in the runs compared). `attacks_run` as a whole was not
+       compared in video memory; its state through `orders_test`,
+       `loop_test` and `play_test.sh m8_site` (the same).
   - State, all translated: `field_bits_clear(FFh)` empties `field_bits`
     (`S331F:3B5A`); `view_tables` fills `row_y`, `row_y_odd` and `col_x` (a
     field is 10h wide and 18h high on the screen, odd columns 0Ch lower);

@@ -375,10 +375,10 @@ static void set_code(Far rec, uint16_t o, uint16_t seg, uint16_t off)
 }
 
 /* S02E6:3484 (libs_start): the libraries of the records at S331F:0131
- * (sorted by its list) and S331F:0159 loaded one behind the other to the
- * free end, which moves on by each file's length.  Returns 0, or 2 for a
+ * (sorted by its list) and S331F:0159 loaded one behind the other to
+ * *place, which moves on by each file's length.  Returns 0, or 2 for a
  * file that cannot be loaded (the original's error exit). */
-static int libs_start(void)
+int libs_start(Far *place)
 {
     static const uint16_t recs[2] = { A_lib_pal, A_lib_rnd };
     int i;
@@ -386,9 +386,9 @@ static int libs_start(void)
     for (i = 0; i < 2; i++) {
         Far rec = game_text(recs[i]);
 
-        if (lib_load(file_name(1, 0, rec, 3), game_mem.p, game_mem.work, rec, (uint8_t)(i == 0)) == -1)
+        if (lib_load(file_name(1, 0, rec, 3), *place, game_mem.work, rec, (uint8_t)(i == 0)) == -1)
             return 2;
-        game_mem.p = far_add(game_mem.p, pw(rec, 0x0A) | (uint32_t)pw(rec, 0x0C) << 16);
+        *place = far_add(*place, pw(rec, 0x0A) | (uint32_t)pw(rec, 0x0C) << 16);
     }
     return 0;
 }
@@ -416,8 +416,10 @@ int battle_begin(void)
         if (!(p.seg | p.off))
             return 2;
     }
-    if (libs_start())
+    game_mem.libs = game_mem.p;
+    if (libs_start(&game_mem.p))
         return 2;
+    game_mem.pics = game_mem.p;
     /* pictures_load(free end, work buffer, the 320h bytes' buffer for the
      * palette); game_loop keeps the free end it returns at S3303:0028,
      * FFFF:FFFF too */

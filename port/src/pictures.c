@@ -545,6 +545,31 @@ Far ground_store(Far pic)
     return pic;
 }
 
+/* S0C66:0414 (lib_pick): for each picture n of the list `list` (count
+ * entries) whose number is the low byte of one of the `words` words at
+ * `table`, ground_store (S28F5:0006) puts it into video memory and the
+ * place it got goes to entry n of `buf`; the entries of pictures not
+ * used are left as they are.  Then the count's entries of `buf` are
+ * copied to `to`.  Returns how many were stored. */
+int16_t lib_pick(Far list, int16_t count, Far table, int16_t words, Far to, Far buf)
+{
+    int16_t n, i, found = 0;
+
+    for (n = 0; n < count; n++)
+        for (i = 0; i < words; i++)
+            if (pb(far_add(table, (uint32_t)(int32_t)(i * 2)), 0) == (uint16_t)n) {
+                Far o = far_add(buf, (uint32_t)(int32_t)(n * 4)), at;
+
+                at = ground_store(pfar(list, (uint16_t)(n * 4)));
+                fww(o.seg, o.off, at.off);
+                fww(o.seg, (uint16_t)(o.off + 2), at.seg);
+                found++;
+                break;
+            }
+    far_copy(buf, to, (uint32_t)(int32_t)(count * 4));
+    return found;
+}
+
 /* S02E6:323E (grounds_load): the map's grounds into video memory.  The
  * library partS (partW in winter, S331F:0145 sorted by its list) is
  * loaded to `place`, behind it the map's file (ending 0) and the file

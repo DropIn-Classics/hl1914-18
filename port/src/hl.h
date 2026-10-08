@@ -165,6 +165,12 @@ void flag_draw(uint16_t x, uint16_t y, uint16_t c1, uint16_t c2, uint16_t c3, in
 void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base);
 void pic_draw_save(uint16_t x, uint16_t y, Far src, Far save, uint8_t base);
 void pic_unpack_draw(uint16_t x, uint16_t y, Far src, uint8_t base, Far work);
+/* the field menu's information: on a unit, on a field without one;
+ * info_hook is called at their entry (0) and return (1), `which` 0 for the
+ * unit's and 1 for the battle's */
+extern void (*info_hook)(int at, int which);
+int unit_info(uint16_t side, uint16_t field, uint8_t unit, Far map);
+void battle_info(uint16_t side);
 
 /* fightpics.c: fight_pictures' arguments in the order of its stack
  * (S2474's fight_show passes them), and `sp` the stack pointer at its
@@ -182,6 +188,7 @@ enum { PICS_SEED, PICS_LOADED, PICS_FRAME, PICS_LEVEL, PICS_END };
 extern void (*pics_hook)(int at);
 void clock_seed_bios(void);
 void sprite_draw(int16_t x, int16_t y, Far pic, Far save, uint16_t base, int16_t sx, int16_t sy);
+void latch_copy(uint16_t w, uint16_t h, Far src, Far dst);
 void unders_restore(void);
 void under_save(uint16_t w, uint16_t h, Far src, Far save);
 int fight_pictures(const FightPics *a);

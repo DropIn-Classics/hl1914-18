@@ -3288,7 +3288,8 @@ emulation error (2026-10-02).
   it a field), the field menu's move (range marked, way kept), the
   small map (right; drawn, frame moved without copies, the view on
   leaving), the end of a half (left: "F1: MODE CHANGE" as in the
-  original's screen). Draws nothing yet: the field menu's information
+  original's screen). Drew nothing then (translated since, see "The
+  field menu's information" below): the field menu's information
   (down): on a unit `S131D:0483` (389 lines; `S290A:0006`,
   `S131D:0148`, `big_unit`), on a field without one the statistics
   `S131D:0EE5` (488 lines; `S1571:0134`, `game_text_at`, `view_dim`,
@@ -3299,6 +3300,40 @@ emulation error (2026-10-02).
   `side_test`, `view_test`, `computer_test`, `load_test` and
   `income_test` do not link since the merge of save.c (save.c needs
   loop.c, which needs more); not fixed here.
+- The field menu's information (2026-10-08, Mac; `unit_info`,
+  `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
+  each does; `port/src/draw.c`). Learned:
+  - Both routines only draw: they change nothing of the game's state,
+    only the screen's record (colour and rectangle) and, for the unit's
+    large picture, the buffers `big_unit` reads into. All their helpers
+    were translated already (`pic_unpack_draw`, `ground_blit`,
+    `big_unit`, `unit_panel`, `num_draw`, `game_text_at`, `view_dim`,
+    `cursor_field`, `rect_fill`, `latch_copy`).
+  - The unit's screen names more of the kind's record by the texts it
+    puts beside the bytes, as the new units' screens do: 0Ah, 0Bh, 0Ch
+    the weapons against air, ground and water (the order of the three
+    lines on the screen is AIR, GROUND, WATER; the new units' screen
+    prints 0Ah, 0Ch, 0Bh beside AIR, WATER, GROUND, so the same bytes),
+    8 less 1 and 9 less 1 the ranges (9's only where the kind's word 6
+    has 4 or 8), 2 armour, 1 speed, 41h weight, 3 the group's size. Not
+    checked against the fight's code.
+  - `battle_info`'s numbers: `game_state`'s word 11h beside ROUND, words
+    87h and 8Bh beside BEST and CURRENT, bytes 8, 0Ah, 9 in the column
+    MAP; bytes 2, 4, 3 of a side's record of `sides` beside UNITS, STORES
+    and FACTORY UNITS; `side_points` and `side_income` beside RESOURCES;
+    the side's bytes 15h and 16h of `sides` beside MOVE and LIMIT (FFh:
+    "no restriction"). With 8 in `game_state`'s word 2 a side does not
+    see the other's resources.
+  - Leaving the information (`S066A:248E`) draws the view and its marks
+    again; the port had that part without the two calls, so the page
+    shown kept the information until something else drew. Found by the
+    video memory at the next call, not by the memory.
+  - The original's clock goes on inside the two routines (5 bytes of
+    DATA at each return); the port's play on the original's clock has no
+    place for that, and nothing in the game's state depends on it here.
+  - Compared on map 48, both sides (`sh port/tests/info_test.sh`,
+    port/README.md "Checked"). Not reached: listed there (a unit of two
+    parts first of all).
 - Saving and loading, read whole and translated (2026-10-08, Mac;
   `save_game`, `load_game`, `save_blocks` in src/HL.hints with what each
   does; `port/src/save.c`). Learned:

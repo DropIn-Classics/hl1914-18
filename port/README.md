@@ -328,6 +328,23 @@ range marked on choosing a unit's move, the way left marked after the
 target. Not compared with the original's screen (the runner's key
 script did not bring its cursor to the same unit; not pursued).
 
+2026-10-08, the field menu's information (`unit_info`, `unit_values`,
+`info_rect` and `battle_info` in `src/draw.c`, the original's
+`S131D:0483`, `0148`, `0008` and `0EE5`; `state_field` of `src/loop.c`
+calls them where `game_loop` does). With the button held, down and the
+button let go a side sees, on a unit: its large picture, what its kind
+can do (weapons and ranges against air, ground and water, armour, speed,
+weight, group size) and the unit on its ground; on a field without a
+unit: the battle's numbers over the darkened view (round, the map's
+code, mode, the best and the current score, both sides' units, stores,
+factories and resources, the moves' limit). Leaving it by the button
+now draws the view and its marks again (`S066A:24DB`), which the port
+had left out: the shown page kept the old picture. `latch_copy` of
+`src/fightpics.c` is no longer static. With `-map N` the row LEVEL is
+empty (the code is the menu's text). `-infodump DIR` writes each call's
+memory and video memory into DIR, and `-dump N FILE` writes the video
+memory when FILE ends in `.vram` (both for the test).
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -356,6 +373,50 @@ anything the game needs before the first release.
 (which packages were started from a download, on which systems)
 
 ## Checked
+
+- The field menu's information (2026-10-08, macOS): `python3
+  port/tests/info_dumps.py` runs the original through its menu by keys to
+  map 48 (two human sides) with `tests/keys/m48_info.keys`: the first
+  side asks for the information on its starting field (no unit: the
+  battle's numbers), leaves it, moves onto a unit and asks again; then
+  the second side the same with its keys. It keeps the memory at each
+  call's entry (`S131D:0EE5`, `S131D:0483`) and at its return in
+  `game_loop` (`S066A:2473`, `S066A:2434`), the video memory at the
+  return, and the video memory of the first pass a second later, while
+  the information is shown. `sh port/tests/info_test.sh` lets the port's
+  program walk its menu and play on the original's clock (`-clock`,
+  `-infodump`) and compares (`tests/play_cmp.py`, `tests/info_cmp.py`).
+  The four calls are the same in order and kind (battle, unit, battle,
+  unit; two in each half of the screen). At every call's entry and
+  return no byte differs in the game's state (S331F), the computer's
+  (S39B6), the screen's record (`DATA:00DA` to `00F3`) and `game_loop`'s
+  block (40000h bytes from 40h behind its beginning), and none in the
+  200 lines of either page of video memory at the four returns and at
+  the four passes a second later (behind the pages the 810 bytes of the
+  original's start, as in the menu's test). The second comparison first
+  found 21,888 bytes of the shown page different at the second call: the
+  port did not draw the view again when the information was left
+  (`S066A:24DB`); fixed, see above. Told, not judged: of the whole image
+  5 bytes of DATA differ at each return and did not at the entry (the
+  timer's count `DATA:0308`, three bytes of the input's records,
+  `DATA:0B19`: the original's clock goes on inside the routine, the
+  port's does not) and 26 to 36 of the stack. `play_cmp.py`: the inputs
+  (1,482 parts), the game's state and the computer's the same at every
+  pass compared. The window's way was tried headless with `DK_KEYS` and
+  `DK_SHOTS` (`-map 48`): the battle's numbers and the unit's screen
+  drawn as in the original's pictures but for the empty LEVEL row. Run
+  again after the change and the merge of origin/master b70875e:
+  `briefing_test.sh`, `menu_test.sh`, `save_test.sh`, `fkeys_test.sh`,
+  `play_test.sh`, `load_test.sh`, `computer_test.sh`, `loop_test.sh`.
+  Not reached or not compared: a unit of two parts (40h in its word 4:
+  the two grounds and halves and the copy in video memory), another
+  side's unit (text 1) and a unit with 4 in its word 6 (text 11h), a
+  kind without a weight (the text at `S330E:0008`), a side whose byte
+  16h of `sides` is not FFh (the number instead of text 13h), 8 in
+  `game_state`'s word 2 (the other side's resources hidden), a map with
+  a computer's side; `big_unit`'s error exit; the window itself (only the
+  headless build was run); what the pointer does in the information
+  (state 6, into a site) beyond the pass a second later.
 
 - The new units' screens (2026-10-08, macOS): `python3
   port/tests/briefing_dumps.py` runs the original through its menu by

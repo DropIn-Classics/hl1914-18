@@ -1,0 +1,7 @@
+# m8_scroll: the first side's points (side_points, word 0) set to 2000
+# when the first pass begins, so that its build list in record 1 of
+# sites_400 holds more kinds than the seven places show and can be
+# scrolled.  Not the game's own doing: a poke, for the window's
+# comparison of a scrolled build list.  TARGET HEX a line, as the
+# runner's -poke.
+side_points D0 07

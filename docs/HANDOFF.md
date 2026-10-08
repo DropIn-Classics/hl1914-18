@@ -2337,10 +2337,8 @@ emulation error (2026-10-02).
       Nothing was cut from this list: each was looked at and is a time
       of the original's drawing, of the emulator's interrupts or of the
       sound, or needs the fight's pictures.
-    Not done: on the port's own clock a fight still takes no time (its
-    marks, `wait_input(96h)`, the pictures), nor does the round's end
-    with a site taken (`S28E0:002B` and `0004`, 64 steps of
-    `S2AFE:000C` each, not read); the retrace's period is the runner's
+    Since done (the two bullets below): a fight and a site taken take
+    their time on the port's own clock. Not done: the retrace's period is the runner's
     for the game's screen mode, not read from the game; `pit_del` and
     `pit_period`'s callers; `input_mouse` and `crit_error` were read
     only.
@@ -2399,6 +2397,46 @@ emulation error (2026-10-02).
       `S02E6:3484`; not read which of the two takes it), the site's
       records changed, `wait_frames(32h)`. 11.37 s from `attacks_run` to
       game_loop's end of the round in `m0_hq`, pass 2431.
+  - The port's own clock in a round's end, and the comparison round by
+    round (2026-10-08, Mac; `port/src/play.c`, `orders_hook` in
+    `port/src/orders.c`, `sh port/tests/play_test.sh TAG rounds`;
+    port/README.md has the numbers).
+    - The clock now waits what the bullet above lists: counted where the
+      game counts (retraces, scan lines, `wait_input`'s steps with their
+      clearing of the button and the key, `inputs_release`), and the
+      runner's measured times where the original computes, loads or
+      draws (the `T_` numbers in `play.c`). Those are not the game's: a
+      port that draws will take its own time there, and they should go
+      when it does. With them a round's end lasts within 0.1 s of the
+      original's in every run looked at (22 to 52 s with pictures, 10 to
+      35 s without, 11.4 s with a site taken).
+    - Pass by pass the port's own play cannot be laid beside the
+      original's past the first round's end even without taps: its
+      passes are shorter while the computer plays (one call of the
+      timer's routine against the original's drawing), so the computer's
+      half is over sooner and the script's next F1 ends the round at
+      another second (`m8_wait`: round 2 at 80 s in the port and 100 s
+      in the original). The battle is the same nevertheless: compared
+      at the n-th round's end of each, the game's state and the
+      computer's are the same but for what counts passes, in `m8_d5r`,
+      `m8_d5r_nopics`, `m8_site` and `m8_wait` up to and past their
+      first rounds with fights (rounds 3, 3, 3 and 4).
+    - Where they part after that (`m8_wait` round 5, `m8_site` round 4):
+      presumably the random numbers. The seed a fight's pictures set is
+      the BIOS's count of ticks at that moment, which the port's clock
+      does not hit to the tick, and the pictures' own calls of
+      `rand_next` (`S2532:17D1`) are not made; `computer_queue` draws
+      the kinds to build from them. Not followed to the first byte.
+    - A script for such comparisons should have no taps (`m8_wait.keys`:
+      `make_m8.py x45:400`); `m0_hq` and the scripts with cursor steps
+      leave the original before their first fight on the own clock.
+    Not reached on the own clock by any comparison: a site taken
+    compared by state (`m0_hq` has one, but the port's play had left the
+    original before; its length agrees), a site taken after a fight, the
+    blasts' turns of a fight without pictures, a fight's pictures ended
+    by a key, a wait ended by the button, a battle's end. Not done: a
+    human second side with a key script for both sides (task 2 of this
+    round; not begun).
     Not read: `S2AF3:000A`, `S2F39`'s routines called here, the stream of
     the site's picture, `S2532` beyond its frame loop's frame count and
     end, `inputs_release` with its second argument set. Not seen in a

@@ -46,6 +46,10 @@ and writes into build/play/TAG/ (ignored):
                 numbers apart by spaces); existing dumps are kept
     passes.txt  their numbers
 
+With NOPICS=1 in the environment the fights are not shown as pictures
+(no_fight_pics, S37FF:0115, set at the first pass as loop_dumps.py does)
+and the files go to build/play/TAG_nopics/.
+
 No game data is kept in this file.
 """
 import os, re, subprocess, sys
@@ -67,6 +71,11 @@ else:
            '-key', '25', 'enter', '-mouse', '27', '150,48,1', '-mouse', '27.2', '150,48,0']
 pre += ['-keys', keypath, '-until', until]
 tag = os.path.splitext(keys)[0]
+if os.environ.get('NOPICS'):
+    # the fights without pictures: no_fight_pics is set when the first pass
+    # begins (a poke, not the game's own way of setting it)
+    pre += ['-poke', 'S066A:0EE9#1', 'S37FF:0115', '01']
+    tag += '_nopics'
 out = os.path.join(ROOT, 'build', 'play', tag)
 os.makedirs(out, exist_ok=True)
 

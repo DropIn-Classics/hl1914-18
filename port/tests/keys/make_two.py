@@ -22,8 +22,8 @@ plays the map a script's name begins with, mNN_).  Each ARG is one of:
           0.2); for scripts that give the original what another clock
           sampled
 
-m48_two.keys is `45:400`, m48_steps.keys `45:400 seed=7`, m48_move.keys
-what port/README.md says.  The second side's keys are those of its table
+m48_two.keys is `45:400`, m48_steps.keys `45:400 seed=7`, m48_move.keys,
+m48_aim.keys and m48_build.keys what port/README.md says.  The second side's keys are those of its table
 in HL.EXE (docs/HANDOFF.md, "The keyboard").  No game data is kept in
 this file.
 """

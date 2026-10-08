@@ -2693,9 +2693,55 @@ emulation error (2026-10-02).
       choosing of an aim without a move (the script has none), and what
       "NO TRANSPORTER" is in the code (presumably `move_target`'s
       refusal of a field with a unit that carries nothing).
-    Not reached with two human sides: a fight (no unit of one side
-    came next to the other's), a site entered, a unit built or
-    repaired, a carrier, the keys F2 to F9, a battle's end, a map from
+    - A fight, a site, a repair and a build with two human sides
+      (2026-10-08, Mac; `m48_build.keys`, 285 s, seven rounds; the
+      script's steps were found with probe runs of the original that
+      printed both views every half second, not computed). What it
+      does, as the original's memory at the rounds' ends shows it:
+      round 1 the second side's unit 0Eh (kind 0Bh, on (9,10); fields
+      as column and row, the map offset halved) attacks unit 0Dh on
+      (14,8) from five fields away (its count 6 to 5, the attacker's
+      byte 1 to 1) and the first side moves its unit 15h from (15,13)
+      to (13,12); round 3 that unit goes on to (11,12); round 4 it
+      attacks unit 14h on (10,13) beside it while the second side
+      orders the same unit to (10,12): the fight comes first (both 6 to
+      5, both byte 1 to 1), then the move; round 6 unit 14h moves onto
+      the field (9,11) of `sites_400` record 0 and is in both rows'
+      first place after the round's end (4000h in `unit_flags`); round
+      7 the second side enters the site, repairs the unit (count 5 to
+      6, `side_points` 36h to 27h) and builds on the third place
+      (`unit_add` once: unit 2Dh of kind 12h, the list's first, price
+      23h; points 27h to 4; the side's count 20 to 21). Each fight is
+      shown as pictures.
+    - Learned on the way. Where a unit can go is read best from
+      `field_bits` in a dump (1 and 2 by the side), not from the
+      screen: a press on a field without the mark is refused without a
+      text (the view waits in step 17h for four passes and is back in
+      16h), which looks like a lost key. The kind 15h (the screen says
+      cavalry) reached two fields here, the kind 12h one or two by the
+      ground; the kind 0Dh (a bunker) has no move ("NO ASSAULT
+      TARGETS!" and no marks; the kind 0Ch's marks on the screen were
+      few, not read from a dump). A unit beside
+      one of the other side can still move away. The button and left
+      on a site's field goes into the site in the move half too (state
+      2, step 0Ah); the button and right inside leaves it (step 0Bh
+      with 2 in byte 19h, then state 0 on the field beside), which a
+      script needs before it can end that half on a plain field. With
+      less than the cheapest kind's price the button and left on a free
+      place opens no list (`build_count` 0: 18 points against 35), so a
+      script has to wait for the rounds that bring them: the second
+      side got 18 after each even round here, the first 10 after each
+      odd one (not looked at what gives them). The cursor's steps are
+      one field while the view stands and two when it scrolls.
+    - The port needed no change: on the original's clock `m48_build`
+      is the same at every pass compared (port/README.md). On its own
+      clock it leaves the original before the first round's end (the
+      cursor's steps are sampled otherwise, cause 3 above) and no round
+      ends.
+    Not reached with two human sides: a carrier, the keys F2 to F9, a
+    unit destroyed, a site taken, moving out of a site, a repair or a
+    build refused, a fight where the attacked unit was ordered into a
+    site in the same half, a map from
     24 to 47 (where `rec_of` exchanges the two records; those maps
     have a computer's side), the joysticks and the mouse, and what
     `m48_steps` did beyond moving the cursor and opening what its

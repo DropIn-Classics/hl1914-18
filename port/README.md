@@ -329,9 +329,29 @@ anything the game needs before the first release.
     or after a second): the game's state and the computer's the same at
     all five, the passes' 3 to 6 bytes apart. Not checked: a time after
     120 s.
-  Not reached: a fight between two human sides, a site, building,
-  repairing, the function keys, a battle's end, other maps for two
-  players.
+  - `m48_build` (285 s, seven rounds; `make_two.py` with
+    2R45 2R46 2R47 2R48 2u50 2u51 2u52 2u53 2u54 2d55 2L56 2L57 2m59
+    2R62 2R63 2R64 2R65 2L66 2u67 2u68 2d69 2a71 2a73 1L75 1L76 1L77
+    1L78 1L79 1L80 1d81 1m83 1L86 1a88 1a90 1E93 2E95 2f99 2f99.8
+    1E121 2E123 2f127 2f127.8 1m133 1L136 1L137 1a139 1a141 1E144
+    2E146 2f150 2f150.8 1m156 1L159 1d160 1d161 1a163 2L156 2L157
+    2L158 2d159 2d160 2d161 2L162 2R164 2m166 2a169 2a171 1E175 2E177
+    2f181 2f181.8 1E204 2E206 2f210 2f210.8 2m216 2L219 2a221 2a223
+    1E225 2E227 2l229 2R231 2E232 2f236 2f236.8 2L242 2L243 2s245
+    2r248 2R251 2s253 2s256 2l259 2R261 2E262 1E264 2f268 2f268.8
+    ): fights by both sides (the second side's artillery from five
+    fields away in round 1, the first side's unit against the unit
+    beside it in round 4, which was ordered to move in the same half),
+    moves by both sides, a damaged unit moved onto the second side's
+    factory (round 6), and in round 7 the site entered, the unit
+    repaired and a unit built. On the original's clock 3,597 passes,
+    7,194 parts read the same, 19 passes compared (the seven rounds'
+    ends and the passes after them): "the inputs, the game's state and
+    the computer's the same at every pass compared". On the own clock
+    no round ends (the cursor's steps are sampled otherwise from the
+    first seconds on).
+  Not reached: a battle's end, a unit destroyed, a site taken, moving
+  out, a carrier, the function keys, other maps for two players.
   Not checked: a battle played to its end; maps other than 0 and 8; a
   computer first side; a thinking loop ended
   by a key; a run with the fight pictures switched off; `move_test`'s,

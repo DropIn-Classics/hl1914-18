@@ -11,12 +11,11 @@
  * speeds 50, 50 and 64), since that is what the runs of the original
  * this is compared with had.
  *
- * Left out: the pointer's picture (S2904:000E puts back what was under
- * it, S2967:0004 draws it, both on the page shown).  The record's words
- * that say whether it is drawn and where (0428, 042A, 041C) are kept as
- * the original keeps them.  port/README.md says how this was compared.
+ * The pointer's picture is drawn on the page shown (pointer_draw,
+ * pointer_erase).  port/README.md says how this was compared.
  */
 #include "hl.h"
+#include "vga.h"
 
 #define S_DATA (HL_DATA + HL_BASE)
 
@@ -46,6 +45,77 @@ static void drv_reset(void)
     drv.buttons = 0;
 }
 
+/* the page drawn and the page shown change places for the pointer's
+ * drawing, which goes to the one shown */
+static void pages_swap(void)
+{
+    uint16_t a = NW(screen_seg, 0);
+
+    SETW(screen_seg, 0, NW(screen_shown, 0));
+    SETW(screen_shown, 0, a);
+}
+
+/* S2904:000E (pointer_erase): what under_save kept at the far pointer
+ * DATA:0366 (the screen's offset, the rows, the bytes a row, then the
+ * rows) put back through the latches */
+static void pointer_erase(void)
+{
+    Far save = far_at(S_DATA, 0x0366);
+    uint16_t es = NW(screen_seg, 0), pitch = NW(screen_pitch, 0), si = save.off, di, rows, n, k;
+
+    di = (uint16_t)(vrb(save.seg, si) | vrb(save.seg, (uint16_t)(si + 1)) << 8);
+    rows = (uint16_t)(vrb(save.seg, (uint16_t)(si + 2)) | vrb(save.seg, (uint16_t)(si + 3)) << 8);
+    n = (uint16_t)(vrb(save.seg, (uint16_t)(si + 4)) | vrb(save.seg, (uint16_t)(si + 5)) << 8);
+    si = (uint16_t)(si + 6);
+    vga_outw(0x3C4, 0x0F02);
+    vga_outw(0x3CE, 0x4105);
+    do {
+        for (k = 0; k < n; k++)
+            vwb(es, di++, vrb(save.seg, si++));
+        di = (uint16_t)(di + pitch - n);
+    } while (--rows);
+    vga_outw(0x3CE, 0x4005);
+}
+
+/* S2967:0004 (pointer_draw(x, y, far picture, far save, base)): what the
+ * picture covers kept (under_save), then its 8-bit pixels plane by
+ * plane, byte 8 of it see-through */
+static void pointer_draw(uint16_t x, uint16_t y, Far pic, Far save, uint8_t base)
+{
+    uint16_t es = NW(screen_seg, 0), pitch = NW(screen_pitch, 0), w = pw(pic, 0x0E), h = pw(pic, 0x10);
+    uint16_t di, si = (uint16_t)(pic.off + 0x12), plane, r, k;
+    uint8_t clear = pb(pic, 8), mask;
+
+    x = (uint16_t)(x + pw(pic, 0x0A));
+    y = (uint16_t)(y + pw(pic, 0x0C));
+    di = (uint16_t)(frw(S_DATA, (uint16_t)(0x00F8 + 2 * y)) + (x >> 2));
+    mask = (uint8_t)(0x11 << (x & 3));
+    if (save.seg | save.off) {
+        Far scr;
+
+        scr.seg = es;
+        scr.off = di;
+        under_save(w, h, scr, save);
+    }
+    for (plane = 0; plane < 4; plane++) {
+        uint16_t n = (uint16_t)((w >> 2) + (plane < (w & 3))), d = di;
+
+        vga_outw(0x3C4, (uint16_t)(mask << 8 | 2));
+        if (n)
+            for (r = 0; r < h; r++, d = (uint16_t)(d + pitch))
+                for (k = 0; k < n; k++) {
+                    uint8_t c = frb(pic.seg, si++);
+
+                    if (c != clear)
+                        vwb(es, (uint16_t)(d + k), (uint8_t)(c + base));
+                }
+        if (mask & 0x80)
+            di++;
+        mask = (uint8_t)(mask << 1 | mask >> 7);
+    }
+    vga_outw(0x3C4, 0x0F02);
+}
+
 /* S2BE7:000A (mouse_read): the pointer's place to words 10h and 12h of
  * the record and its three buttons to words 30h, 34h and 32h (FFFFh
  * held).  With word 6 (the pointer is drawn) and a place other than the
@@ -64,9 +134,29 @@ uint16_t mouse_read(void)
     sw(0x0446, drv.buttons & 4 ? 0xFFFF : 0);
     if (!dw(0x041A) || (dw(0x0428) == drv.x && dw(0x042A) == drv.y))
         return 0;
-    sw(0x041C, 0);
-    if (dw(0x0458))
-        sw(0x041C, 0xFFFF);
+    {
+        /* the VGA's map mask, read map and mode are kept over it */
+        uint8_t mask, map, mode;
+
+        vga_outb(0x3C4, 2);
+        mask = vga_inb(0x3C5);
+        vga_outb(0x3CE, 4);
+        map = vga_inb(0x3CF);
+        vga_outb(0x3CE, 5);
+        mode = vga_inb(0x3CF);
+        pages_swap();
+        if (dw(0x041C))
+            pointer_erase();
+        sw(0x041C, 0);
+        if (dw(0x0458)) {
+            pointer_draw(dw(0x0424), dw(0x0426), far_at(S_DATA, 0x0362), far_at(S_DATA, 0x0366), 0);
+            sw(0x041C, 0xFFFF);
+        }
+        vga_outw(0x3CE, (uint16_t)(mode << 8 | 5));
+        vga_outw(0x3CE, (uint16_t)(map << 8 | 4));
+        vga_outw(0x3C4, (uint16_t)(mask << 8 | 2));
+        pages_swap();
+    }
     sw(0x0428, dw(0x0424));
     sw(0x042A, dw(0x0426));
     return 0;
@@ -103,6 +193,11 @@ uint16_t mouse_close(void)
 {
     if (!dw(0x0414))
         return 0xFFFF;
+    if (dw(0x041C)) {
+        pages_swap();
+        pointer_erase();
+        pages_swap();
+    }
     drv.speed_x = dw(0x0450);
     drv.speed_y = dw(0x0452);
     drv.threshold = dw(0x0454);

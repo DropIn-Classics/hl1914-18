@@ -169,6 +169,7 @@ extern void (*pics_hook)(int at);
 void clock_seed_bios(void);
 void sprite_draw(int16_t x, int16_t y, Far pic, Far save, uint16_t base, int16_t sx, int16_t sy);
 void unders_restore(void);
+void under_save(uint16_t w, uint16_t h, Far src, Far save);
 int fight_pictures(const FightPics *a);
 
 /* mem.c */
@@ -308,6 +309,7 @@ uint16_t mouse_show(void);
  * and "TIME 0" when the menu has returned */
 extern const char *menu_stopped;
 void menu_log_to(const char *path);
+void menu_shot(double at, const char *file);
 void inputs_release(int wait);
 int menu_run(Far place);
 

@@ -82,7 +82,7 @@ static void pixel_put(void)
  * list DATA:0322 (which then moves on).  A header (the screen's offset,
  * h, the bytes), the rows, a trailer (offset, h, bytes, where the rows
  * begin).  With DATA:0374 only the trailer, with 0 for the rows. */
-static void under_save(uint16_t w, uint16_t h, Far src, Far save)
+void under_save(uint16_t w, uint16_t h, Far src, Far save)
 {
     Far to = save.seg ? save : far_at(S_DATA, 0x0322);
     uint16_t ax = (uint16_t)((w >> 2) + 2), dx = (uint16_t)(DW(0x02F0) - ax), di = to.off, si = src.off, start, n;

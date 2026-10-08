@@ -23,6 +23,9 @@ Compared:
     CODES.DAT, the six libraries, the tunes and sounds and the menu's
     data with the items' rectangles and choices.
 
+  * video memory at the passes menu_dumps.py kept the original's at: the
+    page drawn and the page shown (with the mouse's pointer).
+
 Exit status 0 when the order is the same and no byte differs.
 """
 import os, sys
@@ -77,4 +80,21 @@ for name, lo, hi in regions:
     print('  %-10s %6d bytes, %d differ%s' % (name, hi - lo, len(d),
           (': first at +%Xh (%02X, port %02X)' % (d[0] - lo, x[d[0]], y[d[0]])) if d else ''))
     bad += bool(d)
+# video memory (byte 4 * offset + plane): the two pages' 200 lines of 80
+# bytes a plane at A000h and A400h; what lies behind them is told apart
+# (from A7E8:0004 on the original's start, whose part before the menu is
+# not translated, has left what the port's has not)
+shots = open(os.path.join(out, 'shots.txt')).read().split() if os.path.exists(os.path.join(out, 'shots.txt')) else []
+for t in shots:
+    v = open(os.path.join(out, 'shot%s.vram' % t), 'rb').read()
+    pv = os.path.join(out, 'port%s.vram' % t)
+    if not os.path.exists(pv):
+        print('  video memory at %s s: the port wrote none' % t)
+        bad += 1
+        continue
+    w = open(pv, 'rb').read()
+    d = [i >> 2 for i in range(len(v)) if v[i] != w[i]]
+    pages = len([o for o in d if o < 0x8000 and o % 0x4000 < 200 * 80])
+    print('  video memory at %5s s: %d bytes differ in the two pages, %d behind them' % (t, pages, len(d) - pages))
+    bad += bool(pages)
 sys.exit(1 if bad else 0)

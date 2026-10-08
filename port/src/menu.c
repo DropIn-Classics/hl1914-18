@@ -6,9 +6,7 @@
  * memory; the player's input is what the interrupts leave (input.c,
  * mouse.c), the time the port's own clock (play.c).
  *
- * Not drawn yet: the calls that draw are named where they stand (the
- * routines of the comments in src/HL.hints); page_flip and page_copy are
- * called as the original calls them, since they change the pages' words.
+ * Drawn as the original draws it, but for the mouse's pointer (mouse.c).
  * Left out: the sounds and the music (S2F39:06E3, 096A, 0F87, 1058), and
  * the branch for a machine without a mouse (the port's has one, mouse.c).
  * port/README.md says how this was compared with the original.
@@ -43,6 +41,19 @@ static FILE *menu_log;
 void menu_log_to(const char *path)
 {
     menu_log = fopen(path, "w");
+}
+
+/* video memory written to a file at the first pass of the menu's loop
+ * that begins `at` seconds or later (up to eight) */
+static struct { double at; const char *file; } shots[8];
+static int shots_n;
+
+void menu_shot(double at, const char *file)
+{
+    if (shots_n < 8) {
+        shots[shots_n].at = at;
+        shots[shots_n++].file = file;
+    }
 }
 
 static Far opt(uint16_t off)
@@ -94,15 +105,70 @@ static void sound(int16_t n) { (void)n; }
 static void music_start(Far tune) { (void)tune; }
 static void music_stop(void) { }
 
-/* ---- what draws: not translated yet ---- */
+/* ---- what draws ---- */
 
-/* S2A55:0006: a part of one of the three pictures kept in memory to the
- * page drawn */
+/* S2A55:0006 (pic_part): a part of one of the three pictures kept in
+ * memory (four planes of 50h bytes a line, as screen_keep left them) to
+ * the page drawn: plane by plane from the pixel's own, each as many bytes
+ * a line as that plane has of the width (S2949:0002), the place from the
+ * table of lines (S2955:0002).  The map mask stays on the last plane. */
 static void pic_part(Far pic, int16_t sx, int16_t sy, int16_t w, int16_t h, int16_t dx, int16_t dy)
 {
-    (void)pic; (void)sx; (void)sy; (void)w; (void)h; (void)dx; (void)dy;
+    uint16_t rowb = 0x140 >> 2, plane = (uint16_t)(rowb * 0xC8), es = NW(screen_seg, 0), pitch = NW(screen_pitch, 0);
+    uint16_t k, r, c;
+
+    for (k = 0; k < 4; k++, sx++, dx++) {
+        uint16_t n = (uint16_t)(((uint16_t)w >> 2) + (k < ((uint16_t)w & 3)));
+        Far src = far_add(pic, (uint16_t)(plane * ((uint16_t)sx & 3)));
+        uint16_t di = (uint16_t)(frw(S_DATA, (uint16_t)(0x00F8 + 2 * dy)) + ((uint16_t)dx >> 2));
+
+        src = far_add(src, (uint16_t)(sy * rowb + ((uint16_t)sx >> 2)));
+        vga_outw(0x3C4, (uint16_t)((uint8_t)(0x11 << (dx & 3)) << 8 | 2));
+        for (r = 0; r < (uint16_t)h; r++) {
+            for (c = 0; c < n; c++)
+                vwb(es, (uint16_t)(di + c), pb(src, c));
+            src = far_add(src, rowb);
+            di = (uint16_t)(di + pitch);
+        }
+    }
 }
 static void pic_whole(Far pic) { pic_part(pic, 0, 0, 0x140, 0xC8, 0, 0); }
+
+/* The menu draws with the screen's cut on (word 0Eh of the screen's
+ * record, DATA:00E8, with the whole screen as its rectangle), and the
+ * port's pic_draw has only the way without it (the cut one, S2AAF:0107,
+ * is not translated).  A picture that lies inside the rectangle is the
+ * same either way, so it is drawn with the word off; one that does not is
+ * not drawn and the menu stops. */
+static void cut_off(int on)
+{
+    static uint16_t kept;
+
+    if (on) {
+        kept = frw(S_DATA, 0x00E8);
+        fww(S_DATA, 0x00E8, 0);
+    } else {
+        fww(S_DATA, 0x00E8, kept);
+        /* pic_blit_8 keeps the word in its own segment */
+        fww((uint16_t)(HL_S2AAF + HL_BASE), 0x035A, kept);
+    }
+}
+
+static void menu_pic(int16_t x, int16_t y, Far pic, uint16_t base)
+{
+    int16_t x0 = (int16_t)(x + pw(pic, 0x0A)), y0 = (int16_t)(y + pw(pic, 0x0C));
+
+    if (x0 < (int16_t)frw(S_DATA, 0x00EC) || y0 < (int16_t)frw(S_DATA, 0x00EE)
+        || x0 + (int16_t)pw(pic, 0x0E) - 1 > (int16_t)frw(S_DATA, 0x00F0)
+        || y0 + (int16_t)pw(pic, 0x10) - 1 > (int16_t)frw(S_DATA, 0x00F2)) {
+        if (!menu_stopped)
+            menu_stopped = "a picture cut by the screen's edge (S2AAF:0107)";
+        return;
+    }
+    cut_off(1);
+    pic_draw((uint16_t)x, (uint16_t)y, pic, (uint8_t)base);
+    cut_off(0);
+}
 
 /* S167A:28E0 (text_width): the width of a text in a font, `gap` more a
  * character.  A character's picture is the font's entry for it: 0 to 9
@@ -125,14 +191,12 @@ static int font_index(uint8_t c)
     return -1;
 }
 
-static int16_t text_width(Far text, Far font, int16_t gap)
+static int16_t width_of(const uint8_t *text, Far font, int16_t gap)
 {
     int16_t w = 0;
-    uint16_t i;
-    uint8_t c;
 
-    for (i = 0; (c = pb(text, i)) != 0; i++) {
-        int n = font_index(c);
+    for (; *text; text++) {
+        int n = font_index(*text);
 
         if (n >= 0)
             w = (int16_t)(w + pb(pfar(font, (uint16_t)(n * 4)), 0x0E) + gap);
@@ -140,27 +204,140 @@ static int16_t text_width(Far text, Far font, int16_t gap)
     return w;
 }
 
-/* S167A:27B4 (text_at) and S167A:274C (text_mid: at 160 less half its
- * width) */
-static void text_at(int16_t x, int16_t y, Far text, Far font, uint32_t colours, uint16_t base, int16_t gap)
+/* a text of the program's memory, for the two routines here */
+static const uint8_t *host_text(Far text, uint8_t *buf, uint16_t n)
 {
-    (void)x; (void)y; (void)text; (void)font; (void)colours; (void)base; (void)gap;
+    uint16_t i;
+
+    for (i = 0; i + 1 < n && (buf[i] = pb(text, i)) != 0; i++)
+        ;
+    buf[i] = 0;
+    return buf;
 }
 
+static int16_t text_width(Far text, Far font, int16_t gap)
+{
+    uint8_t buf[80];
+
+    return width_of(host_text(text, buf, sizeof buf), font, gap);
+}
+
+/* S167A:27B4 (text_at): each character's picture by pic_draw, then on by
+ * its width and `gap`; one of the eleven is moved down by its signed
+ * byte at S37FF:0107.  The dword of colours the original passes on is 0
+ * in all of the menu's calls. */
+static void draw_text(int16_t x, int16_t y, const uint8_t *text, Far font, uint16_t base, int16_t gap)
+{
+    for (; *text; text++) {
+        int n = font_index(*text);
+        int16_t at = y;
+        Far pic;
+
+        if (n < 0)
+            continue;
+        if (n >= 0x24)
+            at = (int16_t)(at + (int8_t)frb(S_OPT, (uint16_t)(0x0107 + n - 0x24)));
+        pic = pfar(font, (uint16_t)(n * 4));
+        menu_pic(x, at, pic, base);
+        x = (int16_t)(x + pb(pic, 0x0E) + gap);
+    }
+}
+
+static void text_at(int16_t x, int16_t y, Far text, Far font, uint32_t colours, uint16_t base, int16_t gap)
+{
+    uint8_t buf[80];
+
+    (void)colours;
+    draw_text(x, y, host_text(text, buf, sizeof buf), font, base, gap);
+}
+
+/* S167A:274C (text_mid): at 160 less half its width */
 static void text_mid(int16_t y, Far text, Far font, uint32_t colours, uint16_t base, int16_t gap)
 {
     text_at((int16_t)(0xA0 - (text_width(text, font, gap) >> 1)), y, text, font, colours, base, gap);
 }
 
-/* S167A:2B63 (the page's item shown as chosen), S167A:29E2 and 2CAF (the
- * page's items and its frame), S167A:2A6B (an item's line), S2A6B:0008
- * (pic_draw) and S2A6F:0002 (pic_unpack_draw) */
-static void item_mark(Far pg, int16_t item) { (void)pg; (void)item; }
-static void page_items(Far pg, int16_t page) { (void)pg; (void)page; }
-static void page_frame(Far pg, int16_t page) { (void)pg; (void)page; }
-static void item_line(int16_t x, int16_t y, int16_t item) { (void)x; (void)y; (void)item; }
-static void pic_put(int16_t x, int16_t y, Far pic) { (void)x; (void)y; (void)pic; }
-static void score_line(int16_t x, int16_t y, uint32_t score) { (void)x; (void)y; (void)score; }
+/* a map's code in brackets in the middle of line 6 (the winner's name
+ * and the best scores) */
+static void code_mid(int16_t map)
+{
+    uint8_t head[8];
+    int i;
+
+    head[0] = 0x5B;
+    for (i = 1; i < 6; i++)
+        head[i] = (uint8_t)(pb(far_add(m.codes, (uint32_t)((int32_t)map * 10)), (uint16_t)(i - 1)) + 0x30);
+    head[6] = 0x5D;
+    head[7] = 0;
+    draw_text((int16_t)(0xA0 - (width_of(head, m.font18, 0) >> 1)), 6, head, m.font18, 0, 0);
+}
+
+/* S167A:2A6B (item_line): an item of a page: the icon of its choice
+ * (byte 6Ch on, a picture of MNUICON.LIB) and 26h right and 2 down its
+ * choice's text in the large font; nothing for an item with byte 77h */
+static void item_line(int16_t x, int16_t y, int16_t item)
+{
+    Far it = item_at(item);
+    int16_t ch = (int8_t)pb(it, 0x74);
+
+    if (pb(it, 0x77))
+        return;
+    menu_pic(x, y, pfar(m.icon, (uint16_t)(pb(it, (uint16_t)(0x6C + ch)) * 4)), 0);
+    text_at((int16_t)(x + 0x26), (int16_t)(y + 2), far_add(it, (uint32_t)(8 + ch * 0x14)), m.font18, 0, 0, 0);
+}
+
+/* S167A:2B63 (item_mark): what the chosen item is for, at the page's
+ * words 8 and 0Ah: the second picture of MNUMISC.LIB and on it the
+ * item's three lines (78h, 98h, B8h) in the small font */
+static void item_mark(Far pg, int16_t item)
+{
+    Far it = item_at(item);
+    int16_t x = (int16_t)pw(pg, 8), y = (int16_t)pw(pg, 0x0A);
+
+    menu_pic(x, y, pfar(m.misc, 4), 0);
+    text_at((int16_t)(x + 9), (int16_t)(y + 3), far_add(it, 0x78), m.font8, 0, 0, 1);
+    text_at((int16_t)(x + 5), (int16_t)(y + 0x0D), far_add(it, 0x98), m.font8, 0, 0, 1);
+    text_at((int16_t)(x + 5), (int16_t)(y + 0x16), far_add(it, 0xB8), m.font8, 0, 0, 1);
+}
+
+/* S167A:29E2 (page_items): the page's items, 18h lines apart from its
+ * words 0 and 2 */
+static void page_items(Far pg, int16_t page)
+{
+    int16_t i, y = (int16_t)pw(pg, 2);
+
+    (void)page;
+    for (i = 0; page_count(pg) > i; i++, y = (int16_t)(y + 0x18))
+        item_line((int16_t)pw(pg, 0), y, page_item(pg, i));
+}
+
+/* S167A:2CAF (page_title): the page's name (0Ch) in the large font with
+ * the colours from 70h on, 12h right and 5 down of its words 4 and 6 */
+static void page_frame(Far pg, int16_t page)
+{
+    (void)page;
+    text_at((int16_t)(pw(pg, 4) + 0x12), (int16_t)(pw(pg, 6) + 5), far_add(pg, 0x0C), m.font18, 0, 0x70, 0);
+}
+
+static void pic_put(int16_t x, int16_t y, Far pic)
+{
+    menu_pic(x, y, pic, 0);
+}
+
+/* S167A:3A0B (score_line): a score as five digits in the middle font, 3
+ * apart */
+static void score_line(int16_t x, int16_t y, uint32_t score)
+{
+    uint8_t d[6];
+    int i;
+
+    for (i = 4; i >= 0; i--) {
+        d[i] = (uint8_t)('0' + (int32_t)score % 10);
+        score = (uint32_t)((int32_t)score / 10);
+    }
+    d[5] = 0;
+    draw_text(x, y, d, m.font14, 0, 3);
+}
 
 /* ---- the menu's routines ---- */
 
@@ -385,7 +562,6 @@ static void scores_show(Far buf, int16_t map)
     int8_t order[4];
     int32_t last = 0x7EF4;
     int n, i, k;
-    uint8_t head[8];
 
     for (i = 0; i < 4; i++) {
         int32_t v = (int32_t)(pw(buf, (uint16_t)(4 * i)) | (uint32_t)pw(buf, (uint16_t)(4 * i + 2)) << 16);
@@ -424,14 +600,7 @@ static void scores_show(Far buf, int16_t map)
         order[n] = which;
         last = (int32_t)(pw(buf, (uint16_t)(4 * which)) | (uint32_t)pw(buf, (uint16_t)(4 * which + 2)) << 16);
     }
-    head[0] = 0x5B;
-    for (i = 1; i < 6; i++)
-        head[i] = (uint8_t)(pb(far_add(m.codes, (uint32_t)((int32_t)(int8_t)map * 10)), (uint16_t)(i - 1)) + 0x30);
-    head[6] = 0x5D;
-    head[7] = 0;
-    /* drawn: the code (head) at line 6 and the text at texts + A0h at
-     * line AEh, both in the middle, then a name and a score a line */
-    (void)head;
+    code_mid((int16_t)(int8_t)map);
     text_mid(0xAE, far_add(m.texts, 0xA0), m.font18, 0, 0, 0);
     for (n = 0; n < 4; n++) {
         text_at(0xAF, (int16_t)(n * 0x18 + 0x38), far_add(buf, (uint32_t)(0x10 + order[n] * 6)), m.font14, 0, 0, 3);
@@ -500,7 +669,7 @@ static void winner_name(void)
     if (!(score_now() > low))
         return;
     pic_whole(m.pic[1]);
-    /* drawn: the map's code in brackets at line 6 */
+    code_mid(map);
     text_mid(0x3C, far_add(m.texts, 0x20), m.font14, 0, 0, 2);
     text_mid(0x55, far_add(m.texts, 0x40), m.font14, 0, 0, 2);
     text_mid(0x6E, far_add(m.texts, 0x60), m.font14, 0, 0, 2);
@@ -553,8 +722,10 @@ static int country(void)
     text_mid(0xAD, far_add(m.texts, (uint32_t)(0x1C0 + si * 0x20)), m.font18, 0, 0, 0);
     /* the two flags, pictures 0 and 1 of MNUFAHN.LIB, unpacked to the free
      * end */
+    cut_off(1);
     pic_unpack_draw(0x0B, 0x33, pfar(m.fahn, 0), 0, m.p);
     pic_unpack_draw(0xA1, 0x33, pfar(m.fahn, 4), 0, m.p);
+    cut_off(0);
     flip();
     page_copy();
     pointer_to((int16_t)frw(S_OPT, (uint16_t)(0x00F8 + si * 2)), 0x58);
@@ -874,6 +1045,11 @@ static void pass(void)
     int16_t act = 0, i;
     int s;
 
+    for (s = 0; s < shots_n; s++)
+        if (shots[s].file && play_now() >= shots[s].at) {
+            vga_write_planes(shots[s].file);
+            shots[s].file = NULL;
+        }
     pww(scr, 0x22E, 0);
     if (pw(k, 4)) {
         if (pb(k, 0) == key0(0))

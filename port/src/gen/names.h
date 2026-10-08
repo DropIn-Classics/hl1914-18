@@ -263,6 +263,10 @@
     X(S167A, text_mid, 0x274C) \
     X(S167A, text_at, 0x27B4) \
     X(S167A, text_width, 0x28E0) \
+    X(S167A, page_items, 0x29E2) \
+    X(S167A, item_line, 0x2A6B) \
+    X(S167A, item_mark, 0x2B63) \
+    X(S167A, page_title, 0x2CAF) \
     X(S167A, page_draw, 0x2D37) \
     X(S167A, page_rects, 0x2E30) \
     X(S167A, inputs_release, 0x2F83) \
@@ -270,6 +274,7 @@
     X(S167A, text_input, 0x325C) \
     X(S167A, scores_load, 0x3610) \
     X(S167A, scores_show, 0x36F9) \
+    X(S167A, score_line, 0x3A0B) \
     X(S167A, pointer_to, 0x3A9C) \
     X(S167A, pointer_off, 0x3B03) \
     X(S167A, pointer_aim, 0x3B32) \
@@ -351,10 +356,12 @@
     X(S28E0, fade_in, 0x0004) \
     X(S28E0, fade_out, 0x002B) \
     X(S28F5, ground_store, 0x0006) \
+    X(S2904, pointer_erase, 0x000E) \
     X(S292E, pixel_put, 0x000A) \
     X(S2945, retrace_wait, 0x000A) \
     X(S2947, display_wait, 0x0006) \
     X(S294A, screen_put, 0x000A) \
+    X(S2967, pointer_draw, 0x0004) \
     X(S2974, page_flip, 0x0002) \
     X(S297D, latch_copy, 0x000C) \
     X(S298E, screen_open, 0x000D) \

@@ -438,6 +438,11 @@ int main(int argc, char **argv)
             hl_save_dir = argv[++i];
         else if (!strcmp(argv[i], "-menulog") && i + 1 < argc)
             menu_log_to(argv[++i]);
+        else if (!strcmp(argv[i], "-menuvram") && i + 2 < argc) {
+            double at = atof(argv[++i]);
+
+            menu_shot(at, argv[++i]);
+        }
         else if (!strcmp(argv[i], "-menudump") && i + 2 < argc && menu_dumps_n < 8) {
             menu_dumps[menu_dumps_n].pass = strtoul(argv[++i], NULL, 0);
             menu_dumps[menu_dumps_n++].file = argv[++i];
@@ -453,7 +458,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
                             "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-poke ADDR HEX]... [-dump N FILE]...\n"
-                            "       [-saves DIR] [-menulog FILE] [-menudump N FILE]...\n"
+                            "       [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]...\n"
                             "With -keys and no -map the program begins at the menu (at -start seconds).\n");
             return 2;
         }

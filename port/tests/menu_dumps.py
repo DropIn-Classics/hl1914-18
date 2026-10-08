@@ -29,6 +29,8 @@ Written into build/menu/WALK/ (ignored):
                and what (1 chosen, 2 the other page, 5 another item)
     start.txt  when the menu's first pass began (the port's -start)
     exit.ram   memory at the menu's last return
+    shotT.vram video memory at the beginning of the first pass of the
+               menu's loop at or after second T (shots.txt: the T's)
 
 No game data is kept in this file.
 """
@@ -58,21 +60,22 @@ def code57(t):
 
 
 WALKS = {
-    # name: (keys, times through the menu, until)
-    'code57': (code57(10), 1, 24),
-    'start0': ([(10, 'space'), (13, 'space')], 1, 22),
-    'start24': ([(10, 'space'), (13, 'left'), (14.5, 'space')], 1, 24),
+    # name: (keys, times through the menu, until, the seconds whose first
+    # pass's video memory is kept)
+    'code57': (code57(10), 1, 24, [9, 18]),
+    'start0': ([(10, 'space'), (13, 'space')], 1, 22, [9]),
+    'start24': ([(10, 'space'), (13, 'left'), (14.5, 'space')], 1, 24, []),
     'pages': ([(10, 'down'), (11, 'down'), (12, 'space'), (14, 'space'), (15, 'down'), (16, 'space'),
                (17, 'down'), (18, 'space'), (19, 'down'), (20, 'space'), (21, 'down'), (22, 'space'),
                (23, 'down'), (24, 'space'), (26, 'esc'), (28, 'esc'), (30, 'down'), (31, 'down'),
                (32, 'down'), (33, 'space'), (35, 'space'), (36, 'down'), (37, 'space'), (39, 'esc'),
                (41, 'down'), (42, 'down'), (43, 'down'), (44, 'down'), (45, 'space'), (47, 'space'),
-               (50, 'space'), (53, 'esc')] + code57(55), 1, 70),
-    'back': (code57(10) + [(30, 'esc'), (32, 'z'), (50, 'space')], 2, 60),
+               (50, 'space'), (53, 'esc')] + code57(55), 1, 70, [9, 13, 25, 27, 34, 38, 46, 63]),
+    'back': (code57(10) + [(30, 'esc'), (32, 'z'), (50, 'space')], 2, 60, [45]),
 }
 
 for walk in sys.argv[1:] or sorted(WALKS):
-    keys, times, until = WALKS[walk]
+    keys, times, until, shots = WALKS[walk]
     out = os.path.join(ROOT, 'build', 'menu', walk)
     os.makedirs(out, exist_ok=True)
     with open(os.path.join(out, 'keys.txt'), 'w') as f:
@@ -86,10 +89,15 @@ for walk in sys.argv[1:] or sorted(WALKS):
     r = subprocess.run(['python3', KIT] + a + ['HL.EXE'], capture_output=True, text=True, cwd=out)
     open(os.path.join(out, 'log.txt'), 'w').write(r.stdout + r.stderr)
     acts, start, exits = [], None, []
+    left = list(shots)      # the pass of the loop each shot's second falls to
+    at = []
     for line in (r.stdout + r.stderr).split('\n'):
-        m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=(\S+) hit=\d+ regs .*?AX=([0-9A-F]{4})', line)
+        m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=(\S+) hit=(\d+) regs .*?AX=([0-9A-F]{4})', line)
         if not m:
             continue
+        if m.group(1) == '167A:130B' and left and float(m.group(2)) >= left[0]:
+            at.append((left.pop(0), int(m.group(3))))
+        m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=(\S+) hit=\d+ regs .*?AX=([0-9A-F]{4})', line)
         if m.group(1) == '066A:0390':
             exits.append(m.group(2))
             acts.append('%s 0' % m.group(2))
@@ -101,5 +109,10 @@ for walk in sys.argv[1:] or sorted(WALKS):
             acts.append('%s %d' % (m.group(2), int(m.group(3), 16)))
     open(os.path.join(out, 'acts.txt'), 'w').write('\n'.join(acts) + '\n')
     open(os.path.join(out, 'start.txt'), 'w').write('%s\n' % start)
+    # video memory where that pass begins (S167A:0D3C), a run each
+    for t, n in at:
+        subprocess.run(['python3', KIT] + a[:a.index('-log')] + ['-until', str(until), '-break', 'S167A:0D3C#%d' % n,
+                       '-vram', os.path.join(out, 'shot%s.vram' % t)] + ['HL.EXE'], capture_output=True, text=True, cwd=out)
+    open(os.path.join(out, 'shots.txt'), 'w').write(' '.join(str(t) for t, n in at) + '\n')
     print('%s: first pass at %s s, %d things came in, the menu returned at %s' %
           (walk, start, len([x for x in acts if not x.endswith(' 0')]), ', '.join(exits) or 'no time'))

@@ -2711,8 +2711,8 @@ name S297D:000C latch_copy
 name S2B76:0004 screen_keep
 name S294A:000A screen_put
 name S292E:000A pixel_put
-; The menu (2026-10-08, Mac; read whole but for its drawing routines,
-; the state part translated in port/src/menu.c and compared).
+; The menu (2026-10-08, Mac; read whole, translated in port/src/menu.c
+; but for its sounds and compared, memory and video memory).
 ; menu_run(far place): game_loop's call at S066A:0349 before every battle.
 ; From place on: 32h bytes for a map's best scores, 1064h of work buffer,
 ; three pictures of FA00h bytes (the names at S37FF:0080, 008A, 0094, each
@@ -2772,10 +2772,26 @@ name S167A:0005 menu_run
 name S167A:274C text_mid
 name S167A:27B4 text_at
 name S167A:28E0 text_width
-; page_draw(page, item, place, far frame): the page with the item shown as
-; chosen (S167A:2B63, 29E2, 2CAF: not read), page_flip, page_copy, then
-; the pointer onto the item of that place (pointer_aim, pointer_to).
+; page_draw(page, item, place, far frame): item_mark, page_items,
+; page_title, page_flip, page_copy, then the pointer onto the item of
+; that place (pointer_aim, pointer_to).
 name S167A:2D37 page_draw
+; item_line(x, y, far frame, item, base): nothing with byte 77h of the
+; item; else the icon of its choice (byte 6Ch + choice, a picture of the
+; icons' library) and 26h right, 2 down the choice's text in the large
+; font. page_items(x, y, far frame, page, step): item_line for each item
+; of the page, step lines apart. item_mark(x, y, far frame, item, base):
+; the second picture of the last library (the panel) and on it the
+; item's three lines at 78h, 98h and B8h in the small font, 1 apart.
+; page_title(x, y, far frame, page): the page's text at 0Ch in the large
+; font with base 70h, 12h right and 5 down. score_line(x, y, dword score,
+; far frame): five digits in the middle font, 3 apart. All translated
+; (port/src/menu.c) and compared as video memory.
+name S167A:29E2 page_items
+name S167A:2A6B item_line
+name S167A:2B63 item_mark
+name S167A:2CAF page_title
+name S167A:3A0B score_line
 ; page_rects(far frame, page): the rectangles of the page's items but the
 ; last: at the page's words 0 and 2, 18h lines apart, 15h high, the
 ; widest of the item's texts in the large font and 27h wide.
@@ -2813,9 +2829,16 @@ name S167A:3B32 pointer_aim
 ; mouse_open(mode, record, draw) resets the driver (interrupt 33h);
 ; mouse_close; mouse_range(x0, y0, x1, y1); mouse_speed (seven words to
 ; the record, three of them to the driver); mouse_to(x, y); mouse_read
-; (draws the pointer on the page shown: S2904:000E, S2967:0004, not
-; read); mouse_hide; mouse_show. Translated but for the picture
-; (port/src/mouse.c).
+; (with word 6 and a new place: the page drawn and the page shown change
+; places, pointer_erase when word 8 is set, pointer_draw when word 44h
+; is, the VGA's map mask, read map and mode kept over it); mouse_hide;
+; mouse_show. pointer_erase(far save): what under_save kept (offset,
+; rows, bytes a row, the rows) back through the latches.
+; pointer_draw(x, y, far picture, far save, base): under_save unless save
+; is 0:0, then the picture's 8-bit pixels plane by plane, byte 8 of it
+; see-through. The picture is the far pointer at DATA:0362, the save's
+; place the one at DATA:0366 (in video memory). Translated
+; (port/src/mouse.c), compared as video memory with the menu.
 name S2BCD:0008 mouse_open
 name S2BD4:000A mouse_close
 name S2BDB:0006 mouse_range
@@ -2824,10 +2847,16 @@ name S2BE5:000C mouse_to
 name S2BE7:000A mouse_read
 name S2BF9:0008 mouse_hide
 name S2BFD:000A mouse_show
+name S2904:000E pointer_erase
+name S2967:0004 pointer_draw
 ; file_save(far name, far buffer, dword length): file_open with 1, the
 ; bytes written 8000h at most a time, file_close.
 name S2BB9:000A file_save
 ; pic_part(far picture, its width, its height, x, y, w, h, to x, to y):
-; a part of a picture kept by screen_keep to the page drawn (by its calls
-; in the menu; not read).
+; a part of a picture kept by screen_keep (four planes of width / 4 bytes
+; a line) to the page drawn, plane by plane from the pixel's own, each
+; with as many bytes a line as it has of w (S2949:0002), the place by
+; S2955:0002 (the line's offset from line_offsets and x / 4; CH the
+; plane's mask). The map mask stays on the last plane. Translated
+; (port/src/menu.c).
 name S2A55:0006 pic_part

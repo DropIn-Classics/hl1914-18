@@ -146,17 +146,19 @@ the page, `CODES.DAT`, six libraries, two tunes, the sounds,
 `MNUDATA.DAT`), its loop over pages and items, the map's code, the
 country, the best scores, a winner's name, a saved game's number and
 everything it leaves for the battle are translated over the program's
-memory; it is not drawn yet (the calls stand named in `menu.c`), and it
-makes no sound. Its input is what the interrupts leave: the keys
+memory, and it is drawn as the original draws it, with the mouse's
+pointer; it makes no sound. Its input is what the interrupts leave: the keys
 (`input.c`, now with the BIOS's keys for what is typed while the
 program's keyboard interrupt is out) and the mouse's record
 (`src/mouse.c`: the program's routines over a driver whose pointer only
 the program moves; no mouse of the player's yet). Its time is the port's
 own clock: a pass lasts five calls of the timer's routine, the waits and
 changes of colour as long as the original's count, drawing and loading
-nothing. `-start T` is the key script's time at which the menu begins,
+nothing. The window does not show it yet (the program plays from a key
+script only). `-start T` is the key script's time at which the menu begins,
 `-menulog FILE` writes what came in, `-menudump N FILE` the memory at
-the menu's N-th return, `-saves DIR` is where a file the program writes
+the menu's N-th return, `-menuvram T FILE` the video memory at the first
+pass of its loop at or after second T, `-saves DIR` is where a file the program writes
 (a map's best scores) is kept instead of the port's own folder; the
 game's folder is never written to. Esc in a battle and the key that
 confirms it now leave the battle (`loop.c`).
@@ -209,8 +211,14 @@ anything the game needs before the first release.
   menu again, START: the second return compared; the dword that counts
   the battle's passes at `S331F:4CB7` is 130 in the original and 190 in
   the port and is told apart). The times of what came in are at most
-  0.54 s apart. Not compared: video memory (nothing of the menu is
-  drawn), the first 40h bytes of the block (10 bytes differ there, in
+  0.54 s apart. Video memory is compared at 13 passes of the walks (the
+  main menu, GAME SETUP, the exit's page, CONTROLS, MISC, the typed
+  code, the menu after the battle): no byte different in the 200 lines
+  of the page drawn and of the page shown, the mouse's pointer
+  included; behind the pages 810 bytes differ, left by the original's
+  start, which the port does not do. Not compared: the screens that are
+  not passes of the loop (the country's, the best scores, the code
+  while typed), the first 40h bytes of the block (10 bytes differ there, in
   the first file `start_setup` loads; what the original's part that is
   not translated does there was not looked at), the rest of `DATA` (197
   bytes differ at the first return: the C library's start, the sound,

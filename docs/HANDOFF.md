@@ -3181,22 +3181,39 @@ emulation error (2026-10-02).
     START again (the second return compared; the passes' count of the
     battle between is 130 in the original and 190 in the port, which
     draws less).
-  - Not reached or not done: the menu is not drawn (only the three
-    pictures, the libraries and the two flags are loaded and the pages
-    flipped as the original does; `S167A:2B63`, `29E2`, `2A6B`, `2CAF`,
-    `3A0B`, `pic_part` and the mouse's pointer `S2904:000E`,
-    `S2967:0004` are not read), no sound or music; a winner's name and
-    the file of scores written (`file_save`; translated, run in no
-    walk: no script on the port's own clock wins a battle yet), a saved
-    game's number (translated, not run; loading is not translated, the
-    program stops there), EXIT TO DOS (translated, not run), the
-    program's end behind it (`S066A:4739`), the menu without a mouse
-    (not translated), a click or a moved mouse, the country left by Esc,
-    a code that is not one, the backspace, the briefing before a battle
-    on a map for one player (`S274D:0003`, left out before: the port's
-    battle begins at once), and the times: the port's menu takes the
-    same passes but none for drawing, so a key comes up to half a second
-    apart in the two.
+  - The drawing (2026-10-08, later the same day): `pic_part`
+    (`S2A55:0006`), `item_line`, `page_items`, `item_mark`, `page_title`,
+    `score_line`, the texts and the mouse's pointer (`pointer_draw`,
+    `pointer_erase`, on the page shown) are read, named and translated.
+    All of the menu's pictures are of the 8-bit kind (`U`), the flags
+    packed (`I`). The menu draws with the screen's cut on (word 0Eh of
+    the screen's record, the whole screen as rectangle); the port's
+    `pic_draw` has only the way without the cut, so `menu.c` draws a
+    picture that lies inside the screen with the word off and stops at
+    one that does not (none met). Video memory compared at 13 passes of
+    the five walks (the main menu, GAME SETUP after its rows were
+    chosen, the exit's page, CONTROLS, MISC, the main menu with a typed
+    code, the menu after a battle): no byte different in the 200 lines of
+    either page, the pointer included. Behind the pages 810 bytes differ
+    (from `A7E8:0004` on: what the original's start before the menu
+    left, which the port leaves out).
+  - Not reached or not done: no sound or music; the screens that are
+    not passes of the menu's loop were not compared as video memory (the
+    country's with the flags, the best scores, the code while it is
+    typed); a winner's name and the file of scores written (`file_save`;
+    translated, run in no walk: no script on the port's own clock wins
+    a battle yet), a saved game's number (translated, not run; loading
+    is not translated, the program stops there), EXIT TO DOS
+    (translated, not run), the program's end behind it (`S066A:4739`),
+    the menu without a mouse (not translated), a click or a moved mouse
+    (the port has no mouse of the player's yet), the country left by
+    Esc, a code that is not one, the backspace, a picture cut by the
+    screen's edge (`S2AAF:0107`), the order of equal scores in
+    `scores_show` where the original reads bytes of its stack not yet
+    set, the briefing before a battle on a map for one player
+    (`S274D:0003`, left out before: the port's battle begins at once),
+    and the times: the port's menu takes the same passes but no time for
+    drawing or loading, so a key comes up to 0.54 s apart in the two.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

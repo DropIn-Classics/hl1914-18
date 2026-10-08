@@ -56,6 +56,31 @@ void menu_shot(double at, const char *file)
     }
 }
 
+/* video memory written to a file at the n-th screen of the saved game's
+ * question, counted from 1 as they come: the question drawn (where the
+ * original calls key_remove, S167A:1929) and the text that the file was
+ * not found (before its wait, S167A:1B5A) */
+static struct { int n; const char *file; } asks[8];
+static int asks_n, asked;
+
+void menu_ask_shot(int n, const char *file)
+{
+    if (asks_n < 8) {
+        asks[asks_n].n = n;
+        asks[asks_n++].file = file;
+    }
+}
+
+static void ask_screen(void)
+{
+    int i;
+
+    asked++;
+    for (i = 0; i < asks_n; i++)
+        if (asks[i].n == asked)
+            vga_write_planes(asks[i].file);
+}
+
 static Far opt(uint16_t off)
 {
     Far p;
@@ -877,6 +902,7 @@ static void saved_game(void)
     pwb(side_rec(1), 4, 0);
     pww(ms, 0x30, 0);
     pww(ms, 0x34, 0);
+    ask_screen();
     key_remove();
     for (;;) {
         if (menu_stopped) {
@@ -925,6 +951,7 @@ static void saved_game(void)
             flip();
             page_copy();
             pointer_to(0x122, 0xB5);
+            ask_screen();
             wait_frames(0x32);
             inputs_release(1);
             mouse_hide();

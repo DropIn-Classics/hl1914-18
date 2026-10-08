@@ -159,7 +159,9 @@ nothing. The window does not show the menu yet (it plays it from a key
 script only). `-start T` is the key script's time at which the menu begins,
 `-menulog FILE` writes what came in, `-menudump N FILE` the memory at
 the menu's N-th return, `-menuvram T FILE` the video memory at the first
-pass of its loop at or after second T, `-saves DIR` is where a file the program writes
+pass of its loop at or after second T, `-askvram N FILE` the video memory
+at the N-th screen of the saved game's question (the question, or the
+text that the file was not found), `-saves DIR` is where a file the program writes
 (a map's best scores) is kept instead of the port's own folder; the
 game's folder is never written to. Esc in a battle and the key that
 confirms it now leave the battle (`loop.c`).
@@ -787,6 +789,46 @@ anything the game needs before the first release.
   without the port having written it (the two files are the same bytes).
   The older tests still pass after the change (`menu_test.sh` all five
   walks, `play_test.sh` `m8_site`, `m48_two`, `m57_last`).
+- The menu's loading, further (2026-10-08, macOS, branch
+  `mac/menuload`, on origin/master fe0a39c with the runner of doskit
+  22292c0; all of the original's dumps named here made anew):
+  - `python3 port/tests/menu_dumps.py noload`, `sh
+    port/tests/menu_test.sh noload`: MISC, LOAD and 5 with no saved game
+    (not found, left by a key), LOAD again with a letter, the backspace
+    and space (none taken) and Esc, LOAD and 0 (not found), then the
+    main menu, map 57's code and START. 15 things came in, the same in
+    both; no byte different at the menu's return (the game's state, the
+    menu's segment, the mouse's record, 40000h bytes of the block); no
+    byte different in the two pages at five passes of the menu's loop
+    and at the five screens of the question (three times the question,
+    twice the text; `-askvram` against the original stopped at
+    `S167A:1929` and `S167A:1B5A`). All seven walks of `menu_test.sh`
+    pass.
+  - `sh port/tests/save_test.sh dumps`, `sh port/tests/save_test.sh`:
+    `m48_load` now at 234 passes, every one from 1 to 232 (the round's
+    end is in pass 229) and 400 and 594: 1,190 parts' inputs the same,
+    the game's state and the computer's 0 bytes different at each.
+    `m48_save` as before (13 passes, the file the same 35,411 bytes).
+    Four damaged files made from that saved game, each loaded from the
+    menu by its digit and followed by the F1 pair: `load_bad` (00.DAT,
+    second byte 6; 647 passes, 9 compared), `load_cut` (09.DAT, the
+    first 7000h bytes; 595 passes, 11 compared, the round's end in 174
+    with it), `load_head` (01.DAT, ten bytes; 648 passes, 9 compared),
+    `load_none` (02.DAT, empty; 647 passes, 9 compared): the inputs,
+    the game's state and the computer's the same at every pass
+    compared.
+  - Not compared or not run: video memory of a loaded battle (the
+    libraries of pictures a map chooses, so a saved game of a winter
+    map loaded with the menu at a summer one is still open); the
+    question left by a joystick's or the mouse's button; a file that
+    cannot be read after it was opened (a DOS error); a file cut inside
+    the first blocks (the maps, the units), where the state is half one
+    map's and half another's; the digits other than 0, 1, 2, 3, 5 and
+    9; a saved game found in the game's folder and not the port's; the
+    window build (loading was only run in the headless program, by key
+    scripts); `play_test.sh` and the other tests were not run again on
+    this branch after the merge of fe0a39c (the port's change here is
+    the option `-askvram` and the limit of `-dump` options, 512 for 64).
 
 - The menu (2026-10-08, macOS): `python3 port/tests/menu_dumps.py` runs
   the original with keys that walk its menu and stops it where

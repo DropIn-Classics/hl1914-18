@@ -3483,6 +3483,41 @@ emulation error (2026-10-02).
   - Compared (`sh port/tests/save_test.sh`, port/README.md "Checked"):
     the file byte for byte, the passes around the saving and a loaded
     battle through a round's end. Not compared or reached: listed there.
+- The menu's loading, read again and compared further (2026-10-08, Mac,
+  branch `mac/menuload`). The task began from "the menu's own loading is
+  not translated"; it was: `saved_game` in `port/src/menu.c` and
+  `load_game` came with `mac/save-keys` and `m48_load` compared them at
+  11 passes. What this branch adds is the reading of the branch
+  instruction by instruction (src/HL.hints, under `menu_run` and
+  `load_game`), the cases nobody had run, and the comparison at every
+  pass. Learned:
+  - The question's loop (`S167A:192E`) has no wait and reads the BIOS's
+    keys only: a digit is the number, the key of entry 0 (Esc) leaves, a
+    letter, the backspace and a side's key for its button are passed
+    over (the program's keyboard interrupt is out, so no button comes
+    from a key; a joystick's or the mouse's would leave it: not run).
+  - SAVED GAME NOT FOUND stays until a key or button comes
+    (`wait_frames(32h)`, then `inputs_release(1, 1)`), not for a fixed
+    time; then the page the question was asked from again.
+  - The menu only asks whether the file can be opened. What it holds is
+    `load_game`'s matter, and `game_loop` ignores its result, so a
+    damaged file never gives a text: a wrong second byte or an empty
+    file gives the menu's map from its beginning (with the bytes read
+    lying in the first side's work buffer); ten bytes of a saved game
+    give that map with the header's fields set from what the buffer
+    held (the first side stood at "AWAITING COMMAND" in the run); a file
+    cut inside a block gives everything before the cut (cut at 7000h,
+    inside the kinds of unit, map 48's battle went on and its round was
+    carried out).
+  - `text_input` shows the other page every pass, so which of the two
+    pages has the pointer after a code was typed depends on how many
+    passes the typing took: a walk on the port's own clock can come out
+    on the other one (688 bytes "different" in the first try; that pass
+    is not kept in the walk `noload`).
+  - Compared (port/README.md, "Checked"): the walk `noload` of
+    `menu_test.sh`, and in `save_test.sh` every pass of `m48_load` from
+    1 to 232 (the round's end is in 229) and the four damaged files.
+    Not done: listed there.
 - The keys F2 to F9 translated and compared (2026-10-08, Mac;
   `setting_keys` in `port/src/loop.c`, `sh port/tests/fkeys_test.sh`).
   What the reading of 2026-10-04 above guessed is confirmed or put

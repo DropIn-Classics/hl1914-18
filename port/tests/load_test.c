@@ -22,8 +22,10 @@
  * (for `start` all that the loading routines keep for themselves: the
  * routines left out there load further files).  `begin` is the part from
  * S066A:0938 to S066A:0EE6 (battle_begin), SS:BP likewise, the work buffer
- * and the palette's buffer read from the frame; begin_apart says what
- * else is counted apart there.  LOAD_TEST_VRAM names a file for the
+ * and the palette's buffer read from the frame, the video memory drawn
+ * from the entry's and compared (for `setup` too, but for the grounds
+ * S02E6:323E puts at AC58:0); begin_apart says what else is counted
+ * apart there.  LOAD_TEST_VRAM names a file for the
  * port's video memory at the end (as -vram writes it).
  * `lib` is one call of lib_load (S0C66:0009) with its five arguments.
  * `pict` is one of pictures_load (S02E6:2B87); beside each dump the
@@ -238,7 +240,11 @@ int main(int argc, char **argv)
         } else if (!strcmp(what, "setup")) {
             uint16_t bp = (uint16_t)sp;
             game_mem.block = far_at((uint16_t)ss, (uint16_t)(bp - 8));
+            /* the video memory compared but for the grounds at AC58:0,
+             * which S02E6:323E (left out) puts there */
+            vram_in(argv[i + 3]);
             got.off = (uint16_t)battle_setup();
+            r_pict = 0;
             got.seg = 0;
             wide = 0;
             name.seg = name.off = 0;
@@ -256,11 +262,10 @@ int main(int argc, char **argv)
             game_mem.work = far_at((uint16_t)ss, (uint16_t)(bp - 0x20));
             game_mem.p = far_at((uint16_t)ss, (uint16_t)(bp - 4));
             game_mem.save_buf = far_at((uint16_t)ss, (uint16_t)(bp - 0x0C));
-            /* the video memory is drawn from the entry's, not compared:
-             * the original changes the page after the views with routines
-             * the port leaves out (LOAD_TEST_VRAM writes the port's) */
+            /* the video memory drawn from the entry's and compared */
             vram_in(argv[i + 3]);
             got.off = (uint16_t)battle_begin();
+            r_pict = 0;
             got.seg = 0;
             wide = 0;
             name.seg = name.off = 0;
@@ -358,11 +363,17 @@ int main(int argc, char **argv)
                 printf(" %05X", (unsigned)a);
         }
         if (r_pict != 99 && load_vram(argv[i + 5], vleave)) {
-            unsigned vd = 0, pl, o2;
+            unsigned vd = 0, va = 0, pl, o2;
             for (o2 = 0; o2 < 0x10000; o2++)
                 for (pl = 0; pl < 4; pl++)
-                    if (vga_plane_byte((int)pl, (uint16_t)o2) != vleave[4 * o2 + pl] && vd++ < 4)
+                    if (vga_plane_byte((int)pl, (uint16_t)o2) == vleave[4 * o2 + pl])
+                        continue;
+                    else if (left_out == 1 && o2 >= 0xC580 && o2 < 0xF4C0)
+                        va++;
+                    else if (vd++ < 4)
                         printf(" vram %X.%u", o2, pl);
+            if (va)
+                printf(" video memory written by the original only %u,", va);
             printf(" video memory different %u,", vd);
             d_else += vd;
         }

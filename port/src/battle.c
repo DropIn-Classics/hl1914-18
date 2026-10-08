@@ -399,8 +399,7 @@ static int libs_start(void)
  * cannot be loaded.
  * Left out: S274D:0003 (not with a saved game; shows something before the
  * battle of a map up to 2Fh, not read to its end), the loading of a saved
- * game (200h in game_state), what shows the drawn views (S2974:0002,
- * S28DC:000A, S28E0:0004) and the music's start (S2F39:0F87). */
+ * game (200h in game_state) and the music's start (S2F39:0F87). */
 int battle_begin(void)
 {
     Far st = game_text(A_game_state), rec, p;
@@ -522,6 +521,11 @@ int battle_begin(void)
     fww(rec.seg, (uint16_t)(rec.off + 4), 0);
     pwb(rec, 0, 0);
     pwb(rec, 2, 0);
+    /* S066A:0E95: the drawn page shown, copied to the other one, the
+     * colours up from dark */
+    page_flip();
+    page_copy();
+    fade_in();
     SETB(game_state, 0x0C, 0);
     SETW(game_state, 0, NW(game_state, 0) | 2);
     return 0;

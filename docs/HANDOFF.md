@@ -1060,8 +1060,22 @@ emulation error (2026-10-02).
        step 4 (`S2974:0002`, `S28DC:000A`, `S28E0:0004`). Seen: `mark_blit`
        ends with `OUT DX,AX` while DX holds its hi:lo bytes, not 3C4h, so
        the map mask stays on plane 3 after it.
-    4. `S2974:0002`, `S28DC:000A`, `S28E0:0004` at the loop's beginning
-       (not read; presumably showing the drawn screen or fading it in).
+    4. `S2974:0002`, `S28DC:000A`, `S28E0:0004` at the loop's beginning.
+       Done 2026-10-08: they are `page_flip` (the drawn page shown),
+       `page_copy` (`S28DC:000A`, new: the shown page copied to the drawn
+       one through the latches, `page_size` bytes a plane, so both pages
+       hold the views) and `fade_in` (64 calls of `pal_level` up to level
+       FCh with `DATA:04E3`). `page_copy`, `pal_level`, `fade_in` and
+       `fade_out` translated in `port/src/screen.c`; `battle_begin` calls
+       the three as at `S066A:0E95`. With that the port's video memory
+       at the end of `battle_begin` is the original's at `S066A:0EE6` on
+       map 0 and map 8 (`begin` compares it now, port/README.md). The
+       three were compared together at that one point, not each at its
+       own call; the DAC's colours after `fade_in` were not compared (the
+       dumps hold no DAC). `battle_setup`'s video memory is compared too
+       but for AC58:0 on (offsets C580h-F4BFh), where `S02E6:323E`, left
+       out, puts the grounds. `start_setup`'s is not: the routines it
+       leaves out draw over both pages (about 48,850 bytes differ).
     5. In the loop: `field_draw` (`S0E56:145A`), `marks_erase` (`1217`),
        the sides' pointers (`S2A6B:0008`, `S2A6F:0002`), the bar of
        `S1571:01F2`, `unit_panel` (`S10AF:0131`), the fades

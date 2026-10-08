@@ -35,7 +35,9 @@ On the branch `mac/sound` (2026-10-08) the sound's routines are read whole
 and named, and the effects' part is translated without sound output
 (`port/src/sound.c`; the bullet "The sound" at the end of "`HL.EXE` stage
 1"). It also found a fault in the runner's REP STOS that every earlier
-comparison ran with (said there).
+comparison ran with (said there); it is fixed on doskit's branch
+`doskit/rep-stos`, not yet in doskit's master, and the comparisons are
+not yet rerun.
 
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
@@ -3568,9 +3570,20 @@ emulation error (2026-10-02).
     and against 0, so nothing else was seen to change; but any routine
     that keeps a register variable in SI over a REP STOS of 16 or more
     elements ran differently in the runner than on a PC, and the port was
-    compared against that. Not fixed here (a change to the kit goes into
-    doskit with a test; this branch may not push there): to do in doskit,
-    then all comparisons rerun.
+    compared against that.
+    **Fixed in doskit** (2026-10-08, `903f6cc` on its branch `doskit/rep-stos`, made
+    from doskit's master `6108ae9`; not merged into doskit's master, and
+    this project's submodule pointer is not moved to it): the block path
+    advances SI for REP MOVS only, with the test `tests/strreg` there
+    (STRREG.EXE in the selftest, which failed before the change). With
+    that runner a fresh run (`run.py -until 8 -dump snd_devices 2
+    HL.EXE`) has `snd_devices` 3, and `check.py` says `all ok` (the
+    tools' output is the same; only what the runner computes changed).
+    Not done: the comparisons of the port against the runner were not
+    rerun with it, so every memory hash and baseline kept under `build/`
+    is still the old runner's, and the notes that give 048Bh as the
+    runner's value (`src/HL.hints` at `snd_init`, port/README.md at the
+    sound's comparison) describe the runner before this fix.
   - The port (`port/src/sound.c`, port/README.md): `snd_init`,
     `sfx_play`, `dig_play`, `adl_play`, `adl_load`, `adl_start`,
     `adl_stop`, `adl_voices_free`, `chan_stop`, `snd_pass`, `adl_tick`
@@ -3892,9 +3905,11 @@ emulation error (2026-10-02).
 
 ## Next
 
-0. The sound (branch `mac/sound`, the bullet "The sound" above): fix the
-   runner's REP STOS in doskit (SI must stay) with a test there and run
-   the comparisons again; then the music (`music_start`, `music_fade`,
+0. The sound (branch `mac/sound`, the bullet "The sound" above): the
+   runner's REP STOS is fixed on doskit's branch `doskit/rep-stos`; once
+   that is in doskit's master, move the submodule to it, run all the
+   port's comparisons again with the new runner and correct the notes
+   that still give 048Bh (`src/HL.hints`, port/README.md); then the music (`music_start`, `music_fade`,
    `music_volume`, `fade_tick`), the calls left out in `orders.c` and
    `fightpics.c`, `dig_mix`, and the output itself (an OPL2 from
    `snd_opl`, the mixer's bytes) on the audio's clock.

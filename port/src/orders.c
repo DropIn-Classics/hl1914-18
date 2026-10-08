@@ -415,7 +415,6 @@ static void unit_mend(Far unit)
 #define A_ground_pics 0x0153u
 #define A_fight_wait 0x4CB3u
 #define A_fight_seed 0x4CB7u
-#define BLAST_SIZE 7u
 
 static void rec_far(uint16_t o, uint16_t seg, uint16_t off)
 {
@@ -491,8 +490,8 @@ static void fight_show(Far rec)
  * S02E6:0B61, when the fights are not pictures): each turn every blast
  * whose byte 2 is not negative counts down, and one that goes below 0
  * gets its field's two bytes back and is drawn again (field_draw); a
- * page shown each turn.  Left out: S02E6:225C, called for a blast below
- * blast_time (presumably its picture; not read), and the waits. */
+ * page shown each turn; a blast whose time is below blast_time is drawn
+ * before it counts down (S02E6:225C, blast_draw).  Left out: the waits. */
 static void maps_swap(void);
 
 static void blasts_run(Far map, uint16_t m)
@@ -512,6 +511,8 @@ static void blasts_run(Far map, uint16_t m)
             if (t < 0)
                 continue;
             active++;
+            if ((uint8_t)t < NB(blast_time, 0))
+                blast_draw(i, map, NW(views, m * VIEW_SIZE + 2), m);
             SETB(blasts, b + 2, t - 1);
             if (t - 1 < 0) {
                 uint8_t st = NB(views, m * VIEW_SIZE + 0x17);
@@ -616,8 +617,8 @@ static void screen_word_1c(uint16_t v)
  * pointer at 11h of its `sides` record, their number in byte 15h); m is
  * the other side, map side a's.  Drawn as the original draws (the view,
  * the panels, fight_panel, the blasts); left out: what is played and
- * waited for (the port's clock, play.c, through orders_hook), the
- * sounds and S02E6:225C. */
+ * waited for (the port's clock, play.c, through orders_hook) and the
+ * sounds. */
 static void fights_run(uint16_t a, uint16_t m, Far map)
 {
     Far list = far_at(S_sides, (uint16_t)(A_sides + a * SIDE_SIZE + 0x11));

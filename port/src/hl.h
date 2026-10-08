@@ -47,6 +47,7 @@ static inline void pwb(Far p, uint16_t o, uint8_t v) { fwb(p.seg, (uint16_t)(p.o
 static inline Far pfar(Far p, uint16_t o) { return far_at(p.seg, (uint16_t)(p.off + o)); }
 
 #define UNIT_SIZE 0x1Au     /* a record of `units` */
+#define BLAST_SIZE 7u       /* a record of `blasts` */
 #define KIND_SIZE 0x45u     /* a record of `unit_dat` */
 
 /* fight.c */
@@ -137,9 +138,13 @@ void pages_set(void);
 void screen_clear(void);
 void page_flip(void);
 void page_copy(void);
+void draw_on_shown(void);
+void draw_on_drawn(void);
 void pal_level(uint8_t level, Far pal);
 void fade_in(void);
 void fade_out(void);
+void fade_grey(Far pal);
+void fade_back(Far pal);
 
 /* draw.c */
 void view_draw(uint16_t field, uint16_t side);
@@ -216,6 +221,7 @@ void step_add(uint16_t side, Far step);
 uint16_t computer_queue(uint16_t side);
 uint16_t computer_plan(uint16_t side);
 void computer_turn(uint16_t side);
+uint16_t computer_progress(uint16_t side);
 
 /* side.c */
 void build_list(uint16_t points, uint16_t side);
@@ -226,6 +232,10 @@ void move_out(Far view, uint16_t side);
 uint16_t side_input(Far rec, Far view);
 void show_message(uint16_t text, uint16_t side);
 void field_draw(uint16_t side, uint16_t field);
+void cursor_draw(uint16_t side);
+void cursor_field(Far view, uint16_t side);
+void bar_draw(uint16_t x, uint16_t y, uint16_t colour, uint16_t back, uint16_t h, int16_t value, int16_t width);
+void blast_draw(uint16_t n, Far map, uint16_t view, uint16_t side);
 void unit_panel(uint8_t no, uint16_t side);
 int fight_panel(Far rec, uint16_t pictures);
 void marks_redraw(uint16_t field, uint16_t side, uint8_t mask);
@@ -331,6 +341,7 @@ void play_rounds(const char *path);
 void play_ends(const char *path);
 void play_bios(uint32_t ticks);
 void play_begin(double start);
+void play_live(void);
 void play_sync(void);
 uint16_t play_after(void);
 const char *play_pass(void);

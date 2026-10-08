@@ -2707,9 +2707,125 @@ emulation error (2026-10-02).
       another state and no later round ends. The original's passes are
       longer there (it draws the marks of the move). There is no
       length of a key that is sampled the same whenever it falls.
-    Not reached with two human sides: a fight (no unit of one side
-    came next to the other's), a site entered, a unit built or
-    repaired, a carrier, the keys F2 to F9, a battle's end, a map from
+    - Why `m48_move`'s round 2 never ends on the own clock (2026-10-08,
+      Mac): not the port's doing, the script's. With the up read alone
+      in four passes the aim goes three fields up (the first of the four
+      passes does not test the record's byte 8) and with the step right
+      onto a field where a unit of the side stands; the two presses of
+      the button there give "NO TRANSPORTER" each instead of the move,
+      and the view stays where it chooses the aim (state 0 with 16h in
+      byte 18h, the fields it can reach still marked). There the
+      script's button and left does not end the half, so the first
+      side's view shows "WAITING FOR MOVEMENT-MODE" from then on and F1
+      ends no round; every later gesture of the script meets the same
+      state. Shown with the original: `m48_aim.keys` is `m48_move` with
+      the up let go 0.3 s after the button and the step right held
+      0.12 s (`make_two.py`'s new `/H`: `2m70/0.3 2R73/0.12`), which the
+      original samples as the port's clock samples `m48_move` (up alone
+      in the passes 672 to 675, tested in the last three; right in 713
+      and 714). The original then stalls the same way (one round's end
+      in 120 s, screenshots at 76 s to 99 s), the port on the original's
+      clock is the same as it at every pass compared, and the port's own
+      play of `m48_move` is the same as the original's of `m48_aim` at
+      72, 76, 84.9, 99.9 and 119.9 s but for what counts passes
+      (`play_test.sh m48_aim at m48_move T...`, new). Lengths between
+      stall too (up let go 0.33 and 0.36 s after: five passes); with
+      0.4 s (six passes) the rounds go on (four ends in 120 s; where the
+      unit went was not looked at). Not looked at: which key leaves the
+      choosing of an aim without a move (the script has none), and what
+      "NO TRANSPORTER" is in the code (presumably `move_target`'s
+      refusal of a field with a unit that carries nothing).
+    - A fight, a site, a repair and a build with two human sides
+      (2026-10-08, Mac; `m48_build.keys`, 285 s, seven rounds; the
+      script's steps were found with probe runs of the original that
+      printed both views every half second, not computed). What it
+      does, as the original's memory at the rounds' ends shows it:
+      round 1 the second side's unit 0Eh (kind 0Bh, on (9,10); fields
+      as column and row, the map offset halved) attacks unit 0Dh on
+      (14,8) from five fields away (its count 6 to 5, the attacker's
+      byte 1 to 1) and the first side moves its unit 15h from (15,13)
+      to (13,12); round 3 that unit goes on to (11,12); round 4 it
+      attacks unit 14h on (10,13) beside it while the second side
+      orders the same unit to (10,12): the fight comes first (both 6 to
+      5, both byte 1 to 1), then the move; round 6 unit 14h moves onto
+      the field (9,11) of `sites_400` record 0 and is in both rows'
+      first place after the round's end (4000h in `unit_flags`); round
+      7 the second side enters the site, repairs the unit (count 5 to
+      6, `side_points` 36h to 27h) and builds on the third place
+      (`unit_add` once: unit 2Dh of kind 12h, the list's first, price
+      23h; points 27h to 4; the side's count 20 to 21). Each fight is
+      shown as pictures.
+    - Learned on the way. Where a unit can go is read best from
+      `field_bits` in a dump (1 and 2 by the side), not from the
+      screen: a press on a field without the mark is refused without a
+      text (the view waits in step 17h for four passes and is back in
+      16h), which looks like a lost key. The kind 15h (the screen says
+      cavalry) reached two fields here, the kind 12h one or two by the
+      ground; the kind 0Dh (a bunker) has no move ("NO ASSAULT
+      TARGETS!" and no marks; the kind 0Ch's marks on the screen were
+      few, not read from a dump). A unit beside
+      one of the other side can still move away. The button and left
+      on a site's field goes into the site in the move half too (state
+      2, step 0Ah); the button and right inside leaves it (step 0Bh
+      with 2 in byte 19h, then state 0 on the field beside), which a
+      script needs before it can end that half on a plain field. With
+      less than the cheapest kind's price the button and left on a free
+      place opens no list (`build_count` 0: 18 points against 35), so a
+      script has to wait for the rounds that bring them: the second
+      side got 18 after each even round here, the first 10 after each
+      odd one (not looked at what gives them). The cursor's steps are
+      one field while the view stands and two when it scrolls.
+    - The port needed no change: on the original's clock `m48_build`
+      is the same at every pass compared (port/README.md). On its own
+      clock it leaves the original before the first round's end (the
+      cursor's steps are sampled otherwise, cause 3 above) and no round
+      ends.
+    - A battle's end with two human sides (2026-10-08, Mac;
+      `m54_end.keys`, map 54, 14 rounds, 320 s). Chosen because a unit
+      of the second side stands five fields from the first side's
+      headquarters there (`sites_40` record 0 on (14,16)); on no map
+      for two players is one nearer. The headquarters' field can be
+      entered from three fields only, (14,15), (13,15) and (15,15):
+      the other three around it and (14,18) are grounds of a class the
+      kind 12h cannot enter (bit 80h of the ground's byte 2, its cost
+      255), and on each of the three a unit of the first side stands at
+      the start. So the script walks the second side's unit 4Ch round
+      the building in its move halves, (14,21) to (14,20), (14,19),
+      (15,18), (16,18), (16,16), (15,15), a field or two a round (12 in
+      its byte 0 against costs of 5 to 9), while the first side moves
+      its unit 36h from (15,15) to (15,14) in round 9, and in round 14
+      onto (14,16). The kind 12h may enter the other side's grounds
+      because it has 1 in word 6 (`move_range`'s mask FFFFh).
+    - What the end does, in the original: `attacks_run` of pass 3853
+      (281.39 s) carries order 4 out (`event_picture`, the grey screen,
+      the site's picture), the unit is in the first place of both rows
+      of the record and has 4000h, the record's word 19h 4 to 5;
+      both views go to state 7 with 10h and 0Fh in word 22h, the texts
+      are "YOUR HQ HAS BEEN CAPTURED !!" and "VICTORY! HQ OCCUPIED",
+      4000h and 10h are set in `game_state`'s word 0 and 2 cleared.
+      The first side's part of that pass then waits for a press
+      (`S0CB6:0DA9`): nothing more ran for 19 s until the script's
+      button at 300 s, then the second side's part of the same pass
+      began and waited the same way for the next press (305 s), and the
+      loop was left at `S066A:45E8` (305.07 s). So each side's part
+      wants its own press at a battle's end.
+    - The port needed no change for the game's state: on the original's
+      clock the same at every pass compared, the last pass and the
+      memory at the loop's exit included (`play_dumps.py` now logs
+      `S066A:45E8` and dumps there as the pass after the last, which
+      the port's `-dump` writes after its last pass). Not the same as
+      the original and not changed here (loop.c is being worked on for
+      the drawing): the port's `state_end` shows text 42h to both sides
+      whatever word 22h holds, where the note on state 7 above says 3Ch
+      and 3Dh for 0Fh (the screen showed two different texts; the
+      numbers were not read again), and it waits for no press. Texts
+      are not in the memory compared. On its own clock `m54_end` is the
+      same to round 3 and then parts (a step's sampling).
+    Not reached with two human sides: a carrier, the keys F2 to F9, a
+    unit destroyed, a site other than a headquarters taken, a battle
+    ended by a side with no unit left, what follows the loop (the
+    picture CDh or D0h, the menu), moving out of a site, a repair or a
+    build refused, a map from
     24 to 47 (where `rec_of` exchanges the two records; those maps
     have a computer's side), the joysticks and the mouse, and what
     `m48_steps` did beyond moving the cursor and opening what its

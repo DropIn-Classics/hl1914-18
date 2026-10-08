@@ -315,8 +315,71 @@ anything the game needs before the first release.
     every one. On the own clock the same to round 1 (pass 601); the
     move's gesture is then read by other numbers of passes and the
     port's round 2 never ends.
-  Not reached: a fight between two human sides, a site, building,
-  repairing, the function keys, a battle's end, other maps for two
+  - Why it never ends (2026-10-08, macOS): the script, not the port.
+    `m48_aim` (`m48_move` with `2m70/0.3 2R73/0.12`: the lengths the
+    port's clock sampled, given to the original) stalls the original the
+    same way: the aim lands on a unit of the own side, the button gives
+    "NO TRANSPORTER", the view stays in the choosing of an aim and the
+    script's later keys never end that side's half. On the original's
+    clock `m48_aim` is the same at every pass compared (1,566 passes in
+    120 s, 3,132 parts read the same, 11 passes compared). And
+    `sh tests/play_test.sh m48_aim at m48_move 72 76 84.9 99.9 119.9`
+    (new: the port plays another script on its own clock and is compared
+    with the original's run of the tag at the first pass each begins at
+    or after a second): the game's state and the computer's the same at
+    all five, the passes' 3 to 6 bytes apart. Not checked: a time after
+    120 s.
+  - `m48_build` (285 s, seven rounds; `make_two.py` with
+    2R45 2R46 2R47 2R48 2u50 2u51 2u52 2u53 2u54 2d55 2L56 2L57 2m59
+    2R62 2R63 2R64 2R65 2L66 2u67 2u68 2d69 2a71 2a73 1L75 1L76 1L77
+    1L78 1L79 1L80 1d81 1m83 1L86 1a88 1a90 1E93 2E95 2f99 2f99.8
+    1E121 2E123 2f127 2f127.8 1m133 1L136 1L137 1a139 1a141 1E144
+    2E146 2f150 2f150.8 1m156 1L159 1d160 1d161 1a163 2L156 2L157
+    2L158 2d159 2d160 2d161 2L162 2R164 2m166 2a169 2a171 1E175 2E177
+    2f181 2f181.8 1E204 2E206 2f210 2f210.8 2m216 2L219 2a221 2a223
+    1E225 2E227 2l229 2R231 2E232 2f236 2f236.8 2L242 2L243 2s245
+    2r248 2R251 2s253 2s256 2l259 2R261 2E262 1E264 2f268 2f268.8
+    ): fights by both sides (the second side's artillery from five
+    fields away in round 1, the first side's unit against the unit
+    beside it in round 4, which was ordered to move in the same half),
+    moves by both sides, a damaged unit moved onto the second side's
+    factory (round 6), and in round 7 the site entered, the unit
+    repaired and a unit built. On the original's clock 3,597 passes,
+    7,194 parts read the same, 19 passes compared (the seven rounds'
+    ends and the passes after them): "the inputs, the game's state and
+    the computer's the same at every pass compared". On the own clock
+    no round ends (the cursor's steps are sampled otherwise from the
+    first seconds on).
+  - `m54_end` (map 54, 320 s, 14 rounds; `make_two.py` with
+    1E45 2E47 2f51 2f51.8 2R56 2R57 2R58 2R59 2R60 2R61 2L62 2u63
+    2u64 2u65 2u66 2m68 2d71 2a73 2a75 2E77 1E79 2f83 2f83.8 1E88
+    2E90 2f94 2f94.8 2m99 2u102 2a104 2a106 2E108 1E110 2f114 2f114.8
+    1E119 2E121 2f125 2f125.8 2m130 2R133 2a135 2a137 2E139 1E141
+    2f145 2f145.8 1E150 2E152 2f156 2f156.8 2m161 2R164 2d164.9 2a166
+    2a168 2E170 1E172 2f176 2f176.8 1R181 1u182 1u183 1m185 1a188
+    1a190 1E192 2E194 2f198 2f198.8 2m203 2u206 2a208 2a210 2E212
+    1E214 2f218 2f218.8 1E223 2E225 2f229 2f229.8 2m234 2L237 2a239
+    2a241 2E243 1E245 2f249 2f249.8 1E254 2E256 2f260 2f260.8 2m265
+    2d268 2L268.9 2u269.8 2a270 2a272 2E274 1E276 2f280 2f280.8 1a300
+    1a305
+    ): the second side walks a unit round the first side's
+    headquarters in its seven move halves, the first side moves the
+    unit that stands on the way, and in round 14 the headquarters is
+    taken: the battle's end. Two presses after it (300 s and 305 s) let
+    each side's part of the last pass go on, and the original leaves
+    its loop. On the original's clock 3,853 passes, 7,706 parts read
+    the same, 33 passes compared (the 14 rounds' ends and the passes
+    after them, the last pass, and the memory at the loop's exit
+    `S066A:45E8` against the port's after its last pass, when it says
+    "the battle is over"): the same at every one. On the own clock
+    (`rounds`) the same to round 3.
+  Not the original's at a battle's end, seen here and not changed
+  (`loop.c`): the texts `state_end` shows (42h for both sides; the
+  original showed the loser and the winner different ones) and the
+  press each side's part waits for.
+  Not reached: a unit destroyed, a site other than a headquarters
+  taken, an end by a side left without units, what follows the loop,
+  moving out, a carrier, the function keys, the other maps for two
   players.
   Not checked: a battle played to its end; maps other than 0 and 8; a
   computer first side; a thinking loop ended

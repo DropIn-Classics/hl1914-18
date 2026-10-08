@@ -25,7 +25,9 @@ take them off) and rand_words (the seed is
 the BIOS's count of ticks when a fight's pictures begin, and those
 pictures' own calls of rand_next are not made).  With `seeds` the port
 took both from the original's log (play.c, -seeds) and rand_words is
-compared with the computer's.
+compared with the computer's.  With `at` (play_test.sh TAG at KEYS T...)
+the lines of rounds.txt are times, not rounds: the first pass of each play
+at or after a second, the port having played another key script.
 
 Compared as port/tests/loop_test.c does: the game's state (S3306 up to the
 computer's player's segments S39B6 to S3AEB, and S3AEC:0008 up to DATA),
@@ -43,7 +45,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 tag = sys.argv[1] if len(sys.argv) > 1 else 'm8_site'
 own = len(sys.argv) > 2 and sys.argv[2] == 'own'
-by_rounds = len(sys.argv) > 2 and sys.argv[2] in ('rounds', 'seeds')
+by_rounds = len(sys.argv) > 2 and sys.argv[2] in ('rounds', 'seeds', 'at')
+at = len(sys.argv) > 2 and sys.argv[2] == 'at'
 seeds = len(sys.argv) > 2 and sys.argv[2] == 'seeds'
 out = os.path.join(ROOT, 'build', 'play', tag)
 BASE = 0x76
@@ -140,8 +143,8 @@ if by_rounds:
         d = [i for i in range(RAM) if o[i] != q[i] and kind[i] != 3]
         new = [i for i in d if not (o[i] == first[0][i] and q[i] == first[1][i])]
         c = [sum(kind[i] == k for i in new) for k in (0, 1, 2, 4)]
-        print('round %d, pass %d of the original and %d of the port: the game\'s state %d different, the '
-              'computer\'s %d, the passes\' %d, elsewhere %d' % (n, po, pp, c[0], c[1], c[3], c[2]))
+        print('%s %d, pass %d of the original and %d of the port: the game\'s state %d different, the '
+              'computer\'s %d, the passes\' %d, elsewhere %d' % ('time' if at else 'round', n, po, pp, c[0], c[1], c[3], c[2]))
         for lo, hi, cnt in ranges([i for i in new if kind[i] < 2])[:12]:
             print('  %s to %s: %d (%s)' % (where(lo), where(hi).split(':')[1], cnt,
                                            'the computer\'s' if kind[lo] == 1 else 'the game\'s state'))
@@ -149,9 +152,10 @@ if by_rounds:
             differs = True
         elif not differs:
             agree = (n, po, pp)
-    print('round by round on the port\'s own clock%s: the game\'s state and the computer\'s the same but for the '
-          'passes\' up to %s' % (' with the original\'s seeds' if seeds else '', 'round %d (pass %d of the original, %d of the port)' % agree if agree else 'no round'))
-    sys.exit(0)
+    print('%s on the port\'s own clock%s: the game\'s state and the computer\'s the same but for the '
+          'passes\' up to %s' % ('time by time' if at else 'round by round', ' with the original\'s seeds' if seeds else '',
+                                 ('time' if at else 'round') + ' %d (pass %d of the original, %d of the port)' % agree if agree else 'none'))
+    sys.exit(1 if at and differs else 0)
 
 bad = 0
 # what each side's part read

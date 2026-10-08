@@ -17,9 +17,13 @@ plays the map a script's name begins with, mNN_).  Each ARG is one of:
           u d L R a step of the cursor (held 0.08 s), a the button,
           m the button and up (the move), s and left, r and down, l and
           right, E the half ended (the button and left), f F1 (S ignored)
+  SxT/H   the same with another length, H seconds: a step held H (not
+          0.08), a gesture's direction let go H after the button (not
+          0.2); for scripts that give the original what another clock
+          sampled
 
-m48_two.keys is `45:400`, m48_steps.keys `45:400 seed=7`, m48_move.keys
-what port/README.md says.  The second side's keys are those of its table
+m48_two.keys is `45:400`, m48_steps.keys `45:400 seed=7`, m48_move.keys,
+m48_aim.keys, m48_build.keys and m54_end.keys what port/README.md says.  The second side's keys are those of its table
 in HL.EXE (docs/HANDOFF.md, "The keyboard").  No game data is kept in
 this file.
 """
@@ -31,8 +35,8 @@ DIRS = {'1': {'L': 'left', 'R': 'right', 'u': 'up', 'd': 'down'},
         '2': {'L': 'x', 'R': 'v', 'u': 'd', 'd': 'c'}}
 
 
-def gesture(t, button, d):  # the button held, a direction, both let go
-    ev.extend([(t, button + '+'), (t + .3, d + '+'), (t + .7, button + '-'), (t + .9, d + '-')])
+def gesture(t, button, d, after=.2):  # the button held, a direction, both let go
+    ev.extend([(t, button + '+'), (t + .3, d + '+'), (t + .7, button + '-'), (t + .7 + after, d + '-')])
 
 
 def tap(t, d, held=.2):
@@ -73,15 +77,16 @@ for arg in args:
                         tap(s + .5, ('left', 'right', 'up', 'down')[pick(4)])
             t += 15
         continue
+    arg, _, held = arg.partition('/')
     side, c, t = arg[0], arg[1], float(arg[2:])
     d = DIRS[side]
     if c in d:
-        tap(t, d[c], .08)
+        tap(t, d[c], float(held or .08))
     elif c == 'a':
         ev.append((t, BUTTON[side]))
     elif c == 'f':
         ev.append((t, 'f1'))
     else:
-        gesture(t, BUTTON[side], d[{'m': 'u', 's': 'L', 'E': 'L', 'r': 'd', 'l': 'R'}[c]])
+        gesture(t, BUTTON[side], d[{'m': 'u', 's': 'L', 'E': 'L', 'r': 'd', 'l': 'R'}[c]], float(held or .2))
 for t, k in sorted(ev):
     print('%.2f %s' % (t, k))

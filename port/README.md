@@ -597,6 +597,40 @@ the computer as second side attacking in the window (map 48 has two
 human sides; the computer's attacks were compared behind the window,
 `computer_test.sh`), the SDL window by hand.
 
+2026-10-08 (`debian/window8`): menu, battle, menu through a battle's
+end, and a `-keylog` from the menu replayed. Nothing of the port needed
+changing. `menu_dumps.py` has two walks with a battle played to its end
+between (`BATTLES`: a key script, its times moved, its pokes): `end57`
+types map 57's code, START, plays `m57_win`'s keys 8 s earlier with its
+pokes (the first round's end leaves the second side without units, CDh
+with 1), types the best score's name (A, Enter), leaves the best scores
+and takes START again (the menu's second return, 95.17 s); `live57` is
+the same as the headless window played it from the menu on:
+`tests/keys/menu57_win.keys` is what its `-keylog` wrote, with the map's
+code as `code1` to `code5` (filled in from `CODES.DAT` at run time).
+For both the original's run now also gives memory and video memory at
+the end's two waits and the frames 1, 11 ... 121 of CDh, and each walk
+has its own `-state` folder emptied before every run (the port's
+`port_saves/` likewise), whose files of the first run are compared with
+the port's. `sh port/tests/menu_test.sh end57 live57`: what came in the
+same in both (7 things, times at most 0.06 s apart); no byte different
+at the menu's two returns in the regions compared, at both waits and all
+13 frames (memory as `menu_cmp.py` has it, both video pages), and in the
+menu after the battle (92 s); `MAP\04.HI` the same. Told apart: the
+battle's count of passes (347 in the original, 348 on the port's own
+clock) and with it the timer's due pass at game_state+28h.
+`sh port/tests/menu_test.sh live live57`: the window plays the walk's
+script, its `-keylog` is the script again byte for byte, and its memory
+at the second return, the menu after the battle and all 15 end dumps,
+video memory included, are the same as the `-keys` play's.
+The seven older walks rerun with their own `-state` folders
+(`menu_dumps.py` and `menu_test.sh back code57 exit noload pages start0
+start24`): all the same as before (`back`'s battle between now counts 130
+passes in the original and 131 in the port).
+Not done or not checked: the name's and the best scores' screens as
+video memory, the battle on the original's clock inside a menu walk,
+the SDL window by hand, the sounds.
+
 2026-10-08, the field menu's information (`unit_info`, `unit_values`,
 `info_rect` and `battle_info` in `src/draw.c`, the original's
 `S131D:0483`, `0148`, `0008` and `0EE5`; `state_field` of `src/loop.c`

@@ -17,7 +17,9 @@ of units and sites and the building of a battle's state from a map's files
 into its memory and sets a battle up by itself as far as that is translated
 (`port/src/battle.c`; the bullets "The port's own start" and "The rest of a
 battle's setup" below: the setup is translated up to the loop's beginning,
-but for pictures and sound). Of the loop, the views' states, a round's end
+but for pictures and sound), and plays the battle on from there without
+drawing it, with a key script as the human's input (the bullet "The
+port's program plays a battle by itself"). Of the loop, the views' states, a round's end
 and what a unit reaches are read (the last bullets under "The loop of
 `game_loop`, second reading"), and the routines that mark where a unit can
 move, whom it can attack and its way are translated (`port/src/range.c`),
@@ -2095,7 +2097,113 @@ emulation error (2026-10-02).
       to its end; the comparisons show no difference from it).
     Open: a loop ended early by a key, a computer first side in the
     pass (the single calls of `computer_turn` covered side 0, the pass
-    did not), and the pass is still only run by the test.
+    did not); the pass is now run by the program too (the next bullet).
+  - The port's program plays a battle by itself (2026-10-08, Mac;
+    `port/src/play.c`, `port/src/input.c`, the options `-keys`, `-clock`,
+    `-seed`, `-passes`, `-dump` of the headless program). From its own
+    setup (`battle.c`) it runs the passes of `loop.c` with a key script
+    as the human's input; started so and run by the original's clock it
+    has the same game's state and computer's state as the original at
+    every pass compared on three key scripts (`m8_site` 400 s, `m0_hq`
+    and `m8_d5r` 300 s; port/README.md has the counts). Learned on the
+    way:
+    - The setup's differences. Of the game's state (`S3306` up to
+      `DATA`) the port's own setup differs from the original's first pass
+      only in what the routines left out fill: the records of the
+      libraries of pictures and their far pointers (`S331F:013B` to
+      `020B`, `02D7` to `05A2`, `179A` to `17A5`, `185A`; `S37FF:0012` to
+      `007E`), a letter in three names (`0272`, `027B`, `0284`: `W` in
+      the original at map 8's first pass, `T` in the port; who writes it
+      was not looked at), the map's number as text (`177D`),
+      `S37FF:011E` and the code typed in the menu (`0129`), and
+      `S3CFE:0006`: 772 bytes on map 8. None of them is read by a pass
+      as far as translated, but one was missing and is now set:
+      `S1650:0003` (called once at the start; it loads a file and shows
+      something, not read further) puts the far pointer to the table of
+      keys `S331F:0292` at `S331F:02D3` and twelve of the table's entries
+      at `02C7` (entries 8, 8, 9, 0Bh, 0Ah, 6, 1Ah, 1Eh, 1Ch, 1Bh, 1Dh,
+      1). Without the pointer no key of a pass is known, and the F1 pair
+      did not end the round (first seen as a difference in pass 292 of
+      `m8_site`). Outside the state some 187,000 bytes differ at the
+      first pass (pictures, the screen's and the sound's data, the
+      interrupts').
+    - The keyboard (`S27FE:04F4`, the interrupt 9 the program sets; it
+      passes nothing on to the BIOS): the byte read goes to `DATA:0B2B`,
+      and the key's bit in the 16 bytes at `DATA:0B1B` (80h shifted right
+      by the code's low three bits, in the byte of its upper four) is
+      cleared for a key down and set for one up.
+    - The timer (`S27FE:06D2`, interrupt 8) shares its counts out among
+      routines with their periods (`S27FE:0783` adds one); in the battle
+      there are four: the BIOS's old interrupt (10000h), `S27FE:008C`
+      (3FFFh: 72.8 times a second), and two of `S30EF` (`S30EF:192D`
+      with 06A9h and `S30EF:12D9` with 1D1EBh; presumably the sound's).
+    - `S27FE:008C`: counts the word at `DATA:0308` (22Eh of the record
+      behind `DATA:0092`; a pass sets it to 0 at its beginning and waits at
+      its end until it is at least `game_state`'s word 0Fh: so a pass
+      lasts at least four calls, 55 ms, and need not wait with the word
+      0, which a human's side that has ended its half sets while the
+      computer plays); a key down in `DATA:0B2B` goes to the record
+      behind `DATA:00BE` (`DATA:045C`: byte 0 the scancode, word 4 FFFFh
+      until `game_loop` has read it) and `0B2B` becomes 0; and on every
+      fourth call (`DATA:0B19`) the two sides' records are filled
+      (`S27FE:0175` and `020E`): what the side's table of keys (the word
+      at `DATA:0B2C` or `0B2E`; seven bytes a key, the scancode and what
+      it gives left, right, up, down and the button) finds held goes
+      into the five bytes at `DATA:03BC` or `03E8`, the directions from
+      there into bytes 0 to 3 of the record (`DATA:03C8`, `03F4`: what
+      `DATA:00A6` and `00B6` point to), FFh into byte 4 for the button
+      and into byte 8 whenever it is up; byte 5 becomes FFh for a second
+      press within 19h such calls (bytes 6 and 7 keep how far that has
+      come; the counts of holds and gaps are five pairs of words at
+      `DATA:03D2` and `03FE`). The first side's keys are the arrows and
+      the keypad's corners with Space and Enter as the button, the
+      second's X, V, D or F, C with the left Alt and Ctrl. With a
+      joystick switched on (`DATA:0384`, `0386`) the directions come from
+      it instead, and the mouse (`S27FE:03D4`) adds to the record the
+      word at `DATA:0418` names; both are not translated (the mouse rests
+      in the middle in the scripted runs and gives nothing).
+    - `S0CB6:0036(n)` is the routine that waits: it waits for the first
+      side's button and the key to be gone, then up to n in steps of
+      three (`S0CB6:0001`), clearing byte 4 of the first record and the
+      key's word 4 at each step, until one of them comes; it returns 1
+      for the key of entry 0 or when the time ran out. The fight's
+      pictures clear the key too (`S2532:0131`). So a key pressed during
+      a round's end with fights is gone: in `m8_d5r` the second F1 of the
+      pair in pass 2265 never reaches the second side's part (in
+      `m8_site`'s pass 291, without fights, it does).
+    - `S2532` does call `rand_next` itself in a fight's pictures after
+      `clock_seed` (11 calls in `m8_d5r`, none in `m8_site`): the numbers
+      the computer draws later depend on the pictures.
+    - `move_step` shows the text `move_arrive` returns
+      (`show_message`, `S10E1:0A68`), which sets the side's bit in
+      `game_state`'s word 0; the port's left it out (seen in `m8_d5r`,
+      pass 431, where the first side's unit arrives; the timers then
+      took other places). Added.
+    - What still has to come from a log of the original for the same
+      battle to be played (`port/tests/play_dumps.py` writes it as the
+      clock's file): (1) the times of the timer's routine, of the
+      keyboard's interrupt and of the places where a pass reads what
+      they left (a side's part, `side_input`, `view_step`, each turn of
+      the thinking loop, `attacks_run`), because the original's passes
+      last as long as its drawing and the port draws nothing; with the
+      times the port finds the input words, the keys, bytes 5 and 8 and
+      the number of calls in the thinking loop by itself (they were
+      inputs of `loop_test`); (2) the numbers `clock_seed` starts the
+      random numbers with (the BIOS's count of ticks at the setup and in
+      each fight's pictures) and the calls of `rand_next` by the
+      pictures; (3) where the waits and pictures of a round's end clear
+      the button and the key. No game state is taken from the original.
+    - On the port's own clock (a pass lasts as many calls of the timer's
+      routine as the original waits for, at least one; nothing else takes
+      time) the same keys give the same state up to pass 291 of
+      `m8_site` and another cursor field by pass 400 (looked at once, by
+      hand): the original's passes are longer by what it draws, so a key
+      script written for the original's times does not fit the port's.
+    Not done: nothing is drawn or sounded, the keys F2 to F9, Esc and
+    saving stop the play ("not translated"), no battle was played to its
+    end, the mouse and joysticks, a thinking loop ended by a key (none of
+    the three scripts has one), a computer first side. `S27FE`'s routines,
+    `S0CB6:0036` and `S1650:0003` are not named in `src/HL.hints` yet.
   - The fights of `attacks_run` (2026-10-07, Linux; `S02E6:0122` to
     `0D48`, `0D63` to `0E9C`, order 1 at `0ED9`, `order_undo`, read and
     translated, `port/src/orders.c` and `move.c`). Learned on the way:

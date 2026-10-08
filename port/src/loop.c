@@ -4,7 +4,10 @@
  * waits.  What the original reads from the keyboard handler comes in as a
  * SideIn, which port/tests/loop_dumps.py logs from the original; the
  * computer's side is played by computer_turn (port/src/plan.c), or with
- * loop_replay set by what the original's was logged to give.
+ * loop_replay set by what the original's was logged to give.  The port's
+ * own program (port/src/play.c) sets loop_hook and has the input in the
+ * program's memory, where its own translation of the interrupts
+ * (port/src/input.c) leaves it.
  * port/README.md says how this was compared with the original.
  */
 #include "hl.h"
@@ -50,6 +53,13 @@ static uint16_t side_word(uint16_t side) { return NW(sides, side * SIDE_SIZE); }
  * was translated */
 int loop_replay;
 
+/* the program's own play: called at the places of a pass where the
+ * original reads what its interrupts left meanwhile or where its clock
+ * matters (LOOP_PART and the others, hl.h).  With it set a human's input
+ * record is the memory's and not written from SideIn; the routine may
+ * change the SideIn of the pass under way. */
+void (*loop_hook)(int at, uint16_t side);
+
 static uint16_t phase_word(uint16_t side)
 {
     return frw(S_COMP, (uint16_t)(A_computer_phase + side * 0x0C));
@@ -70,10 +80,17 @@ static uint16_t computer_part(uint16_t side, const SideIn *in)
         /* the original also clears word 4 behind DATA:00BE (the keys) */
         pwb(r0, 4, 0);
         pwb(r1, 4, 0);
+        if (loop_hook) {
+            Far k = far_at(S_DATA, 0x00BE);
+
+            pww(k, 4, 0);
+        }
         show_message(0x64, side);
         for (;;) {
             computer_turn(side);
             n++;
+            if (loop_hook)
+                loop_hook(LOOP_THINK, side);
             if (!(phase_word(side) & 0x60))
                 break;
             if (in->turns >= 0 && n >= in->turns)
@@ -654,7 +671,11 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
             key = 0;
             SETW(site_taken, 0, NB(sides, a * SIDE_SIZE + 0x15) ? 1 : 0);
             SETB(take_picture, 0, 0);
+            if (loop_hook)
+                loop_hook(LOOP_ROUND, side);
             res = attacks_run();
+            if (loop_hook)
+                loop_hook(LOOP_FOUGHT, side);
             /* the fight's pictures (S2532, not translated) start the
              * random numbers anew from the BIOS's count of ticks, once a
              * fight; the last of them comes in */
@@ -740,6 +761,8 @@ static void side_part(uint16_t side, const SideIn *in)
     Far view = view_of(side), rec;
     uint16_t di = 0;
 
+    if (loop_hook)
+        loop_hook(LOOP_PART, side);
     if (in->key)
         key = in->key;
     if (side_word(side) & 2) {
@@ -774,15 +797,19 @@ static void side_part(uint16_t side, const SideIn *in)
         gs_or(4, side ? 0x10 : 8);
     } else {
         rec = input_rec(side);
-        pwb(rec, 0, in->word & 4 ? 1 : 0);
-        pwb(rec, 1, in->word & 8 ? 1 : 0);
-        pwb(rec, 2, in->word & 1 ? 1 : 0);
-        pwb(rec, 3, in->word & 2 ? 1 : 0);
-        pwb(rec, 4, in->word & 0x10 ? 1 : 0);
-        if (in->rec5 >= 0)
-            pwb(rec, 5, (uint8_t)in->rec5);
-        if (in->rec8 >= 0)
-            pwb(rec, 8, (uint8_t)in->rec8);
+        if (loop_hook)
+            loop_hook(LOOP_INPUT, side);
+        else {
+            pwb(rec, 0, in->word & 4 ? 1 : 0);
+            pwb(rec, 1, in->word & 8 ? 1 : 0);
+            pwb(rec, 2, in->word & 1 ? 1 : 0);
+            pwb(rec, 3, in->word & 2 ? 1 : 0);
+            pwb(rec, 4, in->word & 0x10 ? 1 : 0);
+            if (in->rec5 >= 0)
+                pwb(rec, 5, (uint8_t)in->rec5);
+            if (in->rec8 >= 0)
+                pwb(rec, 8, (uint8_t)in->rec8);
+        }
         di = side_input(rec, view);
     }
     if (side)
@@ -804,6 +831,8 @@ static void side_part(uint16_t side, const SideIn *in)
     if (pb(view, 0x17) == 0) {
         Far map = far_at(S_map_cur, A_map_cur);
 
+        if (loop_hook)
+            loop_hook(LOOP_STEP, side);
         if (view_step(view, rec, di, map, side))
             cursor_move(view, side, di);
     }

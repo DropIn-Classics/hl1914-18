@@ -72,8 +72,11 @@ static int start_file(int16_t ext, uint16_t keep, uint16_t rec)
  * Left out: the command line's /a and /b and the sound's start
  * (S2F39:000B, S30EF:1C2D, S2F39:1058; the port is the game with both
  * devices found), the screen's (S298E:000D, S28D9:000C, S2974:0002),
- * S27FE:0013, S27FE:056C, S1571:0426, S1571:0443 and S1650:0003 (not
- * read). */
+ * S27FE:0013, S27FE:056C, S1571:0426 and S1571:0443 (not read), and of
+ * S1650:0003 all but what it keeps of the keys: the far pointer to the
+ * table of keys at S331F:0292, which game_loop compares the key of a pass
+ * with, and twelve of its entries at S331F:02C7 (it also loads a file and
+ * shows something; read no further). */
 int start_setup(void)
 {
     Far p;
@@ -93,6 +96,16 @@ int start_setup(void)
     fww(p.seg, p.off, 0);
     if ((r = start_file(3, 0x17AA, 0x290)) != 0 || (r = start_file(5, 0x17A6, 0x294)) != 0)
         return r;
+    {
+        /* S1650:00F8 to 0220 */
+        static const uint8_t entry[12] = { 8, 8, 9, 0x0B, 0x0A, 6, 0x1A, 0x1E, 0x1C, 0x1B, 0x1D, 1 };
+        uint16_t i;
+
+        fww(S_GAME, 0x02D5, S_GAME);
+        fww(S_GAME, 0x02D3, 0x0292);
+        for (i = 0; i < 12; i++)
+            fwb(S_GAME, (uint16_t)(0x02C7 + i), frb(S_GAME, (uint16_t)(0x0292 + entry[i])));
+    }
     fww(S_GAME, 0x4D4A, 0);
     SETW(sides, 0, 0);
     fww(S_GAME, 0x4D31, 0);

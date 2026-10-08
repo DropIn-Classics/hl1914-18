@@ -1,0 +1,9 @@
+# map 48, two human sides: a joystick that is there from the program's
+# start (joy_setup called by input_install finds and measures it; the
+# first dump has that) and wanted, as both sides' are from the start;
+# with m48_joy0.joy beside it.  F5 at 33.5 switches it off and at 36 on
+# again, F6 at 34 the second side's off, of which there is none; see
+# port/README.md
+33.50 f5
+34.00 f6
+36.00 f5

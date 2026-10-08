@@ -1,0 +1,17 @@
+# map 48, two human sides: the joysticks as the sides' directions and
+# buttons (joy_setup, joy_read, the sticks' part of input_side0/1), with
+# m48_joy.joy beside it.  Both sides' sticks are wanted from the start
+# (DATA:03B8, 03BA) and none is there.  F5 twice (off, on): each press
+# looks for the sticks, so the first side's is found and used; F6 twice
+# the same for the second's; a key while the stick rests; both off; then
+# on again with the first stick gone and the second measured away from
+# its middle; see port/README.md
+32.00 f5
+34.00 f5
+44.50 f6
+45.50 f6
+49.00 right
+52.00 f5
+55.00 f6
+57.00 f5
+59.00 f6

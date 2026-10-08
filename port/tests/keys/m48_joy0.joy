@@ -1,0 +1,18 @@
+# the stick for m48_joy0.keys (the format is m48_joy.joy's): there from
+# the start, a little off 570 in both axes
+0 0,560,590,0
+# left, down, right and up at once, the button
+28.00 0,100,590,0
+28.60 0,560,590,0
+30.00 0,560,1150,0
+30.60 0,560,590,0
+31.00 0,1100,100,0
+31.60 0,560,590,0
+32.00 0,560,590,1
+32.30 0,560,590,0
+# not wanted from 33.5: nothing
+35.00 0,100,590,0
+35.40 0,560,590,0
+# wanted again from 36
+37.00 0,100,590,0
+37.60 0,560,590,0

@@ -1,0 +1,36 @@
+# the mouse for m48_mouse.keys ("T X,Y,B": the driver's place and the
+# buttons held, 1 left, 2 right).  The middle is 160,100 and the step 40.
+# the pointer to the middle in both programs
+29.00 160,100,0
+# while the mouse is off (F7 at 30): nothing reads it
+31.00 260,100,0
+# on again at 32.  Right, one short of the step (nothing), left, down, up,
+# right and down at once
+34.00 200,100,0
+35.00 199,100,0
+36.00 100,100,0
+37.00 160,150,0
+38.00 160,40,0
+39.00 220,160,0
+# the first button and its letting go
+40.00 160,100,1
+40.30 160,100,0
+# the second alone, both, the first let go with the second held (ten
+# calls without the mouse) and a move in them
+42.00 160,100,2
+43.00 160,100,3
+43.30 160,100,2
+43.40 230,100,2
+44.00 160,100,0
+# after each step of the speed (F8 at 46, 48, 50)
+47.00 215,100,0
+49.00 105,100,0
+51.00 160,30,0
+# a move with the first button held
+52.00 160,100,1
+52.50 210,100,1
+53.00 160,100,0
+# off at 54, a button held while it is turned on again at 56
+55.00 250,100,1
+58.00 160,100,0
+59.00 160,160,0

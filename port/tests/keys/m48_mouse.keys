@@ -1,0 +1,12 @@
+# map 48, two human sides: the mouse as the first side's directions and
+# button (input_mouse, S27FE:03D4), with m48_mouse.mice beside it.  F7
+# turns the mouse off and on again (the driver's reset leaves the pointer
+# right of the middle: a direction once), F8 steps its speed, F7 off and
+# on once more with a button held; see port/README.md
+30.00 f7
+32.00 f7
+46.00 f8
+48.00 f8
+50.00 f8
+54.00 f7
+56.00 f7

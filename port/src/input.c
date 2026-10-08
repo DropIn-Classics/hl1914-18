@@ -2,9 +2,9 @@
  * keyboard's (S27FE:04F4) and the routine the timer calls 72.8 times a
  * second (S27FE:008C, a period of 3FFFh of the timer's counts), which
  * keeps the last key pressed and on every fourth call fills the two
- * sides' input records from the keys held and the mouse.  Translated
- * over the program's memory; the joysticks are left out (the places are
- * named where they stand).  port/README.md says how this was compared with the
+ * sides' input records from the keys held, the joysticks and the mouse.
+ * Translated over the program's memory; the joysticks' own routines are
+ * in joy.c.  port/README.md says how this was compared with the
  * original.
  */
 #include "hl.h"
@@ -170,22 +170,47 @@ static void input_mouse(uint16_t cur)
  * clears them), the button into byte 4; byte 8 becomes FFh whenever the
  * button is up; byte 5 becomes FFh for a second press of the button begun
  * within 19h calls (bytes 6 and 7 keep how far that has come).
- * Returns NULL, or what is not translated: a joystick (a side's word at
- * DATA:0384 or 0386 with the word at 03B8 or 03BA; F5 and F6 switch
- * them).  The mouse adds to the record the word at DATA:0418 names
+ * With the side's joystick wanted (the word at `on`, DATA:03B8 or 03BA,
+ * which F5 and F6 switch) and there (`there`, 0384 or 0386) it comes
+ * first (S27FE:01AC, 0232): what joy_read measured last (`stick`: X, Y
+ * and the button's word, 0388 or 038E) against the stick's edges
+ * (`edge`, 039C or 03AC: X at or below the first is left, at or above
+ * the second right, Y with the third and fourth up and down), a
+ * direction beginning the opposite one's count of holds again, and the
+ * button.  Only when it gives nothing are the keys and the mouse asked.
+ * The mouse adds to the record the word at DATA:0418 names
  * (input_mouse). */
-static const char *side_rec(uint16_t cur, uint16_t prev, uint16_t cnt, uint16_t rec, uint16_t table,
-                            uint16_t on, uint16_t stick)
+static void side_rec(uint16_t cur, uint16_t prev, uint16_t cnt, uint16_t rec, uint16_t table,
+                     uint16_t on, uint16_t there, uint16_t stick, uint16_t edge)
 {
     uint16_t t, i;
+    int keys = 1;
 
     for (i = 0; i < 5; i++)
         sb((uint16_t)(prev + i), db((uint16_t)(cur + i)));
     for (i = 0; i < 6; i++)
         sb((uint16_t)(cur + i), 0);
-    if (dw(on) && dw(stick))
-        return "a joystick (S27FE:01AC)";
-    for (t = dw(table); db(t); t = (uint16_t)(t + 7)) {
+    if (dw(on) && dw(there)) {
+        int16_t x = (int16_t)dw(stick), y = (int16_t)dw((uint16_t)(stick + 2));
+
+        if (x <= (int16_t)dw(edge)) {
+            sb(cur, 0xFF);
+            sw((uint16_t)(cnt + 4), 0);
+        } else if (x >= (int16_t)dw((uint16_t)(edge + 2))) {
+            sb((uint16_t)(cur + 1), 0xFF);
+            sw(cnt, 0);
+        }
+        if (y <= (int16_t)dw((uint16_t)(edge + 4))) {
+            sb((uint16_t)(cur + 2), 0xFF);
+            sw((uint16_t)(cnt + 0x0C), 0);
+        } else if (y >= (int16_t)dw((uint16_t)(edge + 6))) {
+            sb((uint16_t)(cur + 3), 0xFF);
+            sw((uint16_t)(cnt + 8), 0);
+        }
+        sb((uint16_t)(cur + 4), db((uint16_t)(stick + 4)));
+        keys = !(dw(cur) | dw((uint16_t)(cur + 2)) | db((uint16_t)(cur + 4)));
+    }
+    for (t = dw(table); keys && db(t); t = (uint16_t)(t + 7)) {
         uint8_t code = db(t);
 
         if (db((uint16_t)(0x0B1B + ((code & 0x7F) >> 3))) & (0x80 >> (code & 7)))
@@ -193,7 +218,7 @@ static const char *side_rec(uint16_t cur, uint16_t prev, uint16_t cnt, uint16_t 
         for (i = 0; i < 5; i++)
             sb((uint16_t)(cur + i), db((uint16_t)(cur + i)) | db((uint16_t)(t + 1 + i)));
     }
-    if (dw(0x0414) && dw(0x0418) == rec && dw(0x045A) == 0xFFFF)
+    if (keys && dw(0x0414) && dw(0x0418) == rec && dw(0x045A) == 0xFFFF)
         input_mouse(cur);
     /* a direction begins the opposite one's count of holds again */
     if (db(cur))
@@ -238,7 +263,6 @@ static const char *side_rec(uint16_t cur, uint16_t prev, uint16_t cnt, uint16_t 
         else
             count_gap(c);
     }
-    return NULL;
 }
 
 /* S27FE:008C, called by the timer's interrupt (S27FE:06D2 shares the
@@ -252,12 +276,33 @@ static const char *side_rec(uint16_t cur, uint16_t prev, uint16_t cnt, uint16_t 
  * to byte 0 and its character to byte 2 of that record.  The mouse is
  * read (mouse_read, S2BE7:000A) on every call when its record's word 2 is
  * 1 (the menu), else on every fourth.
- * Left out: S2D0D:0306 with the word at DATA:04B9, the joysticks' reading
- * (S2BAD:0006). */
+ * read (mouse_read, S2BE7:000A) on every call when its record's word 2 is
+ * 1 (the menu), else on every fourth; the joysticks (joy_read,
+ * S2BAD:0006) on every fourth while one of the two is wanted.
+ * Left out: S2D0D:0306 with the word at DATA:04B9.
+ * Not the original's: joy_measure (joy_setup) is called from here, at the first call
+ * (for input_install's, S27FE:0013, at the program's start) and at the
+ * first after F5 or F6 has switched a stick's word (loop.c's own
+ * joy_setup is the one for a machine without a game port; with
+ * joy_measure() of joy.c called there instead the second is not needed).
+ * The original's waits for retraces in the pass while this routine goes
+ * on; joy_measure does so by the calls' times, to within a call (it does
+ * not know when in the pass the key was taken, nor where the retrace
+ * stood). */
 const char *input_tick(void)
 {
-    const char *why;
+    static uint16_t wanted[2];
+    static int set_up;
+    double now;
     uint8_t code = db(0x0B2B);
+
+    now = joy_tick();
+    if (!set_up || wanted[0] != dw(0x03B8) || wanted[1] != dw(0x03BA)) {
+        joy_measure(set_up, now);
+        set_up = 1;
+        wanted[0] = dw(0x03B8);
+        wanted[1] = dw(0x03BA);
+    }
 
     sw(0x0308, (uint16_t)(dw(0x0308) + 1));
     if (bios_n) {
@@ -290,11 +335,12 @@ const char *input_tick(void)
     sw(0x0B19, (uint16_t)(dw(0x0B19) + 1));
     if ((int16_t)dw(0x0B19) < 4)
         return NULL;
+    if (dw(0x03B8) | dw(0x03BA))
+        joy_read();
     if (!dw(0x0416))
         mouse_read();
-    why = side_rec(0x03BC, 0x03C2, 0x03D2, 0x03C8, 0x0B2C, 0x03B8, 0x0384);
-    if (!why)
-        why = side_rec(0x03E8, 0x03EE, 0x03FE, 0x03F4, 0x0B2E, 0x03BA, 0x0386);
+    side_rec(0x03BC, 0x03C2, 0x03D2, 0x03C8, 0x0B2C, 0x03B8, 0x0384, 0x0388, 0x039C);
+    side_rec(0x03E8, 0x03EE, 0x03FE, 0x03F4, 0x0B2E, 0x03BA, 0x0386, 0x038E, 0x03AC);
     sw(0x0B19, 0);
-    return why;
+    return NULL;
 }

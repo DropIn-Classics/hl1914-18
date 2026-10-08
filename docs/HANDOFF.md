@@ -105,6 +105,23 @@ clock makes different told apart or met by the keys' times (the bullet
 "The best scores with scores there and the name corrected"). Nothing of
 the port changed. Not run: the SDL window by hand, the sounds.
 
+On the branch `mac/options` (2026-10-09) the two input paths the F keys
+switch are compared with the original: the mouse as a side's directions
+and button (`input_mouse`, which was translated on `debian/window2` but
+never set beside the original; F7 off and on, F8) and the joysticks,
+now translated whole (`joy_setup`, `joy_read`, the sticks' part of
+`input_side0`/`input_side1`; `port/src/joy.c`, `port/src/input.c`). For
+the sticks the runner got a game port with scripted sticks (`-joy`,
+`-joys`; doskit's branch `doskit/gameport`, `d1672bf`, which the
+submodule points at until it is merged into doskit's master; selftest
+ok on macOS, not run on Linux or Windows). Three runs of map 48, game
+state, inputs and DATA 0380 to 045C the same at every pass compared (the
+bullet "The mouse and the joysticks as a side's input"). `loop.c` was
+not to be touched, so its `joy_setup` is still the one without a game
+port and the real one is started from the timer's routine; the line its
+owner can put in instead is in that bullet. Not run: the window, a real
+stick or controller (the window's program has no stick at all).
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -2513,8 +2530,10 @@ emulation error (2026-10-02).
       second's X, V, D or F, C with the left Alt and Ctrl. With a
       joystick switched on (`DATA:0384`, `0386`) the directions come from
       it instead, and the mouse (`S27FE:03D4`) adds to the record the
-      word at `DATA:0418` names; both are not translated (the mouse rests
-      in the middle in the scripted runs and gives nothing).
+      word at `DATA:0418` names; both were not translated then (the mouse
+      rests in the middle in the scripted runs and gives nothing; both
+      are translated and compared since `mac/options`, the bullet "The
+      mouse and the joysticks as a side's input").
     - `S0CB6:0036(n)` is the routine that waits: it waits for the first
       side's button and the key to be gone, then up to n in steps of
       three (`S0CB6:0001`), clearing byte 4 of the first record and the
@@ -3880,7 +3899,82 @@ emulation error (2026-10-02).
   `no_fight_pics`; else 71h and `0130` set. The mouse turned on again by
   F7 gives the first side a direction once in the original (the driver's
   pointer after its reset against the middle, presumably; `input_mouse`,
-  `S27FE:03D4`, is not translated).
+  `S27FE:03D4`, is not translated). Put right on `mac/options`:
+  `input_mouse` was in the port since `debian/window2`, and with it the
+  port gives that direction too; and both sides' joysticks are wanted
+  from the start (`DATA:03B8`, `03BA` FFFFh), so the first F5 or F6
+  switches one off (the next bullet).
+- The mouse and the joysticks as a side's input (2026-10-09, Mac, branch
+  `mac/options`; `port/src/joy.c`, `port/src/input.c`,
+  `sh port/tests/options_test.sh`; port/README.md has the comparison).
+  Read in `HL.EXE` and seen in runs:
+  - `joy_read` (`S2BAD:0006`, named now) writes the game port (201h) and
+    reads it: a button of the first stick held (bits 4, 5 clear) gives
+    FFFFh in `DATA:038C`, one of the second's (bits 6, 7) in `0392`.
+    Then, interrupts off, it reads the port up to as many times as
+    `03B6` says until each axis bit of the sticks that are there (the
+    byte `03B4`) has fallen, one axis a read, the lowest bit first; an
+    axis's word is the count at which it fell: `0388`, `038A` the first
+    stick's X and Y, `038E`, `0390` the second's; `03B6` itself for an
+    axis that did not fall. So the numbers are the machine's: on the
+    runner at 6 million instructions a second a one-shot of 570
+    microseconds counts 2A5h to 2A8h, depending on which axes fell
+    before it (a read that takes an axis is not counted and is longer).
+  - `joy_setup` (`S2B9B:000A`) clears which sticks are there (`0384`,
+    `0386`), `03B4` and the ranges, makes `03B6` FFFFh, writes the port
+    and reads it after two retraces: a stick whose two axis bits are 0
+    is there. It is measured by `joy_read` where it stands, and that is
+    its middle: the range is twice it (`0398`, `039A`; `03A8`, `03AA`),
+    the edges the middle less and plus half of it (`039C` to `03A2`,
+    `03AC` to `03B2`: at or below the first is left or up, at or above
+    the second right or down). So a stick held away while F5 or F6 is
+    pressed has its middle there (run: the second stick measured at its
+    left, edges 3Ah and AEh, its true middle then reads as right). The
+    second stick is measured after two more retraces. `03B6` becomes the
+    largest range, 0 without a stick. The edges are not cleared.
+  - The timer's routine calls `joy_read` on every fourth call while one
+    of the two sticks is wanted (`03B8`, `03BA`), whether one is there
+    or not. Both words are FFFFh from the program's start: the sticks
+    are wanted until F5 or F6 says otherwise, and `input_install` calls
+    `joy_setup` once, so a stick plugged in at the start plays at once
+    (run `m48_joy0`), one plugged in later only after an F5 or F6.
+  - `input_side0`/`input_side1` with the side's stick wanted and there:
+    its directions by the edges (each begins the opposite one's count of
+    holds again) and its button; only when the stick gives nothing at
+    all are the side's keys and the mouse asked. A stick taken away
+    while it is there reads `03B6` in both axes: right and down for ever.
+  - The timer's routine goes on while `joy_setup` waits for its
+    retraces. In the second stick's wait that stick is already said to
+    be there, with the edges of the time before and `03B6` FFFFh: held
+    left, it gave its side "left" once in the original (pass 652 of
+    `m48_joy`). The port's `joy_measure` waits by the timer's calls for
+    that reason.
+  - The counts of holds and gaps (`DATA:03D2`, `03FE`) and the timer
+    routine's call of four run on from the menu into the battle. The
+    port's menu takes another time, so they stand elsewhere at the
+    first pass (4 gaps apart in these walks); given the original's
+    there, they stay the same through the battle. A second press's
+    byte 5 depends on them, so on the port's own clock a double press
+    can come out otherwise than in the original: not looked at further.
+  - A line of the sticks' script whose time falls into a read of the
+    original (0.6 ms long with a stick in the middle) changes the stick
+    in the middle of that read; the port changes it between two calls
+    (seen with "62.00 1,off"; the script avoids it).
+  - `loop.c` was not to be touched: its `joy_setup` (no game port:
+    clears the words) still runs at F5 and F6, and `input_tick` starts
+    `joy_measure(1, now)` at its next call when a wanted word has
+    changed. For the owner of `loop.c`: delete its static `joy_setup`
+    and call `joy_measure(1, play_now())` there instead (or give
+    `joy_measure` the pass's time); then `input_tick`'s test of the
+    wanted words can go, and only its call at the first tick (for
+    `input_install`'s) stays.
+  - Not done: the window (no stick there: `plat_sdl.c` gives a
+    controller as keys; a stick would call `joy_stick` with one-shot
+    times made from its axes), a real game port's speed (the counts are
+    the runner's machine's, as the T_ numbers of `play.c`), the texts of
+    F5 to F8 as video memory, the sticks in the menu (run `m48_joy0` had
+    its stick at rest there), `joy_read` with `03B6` 0 and a stick there
+    (10000h reads).
 - The program's end and the briefing (2026-10-08, Mac).
   - `S066A:4739`, reached when 1 is clear in `game_state` behind the
     menu or a battle (EXIT TO DOS sets 100h and clears 1 and 2):

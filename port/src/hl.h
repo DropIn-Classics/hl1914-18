@@ -398,6 +398,20 @@ void key_install(void);
 void key_remove(void);
 const char *input_tick(void);
 
+/* joy.c: the joysticks' routines, and the game port they read: a stick
+ * given by the times of its one-shots (joy_stick: microseconds, x below 0
+ * no stick), from a script by the clock (joy_script; joy_clock and
+ * joy_battle for the original's clock, joy_tick at each call of the
+ * timer's routine, which also carries a joy_measure with `wait` on
+ * through its retraces) */
+void joy_measure(int wait, double now);
+void joy_read(void);
+void joy_stick(int stick, int x_us, int y_us, int buttons);
+const char *joy_script(const char *path);
+const char *joy_clock(const char *path);
+void joy_battle(int menu);
+double joy_tick(void);
+
 /* mouse.c */
 uint16_t mouse_read(void);
 uint16_t mouse_open(uint16_t mode, uint16_t rec, uint16_t draw);

@@ -102,6 +102,8 @@ A file port/tests/keys/TAG.pokes changes memory when the first pass
 begins (port/tests/play_pokes.py), for a state no short script reaches.
 A file port/tests/keys/TAG.mice is the mouse's script for the runner's
 -mice ("T X,Y,B" a line, as the port's -micelog writes it).
+A file port/tests/keys/TAG.joy is the joysticks' script for the runner's
+-joys ("T N,X,Y,B" or "T N,off" a line; the port's -joys takes the same).
 
 No game data is kept in this file.
 """
@@ -156,6 +158,9 @@ pre += ['-keys', keypath, '-until', until]
 micepath = os.path.splitext(keypath)[0] + '.mice'
 if os.path.exists(micepath):
     pre += ['-mice', micepath]
+joypath = os.path.splitext(keypath)[0] + '.joy'
+if os.path.exists(joypath):
+    pre += ['-joys', joypath]
 if os.environ.get('STATE'):
     # the folder the original's files written in the run go to (a saved
     # game), instead of the runner's build/run/state

@@ -416,6 +416,7 @@ static void state_field(Far view, uint16_t side, uint16_t di, Far rec)
                 if (f & 0x40 && !(f & 0x80))
                     u--;
                 pww(view, 0x1E, u);
+                unit_info(side, pw(view, 0), u, map);
                 u = 0;
             }
         }
@@ -424,12 +425,17 @@ static void state_field(Far view, uint16_t side, uint16_t di, Far rec)
             pwb(view, 0x1B, 1);
             pww(view, 4, pw(view, 0x0C));
             pww(view, 6, pw(view, 0x0E));
+            battle_info(side);
         }
         gs_or(4, 0x100);
         SETW(site_taken, 0, 0);
     }
-    if (di & 0x10)
+    if (di & 0x10) {
         back_to_map(view, side, rec);
+        /* S066A:24DB: the view over what was shown, and its marks */
+        view_draw(pw(view, 2), side);
+        marks_draw(pw(view, 2), side);
+    }
 }
 
 /* state 6, into what stands on the cursor's field (S066A:2502 to 26EB) */

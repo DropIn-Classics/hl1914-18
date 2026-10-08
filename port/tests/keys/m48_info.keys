@@ -1,0 +1,50 @@
+# map 48, two human sides: the field menu's information (the button held,
+# down, the button let go).  The first side (space and the arrows) on its
+# starting field, which has no unit (the battle's numbers), a press to
+# leave it, the cursor four fields left and one down onto a unit, the
+# information on it and a press; then the second side (the left Alt and
+# X, V, D, C) the same on its starting field and after its own moves.
+30.00 space+
+30.30 down+
+30.70 space-
+30.90 down-
+34.00 space+
+34.08 space-
+35.00 left+
+35.08 left-
+36.00 left+
+36.08 left-
+37.00 left+
+37.08 left-
+38.00 left+
+38.08 left-
+39.00 down+
+39.08 down-
+40.00 space+
+40.30 down+
+40.70 space-
+40.90 down-
+44.00 space+
+44.08 space-
+45.00 lalt+
+45.30 c+
+45.70 lalt-
+45.90 c-
+49.00 lalt+
+49.08 lalt-
+50.00 v+
+50.08 v-
+51.00 v+
+51.08 v-
+52.00 c+
+52.08 c-
+53.00 c+
+53.08 c-
+54.00 d+
+54.08 d-
+55.00 lalt+
+55.30 c+
+55.70 lalt-
+55.90 c-
+59.00 lalt+
+59.08 lalt-

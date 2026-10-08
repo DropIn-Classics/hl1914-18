@@ -1360,3 +1360,234 @@ void game_text_at(uint16_t x, uint16_t y, uint16_t n, uint8_t base)
     t.off = (uint16_t)(t.off + frw(t.seg, (uint16_t)(t.off + 2 * n)));
     text_draw(x, y, 0, 6, base, t, NULL);
 }
+
+/* ---- the field menu's information (S131D:0148 to S131D:13A5) ---- */
+
+void (*info_hook)(int at, int which);
+
+/* S131D:0008: the rectangle of the screen's record set to 46h by 28h at
+ * x, y in the colour at S331F:4C8A (nothing is filled here) */
+static void info_rect(uint16_t x, uint16_t y)
+{
+    Far r = far_at(S_DATA, 0x0092);
+
+    fww(r.seg, (uint16_t)(r.off + 2), x);
+    fww(r.seg, (uint16_t)(r.off + 4), y);
+    fww(r.seg, (uint16_t)(r.off + 6), (uint16_t)(x + 0x45));
+    fww(r.seg, (uint16_t)(r.off + 8), (uint16_t)(y + 0x27));
+    fww(r.seg, r.off, frb(S_GAME, 0x4C8A));
+}
+
+/* S131D:0148 (unit_values(x, y, unit, side)): what a unit's kind can do,
+ * in the side's half.  Shown whole only for a unit of the looking side
+ * (bit 0 of the unit's word 4 against the side) without 4 in its word 6:
+ * the texts 24h, 22h, 23h and 0, the kind's bytes 0Ah, 0Bh, 0Ch (the
+ * weapons), 8 less 1 and, with 4 or 8 in the kind's word 6, 9 less 1
+ * (the ranges; else 0), 1, 2, 41h (the text at S330E:0008 for 0) and 3,
+ * then unit_panel.  Another side's unit gets text 1, one with 4 in word
+ * 6 text 11h. */
+static void unit_values(uint16_t x, uint16_t y, uint8_t unit, uint16_t side)
+{
+    uint16_t u = (uint16_t)(unit * UNIT_SIZE), k, si, mode, v;
+    uint8_t c = frb(S_GAME, 0x4C7A + 0x0D);
+    Far t;
+
+    if (side)
+        x = (uint16_t)(x + 0xA0);
+    info_rect(x, y);
+    if (side & 1)
+        mode = NW(units, u + 4) & 1 ? 2 : 1;
+    else
+        mode = NW(units, u + 4) & 1 ? 1 : 2;
+    if (NW(units, u + 6) & 4)
+        mode = 0;
+    if (mode == 1) {
+        game_text_at((uint16_t)(x + 0x26), (uint16_t)(y + 0x12), 1, c);
+        return;
+    }
+    if (mode != 2) {
+        game_text_at(x, y, 0x11, c);
+        return;
+    }
+    k = (uint16_t)(NB(units, u + 8) * KIND_SIZE);
+    game_text_at(x, (uint16_t)(y + 5), 0x24, c);
+    game_text_at((uint16_t)(x + 0x3C), (uint16_t)(y + 1), 0x22, c);
+    game_text_at(x, (uint16_t)(y + 0x16), 0x23, c);
+    game_text_at((uint16_t)(x + 0x67), (uint16_t)(y + 1), 0, c);
+    fww(far_at(S_DATA, 0x0092).seg, far_at(S_DATA, 0x0092).off, c);
+    si = (uint16_t)(x + 0x5C);
+    num_draw(NB(unit_dat, k + 0x0A), si, (uint16_t)(y + 1));
+    num_draw(NB(unit_dat, k + 0x0B), si, (uint16_t)(y + 7));
+    num_draw(NB(unit_dat, k + 0x0C), si, (uint16_t)(y + 0x0D));
+    si = (uint16_t)(x + 0x6E);
+    v = NW(unit_dat, k + 6) & 4 ? (uint16_t)(NB(unit_dat, k + 9) - 1) : 0;
+    num_draw((int16_t)v, si, (uint16_t)(y + 7));
+    v = NW(unit_dat, k + 6) & 8 ? (uint16_t)(NB(unit_dat, k + 9) - 1) : 0;
+    num_draw((int16_t)v, si, (uint16_t)(y + 0x0D));
+    num_draw((int16_t)(NB(unit_dat, k + 8) - 1), si, (uint16_t)(y + 1));
+    si = (uint16_t)(x + 0x50);
+    num_draw(NB(unit_dat, k + 1), si, (uint16_t)(y + 0x1C));
+    num_draw(NB(unit_dat, k + 2), si, (uint16_t)(y + 0x16));
+    if (NB(unit_dat, k + 0x41))
+        num_draw(NB(unit_dat, k + 0x41), si, (uint16_t)(y + 0x22));
+    else {
+        t.seg = HL_S330E + HL_BASE;
+        t.off = 0x0008;
+        text_draw(si, (uint16_t)(y + 0x22), 0, 6, c, t, NULL);
+    }
+    num_draw(NB(unit_dat, k + 3), si, (uint16_t)(y + 0x28));
+    unit_panel(unit, side);
+}
+
+/* a far pointer of a list of them (libraries' pictures) */
+static Far list_pic(uint16_t list, uint32_t n)
+{
+    return pfar(far_add(far_at(S_GAME, list), n << 2), 0);
+}
+
+/* S131D:0483 (unit_info(side, map offset, unit, far map)): the field
+ * menu's information on a unit, in the side's half: the second picture of
+ * the list at S331F:0207 (packed; through the free end) as the
+ * background, unit_values at 12h, 76h, a box in colour 42h (60h by 50h
+ * at 0Eh, 13h) and in it the kind's large picture (big_unit, place 1),
+ * then the unit on its ground at 74h, 4Dh as on the map: the ground's
+ * picture of the map's byte (ground_blit) and the unit's (the kind's six
+ * and the unit's byte 0Fh of the side, colours 20h or 30h by the unit's
+ * side); a unit of two parts (40h in its word 4) with both grounds and
+ * halves at 35h and 4Dh, after a copy of 8 by 19h bytes in video memory
+ * (latch_copy, from 173Ch to 0FBCh of the segment at word 27Ah of the
+ * screen's record).  Returns 2 where big_unit's error exit is. */
+int unit_info(uint16_t side, uint16_t field, uint8_t unit, Far map)
+{
+    uint16_t x0 = side ? 0xA0 : 0, u = (uint16_t)(unit * UNIT_SIZE), f = NW(units, u + 4), n;
+    Far r = far_at(S_DATA, 0x0092), ground;
+    uint8_t base;
+
+    if (info_hook)
+        info_hook(0, 0);
+    pic_unpack_draw(x0, 0, list_pic(0x0207, 1), 0xF0, free_end());
+    unit_values(0x12, 0x76, unit, side);
+    fww(r.seg, (uint16_t)(r.off + 2), (uint16_t)(x0 + 0x0E));
+    fww(r.seg, (uint16_t)(r.off + 4), 0x13);
+    fww(r.seg, (uint16_t)(r.off + 6), (uint16_t)(x0 + 0x0E + 0x5F));
+    fww(r.seg, (uint16_t)(r.off + 8), 0x13 + 0x4F);
+    fww(r.seg, r.off, 0x42);
+    rect_fill();
+    if (big_unit(1, NB(units, u + 8), (uint8_t)side))
+        return 2;
+    base = side ? 0x30 : 0x20;
+    if (f & 1)
+        base = 0x30;
+    else if (!(f & 2))
+        base = 0x20;
+    ground = list_pic(0x0153, pb(map, field));
+    if (f & 0x40) {
+        Far from, to;
+
+        from.seg = to.seg = pw(r, 0x27A);
+        from.off = 0x173C;
+        to.off = 0x0FBC;
+        latch_copy(8, 0x19, from, to);
+        ground_blit((uint16_t)(x0 + 0x74), 0x35, ground);
+        ground_blit((uint16_t)(x0 + 0x74), 0x4D, ground);
+        if (!(f & 0x80))
+            u = (uint16_t)(u - UNIT_SIZE);
+        n = (uint16_t)(NB(units, u + 8) * 6);
+        pic_draw((uint16_t)(x0 + 0x74), 0x35, list_pic(0x013F, (uint32_t)(int32_t)(int16_t)n), base);
+        n = (uint16_t)(n + 6);
+        pic_draw((uint16_t)(x0 + 0x74), 0x4D, list_pic(0x013F, (uint32_t)(int32_t)(int16_t)n), base);
+    } else {
+        ground_blit((uint16_t)(x0 + 0x74), 0x4D, ground);
+        n = (uint16_t)(NB(units, u + 0x0F + side) + NB(units, u + 8) * 6);
+        pic_draw((uint16_t)(x0 + 0x74), 0x4D, list_pic(0x013F, (uint32_t)(int32_t)(int16_t)n), base);
+    }
+    if (info_hook)
+        info_hook(1, 0);
+    return 0;
+}
+
+/* S131D:1685 (side_income), as orders.c has it for the round's income:
+ * byte 16h plus the side of the records of sites_100 and sites_400 with
+ * the side in the two low bits of word 19h, and of the side's of
+ * sites_40 */
+static uint16_t info_income(uint16_t side)
+{
+    uint16_t sum = 0, n;
+
+    for (n = 0; n < 10; n++)
+        if ((NW(sites_100, n * 0x1C + 0x19) & 3) == side)
+            sum = (uint16_t)(sum + NB(sites_100, n * 0x1C + 0x16 + side));
+    for (n = 0; n < 10; n++)
+        if ((NW(sites_400, n * 0x1C + 0x19) & 3) == side)
+            sum = (uint16_t)(sum + NB(sites_400, n * 0x1C + 0x16 + side));
+    return (uint16_t)(sum + NB(sites_40, side * 0x1C + 0x16 + side));
+}
+
+/* S131D:0EE5 (battle_info(side)): the field menu's information on a
+ * field without a unit, the battle's numbers over the side's darkened
+ * view: the cursor's field drawn again and view_dim; text 0Ah with
+ * game_state's word 11h, the text at S37FF:0129, the words 87h and 8Bh,
+ * text 10h or 0Fh by bit 0 of the view's byte 16h; the texts 0Bh, 26h,
+ * 29h, 2Ah, 27h and 28h with three columns: bytes 2, 4 and 3 of the
+ * first side's record of `sides` (colour S331F:4C87) and of the second's
+ * (4C86), each with its points (side_points) and side_income unless 8 is
+ * set in game_state's word 2 and it is the other side's column, and bytes
+ * 8, 0Ah and 9 of game_state (4C85); text 12h with the side's bytes 15h
+ * and 16h of `sides`, text 13h for FFh in the second. */
+void battle_info(uint16_t side)
+{
+    uint16_t x0 = side ? 0xA0 : 0, v = (uint16_t)(A_views + side * 0x31), di, k;
+    Far view, st, r = far_at(S_DATA, 0x0092), t;
+    uint8_t c = frb(S_GAME, 0x4C85);
+    static const uint16_t rows[5][2] = { { 0x12, 0x26 }, { 0x1E, 0x29 }, { 0x24, 0x2A }, { 0x30, 0x27 },
+                                         { 0x36, 0x28 } };
+
+    if (info_hook)
+        info_hook(0, 1);
+    view.seg = S_views;
+    view.off = v;
+    st.seg = S_game_state;
+    st.off = A_game_state;
+    cursor_field(view, side);
+    view_dim(side);
+    di = (uint16_t)(x0 + 0x1D);
+    game_text_at(di, 0x12 + 6, 0x0A, c);
+    num_draw((int16_t)pw(st, 0x11), (uint16_t)(di + 0x36), 0x12 + 6);
+    t.seg = HL_S37FF + HL_BASE;
+    t.off = 0x0129;
+    text_draw((uint16_t)(di + 0x36), 0x12 + 0x0C, 0, 6, (uint8_t)pw(r, 0), t, NULL);
+    num_draw((int16_t)pw(st, 0x87), (uint16_t)(di + 0x36), 0x12 + 0x18);
+    num_draw((int16_t)pw(st, 0x8B), (uint16_t)(di + 0x36), 0x12 + 0x1E);
+    game_text_at((uint16_t)(di + 0x36), 0x24, pb(view, 0x16) & 1 ? 0x10 : 0x0F, c);
+    di = (uint16_t)(x0 + 0x0C);
+    game_text_at((uint16_t)(di + 0x4C), 0x48 + 6, 0x0B, c);
+    for (k = 0; k < 5; k++)
+        game_text_at(di, (uint16_t)(0x48 + rows[k][0]), rows[k][1], c);
+    for (k = 0; k < 2; k++) {
+        uint16_t s = (uint16_t)(k * 0x17);
+
+        fww(r.seg, r.off, frb(S_GAME, k ? 0x4C86 : 0x4C87));
+        di = (uint16_t)(x0 + (k ? 0x70 : 0x5E));
+        num_draw(NB(sides, s + 2), di, 0x5A);
+        num_draw(NB(sides, s + 4), di, 0x66);
+        num_draw(NB(sides, s + 3), di, 0x6C);
+        if (!(NW(game_state, 2) & 8) || side == k) {
+            num_draw((int16_t)NW(side_points, k * 2), di, 0x78);
+            num_draw((int16_t)info_income(k), di, 0x7E);
+        }
+    }
+    fww(r.seg, r.off, c);
+    di = (uint16_t)(x0 + 0x82);
+    num_draw(pb(st, 8), di, 0x5A);
+    num_draw(pb(st, 0x0A), di, 0x66);
+    num_draw(pb(st, 9), di, 0x6C);
+    di = (uint16_t)(x0 + 0x0C);
+    game_text_at(di, 0x8A + 6, 0x12, c);
+    num_draw(NB(sides, side * 0x17 + 0x15), (uint16_t)(di + 0x30), 0x8A + 6);
+    if (NB(sides, side * 0x17 + 0x16) < 0xFF)
+        num_draw(NB(sides, side * 0x17 + 0x16), (uint16_t)(di + 0x30), 0x8A + 0x12);
+    else
+        game_text_at((uint16_t)(di + 0x30), 0x8A + 0x12, 0x13, c);
+    if (info_hook)
+        info_hook(1, 1);
+}

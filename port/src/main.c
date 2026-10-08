@@ -5,6 +5,7 @@
  *                  [-keys FILE] [-passes N] [-until T] [-start T] [-seed N]
  *                  [-clock FILE] [-seeds FILE] [-dump N FILE]... [-inputs FILE]
  *                  [-ends FILE] [-poke ADDR HEX]... [-briefdump DIR]
+ *                  [-infodump DIR]
  *
  * DIR is the game's unpacked files: -game, else $HISTORY_LINE_GAME, else the first
  * folder `game` holding HL14-18.EXE beside the program, in the current
@@ -51,10 +52,12 @@
  * instead of the port's own clock; -seeds keeps the port's own clock and
  * takes from such a log only what the fights' pictures did to the random
  * numbers; -until ends the play at T seconds of the own clock; -dump writes the memory as -ram does at
- * the beginning of pass N, -inputs what each side's part read, -ends the
+ * the beginning of pass N (the video memory when FILE ends in .vram), -inputs what each side's part read, -ends the
  * texts a battle's end showed each time it waited for a press, -poke
  * writes the bytes HEX at the linear address ADDR (hex) of the memory
- * image before the first pass (port/tests/play_pokes.py), -briefdump
+ * image before the first pass (port/tests/play_pokes.py), -infodump the
+ * memory and video memory of the field menu's information into DIR
+ * (draw.c, port/tests/info_test.sh), -briefdump
  * the memory and video memory of the new units' screens into DIR
  * (briefing.c, port/tests/briefing_test.sh).  All of them are aids for
  * this work, not for players.
@@ -272,6 +275,39 @@ static struct { unsigned long pass; const char *file; } menu_dumps[8];
 static int menu_dumps_n;
 static int dumps_ok;    /* play_game wrote its dumps */
 
+/* -infodump DIR: the memory at the entry and the return of each call of
+ * the field menu's information (unit_info, battle_info; draw.c) and the
+ * video memory at the return, as infoN_entry.ram, infoN_end.ram and
+ * infoN_end.vram in DIR, N counted from 1; kinds.txt gets a line a call,
+ * `unit` or `battle` */
+static const char *info_dir;
+
+static void info_dump(int at, int which)
+{
+    static int n;
+    char path[SYS_PATH], name[40];
+
+    if (!at) {
+        FILE *f;
+
+        n++;
+        sys_join(path, sizeof path, info_dir, "port_kinds.txt");
+        f = fopen(path, n == 1 ? "w" : "a");
+        if (f) {
+            fprintf(f, "%s\n", which ? "battle" : "unit");
+            fclose(f);
+        }
+    }
+    snprintf(name, sizeof name, "port_info%d_%s.ram", n, at ? "end" : "entry");
+    sys_join(path, sizeof path, info_dir, name);
+    rm_write(path);
+    if (at) {
+        snprintf(name, sizeof name, "port_info%d_end.vram", n);
+        sys_join(path, sizeof path, info_dir, name);
+        vga_write_planes(path);
+    }
+}
+
 /* -briefdump DIR: the memory at the entry of the new units' screens
  * (briefing.c) and at their return, and the video memory of each screen
  * lit and at the return, as files in DIR */
@@ -293,6 +329,17 @@ static void brief_dump(int at, int n)
         sys_join(path, sizeof path, brief_dir, "port_end.vram");
         vga_write_planes(path);
     }
+}
+
+/* a -dump's file: the memory, or the video memory for a name that ends
+ * in .vram */
+static int dump_write(const char *file)
+{
+    size_t n = strlen(file);
+
+    if (n > 5 && !strcmp(file + n - 5, ".vram"))
+        return vga_write_planes(file);
+    return rm_write(file);
 }
 
 /* the battle played from the setup on (play.c), at most `passes` passes
@@ -320,7 +367,7 @@ static int play_game(unsigned long passes, double start, double until, int clock
     for (;;) {
         play_sync();
         for (i = 0; i < dumps_n; i++)
-            if (dumps[i].pass == play_passes + 1 && rm_write(dumps[i].file) != 0)
+            if (dumps[i].pass == play_passes + 1 && dump_write(dumps[i].file) != 0)
                 ok = 0;
         if (play_passes >= passes || (until > 0 && play_now() >= until))
             break;
@@ -481,6 +528,10 @@ int main(int argc, char **argv)
             nopics = 1;
         else if (!strcmp(argv[i], "-saves") && i + 1 < argc)
             hl_save_dir = argv[++i];
+        else if (!strcmp(argv[i], "-infodump") && i + 1 < argc) {
+            info_dir = argv[++i];
+            info_hook = info_dump;
+        }
         else if (!strcmp(argv[i], "-briefdump") && i + 1 < argc) {
             brief_dir = argv[++i];
             briefing_hook = brief_dump;

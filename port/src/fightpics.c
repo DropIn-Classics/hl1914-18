@@ -125,7 +125,7 @@ void under_save(uint16_t w, uint16_t h, Far src, Far save)
 
 /* S297D:000C: `h` rows of `w` bytes copied through the latches from
  * src to dst, both `pitch` apart */
-static void latch_copy(uint16_t w, uint16_t h, Far src, Far dst)
+void latch_copy(uint16_t w, uint16_t h, Far src, Far dst)
 {
     uint16_t dx = (uint16_t)(DW(0x02F0) - w), si = src.off, di = dst.off, k;
 

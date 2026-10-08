@@ -244,7 +244,11 @@
     X(S1273, save_game, 0x0005) \
     X(S1273, load_game, 0x0399) \
     X(S1273, save_blocks, 0x0662) \
+    X(S131D, info_rect, 0x0008) \
+    X(S131D, unit_values, 0x0148) \
+    X(S131D, unit_info, 0x0483) \
     X(S131D, big_unit, 0x0C50) \
+    X(S131D, battle_info, 0x0EE5) \
     X(S131D, view_dim, 0x13A6) \
     X(S131D, build_list, 0x14D4) \
     X(S131D, row_load, 0x15FB) \

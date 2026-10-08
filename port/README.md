@@ -488,9 +488,12 @@ anything the game needs before the first release.
   counts when an interrupt came in). `snd_init`: the port leaves the
   interrupts' old vectors (`S30EF:0489`, `10BF`), the probe's flag
   (`0495`), `delay_measure`'s counts (`111B` to `111E`) and the timer's
-  number (`1116`) 0, and has 3 in `snd_devices` where the runner has
-  048Bh (its fault with REP STOS, docs/HANDOFF.md); nothing else of the
-  driver's variables differed.
+  number (`1116`) 0; `snd_devices` is 3 in both and `snd_init` returns 3
+  in both, and nothing else of the driver's variables differed. (Until
+  doskit `22292c0` the runner had 048Bh there, its fault with REP STOS,
+  docs/HANDOFF.md; the numbers here are the fixed runner's, see the rerun
+  below. `sound_test.c` now judges `snd_init`'s result too: against the
+  old runner's dump it fails on it, as it should.)
   Which effect plays: the port's program walked the same menu (`-sndlog`)
   and played the same 38 effects (numbers 0, 1 and 2 on channel 8) in the
   same order with the same results, at most 0.09 s apart; and the battle
@@ -508,6 +511,54 @@ anything the game needs before the first release.
   `briefing_test.sh`, `loop_test.sh` (m8_site), `fight_test.sh`,
   `units_test.sh` and `load_test.sh` as before (`load_test.c` now sets
   `snd_devices` beside in `start`).
+  Rerun with the fixed runner (2026-10-08, macOS, doskit `22292c0`,
+  `dosrun` rebuilt; the tree at master `8ad578a`): the original's dumps
+  were all made anew (`menu_dumps.py`, `play_dumps.py`, `sound_dumps.py`,
+  `save_test.sh dumps`, `fkeys_test.sh dumps`, `info_dumps.py`,
+  `briefing_dumps.py`, `loop_dumps.py m8_site.keys 400` with the passes
+  of before), the old runner's kept beside them (`build/old-runner/`,
+  ignored), and each test's output compared with its output on the old
+  dumps:
+  - `sound_test.sh`: 304 calls, none different, 41 with the timer in
+    between, as before; `snd_init` returned 0003 in both (before: the
+    original 048Bh) and lists 13 bytes the port leaves to the machine
+    instead of 15, the two of `snd_devices` gone; the lines of the other
+    303 calls are the same as before; the menu's 38 effects and the
+    battle's 1,185 against 1,186 calls as before.
+  - `menu_test.sh` (six walks), `briefing_test.sh` (four maps) and
+    `loop_test.sh` (m8_site, 29 passes): the output the same line for
+    line.
+  - `play_test.sh m8_site` (31 passes), `save_test.sh`, `fkeys_test.sh`
+    and `info_test.sh`: every line the same but the count "the setup's
+    differences", lower by 2 at every pass: the two bytes of
+    `snd_devices`, which the port's setup had right and the old runner
+    had not. The saved game of the original is the same file under both
+    runners and the same as the port's. (In `play_test.sh` the passes
+    4544, 6215, 6216 and 6581 count 3 bytes fewer "elsewhere" after master `8ad578a`
+    was merged; on the same new dumps the tree before the merge had the
+    old counts, so that is the merged change to the port and not the
+    runner. Not looked at further.)
+  - `load_test.sh` on its one `start` call (`build/n2/start1.py`, a
+    scratch script, run again): 0 different with `snd_devices` no longer
+    set beside in `load_test.c`; against the old runner's dump the test
+    now fails at that word.
+  What the fix changed in the original's memory, new dump against old
+  dump of the same place, all 640 KB: in the 31 passes of m8_site over
+  400 s, the 30 dumps of `loop_dumps.py`, the 49 passes of the four map
+  48 runs and the 8 dumps of the briefing only the two bytes of
+  `snd_devices`; at the menu's return, at `game_loop`'s `S066A:0349` and
+  in the first `sfx_play` dumps also the word of `game_loop`'s frame it
+  keeps `snd_init`'s result in (`[BP-2Ah]`); at `snd_init`'s end two more
+  words below the stack pointer (not looked at; presumably what was
+  pushed of SI). The logs of what came in (`inputs.txt`) are the same;
+  the clock's file of m8_site has four more lines of a kind the newer
+  `play_dumps.py` logs and no other change.
+  Not rerun: `fight_test.sh`, `units_test.sh` and the rest of
+  `load_test.sh`, `orders_test.sh`, `move_test.sh`, `range_test.sh` and
+  the others whose dumps are in `build/n2` to `build/n6` and
+  `build/computer`: those dumps are still the old runner's (their owners
+  rerun them); the play tests of other keys than those named; anything
+  on Windows or Linux.
   Not checked or not reached: a failing call (an effect's number beyond
   the file, more voices needed than free), an effect played more than
   once or endless, an 8SVX effect through `sfx_play` (the four `dig_play`

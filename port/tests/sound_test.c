@@ -20,7 +20,7 @@
  * the timer's and the keyboard's own counts when an interrupt came in).
  *
  * init: the words the port leaves to the machine are listed, not judged
- * (see snd_init in sound.c).
+ * (see snd_init in sound.c); its result is judged.
  * port/tests/sound_test.sh builds this.
  */
 #include <stdio.h>
@@ -164,7 +164,7 @@ int main(int argc, char **argv)
             printf("returned %04X (original %04X), ", (uint16_t)r, ax);
         printf("%u registers written, S30EF %u different, elsewhere %u, stack %u%s\n", opl_n, d_drv, d_else, d_stack,
                k ? ", ticks came in" : "");
-        if (!init && (d_drv || (has_r && (uint16_t)r != ax)))
+        if ((!init && d_drv) || (has_r && (uint16_t)r != ax))
             bad++;
     }
     printf("%d calls, %d different; in %d the timer came in between\n", calls, bad, between);

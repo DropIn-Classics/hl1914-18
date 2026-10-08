@@ -68,6 +68,7 @@
  * rand_next after it (R).  It shows what of a difference between the two
  * plays comes from the random numbers alone.
  */
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -316,6 +317,60 @@ void play_inputs(const char *path)
     inputs = fopen(path, "w");
 }
 
+/* live: the player's keys.  Each byte the window hands over comes into
+ * the keys as a key script's would, at the time of the picture it came
+ * with (key_time, rounded as -keylog writes it), and reaches the keyboard's
+ * interrupt when the clock gets there (keys_to, at a call of the timer's
+ * routine).  The pictures are shown at the window's pace, at times also
+ * ahead of the clock (screen_wait: fade_grey's 60h retraces are counted
+ * after it), and a key then would otherwise reach the program before its
+ * time, a tap's press and release at one call (and the tap lost).
+ * -keylog writes them as a key script: played with -keys and the same
+ * -start and -seed it is the window's play again. */
+static FILE *keylog;
+static int keylog_e0;
+static double key_time;         /* live: the time of the picture being shown */
+
+void play_keylog(const char *path)
+{
+    keylog = fopen(path, "w");
+}
+
+static void live_key(uint8_t code)
+{
+    double t = floor(key_time * 1e6 + 0.5) / 1e6;
+    KeyEv *k;
+
+    if (!(keys_n & 255)) {
+        k = realloc(keys, (size_t)(keys_n + 256) * sizeof *keys);
+        if (!k)
+            return;
+        keys = k;
+    }
+    k = &keys[keys_n];
+    k->t = t;
+    k->order = keys_n++;
+    k->n = 1;
+    k->code[0] = code;
+    if (keylog) {
+        uint16_t c = (uint16_t)((keylog_e0 ? 0xE000 : 0) | (code & 0x7F));
+        int i;
+
+        if (code == 0xE0)
+            keylog_e0 = 1;
+        else {
+            for (i = 0; names[i].name && names[i].code != c; i++)
+                ;
+            if (names[i].name)
+                fprintf(keylog, "%.6f %s%c\n", t, names[i].name, code & 0x80 ? '-' : '+');
+            else
+                fprintf(keylog, "%.6f %X%c\n", t, (unsigned)c, code & 0x80 ? '-' : '+');
+            fflush(keylog);
+            keylog_e0 = 0;
+        }
+    }
+}
+
 /* a file that gets a line for each round's end on the port's own clock:
  * the pass, when its part began, when attacks_run was called and when the
  * round's end was over (seconds of the key script's time) */
@@ -385,6 +440,7 @@ static void live_picture(void)
 {
     int dx, dy, b;
 
+    key_time = pic_at;
     if (!frame_wait() && !stopped)
         stopped = "the window was closed";
     if (plat_mouse_motion(&dx, &dy, &b))
@@ -909,8 +965,9 @@ static void hook(int at, uint16_t side)
 }
 
 /* the play in the window, at the original's pace (the own clock's time
- * is the window's: frame.h), with the player's keys as the keyboard's
- * interrupt gets them (key_irq) instead of a key script, the picture the
+ * is the window's: frame.h), with the player's keys instead of a key
+ * script's (live_key: at the times of the pictures they came with), the
+ * picture the
  * port's video memory and DAC hold shown at the screen's refresh rate,
  * also at the waits of the screen's routines (screen_hook), and the
  * player's mouse to the mouse's driver (mouse_motion; the window keeps
@@ -918,7 +975,7 @@ static void hook(int at, uint16_t side)
 void play_live(void)
 {
     live = 1;
-    frame_set_keyboard(key_irq);
+    frame_set_keyboard(live_key);
     screen_hook = screen_wait;
     plat_mouse_grab(1);
 }

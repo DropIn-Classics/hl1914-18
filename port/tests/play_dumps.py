@@ -74,6 +74,9 @@ With NOPICS=1 in the environment the fights are not shown as pictures
 (no_fight_pics, S37FF:0115, set at the first pass as loop_dumps.py does)
 and the files go to build/play/TAG_nopics/.
 
+With VRAM=1 in the environment each pNNNN.ram gets a pNNNN.vram beside
+it, the video memory at the same place (play_cmp.py compares it).
+
 With WALK=code or WALK=loadN in the environment the menu is walked by
 keys and not by the mouse: the map's code typed and START, or MISC, LOAD
 and the digit N (a saved game, which STATE's folder must hold).  keys.txt
@@ -300,8 +303,9 @@ chosen = [p for p in chosen if 1 <= p < passes + left]
 
 def dump(p):
     path = os.path.join(out, 'p%04d.ram' % p)
-    if not os.path.exists(path):
-        run(['-break', 'S066A:0EE9#%d' % p, '-ram', path])
+    vram = os.environ.get('VRAM') and not os.path.exists(path[:-4] + '.vram')
+    if not os.path.exists(path) or vram:
+        run(['-break', 'S066A:0EE9#%d' % p, '-ram', path] + (['-vram', path[:-4] + '.vram'] if vram else []))
 
 
 with ThreadPoolExecutor(8) as pool:

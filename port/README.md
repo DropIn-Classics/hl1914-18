@@ -328,6 +328,69 @@ range marked on choosing a unit's move, the way left marked after the
 target. Not compared with the original's screen (the runner's key
 script did not bring its cursor to the same unit; not pursued).
 
+2026-10-08 (`debian/window3`): both sides, held keys and the player's
+attack in the window, compared with the original. The window's keys
+(`play_live`) now go into the keys as a key script's do (`live_key`,
+`src/play.c`): each byte at the time of the picture it came with,
+handed to the keyboard's interrupt when the clock reaches it (`keys_to`,
+at a call of the timer's routine). Before, a byte went to the interrupt
+at once, and while the window shows pictures ahead of the clock (the
+round's end: `fade_grey`'s 60h retrace waits are shown as they come and
+counted by the clock after it, 1.37 s) a tap's press and release reached
+the same call and the tap was lost (seen: a step down at 1.2 s into a
+half of map 48 did nothing). `-keylog FILE` writes the window's keys as
+a key script (the times as they are kept, six places): played with
+`-keys` and the same `-start` and `-seed` it is the window's play again.
+`menu_attack` (`src/side.c`) draws the view with the attack's marks
+(`marks_draw`, `S0CB6:1629` and the two alike before it), which the
+port had left out: the original's view goes to its darker colours (+90h)
+while the target is chosen.
+New tests: `port/tests/live_keys.py` (a key script as `DK_KEYS` for the
+headless window, each key at the picture shown at its time),
+`play_test.sh TAG live` (the window's play and the `-keys` play of the
+same script: every part's inputs and memory and video memory at the
+rounds' ends and after them byte for byte), `play_dumps.py` with
+`VRAM=1` (the video memory beside each dump; `play_cmp.py` compares the
+two pages and counts what lies behind them apart, as
+`briefing_cmp.py`), and `play_test.sh` sets `LC_ALL=C` (with a German
+locale awk took the clock's times for text and `at` found the wrong
+passes).
+`m48_attack.keys` (map 48, both sides human, 170 s) was played in the
+headless window and written by `-keylog`: the second side ends its halves
+with its own keys (the left Alt and X), the first side's cavalry (unit
+15h) moves twice and attacks unit 14h beside it (ordered at 117.2 s,
+fought at the round's end, 125.5 s in both), then the first side holds
+right 1.0 s (eight steps of its cursor) and the second side holds C
+1.0 s (four steps, presumably to the view's edge; not checked), D 0.4 s
+(three) and taps D (one). The original's run with the same file
+(`play_dumps.py m48_attack.keys 170`, `VRAM=1`, `PASSES` at the attack's
+screens):
+- on the original's clock (`play_test.sh m48_attack`): 3,886 parts the
+  same, the game's state and the computer's the same at all 28 passes
+  compared, the two pages of video memory the same at all of them
+  (choosing the attack, the target chosen, the order, the round of the
+  fight and after); 1,442 to 1,914 bytes differ behind the pages, the
+  same from the first pass on (not looked into). Before the
+  `menu_attack` change the pages differed at pass 1303 (46,754 bytes:
+  the view not darkened);
+- on the port's own clock, which is the window's (`rounds`): the game's
+  state and the computer's the same but for the passes' in all eight
+  rounds, the player's attack in round 6 included, the pages the same
+  at all 16 dumps; `at` 70.9, 115.3, 116.9, 73.9, 117.5, 138, 146.5 and
+  148.5 s the same, at 70.4, 114.8 and 116.7 s not (the port a few passes
+  ahead within a gesture: 6 to 14 passes of difference by then; half a
+  second later the same);
+- `play_test.sh m48_attack live`: the window's play and the `-keys` play
+  the same in all 3,918 parts and all 34 dumps.
+`play_test.sh m8_d5r` and `m8_site` still the same at every pass,
+`m8_d5r rounds` to round 4 as before. The menu in the headless window by
+keys (map 48's code and START) still reaches the battle. Not done or not
+checked: the window with SDL by a hand (only the headless platform), the
+mouse in the window (still handed to the driver at once, so ahead of the
+clock in a fade), a `-keylog` of a play from the menu played back with
+`-keys`, an attack by the second side in the window, a fight's pictures
+in video memory frame by frame against the original in the window.
+
 2026-10-08, the field menu's information (`unit_info`, `unit_values`,
 `info_rect` and `battle_info` in `src/draw.c`, the original's
 `S131D:0483`, `0148`, `0008` and `0EE5`; `state_field` of `src/loop.c`

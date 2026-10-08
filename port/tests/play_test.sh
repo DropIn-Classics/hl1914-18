@@ -5,7 +5,7 @@
 # original's clock, and compares its memory with the original's at the
 # passes port/tests/play_dumps.py dumped (build/play/TAG/, ignored).
 #
-#     sh port/tests/play_test.sh [TAG [own|rounds|seeds]]
+#     sh port/tests/play_test.sh [TAG [own|rounds|seeds|live]]
 #     sh port/tests/play_test.sh TAG at KEYS T...
 #
 # With `own` the port plays on its own clock instead: of the original's
@@ -31,10 +31,19 @@
 # PASSES in play_dumps.py's environment, the test names the passes).  For a
 # script TAG that gives the original the keys as the port's clock sampled
 # those of KEYS: the two plays should then be the same but for the passes'.
+# With `live` the port plays the key script twice on its own clock: once
+# in the window (play_live, headless: the keys given to the window's
+# pictures at their times, tests/live_keys.py) and once by -keys, and
+# says whether the two read the same in every part and have the same
+# memory and video memory at the passes of their rounds' ends and after
+# them.  A script the window wrote (-keylog) must be the same; the
+# comparison with the original is then `rounds` or `at`.
 # A tag ending in _nopics (dumps made with NOPICS=1) plays the same key
 # script with the fights not shown as pictures (-nopics); one beginning
 # with m0 is map 0, with mNN_ map NN, else map 8.
 set -e
+# awk reads the clock's times as numbers only with a decimal point
+export LC_ALL=C
 cd "$(dirname "$0")/.."
 TAG=${1:-m8_site}
 D=../build/play/$TAG
@@ -58,7 +67,7 @@ if [ "$2" = at ]; then
     SEED=$(awk '$2 == "S" { v = $3 } $2 == "P" { print substr(v, 1, length(v) - 4); exit }' "$D/clock.txt")
     RUN="build/history-line-headless -game $GAME -map $MAP -keys tests/keys/$3.keys -start $START -seed 0x$SEED $NOPICS"
     shift 3
-    rm -f "$D"/r[0-9][0-9][0-9][0-9].ram
+    rm -f "$D"/r[0-9][0-9][0-9][0-9].ram "$D"/r[0-9][0-9][0-9][0-9].vram
     : > "$D/rounds.txt"
     i=1
     for t in "$@"; do
@@ -66,12 +75,55 @@ if [ "$2" = at ]; then
         [ -f "$D/p$(printf %04d "$o").ram" ] || { echo "no dump of the original's pass $o ($t s): PASSES=$o python3 port/tests/play_dumps.py $KEYS.keys"; exit 1; }
         # shellcheck disable=SC2086
         p=$($RUN -until "$t" 2>&1 | awk '/passes played/ { print $1 + 1 }')
+        V=
+        [ -f "$D/p$(printf %04d "$o").vram" ] && V="-dump $p $D/r$(printf %04d "$p").vram"
         # shellcheck disable=SC2086
-        $RUN -until "$t" -dump 1 "$D/r0001.ram" -dump "$p" "$D/r$(printf %04d "$p").ram" > /dev/null 2>&1
+        $RUN -until "$t" -dump 1 "$D/r0001.ram" -dump "$p" "$D/r$(printf %04d "$p").ram" $V > /dev/null 2>&1
         echo "$i $o $p" >> "$D/rounds.txt"
         i=$((i + 1))
     done
     exec python3 tests/play_cmp.py "$TAG" at
+fi
+if [ "$2" = live ]; then
+    START=$(awk '$2 == "P" { print $1; exit }' "$D/clock.txt")
+    SEED=$(awk '$2 == "S" { v = $3 } $2 == "P" { print substr(v, 1, length(v) - 4); exit }' "$D/clock.txt")
+    UNTIL=$(awk 'END { print $1 }' "$D/clock.txt")
+    ARGS="-game $GAME -map $MAP -start $START -seed 0x$SEED $NOPICS"
+    # shellcheck disable=SC2086
+    build/history-line-headless $ARGS -keys tests/keys/$KEYS.keys -until "$UNTIL" -rounds "$D/own_rounds.txt" > /dev/null 2>&1
+    rm -f "$D"/[kw][0-9][0-9][0-9][0-9].ram "$D"/[kw][0-9][0-9][0-9][0-9].vram
+    K= W=
+    for p in 1 $(awk '{ print $1, $1 + 1 }' "$D/own_rounds.txt"); do
+        f=$(printf %04d "$p")
+        K="$K -dump $p $D/k$f.ram -dump $p $D/k$f.vram"
+        W="$W -dump $p $D/w$f.ram -dump $p $D/w$f.vram"
+    done
+    # shellcheck disable=SC2086
+    build/history-line-headless $ARGS -keys tests/keys/$KEYS.keys -until "$UNTIL" -inputs "$D/keys_inputs.txt" $K
+    # shellcheck disable=SC2086
+    DK_KEYS=$(python3 tests/live_keys.py "tests/keys/$KEYS.keys" "$START") \
+    DK_FRAMES=$(awk -v s="$START" -v u="$UNTIL" 'BEGIN { print int(38 + (u - s) / 0.014268) }') \
+        build/history-line-headless $ARGS -inputs "$D/live_inputs.txt" $W
+    n=$(wc -l < "$D/live_inputs.txt")
+    [ "$(wc -l < "$D/keys_inputs.txt")" -lt "$n" ] && n=$(wc -l < "$D/keys_inputs.txt")
+    bad=0
+    if head -n "$n" "$D/live_inputs.txt" | cmp -s - "$D/keys_inputs.txt" 2>/dev/null ||
+       head -n "$n" "$D/keys_inputs.txt" | cmp -s - "$D/live_inputs.txt"; then
+        echo "inputs: the first $n parts the same"
+    else
+        echo "inputs: DIFFERENT"; bad=1
+    fi
+    for f in "$D"/k[0-9][0-9][0-9][0-9].*; do
+        g=$D/w${f##*/k}
+        if [ ! -f "$g" ]; then
+            echo "${f##*/}: the window did not come so far"
+        elif cmp -s "$f" "$g"; then
+            echo "${f##*/}: the same"
+        else
+            echo "${f##*/}: DIFFERENT"; bad=1
+        fi
+    done
+    exit $bad
 fi
 if [ "$2" = rounds ] || [ "$2" = seeds ]; then
     START=$(awk '$2 == "P" { print $1; exit }' "$D/clock.txt")
@@ -82,7 +134,7 @@ if [ "$2" = rounds ] || [ "$2" = seeds ]; then
     RUN="build/history-line-headless -game $GAME -map $MAP -keys tests/keys/$KEYS.keys -start $START -seed 0x$SEED -until $UNTIL $NOPICS $SEEDS"
     # shellcheck disable=SC2086
     $RUN -rounds "$D/own_rounds.txt"
-    rm -f "$D"/r[0-9][0-9][0-9][0-9].ram
+    rm -f "$D"/r[0-9][0-9][0-9][0-9].ram "$D"/r[0-9][0-9][0-9][0-9].vram
     DUMPS="-dump 1 $D/r0001.ram"
     : > "$D/rounds.txt"
     i=1
@@ -92,6 +144,7 @@ if [ "$2" = rounds ] || [ "$2" = seeds ]; then
         for k in 0 1; do
             [ -f "$D/p$(printf %04d $((o + k))).ram" ] || continue
             DUMPS="$DUMPS -dump $((p + k)) $D/r$(printf %04d $((p + k))).ram"
+            [ -f "$D/p$(printf %04d $((o + k))).vram" ] && DUMPS="$DUMPS -dump $((p + k)) $D/r$(printf %04d $((p + k))).vram"
             echo "$i $((o + k)) $((p + k))" >> "$D/rounds.txt"
         done
         i=$((i + 1))
@@ -112,10 +165,12 @@ else
     CLOCK="-clock $D/clock.txt"
     IN=$D/port_inputs.txt
 fi
-rm -f "$D"/$Q[0-9][0-9][0-9][0-9].ram
+rm -f "$D"/$Q[0-9][0-9][0-9][0-9].ram "$D"/$Q[0-9][0-9][0-9][0-9].vram
 DUMPS=
 for p in $(cat "$D/passes.txt"); do
     DUMPS="$DUMPS -dump $p $D/$Q$(printf %04d "$p").ram"
+    # the video memory too where the original's was dumped (VRAM=1)
+    [ -f "$D/p$(printf %04d "$p").vram" ] && DUMPS="$DUMPS -dump $p $D/$Q$(printf %04d "$p").vram"
 done
 # shellcheck disable=SC2086
 build/history-line-headless -game "$GAME" -map $MAP -keys tests/keys/"$KEYS".keys $CLOCK $NOPICS \

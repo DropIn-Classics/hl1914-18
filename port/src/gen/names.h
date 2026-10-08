@@ -298,7 +298,21 @@
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
     X(S2532, fight_pictures, 0x0008) \
+    X(S2532, pics_counts, 0x01C2) \
+    X(S2532, pics_kind, 0x0258) \
+    X(S2532, pics_clear, 0x02D6) \
+    X(S2532, pics_load, 0x0357) \
+    X(S2532, pics_index, 0x072A) \
+    X(S2532, pics_figures, 0x0755) \
+    X(S2532, pics_start, 0x0877) \
     X(S2532, fight_frames, 0x0CAA) \
+    X(S2532, volley_end, 0x17D1) \
+    X(S2532, figures_fall, 0x1970) \
+    X(S2532, pics_mark, 0x1CF9) \
+    X(S2532, pics_error, 0x1DD3) \
+    X(S2532, pics_sound, 0x1E66) \
+    X(S2532, pics_sounds, 0x1FD6) \
+    X(S2532, pics_play, 0x211E) \
     X(S27FE, input_install, 0x0013) \
     X(S27FE, input_remove, 0x0060) \
     X(S27FE, input_tick, 0x008C) \
@@ -325,13 +339,21 @@
     X(S28E0, fade_in, 0x0004) \
     X(S28E0, fade_out, 0x002B) \
     X(S28F5, ground_store, 0x0006) \
+    X(S292E, pixel_put, 0x000A) \
     X(S2945, retrace_wait, 0x000A) \
     X(S2947, display_wait, 0x0006) \
+    X(S294A, screen_put, 0x000A) \
     X(S2974, page_flip, 0x0002) \
+    X(S297D, latch_copy, 0x000C) \
     X(S298E, screen_open, 0x000D) \
+    X(S29C1, sprite_draw, 0x001F) \
+    X(S29C1, sprite_cut, 0x02D5) \
     X(S2A10, pages_set, 0x0006) \
+    X(S2AE4, under_save, 0x000C) \
+    X(S2AF3, unders_restore, 0x000A) \
     X(S2AFE, pal_level, 0x000C) \
     X(S2B06, lbm_show, 0x0000) \
+    X(S2B76, screen_keep, 0x0004) \
     X(S2B81, file_load_size, 0x0004) \
     X(S2B85, file_close, 0x0002) \
     X(S2B8F, file_size, 0x000C) \

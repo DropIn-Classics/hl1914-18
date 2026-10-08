@@ -35,7 +35,9 @@
  * RETF at 1459), `panel` one of unit_panel (S10AF:0131, RETF at
  * S10E1:000E), `fpanel` one of fight_panel (S131D:178D, RETF at 1CD7
  * with pictures, 1F0C without; it returns 0, AX compared), the video
- * memory likewise,
+ * memory likewise, `fpics` one of fight_pictures (S2532:0008, RETF at
+ * 01C1; AX not compared, the sound's segment, DATA:0309 and the key's
+ * record counted apart as for `fpanel`), the video memory likewise,
  * AX and DX not compared (it returns nothing); begin_apart's bytes are
  * counted beside (byte 8 of the input records changed while it ran).
  * `scr` is one of screen_open (S298E:000D), the video memory likewise;
@@ -323,6 +325,37 @@ int main(int argc, char **argv)
             got.seg = (uint16_t)dx;
             r_pict = 0;
             name.seg = name.off = 0;
+        } else if (!strcmp(what, "fpics")) {
+            /* fight_pictures(its 18 words of arguments): video memory
+             * likewise */
+            FightPics a;
+            uint16_t s0 = (uint16_t)ss, p0 = (uint16_t)(sp + 4);
+
+            vram_in(argv[i + 3]);
+            a.near0 = frb(s0, p0);
+            a.standing = frb(s0, (uint16_t)(p0 + 2));
+            a.show = frw(s0, (uint16_t)(p0 + 4));
+            a.winter = frw(s0, (uint16_t)(p0 + 6));
+            a.kind0 = frw(s0, (uint16_t)(p0 + 8));
+            a.kind1 = frw(s0, (uint16_t)(p0 + 10));
+            a.ground0 = frw(s0, (uint16_t)(p0 + 12));
+            a.ground1 = frw(s0, (uint16_t)(p0 + 14));
+            a.count0 = frw(s0, (uint16_t)(p0 + 16));
+            a.count1 = frw(s0, (uint16_t)(p0 + 18));
+            a.after0 = frw(s0, (uint16_t)(p0 + 20));
+            a.after1 = frw(s0, (uint16_t)(p0 + 22));
+            a.none = far_at(s0, (uint16_t)(p0 + 24));
+            a.place = far_at(s0, (uint16_t)(p0 + 28));
+            a.work = far_at(s0, (uint16_t)(p0 + 32));
+            a.sp = (uint16_t)sp;
+            /* AX is what the sound's routine left: not compared, but
+             * the port's 2 for the original's error exit */
+            got.off = (uint16_t)fight_pictures(&a);
+            if (!got.off)
+                got.off = (uint16_t)ax;
+            got.seg = (uint16_t)dx;
+            r_pict = 0;
+            name.seg = name.off = 0;
         } else if (!strcmp(what, "merase")) {
             /* marks_erase(field, side, mask): video memory likewise */
             vram_in(argv[i + 3]);
@@ -394,9 +427,9 @@ int main(int argc, char **argv)
             if (a >= lo_stack && a < hi_stack)
                 d_stack++;
             else if (beside(a) || (!strcmp(what, "scr") && scr_apart(a))
-                     || (!strcmp(what, "fpanel") && sound_apart(a))
+                     || ((!strcmp(what, "fpanel") || !strcmp(what, "fpics")) && sound_apart(a))
                      || ((!strcmp(what, "view") || !strcmp(what, "marks") || !strcmp(what, "msg")
-                          || !strcmp(what, "fdraw") || !strcmp(what, "merase") || !strcmp(what, "panel") || !strcmp(what, "fpanel"))
+                          || !strcmp(what, "fdraw") || !strcmp(what, "merase") || !strcmp(what, "panel") || !strcmp(what, "fpanel") || !strcmp(what, "fpics"))
                          && begin_apart(a)))
                 d_beside++;
             else if (left_out && (mem[a] == entry[a] || a == kept || a == kept + 1))

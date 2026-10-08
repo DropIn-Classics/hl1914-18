@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 CC=${CC:-cc}
 RT=../doskit/runtime
 mkdir -p build
-$CC -O2 -Wall -Wextra -I$RT -Isrc -o build/load_test tests/load_test.c src/files.c src/map.c src/units.c src/names.c src/mem.c src/battle.c src/pictures.c src/screen.c src/draw.c src/move.c src/range.c src/side.c src/fight.c $RT/rmem.c $RT/vga.c $RT/sha256.c $RT/sys.c
+$CC -O2 -Wall -Wextra -I$RT -Isrc -o build/load_test tests/load_test.c src/files.c src/map.c src/units.c src/names.c src/mem.c src/battle.c src/pictures.c src/screen.c src/draw.c src/fightpics.c src/move.c src/range.c src/side.c src/fight.c src/plan.c src/computer.c $RT/rmem.c $RT/vga.c $RT/sha256.c $RT/sys.c
 if [ $# -eq 0 ]; then
     set -- $(cat ../build/n2/load_test*.args)
 fi

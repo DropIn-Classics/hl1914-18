@@ -2629,28 +2629,85 @@ name S1A39:1906 site_picture
 ; runs), clears the key's word 4 (S2532:0131) and runs fight_frames;
 ; then pal_level from the level reached down to 0 in steps of 4 and
 ; S2F39:09C9 for eight channels (presumably the sound's; not read).
-; Its parts (2026-10-08, by their calls only; lines of the listing):
-; S2532:01C2 (54) and 0258 (58, once per side with its kind) set up
-; S3AEE without calls; 02D6 (42) clears the screen; 0357 (362) loads the
-; picture's files (file_load_size, lib_read, L2C39) and 0755 (112) more
-; pictures (lib_read, L03B8); 0877 (475) draws the start (lbm_show,
-; pic_draw, text_draw, the flags 1A8F/1BC3, S2532:1CF9, S29C1:001F,
-; pal_level); 1FD6 (133) and 1E66 (156) load further files (L2B66,
-; L2BAA); 1DD3 (58) is the error exit (input_remove, key_remove, L1851,
-; L2585, S2B7F:000E, S2CC9:0002); 211E (64) the sound (S2F39). Not read
-; are the blitters S2AF3:000A, S294A:000A, S29C1:001F, S292E:000A,
-; S2B76:0004. Nothing of S2532 is translated.
+; Its arguments (fight_show's): byte the units not neighbours (013Bh;
+; figures with bit 40h are then not shown), byte the first unit's word 4
+; bit 0 (0636h: which flag stands), S37FF:0130 (013Ch: 0 draws every
+; frame), pics_winter (0647h), the two units' byte 8 + 1 (0645h, 0643h:
+; their records in the fight's file), the two fields' byte 5 (0641h,
+; 063Fh: the grounds' records), the counts before (063Dh, 063Bh) and
+; after (0639h, 0637h), a far 0 (0632h), the place (0622h; under_save's
+; and screen_keep's buffer, the files from 7D00h further on) and the work
+; buffer (062Ah). Read whole and translated 2026-10-08 (port/src/
+; fightpics.c), with the parts named below; compared on m8_d5r's fights
+; (port/README.md). The sounds (S2F39, S2532:211E) are left out.
 name S2532:0008 fight_pictures
 ; fight_frames: the frames 1 to 2EDh (the count at S3AEE:0680). A frame
 ; below 40h first sets the colours (pal_level, level 4 * frame + 3: the
 ; picture comes up); then the figures' moves are worked out, and at the
 ; frame's end the key's word 4 is tested: not 0 ends the pictures at once
 ; (a key, not a side's button). The screen is drawn and shown
-; (S2AF3:000A, not read) in every second frame at least. In the runs the
+; (unders_restore) in every second frame at least. In the runs the
 ; 749 frames lasted 13.58 and 13.71 s (18 ms a frame; the drawing's time,
-; not counted). The calls of rand_next come from S2532:17D1 (not read
-; further, see HANDOFF).
+; not counted). The calls of rand_next come from volley_end.
 name S2532:0CAA fight_frames
-; fight_frames' parts: S2532:17D1 (174) shares the losses out among the
-; volleys left and calls rand_next (see HANDOFF), 1970 (111) marks the
-; figures that fall, 072A (22) is called from the frames and from 0755.
+; fight_frames in words: for each side 2, 1, 0 the figures of its list
+; (06A9h + 0Ch a side: records of 22h bytes, byte 0 flags, 80h the end;
+; byte 1 the figure, words 2 and 4 the first and last frame (plus 006Dh
+; + 2 * side), 6/8 to 0Ch/0Eh x and y, 12h/14h to 16h/18h the scales, at
+; the last frame (flag 1) 1Ch, 1Eh and 20h the picture or its sequence)
+; whose frames hold and whose figure stands (0688h + 7 * side) are put
+; at their place on the way, the frame's list at 0144h (10h bytes each);
+; a volley's end (flag 10h, its last frame) calls volley_end; a figure
+; at its last frame lies still: what is under it is kept once
+; (screen_keep) and put back when it fell (screen_put). The marks and
+; counts are redrawn twice after a volley (013Eh). Then the list drawn
+; (sprite_draw, keeping what each covers), page_flip and
+; unders_restore.
+name S2532:01C2 pics_counts
+name S2532:0258 pics_kind
+name S2532:02D6 pics_clear
+; pics_load: the fight's file (the name at S3AEE:0061) loaded to 069Dh,
+; the names of the two units' and grounds' records copied out (CODE:2C39,
+; strncpy) and the first pictures of the three libraries read.
+name S2532:0357 pics_load
+; pics_index(side, n): side * 12h + n, the figures' pictures' table.
+name S2532:072A pics_index
+name S2532:0755 pics_figures
+name S2532:0877 pics_start
+; volley_end: the other side's losses still to show (its count less the
+; count after) shared out among the volleys left (0628h, 0626h): all at
+; the last or when one is left, rand_next % losses when more losses than
+; volleys, else one when (rand_next & FFh) > 80h. These are the pictures'
+; calls of rand_next.
+name S2532:17D1 volley_end
+; figures_fall(n, side, other, figure): up to n of the other side's
+; standing figures that can fall (bit 2), each the nearest in x to the
+; one shot, marked 2; how many.
+name S2532:1970 figures_fall
+name S2532:1CF9 pics_mark
+; pics_error: the screen, keys and input given back, the file's name
+; written and the program ended (CODE:034A(-1)).
+name S2532:1DD3 pics_error
+name S2532:1E66 pics_sound
+name S2532:1FD6 pics_sounds
+name S2532:211E pics_play
+; sprite_draw(x, y, pic, save, base, sx, sy): a picture centred on x, y
+; scaled by 100h/sx and 100h/sy (negative sx mirrored), drawn by columns
+; from its right; what it covers kept first (under_save) when save is not
+; 0:0; cut to DATA:00EC-00F2 when DATA:00E8 is set. Its variables are in
+; its own segment (0006h to 001Eh).
+name S29C1:001F sprite_draw
+name S29C1:02D5 sprite_cut
+; under_save(w, h, screen, save): what a picture covers kept at the end of
+; the page's list (DATA:0322) for save's segment 0: header, rows through
+; the latches, trailer (offset, h, bytes, rows' start).
+name S2AE4:000C under_save
+; unders_restore: the page's list (DATA:0326 to 0322) put back on the page
+; drawn, last first; the list emptied.
+name S2AF3:000A unders_restore
+name S297D:000C latch_copy
+; screen_keep(screen, buffer, w, h, spread): the screen's planes kept;
+; returns the buffer's end normalized. screen_put the reverse.
+name S2B76:0004 screen_keep
+name S294A:000A screen_put
+name S292E:000A pixel_put

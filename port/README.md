@@ -609,6 +609,50 @@ anything the game needs before the first release.
   `loop_test.sh` and `move_test.sh` the same as before. Not covered: a
   kind with 40h in word 4, the first side's half, the blasts drawn, the
   fight's pictures, the DAC after the fades.
+- A fight's pictures (2026-10-08, Linux): `fight_pictures`
+  (`S2532:0008`) whole in `src/fightpics.c` with its parts
+  (`pics_counts`, `pics_kind`, `pics_clear`, `pics_load`,
+  `pics_start`, `pics_sounds`/`pics_sound`, `pics_figures`,
+  `fight_frames`, and in it `volley_end` and `figures_fall`, which make
+  the pictures' calls of `rand_next`) and the blitters they need:
+  `sprite_draw` (`S29C1:001F`, with `sprite_cut`), `under_save`
+  (`S2AE4:000C`), `unders_restore` (`S2AF3:000A`), `latch_copy`
+  (`S297D:000C`), `screen_keep` (`S2B76:0004`), `screen_put`
+  (`S294A:000A`) and `pixel_put` (`S292E:000A`). `src/draw.c` lends it
+  `rect_fill`, `text_draw`, `pic_draw`, `flag_draw`, `vrb` and `vwb`. The
+  sounds (`S2F39`, `pics_play`) are left out; the sounds' files are
+  loaded. `load_test.sh` takes `fpics` (and links `plan.c` and
+  `computer.c` for `rand_next`; so do the other tests that link
+  `fightpics.c`); `dumps.py` takes `fight_pictures` and `fight_frames`.
+  Dumps of m8_d5r's two fights with pictures (`build/n2/fpic/`,
+  `fpics_test.args`; the first 6 against 6 with one loss, the second 6
+  against 5 with one, each run to its 749th frame, no key): both the same
+  in memory, `rand_words` included, and in all video memory, counted
+  apart the sound's segment, `DATA:0309` and the key's record as for
+  `fpanel`, and AX (what the sound's routine left). Not covered: a key
+  ending the frames, `S37FF:0130` not 0 (`show`: frames drawn only when
+  needed), two units of ground kind 7, a sound card (`S3303:0022`),
+  `DATA:0374` set (cutting is on in the frames, `DATA:00E8` 1, so both
+  of `sprite_draw`'s paths ran; how often each was not counted), a figure's way of 0 frames
+  (`long_div` by 0, reported), the error exit.
+  `attacks_run` now calls it as `fight_show` does (`src/orders.c`,
+  `fight_show`: the arguments from `fight_rec`, `S37FF:0130`,
+  `pics_winter` and the counts at `S3AEC:000C`-`000F`, at its work buffer
+  plus 2710h) and `unders_restore` after the panels without pictures
+  (`S02E6:0AE6`). `play.c`'s stand-in (the log's number of R lines
+  replayed, a loop of frames for the time) is gone; `pics_hook`
+  (`pics_clock`) gives the seed (the log's with `-seeds`, else the
+  BIOS's), the loading's, each frame's and each fade level's time, and in
+  clock mode gives `rand_words` back at the end (the log's S and R lines
+  come after `attacks_run`; the port's frames take no time there, so no
+  key ends them as the original's did in m8_site). Rerun 2026-10-08:
+  `play_test.sh m8_site` and `m8_d5r` (new log and dumps here, 300 s) the
+  same at every pass; `m8_d5r rounds` and `seeds` the same up to round 4,
+  the last dumped, and with `seeds` (the log's seed numbers only, no
+  more of its R lines) `rand_words` the same too: the pictures' calls of
+  `rand_next` are the port's own now. `orders_test`, `loop_test`,
+  `income_test`, `side_test`, `view_test`, `move_test` and `fpanel` the
+  same as before. Not run: `m8_wait` (no log here), `m0_*`.
 - The grounds in video memory (2026-10-08, Linux): `grounds_load`
   (`S02E6:323E`) in `src/pictures.c` with `ground_store` (`S28F5:0006`),
   and `lib_pick` (`S0C66:0414`) in `src/pictures.c` too (it was in `src/files.c` at first), called by

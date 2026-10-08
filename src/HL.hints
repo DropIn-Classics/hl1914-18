@@ -670,7 +670,9 @@ comment S10AF:000F show_message(text number, side)
 comment S28E5:0004 rect_fill: lines y DATA:00DE to 00E2 by S28FA:0000, DATA:00DE counted past the last. Translated (port/src/draw.c).
 comment S28FA:0000 line_fill: one line from x DATA:00DC to 00E0 at y DATA:00DE in colour DATA:00DA on the page drawn, Mode X masks from its own segment (00A6, 00AA, words at 009E). Translated (port/src/draw.c).
 comment S2B45:0006 text_draw(x, y, gap, line, colour, far text, far font, far map): each character's picture (font + map's word for it; FFFFh a gap of half the last width; 0:0 font and map take DATA:036A and 036E) by S2A6B:0008, then x on by its width (word 0Eh) and gap; '|' or 0Dh a new line. Translated (port/src/draw.c).
-comment S2A6B:0008 pic_draw(x, y, far pic, dword colours, base): by byte 9 of the picture: 'P' to S2A76:0002 (y negative: S2A95:000E with -y), 'X' to S2957:0002, else S2AAF:0000. Only the 'P' way translated.
+comment S2A6B:0008 pic_draw(x, y, far pic, dword colours, base): by byte 9 of the picture: 'P' to S2A76:0002 (y negative: S2A95:000E with -y), 'X' to S2957:0002, else S2AAF:0000. Translated (port/src/draw.c, pic_draw) but for the 'X' way.
+comment S2A95:000E pic_half: a 'P' picture at -y drawn at half its size, uncut: four passes from the plane of x on, of plane 0's then plane 2's source rows (every second row), high halves in the first two passes, low in the last two. Translated (port/src/draw.c), compared through fight_panel.
+comment S2A6F:0002 pic_unpack_draw(x, y, far pic, dword colours, base, far work): tpwm_unpack of pic to work, then pic_draw of work (of pic when DX is FFFFh: not packed). Translated (port/src/draw.c).
 comment S2A76:0002 pic_blit_4: 4-bit pixels plane by plane, two a byte, base added, byte 8 transparent; cut by S2A76:0139 to DATA:00EC-00F2 when DATA:00E8 is not 0. Translated (port/src/draw.c, the S2AE4:000C table call left out).
 comment S2532:1A8F flag_lying(x, y, c1, c2, c3): three stripes 12 by 2 pixels by rect_fill. Translated (port/src/draw.c, flag_draw).
 comment S2532:1BC3 flag_standing(x, y, c1, c2, c3): three stripes 4 by 6 pixels by rect_fill. Translated (port/src/draw.c, flag_draw).
@@ -1278,10 +1280,31 @@ name S0C66:0009 lib_load
 ; screen (S2A08:000A) before S0CB6:0DA9 (not read; not met). Read,
 ; translated, compared through lib_load.
 name S0C66:024E lib_order
-; S0C66:0414: picks far pointers of a library's list by a table of bytes
-; (S02E6:323E uses it with the record at S331F:0145). Read only roughly;
-; the name is a guess.
+; lib_pick(far list, count, far table, words, far to, far buf): for each
+; picture n of the list whose number is the low byte of one of the table's
+; words, ground_store puts it into video memory and its place goes to
+; entry n of buf (the other entries are not written); then count entries
+; of buf are copied to `to` (far_copy). Returns how many were stored.
+; grounds_load calls it with the record at S331F:0145. Read, translated
+; (port/src/pictures.c), compared through grounds_load.
 name S0C66:0414 lib_pick
+; ground_store(far picture): four planes of 90h bytes from byte 12h of the
+; picture copied into video memory at the far pointer DATA:035C (pages_set
+; sets AC58:0000), which moves on by 90h; returns where they went. Read,
+; translated (port/src/pictures.c).
+name S28F5:0006 ground_store
+; grounds_load(far place, far work): the map's grounds into video memory:
+; lib_load of partS/partW (S331F:0145, sorted; the letter at S331F:0149 by
+; pics_winter) to place, behind it the map's file (num_text of map_number,
+; ending 0) and the file named at S331F:0264 (ending 0), then lib_pick of
+; the library's list by the words of both files with buf the work buffer
+; and `to` S331F:02E7, which then becomes the list at S331F:0153 (what
+; ground_blit draws from). The word at 282h of the screen's record behind
+; DATA:0092 gets offset 0. place does not move on. The error exit
+; (S0CB6:1842 with 2) for a file that cannot be loaded. Called by
+; game_loop's setup and after load_game. Read, translated
+; (port/src/pictures.c), compared on maps 0 and 8 (port/README.md).
+name S02E6:323E grounds_load
 ; far_copy(far from, far to, dword n): n bytes, one at a time, forwards.
 name S0CB6:187F far_copy
 ; str_ncmp: the C library's strncmp (as far as the second's end).
@@ -1313,13 +1336,36 @@ name S331F:01F9 lib_newshop
 name S10AF:0131 unit_panel
 ; fight_panel(fight record, pictures): draws the fight's panel; with
 ; pictures 0 it calls fight_losses itself (fight_show does when they are
-; on). Sets fight_rec_ptr. Read, not stepped. Its time (read from
+; on). Sets fight_rec_ptr. What it draws: picture 0 of lib_newshop by
+; S2A6F:0002 at x 0 (A0h when the first unit has bit 0 of word 4), the
+; flags, two boxes in FFh, the two units' large pictures (S131D:0C50,
+; places 0 and 3), the two grounds (ground_blit at S331F:02C5/02C6, from
+; fight_rec 1Eh and 22h), six steps of figures at S331F:02B9 (kind *
+; 6 + step of the unit pictures, colours 20h/30h; a kind with 40h in word
+; 4 whole by S131D:1F0D), a page shown each step, and without pictures
+; the lost ones again from step 5 down in B0h/C0h. Translated
+; (port/src/draw.c) and compared on one call with pictures and one
+; without (port/README.md). Its time (read from
 ; S131D:1AB5 to 1F0D and counted in runs): with pictures a fade_in first
 ; (S131D:1AC8; game_loop or the fight before left the screen dark), then the marks on the
 ; map in six steps, each drawn and followed by wait_frames(6), then
 ; wait_frames(0Ch); with pictures wait_input(96h) and fade_out, without
 ; them the six steps back with wait_frames(6) each and wait_input(46h).
 name S131D:178D fight_panel
+; big_unit(place, kind, right): a kind's large picture in a place of the
+; fight's panel (table S331F:020D, 8 bytes: x, y, the name's x and y):
+; its BIGUNIT.LIB entry (name in bigunit_dat by the kind's byte 09D7h,
+; strncpy CODE:2C39 to the stack) read by lib_read to bigunit_buf, then
+; bigunit_pics and the unit drawn (S2A6F:0002, colours 40h; at half size,
+; y negated, in places other than 1, the unit lower by byte 09D6h, halved
+; there), the kind's name in 71h. Translated (port/src/draw.c).
+name S131D:0C50 big_unit
+; panel_whole(far unit, x, y, base): a unit of a kind with 40h in word 4
+; on the fight's panel, two of the unit pictures. Translated, not met.
+name S131D:1F0D panel_whole
+; panel_sound(n): a sound of a step of the fight's panel (S2F39:06E3,
+; 096A; not read). Not translated.
+name S131D:1FF0 panel_sound
 ; Set when the fights are not shown as pictures: then fight_panel works
 ; the losses out and attacks_run counts the blasts down on the map itself
 ; (presumably an option of the setup; 0 in the key-script runs).
@@ -2545,6 +2591,17 @@ name S1A39:1906 site_picture
 ; runs), clears the key's word 4 (S2532:0131) and runs fight_frames;
 ; then pal_level from the level reached down to 0 in steps of 4 and
 ; S2F39:09C9 for eight channels (presumably the sound's; not read).
+; Its parts (2026-10-08, by their calls only; lines of the listing):
+; S2532:01C2 (54) and 0258 (58, once per side with its kind) set up
+; S3AEE without calls; 02D6 (42) clears the screen; 0357 (362) loads the
+; picture's files (file_load_size, lib_read, L2C39) and 0755 (112) more
+; pictures (lib_read, L03B8); 0877 (475) draws the start (lbm_show,
+; pic_draw, text_draw, the flags 1A8F/1BC3, S2532:1CF9, S29C1:001F,
+; pal_level); 1FD6 (133) and 1E66 (156) load further files (L2B66,
+; L2BAA); 1DD3 (58) is the error exit (input_remove, key_remove, L1851,
+; L2585, S2B7F:000E, S2CC9:0002); 211E (64) the sound (S2F39). Not read
+; are the blitters S2AF3:000A, S294A:000A, S29C1:001F, S292E:000A,
+; S2B76:0004. Nothing of S2532 is translated.
 name S2532:0008 fight_pictures
 ; fight_frames: the frames 1 to 2EDh (the count at S3AEE:0680). A frame
 ; below 40h first sets the colours (pal_level, level 4 * frame + 3: the
@@ -2556,3 +2613,6 @@ name S2532:0008 fight_pictures
 ; not counted). The calls of rand_next come from S2532:17D1 (not read
 ; further, see HANDOFF).
 name S2532:0CAA fight_frames
+; fight_frames' parts: S2532:17D1 (174) shares the losses out among the
+; volleys left and calls rand_next (see HANDOFF), 1970 (111) marks the
+; figures that fall, 072A (22) is called from the frames and from 0755.

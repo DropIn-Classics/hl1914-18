@@ -3,7 +3,8 @@
 # (port/tests/keys/); -ram at ROUTINE's entry and at its RETF (the Nth entry and
 # the Nth time its RETF is reached); appends one line to OUTDIR/dumps.log.
 # Never overwrites: refuses when a dump file exists.  With VRAM set in the
-# environment, also -vram (the video memory) beside each -ram.
+# environment, also -vram (the video memory) beside each -ram; with NOPICS
+# set, no_fight_pics (S37FF:0115) poked to 1 at the loop's beginning.
 import os, re, struct, subprocess, sys
 R={'move_arrive':('S10E1:0AF0','S10E1:0F70',['side','map_off','map_seg']),
    'move_target':('S10E1:0F82','S10E1:1444',['field','side','map_off','map_seg']),
@@ -18,6 +19,9 @@ R={'move_arrive':('S10E1:0AF0','S10E1:0F70',['side','map_off','map_seg']),
    'field_draw':('S0E56:145A','S0E56:1725',['side','field','flag']),
    'marks_erase':('S0E56:1217','S0E56:1459',['field','side','mask']),
    'unit_panel':('S10AF:0131','S10E1:000E',['unit','side']),
+   'fight_panel':('S131D:178D','S131D:1CD7',['rec_off','rec_seg','pictures']),
+   'fight_panel0':('S131D:178D','S131D:1F0C',['rec_off','rec_seg','pictures']),
+   'attacks_run':('S02E6:000F','S02E6:2064',['work_off','work_seg','place_off','place_seg','map_off','map_seg','pal_off','pal_seg','libs_off','libs_seg']),
    'game_begin':('S066A:0938','S066A:0EE6',[]),
    'game_start':('S066A:000D','S066A:0349',[]),
    'game_setup':('S066A:0417','S066A:0938',[]),
@@ -42,7 +46,7 @@ out,tag,keys,until,rt,n=sys.argv[1:7]
 n_in,n_out=(n.split('/')+[n])[:2]
 here=os.path.dirname(os.path.abspath(__file__)); kit=os.path.join(here,'../../doskit/tools/run.py')
 ent,ex,an=R[rt]
-pre=(['-mouse','21','150,73,1','-mouse','21.2','150,73,0','-key','22','r','-key','22.5','a','-key','23','t','-key','23.5','i','-key','24','o','-key','25','enter','-mouse','27','150,48,1','-mouse','27.2','150,48,0'] if os.environ.get('MAP8') else ['-mouse','22','150,48,1','-mouse','22.2','150,48,0','-mouse','31','230,80,1','-mouse','31.2','230,80,0'])+['-keys',os.path.abspath(keys),'-until',until]
+pre=(['-mouse','21','150,73,1','-mouse','21.2','150,73,0','-key','22','r','-key','22.5','a','-key','23','t','-key','23.5','i','-key','24','o','-key','25','enter','-mouse','27','150,48,1','-mouse','27.2','150,48,0'] if os.environ.get('MAP8') else ['-mouse','22','150,48,1','-mouse','22.2','150,48,0','-mouse','31','230,80,1','-mouse','31.2','230,80,0'])+(['-poke','S066A:0EE9#1','S37FF:0115','01'] if os.environ.get('NOPICS') else [])+['-keys',os.path.abspath(keys),'-until',until]
 def run(addr,f,n):
     p=os.path.join(out,f)
     if os.path.exists(p): sys.exit('exists: '+p)

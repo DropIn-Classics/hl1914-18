@@ -147,9 +147,7 @@ int menu_result(uint16_t map)
  * texts, AMOK.DAT, UNIT.DAT, WW1GNDS.DAT, then the map whose number is at
  * map_number and its .SHP file.  Returns 0, or 2 for a file that cannot
  * be loaded (the original's error exit).
- * Left out: S27FE:056C (key_install) and S02E6:323E, which
- * loads the map's pictures to the block's free end (the lists then lie
- * over them). */
+ * Left out: S27FE:056C (key_install). */
 int battle_setup(void)
 {
     Far scr = far_at(S_DATA, 0x0092), p = game_mem.block, name, num;
@@ -179,6 +177,9 @@ int battle_setup(void)
     fww(scr.seg, (uint16_t)(scr.off + 0x1C), 0xFFFF);
     pages_set();
     page_flip();
+    /* the grounds into video memory; the lists below lie over its files */
+    if (grounds_load(p, game_mem.block))
+        return 2;
     /* each side's record: the list of its attackers (11h), two blocks of
      * 2710h (0Dh; the first is the work buffer of the loads below) and
      * 3E8h bytes (9; side 0's takes the .SHP file) */
@@ -374,10 +375,10 @@ static void set_code(Far rec, uint16_t o, uint16_t seg, uint16_t off)
 }
 
 /* S02E6:3484 (libs_start): the libraries of the records at S331F:0131
- * (sorted by its list) and S331F:0159 loaded one behind the other to the
- * free end, which moves on by each file's length.  Returns 0, or 2 for a
+ * (sorted by its list) and S331F:0159 loaded one behind the other to
+ * *place, which moves on by each file's length.  Returns 0, or 2 for a
  * file that cannot be loaded (the original's error exit). */
-static int libs_start(void)
+int libs_start(Far *place)
 {
     static const uint16_t recs[2] = { A_lib_pal, A_lib_rnd };
     int i;
@@ -385,9 +386,9 @@ static int libs_start(void)
     for (i = 0; i < 2; i++) {
         Far rec = game_text(recs[i]);
 
-        if (lib_load(file_name(1, 0, rec, 3), game_mem.p, game_mem.work, rec, (uint8_t)(i == 0)) == -1)
+        if (lib_load(file_name(1, 0, rec, 3), *place, game_mem.work, rec, (uint8_t)(i == 0)) == -1)
             return 2;
-        game_mem.p = far_add(game_mem.p, pw(rec, 0x0A) | (uint32_t)pw(rec, 0x0C) << 16);
+        *place = far_add(*place, pw(rec, 0x0A) | (uint32_t)pw(rec, 0x0C) << 16);
     }
     return 0;
 }
@@ -415,8 +416,10 @@ int battle_begin(void)
         if (!(p.seg | p.off))
             return 2;
     }
-    if (libs_start())
+    game_mem.libs = game_mem.p;
+    if (libs_start(&game_mem.p))
         return 2;
+    game_mem.pics = game_mem.p;
     /* pictures_load(free end, work buffer, the 320h bytes' buffer for the
      * palette); game_loop keeps the free end it returns at S3303:0028,
      * FFFF:FFFF too */

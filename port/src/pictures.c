@@ -524,3 +524,85 @@ int pictures_load(Far *place, Far work, Far pal)
     }
     return 0;
 }
+
+/* S28F5:0006 (ground_store): a ground's picture (four planes of 90h
+ * bytes from byte 12h of `pic` on) put into video memory at the far
+ * pointer DATA:035C, which moves on by 90h; returns where it went */
+Far ground_store(Far pic)
+{
+    uint16_t sd = HL_DATA + HL_BASE, es = frw(sd, 0x035E), di = frw(sd, 0x035C), si = (uint16_t)(pic.off + 0x12);
+    uint16_t mask, k;
+
+    fww(sd, 0x035C, (uint16_t)(di + 0x90));
+    for (mask = 1; mask != 0x10; mask <<= 1) {
+        vga_outw(0x3C4, (uint16_t)(mask << 8 | 2));
+        for (k = 0; k < 0x90; k++)
+            scr_wb(es, (uint16_t)(di + k), frb(pic.seg, si++));
+    }
+    vga_outw(0x3C4, 0x0F02);
+    pic.seg = es;
+    pic.off = di;
+    return pic;
+}
+
+/* S0C66:0414 (lib_pick): for each picture n of the list `list` (count
+ * entries) whose number is the low byte of one of the `words` words at
+ * `table`, ground_store (S28F5:0006) puts it into video memory and the
+ * place it got goes to entry n of `buf`; the entries of pictures not
+ * used are left as they are.  Then the count's entries of `buf` are
+ * copied to `to`.  Returns how many were stored. */
+int16_t lib_pick(Far list, int16_t count, Far table, int16_t words, Far to, Far buf)
+{
+    int16_t n, i, found = 0;
+
+    for (n = 0; n < count; n++)
+        for (i = 0; i < words; i++)
+            if (pb(far_add(table, (uint32_t)(int32_t)(i * 2)), 0) == (uint16_t)n) {
+                Far o = far_add(buf, (uint32_t)(int32_t)(n * 4)), at;
+
+                at = ground_store(pfar(list, (uint16_t)(n * 4)));
+                fww(o.seg, o.off, at.off);
+                fww(o.seg, (uint16_t)(o.off + 2), at.seg);
+                found++;
+                break;
+            }
+    far_copy(buf, to, (uint32_t)(int32_t)(count * 4));
+    return found;
+}
+
+/* S02E6:323E (grounds_load): the map's grounds into video memory.  The
+ * library partS (partW in winter, S331F:0145 sorted by its list) is
+ * loaded to `place`, behind it the map's file (ending 0) and the file
+ * named at S331F:0264 (ending 0); lib_pick stores every ground whose
+ * number is the low byte of one of their words (presumably only the
+ * grounds the map uses; their places are written to the work buffer,
+ * which is then copied to the table S331F:02E7, so the entries of grounds
+ * not stored hold what the work buffer held before; the
+ * screen's record behind DATA:0092 offset 0 at 282h), and S331F:0153
+ * then points to that table.  `place` does not move on: what comes
+ * next lies over the files.  Returns 0, or 2 for the error exit. */
+int grounds_load(Far place, Far work)
+{
+    Far num = num_text((int16_t)NW(map_number, 0), game_text(A_num_buf), 2, 4);
+    Far rec = game_text(A_lib_parts), files, scr;
+    int32_t n1, n2;
+
+    fwb(HL_S331F + HL_BASE, 0x0149, NB(pics_winter, 0) ? 0x57 : 0x53);
+    n1 = lib_load(file_name(1, 0, rec, 3), place, work, rec, 1);
+    if (n1 == -1)
+        return 2;
+    files = far_add(place, (uint32_t)n1);
+    n1 = file_load_size(files, file_name(1, 1, num, 0), work);
+    if (n1 == -1)
+        return 2;
+    n2 = file_load_size(far_add(files, (uint32_t)n1), file_name(1, 1, game_text(0x0264), 0), work);
+    if (n2 == -1)
+        return 2;
+    scr = far_at(HL_DATA + HL_BASE, 0x0092);
+    fww(scr.seg, (uint16_t)(scr.off + 0x282), 0);
+    lib_pick(pfar(rec, 0x0E), (int16_t)pw(rec, 0x12), files,
+             (int16_t)(uint16_t)((uint32_t)(n1 + n2) >> 1), game_text(0x02E7), work);
+    fww(HL_S331F + HL_BASE, 0x0153, 0x02E7);
+    fww(HL_S331F + HL_BASE, 0x0155, HL_S331F + HL_BASE);
+    return 0;
+}

@@ -307,6 +307,21 @@ anything the game needs before the first release.
   from the library (the original writes it on the screen; the port skips
   it), and `battle_begin` as a whole after the change (its `begin` dumps
   were not at hand; see docs/HANDOFF.md).
+- The screen's set-up (2026-10-08, Linux): `screen_open` (`S298E:000D`,
+  Mode X 320x200 for a height of 200), `pages_set`, `screen_clear` and
+  `page_flip` in `src/screen.c`, not yet called by the port's start
+  (docs/HANDOFF.md says why). `load_test.sh` takes `scr` (the video
+  memory beside the dumps as for `pict`; the routine returns nothing, so
+  AX is not compared; the timer's tables at `DATA:0D5F` to `0D9E`,
+  `0E3F` and `0E4B`, which change while the original waits for
+  retraces, are counted apart). Dumps at its entry and its RETF
+  (`S298E:007B`) on map 0 (`dumps.py ... screen_open 1`,
+  `build/n2/scr/`, argument list `scr_test.args`): memory and all video
+  memory the same; the VGA's registers after it (misc, sequencer, CRTC,
+  graphics controller, read from the port by a scratch program
+  `build/n2/scr/regs.c`) the same as the runner's `-vgastate` at that
+  break; the DAC black in both. Not covered: the other heights' modes,
+  `S2B51:002A`, `page_flip` and `pages_set` called on their own.
 - The battle screen's pictures (2026-10-08, Linux): `pictures_load`
   (`S02E6:2B87`) in `src/pictures.c` with `lbm_show` (`S2B06:0000`, the
   IFF picture drawn into the runtime's VGA memory, `runtime/vga.h`),

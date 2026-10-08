@@ -125,6 +125,12 @@ int lib_read(Far *place, Far file, Far names, Far ptrs, Far work);
 int32_t sfx_load(Far place, Far name, Far work);
 int pictures_load(Far *place, Far work, Far pal);
 
+/* screen.c */
+void screen_open(uint16_t w, uint16_t h, uint32_t size, uint16_t pages);
+void pages_set(void);
+void screen_clear(void);
+void page_flip(void);
+
 /* mem.c */
 Far mem_alloc(uint32_t size);
 

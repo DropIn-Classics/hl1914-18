@@ -1013,7 +1013,21 @@ emulation error (2026-10-02).
        `lib_read` (`S2C01:0006`), the libraries exp, bum, newshop. Done
        2026-10-08 (above).
     2. The screen's set-up at the start (`S298E:000D`, `S28D9:000C`,
-       `S2974:0002`, left out of `start_setup`; not read).
+       `S2974:0002`, left out of `start_setup`). Done 2026-10-08 as far as
+       a function: `screen_open`, `pages_set` (`S2A10:0006`),
+       `screen_clear`, `page_flip` are read, named and translated
+       (`port/src/screen.c`); `screen_open`'s call on map 0 is the same as
+       the original's in memory, video memory and the VGA's registers
+       (port/README.md). Mode X 320x200 with two pages: A400h drawn,
+       A000h shown at the start, page_flip swaps them. Not yet called by
+       the port's start: the wait for a retrace comes before the mode
+       set, and the runtime's VGA, never set to a mode, shows no retrace
+       (its CRTC registers are 0), so the port must first put the VGA in
+       the state DOS leaves it in (text mode 3; `vga_set_mode` knows only
+       graphics modes, so this wants a change in doskit's runtime).
+       `battle_setup`'s calls of `pages_set` and `page_flip` are not
+       wired in either. Not met: the 360-wide modes (`S298E:02B4`/`02CC`
+       tables), `S2B51:002A` (with `DATA:0463`/`0465` FFFFh).
     3. `view_draw` (`S0E56:0D44`) and `marks_draw` (`0F36`) for each side,
        then `show_message(-1, side)` (`S10AF:000F`).
     4. `S2974:0002`, `S28DC:000A`, `S28E0:0004` at the loop's beginning

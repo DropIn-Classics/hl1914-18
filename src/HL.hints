@@ -2367,6 +2367,44 @@ name S27FE:0783 pit_add
 name S27FE:07E8 pit_del
 name S27FE:0882 pit_period
 
+; screen_open(w, h, n, dword size, pages): called once by game_loop at
+; its start (S066A:014D, with 320, 200, 4, 2518h, 1). Keeps INT 10h
+; AH=0Fh's AX (the BIOS's mode and columns) at DATA:0346, clears A000:0
+; (7FFFh words, all planes), takes the CRTC's port from 40:63 (DATA:0AF9,
+; 0AFB one more, 0AFD six more), sets the mode (S298E:007C), keeps size at
+; DATA:0342 and pages at DATA:034E, calls pages_set, then screen_clear,
+; page_flip, screen_clear with colour 0 (DATA:00DA). S298E:007C decides
+; by the height only (it compares the width with AX after loading AX with
+; DATA's segment): 200 lines are mode 13h with the DAC made black, chain-4
+; and the CRTC's word mode and double words off (Mode X), 320 by 200,
+; screen_pitch 50h, DATA:02F2 (bytes a page) 3E80h, DATA:02F6 FA00h, and
+; the offsets of F0h lines at DATA:00F8; other heights set a mode of 360
+; by 240 or 480 from the CRTC tables at S298E:02B4 and 02CC (not met). n
+; is not used. Read whole; translated (port/src/screen.c) and compared on
+; its call on map 0 (port/README.md).
+name S298E:000D screen_open
+; pages_set: the pages' segments for the height at DATA:02E6: with two
+; pages (DATA:034E) A400h is drawn (screen_seg) and A000h shown
+; (DATA:0356); further segments and counts at DATA:0322 to 0330 and
+; 035C to 0368 (A7E8h, 4, AC58h, AC4Eh; what they are was not looked at).
+; Read whole; translated, compared through screen_open.
+name S2A10:0006 pages_set
+; screen_clear: DATA:02F2 bytes of all four planes of the page drawn made
+; the colour DATA:00DA. Read; translated, compared through screen_open.
+name S28D9:000C screen_clear
+; page_flip: the page drawn and the one shown change places; the CRTC's
+; start address is set to the new shown one between two retraces. Without
+; DATA:00F6 the words at DATA:0322 to 0328 change places with 032A to 0330
+; first. With DATA:0463 and 0465 both FFFFh it calls S2B51:002A first,
+; which builds the header of a PBM picture of 320 by 200 in a block of
+; 190h bytes (presumably to save the screen to a file; not read further,
+; not met). Read; translated, compared through screen_open.
+name S2974:0002 page_flip
+name DATA:0356 screen_shown
+name DATA:0346 bios_mode_old
+name DATA:0AF9 crtc_port
+name DATA:02F2 page_size
+name DATA:00F8 line_offsets
 ; retrace_wait: waits until the screen's next vertical retrace begins
 ; (8 in the byte read from the port the word at DATA:0AFD names); display_wait until one is over.
 ; The waits and the changes of the screen's colours count their steps by

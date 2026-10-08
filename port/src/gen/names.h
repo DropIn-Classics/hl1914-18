@@ -308,8 +308,12 @@
     X(S27FE, pit_del, 0x07E8) \
     X(S27FE, pit_period, 0x0882) \
     X(S2892, num_text, 0x0001) \
+    X(S28D9, screen_clear, 0x000C) \
     X(S2945, retrace_wait, 0x000A) \
     X(S2947, display_wait, 0x0006) \
+    X(S2974, page_flip, 0x0002) \
+    X(S298E, screen_open, 0x000D) \
+    X(S2A10, pages_set, 0x0006) \
     X(S2B06, lbm_show, 0x0000) \
     X(S2B81, file_load_size, 0x0004) \
     X(S2B85, file_close, 0x0002) \
@@ -436,10 +440,15 @@
     X(S3AEC, fight_rec_ptr, 0x0008) \
     X(S3AED, ground_bonus, 0x0000) \
     X(DATA, palette_ptr, 0x00CE) \
+    X(DATA, line_offsets, 0x00F8) \
     X(DATA, screen_pitch, 0x02F0) \
+    X(DATA, page_size, 0x02F2) \
+    X(DATA, bios_mode_old, 0x0346) \
     X(DATA, screen_seg, 0x0354) \
+    X(DATA, screen_shown, 0x0356) \
     X(DATA, palette, 0x04E3) \
     X(DATA, rand_words, 0x0AF1) \
+    X(DATA, crtc_port, 0x0AF9) \
     X(DATA, rand_state, 0x11F6) \
 
 #endif

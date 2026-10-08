@@ -116,6 +116,8 @@ int32_t file_size(Far name);
 int32_t file_load_size(Far to, Far name, Far work);
 int32_t lib_load(Far name, Far to, Far work, Far rec, uint8_t order);
 uint8_t *host_load(Far name, size_t *size);
+extern const char *hl_save_dir;     /* where the port keeps what the program writes */
+int host_save(Far name, const uint8_t *data, size_t size);
 void far_copy(Far from, Far to, uint32_t n);
 int16_t lib_pick(Far list, int16_t count, Far table, int16_t words, Far to, Far buf);
 Far ground_store(Far pic);
@@ -148,6 +150,7 @@ void rect_fill(void);
 void text_draw(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_t base, Far text, uint16_t *len);
 void flag_draw(uint16_t x, uint16_t y, uint16_t c1, uint16_t c2, uint16_t c3, int standing);
 void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base);
+void pic_unpack_draw(uint16_t x, uint16_t y, Far src, uint8_t base, Far work);
 
 /* fightpics.c: fight_pictures' arguments in the order of its stack
  * (S2474's fight_show passes them), and `sp` the stack pointer at its
@@ -166,6 +169,7 @@ extern void (*pics_hook)(int at);
 void clock_seed_bios(void);
 void sprite_draw(int16_t x, int16_t y, Far pic, Far save, uint16_t base, int16_t sx, int16_t sy);
 void unders_restore(void);
+void under_save(uint16_t w, uint16_t h, Far src, Far save);
 int fight_pictures(const FightPics *a);
 
 /* mem.c */
@@ -183,6 +187,7 @@ typedef struct { Far block, save_buf, gfx, lists_end, work, p, libs, pics; } Gam
 extern GameMem game_mem;
 int start_setup(void);
 int menu_result(uint16_t map);
+void scores_load(Far buf, Far work, int16_t map, Far name);
 int battle_setup(void);
 /* called by battle_after for each picture the original shows there
  * (event_picture's kind and its last argument) */
@@ -261,7 +266,11 @@ extern int loop_replay;
  * called; it has returned (SideIn's `seeded` and `seed` are read next);
  * the battle's end has shown its texts (loop_end_texts, the first side's
  * and the second's) and waits for a press (wait_press) */
-enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT, LOOP_END };
+enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT, LOOP_END, LOOP_QUIT };
+/* LOOP_QUIT: the pass waits for the answer to the question whether to
+ * leave the battle; the hook lets the timer's routine run on and sets
+ * loop_abort when no answer can come */
+extern int loop_abort;
 extern void (*loop_hook)(int at, uint16_t side);
 extern uint16_t loop_end_texts[2];
 /* where orders_hook is called in attacks_run, for the time the original
@@ -277,7 +286,32 @@ void loop_reset(void);
 
 /* input.c */
 void key_irq(uint8_t code);
+void key_install(void);
+void key_remove(void);
 const char *input_tick(void);
+
+/* mouse.c */
+uint16_t mouse_read(void);
+uint16_t mouse_open(uint16_t mode, uint16_t rec, uint16_t draw);
+uint16_t mouse_close(void);
+uint16_t mouse_range(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
+uint16_t mouse_speed(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e, uint16_t f, uint16_t g);
+void mouse_to(uint16_t x, uint16_t y);
+uint16_t mouse_hide(void);
+uint16_t mouse_show(void);
+
+/* menu.c */
+/* the menu before a battle (S167A:0005), played on the port's own clock
+ * (play_start); 0, or FFFFh (a file could not be loaded).  menu_stopped
+ * is set when it could not go on (what it met).  menu_log_to: a file that
+ * gets a line for each thing that came in: time, what (1 chosen, 2 the
+ * other page, 5 another item), the page, the item's place and number;
+ * and "TIME 0" when the menu has returned */
+extern const char *menu_stopped;
+void menu_log_to(const char *path);
+void menu_shot(double at, const char *file);
+void inputs_release(int wait);
+int menu_run(Far place);
 
 /* play.c */
 /* the port's program plays a battle by itself: the human's keys from a
@@ -287,6 +321,11 @@ const char *play_keys(const char *path);
 const char *play_clock(const char *path);
 const char *play_seeds(const char *path);
 double play_now(void);
+void play_start(double start);
+void play_tick(void);
+void play_retraces(int n);
+void play_fade(void);
+int play_idle(void);
 void play_inputs(const char *path);
 void play_rounds(const char *path);
 void play_ends(const char *path);

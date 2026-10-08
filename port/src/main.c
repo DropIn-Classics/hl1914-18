@@ -221,6 +221,11 @@ static int start_game(const char *game, int map, uint32_t bios, char *line, size
     hl_game_dir = game;
     play_bios(bios);
     r = start_setup();
+    key_install();      /* S066A:0344, after what start_setup translates */
+    if (r == 0 && map < 0) {    /* the menu chooses the map (menu_game) */
+        snprintf(line, n, "The program's start is done.");
+        return 1;
+    }
     if (r == 0)
         r = menu_result((uint16_t)map);
     if (r == 0)
@@ -253,6 +258,9 @@ static int dumps_n;
 static int nopics;      /* -nopics: the fights are not shown as pictures */
 static struct { unsigned long at; const char *hex; } pokes[16];
 static int pokes_n;
+static struct { unsigned long pass; const char *file; } menu_dumps[8];
+static int menu_dumps_n;
+static int dumps_ok;    /* play_game wrote its dumps */
 
 /* the battle played from the setup on (play.c), at most `passes` passes
  * (0: no limit but a million); a line about how far it came in `line`.
@@ -265,6 +273,7 @@ static int play_game(unsigned long passes, double start, double until, int clock
     if (!passes)
         passes = 1000000;
     play_begin(start);
+    dumps_ok = 1;
     if (nopics)
         SETB(no_fight_pics, 0, 1);
     for (i = 0; i < pokes_n; i++) {
@@ -297,10 +306,91 @@ static int play_game(unsigned long passes, double start, double until, int clock
         if (why)
             break;
     }
+    dumps_ok = ok;
     snprintf(line, n, "%lu passes played%s%s.", play_passes, why ? ", then: " : "", why ? why : "");
     if (clocked)    /* with -seeds: fights the log had no seed for */
         snprintf(line + strlen(line), n - strlen(line), " %lu places where the clock's file did not fit.",
                  play_misses);
+    return ok;
+}
+
+/* The program from the menu on, as game_loop goes round from S066A:0349:
+ * the menu (menu.c) with the key script's keys on the port's own clock
+ * from `start` seconds on, what game_loop does when it returns
+ * (S066A:0390), the battle's setup and the battle (play_game), what
+ * follows it, and the menu again; until the menu ends the program, the
+ * key script has nothing left for it, `until` is reached or a battle
+ * stops before its end.  A -menudump N FILE is the memory when the menu
+ * has returned the N-th time.  A line about how far it came in `line`;
+ * 0 if something failed. */
+static int menu_game(unsigned long passes, double start, double until, char *line, size_t n)
+{
+    uint16_t data = (uint16_t)(HL_DATA + HL_BASE), opt = (uint16_t)(HL_S37FF + HL_BASE);
+    int menus = 0, battles = 0, i, r, ok = 1;
+    const char *why = NULL;
+    char sub[200];
+
+    play_start(start);
+    sub[0] = 0;
+    for (;;) {
+        Far ms;
+
+        SETW(game_state, 0, (NW(game_state, 0) | 1) & 0xFFEF);
+        inputs_release(0);
+        mouse_close();
+        r = menu_run(game_mem.block);
+        if (r != 0) {
+            snprintf(line, n, "A file of the menu could not be loaded.");
+            return 0;
+        }
+        if (menu_stopped) {
+            why = menu_stopped;
+            break;
+        }
+        menus++;
+        for (i = 0; i < menu_dumps_n; i++)
+            if (menu_dumps[i].pass == (unsigned long)menus && rm_write(menu_dumps[i].file) != 0)
+                ok = 0;
+        mouse_open(0, frw(data, frb(opt, 0x0114) > 0 ? 0x00B6 : 0x00A6), 0);
+        mouse_show();
+        mouse_speed(0x0A, 0x0A, 0x0A, 0x0A, 0xFA0, 0x28, 0x28);
+        ms = far_at(data, 0x00C2);
+        fww(ms.seg, (uint16_t)(ms.off + 0x46), 0xFFFF);
+        fwb(opt, 0x0130, 0);
+        if (NW(game_state, 0) & 0x100) {
+            why = "the menu ended the program";
+            break;
+        }
+        if (NW(game_state, 0) & 0x200) {
+            why = "a saved game is to be loaded, which is not translated";
+            break;
+        }
+        if (until > 0 && play_now() >= until) {
+            why = "the time given is over";
+            break;
+        }
+        r = battle_setup();
+        if (r == 0)
+            r = battle_begin();
+        if (r != 0) {
+            snprintf(line, n, r == 1 ? "No memory for the game." : "A file of the game could not be loaded.");
+            return 0;
+        }
+        battles++;
+        fprintf(stderr, "Menu %d left at %.2f s for map %u.\n", menus, play_now(), NW(map_number, 0));
+        play_game(passes, -1, until, 0, sub, sizeof sub);
+        ok = ok && dumps_ok;
+        if (NW(game_state, 0) & 2) {
+            why = "the battle did not end";
+            break;
+        }
+        if (!(NW(game_state, 0) & 1)) {
+            why = "the last battle is won";
+            break;
+        }
+    }
+    snprintf(line, n, "%d times through the menu, %d battles, to %.2f s; then: %s.%s%s", menus, battles, play_now(),
+             why, sub[0] ? " The last battle: " : "", sub);
     return ok;
 }
 
@@ -309,7 +399,7 @@ int main(int argc, char **argv)
     const char *given = NULL, *gog = NULL, *ram = NULL, *keys = NULL, *clock_file = NULL, *why = NULL;
     const char *seeds_file = NULL;
     char game[SYS_PATH], line[300];
-    int i, map = 0, ok, play = 0, seeded = 0;
+    int i, map = -1, ok, play = 0, seeded = 0;
     unsigned long passes = 0, seed = 0;
     double start = 0, until = 0;
 
@@ -344,6 +434,19 @@ int main(int argc, char **argv)
             play_ends(argv[++i]);
         else if (!strcmp(argv[i], "-nopics"))
             nopics = 1;
+        else if (!strcmp(argv[i], "-saves") && i + 1 < argc)
+            hl_save_dir = argv[++i];
+        else if (!strcmp(argv[i], "-menulog") && i + 1 < argc)
+            menu_log_to(argv[++i]);
+        else if (!strcmp(argv[i], "-menuvram") && i + 2 < argc) {
+            double at = atof(argv[++i]);
+
+            menu_shot(at, argv[++i]);
+        }
+        else if (!strcmp(argv[i], "-menudump") && i + 2 < argc && menu_dumps_n < 8) {
+            menu_dumps[menu_dumps_n].pass = strtoul(argv[++i], NULL, 0);
+            menu_dumps[menu_dumps_n++].file = argv[++i];
+        }
         else if (!strcmp(argv[i], "-poke") && i + 2 < argc && pokes_n < 16) {
             pokes[pokes_n].at = strtoul(argv[++i], NULL, 16);
             pokes[pokes_n++].hex = argv[++i];
@@ -354,7 +457,9 @@ int main(int argc, char **argv)
         } else {
             fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
-                            "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-poke ADDR HEX]... [-dump N FILE]...\n");
+                            "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-poke ADDR HEX]... [-dump N FILE]...\n"
+                            "       [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]...\n"
+                            "With -keys and no -map the program begins at the menu (at -start seconds).\n");
             return 2;
         }
     }
@@ -376,8 +481,18 @@ int main(int argc, char **argv)
         plat_shutdown();
         return 1;
     }
+    if (!hl_save_dir) {
+        static char saves[SYS_PATH];
+
+        sys_data_dir(saves, sizeof saves);
+        hl_save_dir = saves;
+    }
+    if (!play && map < 0)
+        map = 0;
     ok = start_game(game, map, seeded ? (uint32_t)seed : bios_now(), line, sizeof line);
-    if (ok && play) {
+    if (ok && play && map < 0)
+        ok = menu_game(passes, start, until, line, sizeof line);
+    else if (ok && play) {
         fprintf(stderr, "%s\n", line);
         ok = play_game(passes, start, until, clock_file != NULL || seeds_file != NULL, line, sizeof line);
     }

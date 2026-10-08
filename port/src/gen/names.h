@@ -259,8 +259,25 @@
     X(S15C5, site_free, 0x06EA) \
     X(S15C5, carrier_moved, 0x0804) \
     X(S1650, start_setup, 0x0003) \
+    X(S167A, menu_run, 0x0005) \
+    X(S167A, text_mid, 0x274C) \
+    X(S167A, text_at, 0x27B4) \
+    X(S167A, text_width, 0x28E0) \
+    X(S167A, page_items, 0x29E2) \
+    X(S167A, item_line, 0x2A6B) \
+    X(S167A, item_mark, 0x2B63) \
+    X(S167A, page_title, 0x2CAF) \
+    X(S167A, page_draw, 0x2D37) \
+    X(S167A, page_rects, 0x2E30) \
     X(S167A, inputs_release, 0x2F83) \
+    X(S167A, menu_code_set, 0x3128) \
+    X(S167A, text_input, 0x325C) \
     X(S167A, scores_load, 0x3610) \
+    X(S167A, scores_show, 0x36F9) \
+    X(S167A, score_line, 0x3A0B) \
+    X(S167A, pointer_to, 0x3A9C) \
+    X(S167A, pointer_off, 0x3B03) \
+    X(S167A, pointer_aim, 0x3B32) \
     X(S1A39, event_picture, 0x0001) \
     X(S1A39, site_picture, 0x1906) \
     X(S1C74, computer_turn, 0x000B) \
@@ -339,16 +356,19 @@
     X(S28E0, fade_in, 0x0004) \
     X(S28E0, fade_out, 0x002B) \
     X(S28F5, ground_store, 0x0006) \
+    X(S2904, pointer_erase, 0x000E) \
     X(S292E, pixel_put, 0x000A) \
     X(S2945, retrace_wait, 0x000A) \
     X(S2947, display_wait, 0x0006) \
     X(S294A, screen_put, 0x000A) \
+    X(S2967, pointer_draw, 0x0004) \
     X(S2974, page_flip, 0x0002) \
     X(S297D, latch_copy, 0x000C) \
     X(S298E, screen_open, 0x000D) \
     X(S29C1, sprite_draw, 0x001F) \
     X(S29C1, sprite_cut, 0x02D5) \
     X(S2A10, pages_set, 0x0006) \
+    X(S2A55, pic_part, 0x0006) \
     X(S2AE4, under_save, 0x000C) \
     X(S2AF3, unders_restore, 0x000A) \
     X(S2AFE, pal_level, 0x000C) \
@@ -357,7 +377,16 @@
     X(S2B81, file_load_size, 0x0004) \
     X(S2B85, file_close, 0x0002) \
     X(S2B8F, file_size, 0x000C) \
+    X(S2BB9, file_save, 0x000A) \
     X(S2BC5, file_write, 0x0008) \
+    X(S2BCD, mouse_open, 0x0008) \
+    X(S2BD4, mouse_close, 0x000A) \
+    X(S2BDB, mouse_range, 0x0006) \
+    X(S2BDF, mouse_speed, 0x000E) \
+    X(S2BE5, mouse_to, 0x000C) \
+    X(S2BE7, mouse_read, 0x000A) \
+    X(S2BF9, mouse_hide, 0x0008) \
+    X(S2BFD, mouse_show, 0x000A) \
     X(S2C01, lib_read, 0x0006) \
     X(S2C45, file_load, 0x0002) \
     X(S2C8E, file_open, 0x0006) \

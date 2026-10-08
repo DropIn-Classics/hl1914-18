@@ -3130,6 +3130,90 @@ emulation error (2026-10-02).
   packer is the same) are not used here, not even to carry names where
   instruction streams match. PROVENANCE.md stays as it is; the exception
   for the offline file tools is the only one. Do not propose it again.
+- The menu (2026-10-08, Mac; `S167A:0005`, now `menu_run`, read whole but
+  for its drawing routines; the names and what each does are in
+  src/HL.hints under "The menu"). Learned:
+  - It is driven by `MNUDATA.DAT`: 10h texts of 20h bytes, items of D8h
+    bytes (rectangle, texts of 14h bytes, kind in byte 72h, number of
+    choices 73h, the choice 74h, what it does or where it goes 76h) and
+    pages of 34h bytes (places, the items' numbers from 2Ch, their count
+    at 32h). Page 1 is the main menu (START, CODE, GAME SETUP, CONTROLS,
+    MISC), page 0 the exit's; Esc or the mouse's second button changes
+    between page 1 and 0 from anywhere. Keys alone walk it: a side's up
+    and down, its button (space for the first side), Esc; the code and a
+    winner's name are typed with the BIOS's keys (`key_remove`).
+  - A pass of its loop lasts five calls of the timer's routine (0.0687 s
+    in the runs) when nothing is drawn.
+  - The first press of the button after the code was typed does nothing:
+    the button's key was let go while the keys were the BIOS's, so the
+    program's table still has it as held until it is pressed and let go
+    once more (seen: START took the second press; the port does the
+    same).
+  - What it leaves for the battle is listed in the hints (`menu_run`):
+    which sides are the computer's and word 2 of `game_state` from items
+    7 and 8, the level from item 0Ah, 8 in word 2 from item 9, the
+    palette's number from item 6, `no_fight_pics` from item 0Bh,
+    `pics_winter` from the map's record, the highest of the map's best
+    scores at `S331F:4D2B`, the mouse's side from item 0Eh. This
+    replaces the guess "8 from another item of the menu" above.
+  - The mouse's routines (`mouse_open` to `mouse_show`, `S2BCD` to
+    `S2BFD`) keep the record at `DATA:0414`; with a mouse the menu puts
+    the pointer on the chosen item itself and takes the item under the
+    pointer as chosen in every pass without input.
+  - The port: `port/src/menu.c` (the loads, the loop, the code, the
+    country, the scores, a winner's name, a saved game's number, what it
+    leaves), `port/src/mouse.c` (the mouse's record over a driver that
+    only the program moves), the BIOS's keys and `key_install`/
+    `key_remove` in `input.c`, and the question whether to leave a
+    battle in `loop.c` (Esc, then the key of entry 18h of the table of
+    keys: 2 cleared and 1 set in `game_state`, no score). The port's
+    program begins at the menu when it gets a key script and no `-map`,
+    and goes round as `game_loop` does: menu, battle, what follows it,
+    menu.
+  - Compared (`python3 port/tests/menu_dumps.py`, `sh
+    port/tests/menu_test.sh`; port/README.md): five walks by keys, each
+    with what came in the same in both and no byte different at the
+    menu's return in the game's state, the menu's segment, the mouse's
+    record and 40000h bytes of game_loop's block: the code of map 57;
+    START on map 0 with either country (maps 0 and 24); all pages with
+    every row of GAME SETUP and two of CONTROLS chosen and the best
+    scores shown; and menu, battle, Esc and the confirming key, menu,
+    START again (the second return compared; the passes' count of the
+    battle between is 130 in the original and 190 in the port, which
+    draws less).
+  - The drawing (2026-10-08, later the same day): `pic_part`
+    (`S2A55:0006`), `item_line`, `page_items`, `item_mark`, `page_title`,
+    `score_line`, the texts and the mouse's pointer (`pointer_draw`,
+    `pointer_erase`, on the page shown) are read, named and translated.
+    All of the menu's pictures are of the 8-bit kind (`U`), the flags
+    packed (`I`). The menu draws with the screen's cut on (word 0Eh of
+    the screen's record, the whole screen as rectangle); the port's
+    `pic_draw` has only the way without the cut, so `menu.c` draws a
+    picture that lies inside the screen with the word off and stops at
+    one that does not (none met). Video memory compared at 13 passes of
+    the five walks (the main menu, GAME SETUP after its rows were
+    chosen, the exit's page, CONTROLS, MISC, the main menu with a typed
+    code, the menu after a battle): no byte different in the 200 lines of
+    either page, the pointer included. Behind the pages 810 bytes differ
+    (from `A7E8:0004` on: what the original's start before the menu
+    left, which the port leaves out).
+  - Not reached or not done: no sound or music; the screens that are
+    not passes of the menu's loop were not compared as video memory (the
+    country's with the flags, the best scores, the code while it is
+    typed); a winner's name and the file of scores written (`file_save`;
+    translated, run in no walk: no script on the port's own clock wins
+    a battle yet), a saved game's number (translated, not run; loading
+    is not translated, the program stops there), EXIT TO DOS
+    (translated, not run), the program's end behind it (`S066A:4739`),
+    the menu without a mouse (not translated), a click or a moved mouse
+    (the port has no mouse of the player's yet), the country left by
+    Esc, a code that is not one, the backspace, a picture cut by the
+    screen's edge (`S2AAF:0107`), the order of equal scores in
+    `scores_show` where the original reads bytes of its stack not yet
+    set, the briefing before a battle on a map for one player
+    (`S274D:0003`, left out before: the port's battle begins at once),
+    and the times: the port's menu takes the same passes but no time for
+    drawing or loading, so a key comes up to 0.54 s apart in the two.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

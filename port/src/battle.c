@@ -147,7 +147,7 @@ void (*battle_hook)(uint16_t picture, uint16_t arg);
  * and their names of six bytes from buf + 10h on: zeros and four times
  * the name given, then the map's file of scores loaded over them (it
  * need not be there: the word behind DATA:0096 is 0 meanwhile) */
-static void scores_load(Far buf, Far work, int16_t map, Far name)
+void scores_load(Far buf, Far work, int16_t map, Far name)
 {
     Far err = far_at(S_DATA, 0x0096);
     uint16_t i, j;

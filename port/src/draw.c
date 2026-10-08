@@ -758,7 +758,7 @@ void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base)
 
 /* S2A6F:0002: a packed picture unpacked to `work` (tpwm_unpack) and drawn
  * from there; one without the packer's signature drawn as it is */
-static void pic_unpack_draw(uint16_t x, uint16_t y, Far src, uint8_t base, Far work)
+void pic_unpack_draw(uint16_t x, uint16_t y, Far src, uint8_t base, Far work)
 {
     int32_t n = tpwm_unpack(src, work);
 

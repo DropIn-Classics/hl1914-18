@@ -135,6 +135,34 @@ far pointer to the table of keys and the twelve keys beside it
 walk's end. These options are aids for this work, not for players: the
 window still only says which map was set up.
 
+The menu (2026-10-08, `src/menu.c`, `menu_run` from `S167A:0005`): with a
+key script and no `-map` the program begins where `game_loop` calls the
+menu and goes round as it does: the menu, what `game_loop` does at its
+return (`S066A:0390`), the battle's setup and the battle, what follows
+it, and the menu again, until the menu ends the program, the key script
+has nothing left for it, or a battle stops before its end. The menu's
+loads (the scores' buffer, three pictures shown and fetched back from
+the page, `CODES.DAT`, six libraries, two tunes, the sounds,
+`MNUDATA.DAT`), its loop over pages and items, the map's code, the
+country, the best scores, a winner's name, a saved game's number and
+everything it leaves for the battle are translated over the program's
+memory, and it is drawn as the original draws it, with the mouse's
+pointer; it makes no sound. Its input is what the interrupts leave: the keys
+(`input.c`, now with the BIOS's keys for what is typed while the
+program's keyboard interrupt is out) and the mouse's record
+(`src/mouse.c`: the program's routines over a driver whose pointer only
+the program moves; no mouse of the player's yet). Its time is the port's
+own clock: a pass lasts five calls of the timer's routine, the waits and
+changes of colour as long as the original's count, drawing and loading
+nothing. The window does not show it yet (the program plays from a key
+script only). `-start T` is the key script's time at which the menu begins,
+`-menulog FILE` writes what came in, `-menudump N FILE` the memory at
+the menu's N-th return, `-menuvram T FILE` the video memory at the first
+pass of its loop at or after second T, `-saves DIR` is where a file the program writes
+(a map's best scores) is kept instead of the port's own folder; the
+game's folder is never written to. Esc in a battle and the key that
+confirms it now leave the battle (`loop.c`).
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -142,6 +170,7 @@ window still only says which map was set up.
     port/build/history-line -game game
     port/build/history-line-headless -game game -map 5 -ram build/map5.ram
     port/build/history-line-headless -game game -map 8 -keys port/tests/keys/m8_site.keys -start 31.1 -seed 563 -passes 2000 -ram build/played.ram
+    port/build/history-line-headless -game game -keys build/menu/back/keys.txt -start 8.05 -until 54 -menulog build/menu.log
 
 Both scripts define `PORT_VERSION` (a string) for the compiler when
 there is a version: the environment's `PORT_VERSION`, else the tag of the
@@ -162,6 +191,42 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The menu (2026-10-08, macOS): `python3 port/tests/menu_dumps.py` runs
+  the original with keys that walk its menu and stops it where
+  `game_loop` has the menu's return (`S066A:0390`); `sh
+  port/tests/menu_test.sh` starts the port's program at the menu with the
+  same keys, on its own clock from the second the original's first pass
+  began, and `tests/menu_cmp.py` compares what came in (pass by pass:
+  chosen, the other page, another item, the return) and the memory at
+  the last return: the game's state (`S331F`), the menu's segment
+  (`S37FF`), the mouse's record (`DATA:0414` to `045B`) and 40000h bytes
+  of `game_loop`'s block from 40h behind its beginning (the menu's
+  pictures, libraries and data with the items' rectangles and choices).
+  Five walks, all the same in what came in and with no byte different:
+  `code57` (the code of map 57 typed, START), `start0` and `start24`
+  (START on map 0 with either country), `pages` (GAME SETUP with each
+  row chosen, the exit's page and back, CONTROLS with two rows chosen,
+  MISC, the best scores shown, then as `code57`: 36 things came in) and
+  `back` (as `code57`, in the battle Esc and the confirming key, the
+  menu again, START: the second return compared; the dword that counts
+  the battle's passes at `S331F:4CB7` is 130 in the original and 190 in
+  the port and is told apart). The times of what came in are at most
+  0.54 s apart. Video memory is compared at 13 passes of the walks (the
+  main menu, GAME SETUP, the exit's page, CONTROLS, MISC, the typed
+  code, the menu after the battle): no byte different in the 200 lines
+  of the page drawn and of the page shown, the mouse's pointer
+  included; behind the pages 810 bytes differ, left by the original's
+  start, which the port does not do. Not compared: the screens that are
+  not passes of the loop (the country's, the best scores, the code
+  while typed), the first 40h bytes of the block (10 bytes differ there, in
+  the first file `start_setup` loads; what the original's part that is
+  not translated does there was not looked at), the rest of `DATA` (197
+  bytes differ at the first return: the C library's start, the sound,
+  counts that run with the clock; not looked at one by one), the name of
+  a winner and the file written, a saved game, the program's end from
+  the menu, a click, a walk with the mouse moved. The earlier tests were
+  run again after it (`play_test.sh` `m57_last`, `m57_site`, `m8_site`,
+  `load_test.sh`, `fight_test.sh`, `units_test.sh`: as before).
 - The program's own play (2026-10-08, macOS): `python3
   port/tests/play_dumps.py KEYS UNTIL` runs the original with a key
   script and logs its clock (the timer's routine, the keyboard's

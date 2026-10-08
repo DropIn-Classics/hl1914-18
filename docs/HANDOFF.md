@@ -1841,11 +1841,46 @@ emulation error (2026-10-02).
       - Not seen in a run: the aims of kind 2 and 4 (so no unit with
         20h in `kind_worth` took a site, and no unit was listed to
         fetch), and with them the plans 7 and 0Ah.
-      - Left open: `computer_turn` and `plan_approach` were never run
-        against the original; the dumps of `computer_plan` are early
-        ones (150 s), so the attacks with several units around a target
-        late in a battle are thinly covered; `game_loop`'s loop, which
-        would call `computer_turn`, is not translated.
+      - Left open: `game_loop`'s loop, which would call
+        `computer_turn`, is not translated; the dumps of
+        `computer_plan` are early ones (150 s), so the attacks with
+        several units around a target late in a battle are thinly
+        covered.
+    - `computer_turn` run against the original, call by call and over
+      whole halves (2026-10-07, Mac; port/README.md for the counts).
+      What was learned on the way:
+      - A battle in which the human only ends its halves runs about
+        ten times as fast on the runner as one with random input and
+        gets further into a battle; that is where the late paths were
+        found. Two F1 keys alone do not end a half: the script holds
+        the button, taps left on a plain field and releases, then F1
+        twice, every 8 s (`play_quiet` in
+        `port/tests/computer_dumps.py`).
+      - `game_loop` calls `computer_turn` again and again without
+        drawing while the side thinks (the phases 20h and 40h), yet a
+        few bytes of the game's state still change between those
+        passes that `computer_turn` did not write; so even the thinking
+        is compared loosely (what the port wrote must be the same).
+        What writes them was not looked at.
+      - While the round's end waits (`step_end_round`, entered at
+        `S1E4B:09C6`) `computer_turn` is called pass after pass and
+        only the step runs; the round's end is seen at `S1E4B:09EB`.
+      - Where the rarer paths come up with an idle human (the code's
+        index, the first time): the plan 6 and the repair step on 26
+        (251 s) and ten more maps; the plans 9 to 0Bh on 8 (627 s), 0,
+        11, 32, 37; the plan 0Ch in the queue's state 3 on 8, 0, 11,
+        32; `plan_ride`'s state 6 on 11 (184 s) and thirteen more;
+        `step_attack`'s state 4 on 45 (191 s), 6, 8, 9, 12;
+        `computer_plan`'s state 4 on 22 only (from 56 s).
+      - Reached on no map (48 quiet for 1200 s, ten with random play
+        for 2000 s): `computer_plan`'s states 2 and 6, `plan_approach`,
+        `plan_to_site`, the plan 7 at the queue, the step of kind 5.
+        State 2 only strikes out an aim whose kind is none of 1 to 4,
+        presumably never the case; state 6 and `plan_to_site` need a
+        unit listed to fetch (4 in word 6 of its record), which no map
+        showed; why the plan 7, which state 4 gives, never reached the
+        queue on the code 22 was not looked at. These stay translated
+        from the listing only.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

@@ -578,9 +578,42 @@ anything the game needs before the first release.
   the first
   150 s of a battle, where few units have plans yet.
   `computer_turn` (`S1C74:000B`) itself is translated too, a few lines
-  that call the five routines by the phase word; it was not compared
-  (no call of it was dumped), and the port's program does not call it
-  yet: `game_loop`'s loop is not translated.
+  that call the five routines by the phase word; the port's program
+  does not call it yet: `game_loop`'s loop is not translated.
+- `computer_turn` compared, and the paths not run before (2026-10-07,
+  Mac): `computer_dumps.py turn` plays four battles in which the human
+  only ends its halves (the codes 0, 1, 24 and 25; 500 s) and logs
+  every call of `computer_turn` with what it called (10178, 10766,
+  12681 and 11009 calls in 23, 20, 8 and 7 halves of the computer).
+  `computer_test.sh` compares 275 single calls (kind `turn:1`, three of
+  each combination of what was called and the kind of step, strictly:
+  every byte but the stack below the frame) and eight whole halves cut
+  into 1143 stretches (kind `turns:N`, 2761 calls: the halves 0, 1 and
+  12 of the code 0, 0, 1 and 15 of the code 24, 1 and 3 of the code
+  25). A stretch is what the port can run without `game_loop`: the
+  thinking between two steps as one, a pass that queues or steps with
+  the passes that only play its script, the passes waiting at the
+  round's end. Each starts from the original's memory at its first call
+  and ends at the next stretch's first call, so the stretches join
+  without a gap; what the port wrote has to be the same, and bytes of
+  the game's state that only the original wrote are counted as
+  `game_loop`'s (it draws, moves and fights between the passes). None
+  differs. A half is not run in one go from its first dump: what
+  `game_loop` does between the passes (the moves and fights the input
+  asks for) is not in the port yet.
+  `computer_dumps.py late` takes 86 more calls from quiet battles on
+  other maps (the codes 8, 11, 22, 26 and 45, found by logging 48 maps
+  for 1200 s each): the repair step (kind 6, 8 calls, its states 0 to
+  5), `computer_queue` with the plans 6, 9 to 0Bh, 0Ch and 0Dh (51
+  calls), `computer_assess` where a damaged unit gets the plan 9,
+  `computer_plan` in its state 4 (7 calls) and in `plan_ride`'s states
+  1 to 4 and 6 (18 calls), and `step_attack`'s state 4 (1 call). None
+  differs; `sh port/tests/computer_test.sh` now runs 2312 calls.
+  Not covered, because no run reached them (48 maps quiet for 1200 s,
+  ten maps with random play for 2000 s, the code 22 with random play
+  for 1500 s): `computer_plan`'s states 2 and 6, `plan_approach`,
+  `plan_to_site`, the plan 7 at `computer_queue`, the step of kind 5
+  and state 6 of the repair step.
   `port/tests/computer_test.sh` now links `side.c` and what that needs:
   `move.c` calls `show_message` and `view_copy` since the last merge, so
   the script did not link on `master` (nor does

@@ -13,5 +13,10 @@ $CC -O2 -Wall -Wextra -I$RT -Isrc -o build/computer_test tests/computer_test.c s
 if [ $# -gt 0 ]; then
     exec build/computer_test "$@"
 fi
-# shellcheck disable=SC2046
-exec build/computer_test $(cat ../build/computer/computer_test.args ../build/computer/assess_test.args ../build/computer/queue_test.args ../build/computer/plan_test.args)
+A=../build/computer
+LIST="$A/computer_test.args $A/assess_test.args $A/queue_test.args $A/plan_test.args"
+for f in $A/turn_test.args $A/turns_test.args $A/late_test.args; do
+    [ -f "$f" ] && LIST="$LIST $f"
+done
+# shellcheck disable=SC2086
+exec build/computer_test -f $LIST

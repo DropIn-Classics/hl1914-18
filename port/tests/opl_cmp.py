@@ -58,6 +58,8 @@ def port(path):
             tunes.append(cur)
         elif w[0] == 'fade':
             cur = None
+        elif w[0] == 'fading':
+            pass
         elif cur is not None:
             cur.append((int(w[1]) - t0, w[2], w[3]))
     return tunes

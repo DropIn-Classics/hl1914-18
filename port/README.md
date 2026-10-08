@@ -870,6 +870,40 @@ original spends inside a tick is not modelled (a tick's registers fall
 on one sample); the tune is not compared with a rendering of the
 original's stream (the runner's `-oplwav`). Not verified: see "Checked".
 
+2026-10-09 (macOS, branch `mac/oplwav`): the rendered AdLib sound set
+beside the original's (the runner's `-oplwav`), and the 70 registers a
+battle writes at another place with a device judged ("Checked" has the
+numbers). No change to what the program plays. **Still nothing was
+listened to.**
+- `src/main.c`: `-oplcount RATE STEP`, a test's: without a device the
+  timer's interrupts are counted as with one, by samples at RATE a
+  second on a clock moved in steps of STEP microseconds (0: none);
+  44100 and 1000 is what the virtual device does. `-opllog` has a line
+  `fading` where a `music_fade` begins (`snd_music` is called there
+  with 2), so a tune's writes can be told from its fade's.
+- Found, not changed:
+  - the 70 registers are the millisecond of the virtual device's clock,
+    no offset;
+  - the original's tunes fall behind the port's: 10 ms in a tune's
+    first tick (it writes the instruments' 116 to 120 registers at
+    about a tenth of a millisecond each and runs 11.6 to 11.9 ms; the
+    timer's interrupts due meanwhile are lost but one), and on the
+    runner 98 periods (140 ms) in 119 s of a battle with its fights.
+    The port's ticks are the periods summed and lose none;
+  - a tick's writes on one sample (the port's way) move the level of
+    half a second of a tune by up to about 1 dB against the original's
+    spread over the tick; the chip's rate (49716 or 44100 Hz) by 0.07
+    dB at most;
+  - `-map N` starts the battle's tune with the driver untouched: its
+    voices begin at the level 3Fh (silent) until each voice's own
+    volume event, where the original, which always has played the
+    menu's tune before, begins at the levels the voices' own volumes
+    left by that tune give. Through the menu the port's start is the
+    original's (the walk `brief`, tune 4).
+Not done: nothing listened to; a tick's time not modelled (the lost
+interrupts, the writes' spread); the direct start's volumes; the Sound
+Blaster's bytes. Not verified: see "Checked".
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -900,6 +934,92 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The AdLib beside the original's (2026-10-09, macOS, branch
+  `mac/oplwav`): `python3 port/tests/oplwav_dumps.py menu brief battle`
+  runs the original on the walks of `opl_dumps.py` with `-oplwav`
+  (49716 Hz mono) and a log of every register, timer interrupt and
+  tick (`build/oplwav/WALK.orig`, `WALK/orig.wav`); `sh
+  port/tests/oplwav_test.sh` then, for each walk:
+  - `port/tests/oplwav_ref.c fit`: the runner's file is the sound of
+    its log, sample for sample: a second chip that gets each logged
+    write at the sample of its logged moment gives every sample of the
+    file (menu 3,281,256 samples and 3,303 writes; brief 2,982,960 and
+    1,959; battle 8,948,880 and 11,443). The log's moments are whole
+    microseconds, so a write within half a microsecond of a sample's
+    edge is tried on both samples (152, 88 and 581 writes; 31, 27 and
+    79 belong to the later one);
+  - the port's headless program on the same keys with `DK_WAV`, and
+    `soundout_ref`: its file is the sound of its list, as before;
+  - `port/tests/oplwav_cmp.py`, tune by tune (a tune laid on the other
+    at its first tick, the writes compared by the count of ticks from
+    there):
+    - the writes. In the four tunes during which the game's side wrote
+      no register (menu 2: 1,470 ticks; brief 2, 3 and 4: 6,720, 8,505
+      and the first tick) every write the timer's routine made is the
+      same register and value at the same tick, on all voices
+      (`adl_tick`'s; `fade_tick`'s 32, 30 and 25 at the same ticks
+      too): judged. In the others told: menu 1 and 3 and brief 1 have
+      the voices 0 to 7 the same throughout (1,373, 527 and 450
+      writes) and voice 8, the effects', at other ticks (the game's
+      side calls at other moments; menu 3's fade steps 2 ticks
+      earlier). The battle's tune (83,370 ticks, 119.1 s; the port's
+      from `-map 8`, the original's entered through the menu): of the
+      3,629 writes to the voices 0 to 7 all but 35 the same at the same
+      tick; the 35 are one level each in the first tick (the direct
+      start, "State") and notes at three ticks (29191, 38221, 46831;
+      presumably where an effect gives voices back, not checked);
+    - the time. The port's ticks are the timer's periods summed, to the
+      sample (judged; 06A9h, 0854h, 058Dh, 050Ah and 060Dh in the
+      tunes). The original's second tick is late by what its first ran
+      beyond a period (judged, within a period: the first runs 11.9,
+      11.9, 11.9, 11.9, 8.5, 5.7 and 11.6 ms, the second is 10.5, 10.1,
+      10.5, 10.5, 7.3, 4.6 and 10.0 ms late). At the tunes' ends the
+      original is behind by 16.2, 10.1 and 12.0 ms (menu), 10.5, 7.3
+      and 4.7 ms (brief) and 140.1 ms, 98.0 periods (battle; fallen
+      behind for good at 86 ticks, 3 of them behind a tick that ran
+      longer than a period): told;
+    - the sound, over the ticks before the first write that differs, in
+      windows of 350 ticks, by the level (root mean square), with two
+      files rendered between (the original's list on a chip at 44100
+      Hz; that with each tick's writes on the sample of its first).
+      Judged: the rate's step within 0.2 dB (it is -0.05 to +0.07 dB
+      over all windows), the port's file against the original's within
+      0.5 dB on average and 3 dB in a window: menu 1 +0.04 dB (+0.01 to
+      +0.08, 2 windows), menu 2 +0.08 (-0.01 to +0.14, 4), menu 3 +0.08
+      (-0.08 to +0.43, 4), brief 1 +0.04 (2), brief 2 +0.33 (-0.01 to
+      +0.82, 19, 3 silent in both), brief 3 -0.00 (-1.71 to +1.97, 24,
+      3 silent). The step "each tick's writes on one sample" alone is
+      up to +1.15 dB in a window, the ticks' moments up to +1.93 dB.
+      The battle's tune differs at its first tick, so its sound is not
+      compared.
+  Then the 70 registers (the first 120 s of map 8, 10,231 registers):
+  with the device they are at another place than without, and where
+  the logs differ the device's count of ticks is the same or one less,
+  never more. Counted without a device as the device does (`-oplcount
+  44100 1000`) the log is the device's line for line; counted in steps
+  of 100 microseconds, of 1, or at the timer's rate without steps, no
+  register is at another place than without a device (74, 25 and 23
+  lines differ in the count of ticks logged or the time). So it is the
+  clock's millisecond: the virtual device is up to a millisecond
+  behind the port's clock, and a tick due in that millisecond comes
+  behind a call of the game's side, not before. No offset. A real
+  device's buffer is coarser than that.
+  By hand: in the battle the original falls behind where the fights
+  play (0 periods in each 8 s without a write of the game's side, 27,
+  20, 15, 14 and 8 in the 8 s stretches with 306, 218, 194, 172 and 80
+  such writes), 82 of the 86 times behind a tick that wrote nothing.
+  The earlier tests after the change: `opl_test.sh`,
+  `soundout_test.sh`, `music_test.sh`, `sound_test.sh` as before;
+  `check.py` all ok.
+  Not checked: **nothing was listened to**; the files are not compared
+  sample for sample (two rates, other moments), only by level, and the
+  levels' limits are chosen, not derived; what keeps the timer's
+  interrupt waiting in the fights (the game's side or another routine;
+  the runner's machine at 6 million instructions a second, not a real
+  one); the battle's sound; a tune entered as the original enters the
+  battle; the kit's chip against a real one (`opl.h` says it is not
+  the chip's exact output: both files are that chip's); Windows and
+  Linux.
 - The AdLib rendered headless (2026-10-08, macOS, branch
   `mac/soundout`; `src/sound.c`, `src/main.c`): `sh
   port/tests/soundout_test.sh` runs the headless program twice with

@@ -9,9 +9,11 @@
 #     python3 port/tests/menu_dumps.py [WALK...]
 #     sh port/tests/menu_test.sh [WALK...]
 #
-# The walk `noload` asks for a saved game that is not there: the video
-# memory of the question and of the text that it was not found is
-# compared too (-askvram, against askN.vram).
+# The video memory at each screen outside the menu's loop is compared too
+# (-askvram, against askN.vram): the saved game's question and the text
+# that it was not found (`noload`), text_input's beginning and end (the
+# code typed, the winner's name), the best scores shown (by the menu's
+# item in `pages`, after the battle in `end57` and `live57`).
 # The walk `exit` ends the program from the menu (EXIT TO DOS): the memory
 # at the program's end is compared too (-ram, against end.ram).
 # The walk `back` goes through the menu, into a battle, out of it by Esc
@@ -72,7 +74,7 @@ for w in "$@"; do
     else
         echo "  live: the window's -keylog is NOT the walk's key script"; r=1
     fi
-    for f in "$D"/port.ram "$D"/port[0-9]*.vram "$D"/port_[ef][0-9]*.*; do
+    for f in "$D"/port.ram "$D"/port[0-9]*.vram "$D"/portask[0-9]*.vram "$D"/port_[ef][0-9]*.*; do
         [ -f "$f" ] || continue
         g=$D/window${f##*/port}
         if [ ! -f "$g" ]; then

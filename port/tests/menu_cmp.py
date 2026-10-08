@@ -25,8 +25,9 @@ Compared:
 
   * video memory at the passes menu_dumps.py kept the original's at: the
     page drawn and the page shown (with the mouse's pointer); and at
-    each screen of the saved game's question (askN.vram, the port's
-    -askvram).
+    each screen outside the menu's loop (askN.vram, the port's -askvram:
+    the saved game's question, text_input's beginning and end, the best
+    scores shown), and the memory there (askN.ram, portaskN.ram).
 
   * with a battle played to its end between (end57, live57): the memory
     and video memory at the end's waits and the pictures' frames
@@ -132,6 +133,18 @@ if os.path.exists(os.path.join(out, 'end.ram')):
     else:
         print('  memory at the program\'s end: the port wrote none')
         bad += 1
+# the memory at each screen outside the menu's loop (askN.ram; the
+# port's -askvram writes portaskN.ram beside its .vram)
+asks = int(open(os.path.join(out, 'asks.txt')).read()) if os.path.exists(os.path.join(out, 'asks.txt')) else 0
+for k in range(1, asks + 1):
+    o, p = os.path.join(out, 'ask%d.ram' % k), os.path.join(out, 'portask%d.ram' % k)
+    if not os.path.exists(o):
+        continue
+    if not os.path.exists(p):
+        print('  memory at screen %d outside the loop: the port wrote none' % k)
+        bad += 1
+        continue
+    bad += memory('memory at screen %d outside the loop' % k, open(o, 'rb').read(), open(p, 'rb').read())
 # a battle's end between (the walk end57): the memory at the end's waits
 # and frames (ends.txt, eN and fNNNN; the port's -evdump port_eN ...)
 ends = open(os.path.join(out, 'ends.txt')).read().split() if os.path.exists(os.path.join(out, 'ends.txt')) else []
@@ -160,7 +173,7 @@ for d, _, names in os.walk(state):
 shots = open(os.path.join(out, 'shots.txt')).read().split() if os.path.exists(os.path.join(out, 'shots.txt')) else []
 asks = int(open(os.path.join(out, 'asks.txt')).read()) if os.path.exists(os.path.join(out, 'asks.txt')) else 0
 for what, vf, pf in [('at %5s s' % t, 'shot%s.vram' % t, 'port%s.vram' % t) for t in shots] + \
-        [('at screen %d of the saved game\'s question' % k, 'ask%d.vram' % k, 'portask%d.vram' % k)
+        [('at screen %d outside the loop' % k, 'ask%d.vram' % k, 'portask%d.vram' % k)
          for k in range(1, asks + 1)] + \
         [('at %s' % e, e + '.vram', 'port_%s.vram' % e) for e in ends]:
     v = open(os.path.join(out, vf), 'rb').read()

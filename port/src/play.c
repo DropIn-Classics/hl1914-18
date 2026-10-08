@@ -798,6 +798,18 @@ static void hook(int at, uint16_t side)
         }
         break;
     }
+    case LOOP_QUIT: {
+        /* the port's own clock only: the original's log has no lines
+         * for this wait */
+        static int idle;
+
+        idle = keys_at >= keys_n ? idle + 1 : 0;
+        if (have_clock || idle > 400)
+            loop_abort = 1;
+        else
+            own_tick();
+        break;
+    }
     case LOOP_END: {
         double t = now;
 

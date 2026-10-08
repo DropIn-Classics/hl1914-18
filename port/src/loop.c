@@ -58,6 +58,7 @@ int loop_replay;
  * matters (LOOP_PART and the others, hl.h).  With it set a human's input
  * record is the memory's and not written from SideIn; the routine may
  * change the SideIn of the pass under way. */
+int loop_abort;
 void (*loop_hook)(int at, uint16_t side);
 
 static uint16_t phase_word(uint16_t side)
@@ -853,8 +854,42 @@ static void side_part(uint16_t side, const SideIn *in)
         fww(S_map_cur, A_map_cur + 2, frw(S_map_ptr, A_map_ptr + 2));
     if (!(di & 0x0F) && pb(view, 0x17) == 0)
         hover(view, side);
-    if (key) {
-        static const uint8_t taken[] = { 0x00, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14 };
+    if (key && key == key_entry(0) && !(NW(game_state, 4) & 0x200)) {
+        /* S066A:1B17: the key of entry 0 asks whether to leave the battle
+         * (texts 3Eh and 3Fh) and waits, the timer's routine going on
+         * (LOOP_QUIT): the key of entry 18h ends it (2 cleared and 1 set
+         * in game_state, no score), a button or the key of entry 1 goes
+         * on with the battle */
+        Far k = far_at(S_DATA, 0x00BE), ra = far_at(S_DATA, 0x00A6), rb = far_at(S_DATA, 0x00B6);
+
+        show_message(0x3E, 0);
+        show_message(0x3F, 1);
+        page_flip();
+        page_copy();
+        loop_abort = 0;
+        for (;;) {
+            if (key_entry(0x18) == pb(k, 0)) {
+                SETW(game_state, 0, (NW(game_state, 0) & 0xFFFD) | 1);
+                SETW(score, 0, 0);
+                SETW(score, 2, 0);
+                break;
+            }
+            if (pb(ra, 4) || pb(rb, 4) || key_entry(1) == pb(k, 0)) {
+                timer_set(1, 5, 0);
+                timer_set(2, 5, 0);
+                pwb(rb, 4, 0);
+                pwb(ra, 4, 0);
+                break;
+            }
+            if (loop_hook)
+                loop_hook(LOOP_QUIT, side);
+            if (!loop_hook || loop_abort) {
+                missing = "the question whether to leave the battle got no answer";
+                break;
+            }
+        }
+    } else if (key) {
+        static const uint8_t taken[] = { 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14 };
         unsigned i;
 
         for (i = 0; i < sizeof taken; i++)

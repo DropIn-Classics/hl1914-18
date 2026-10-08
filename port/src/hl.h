@@ -150,6 +150,7 @@ void rect_fill(void);
 void text_draw(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_t base, Far text, uint16_t *len);
 void flag_draw(uint16_t x, uint16_t y, uint16_t c1, uint16_t c2, uint16_t c3, int standing);
 void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base);
+void pic_unpack_draw(uint16_t x, uint16_t y, Far src, uint8_t base, Far work);
 
 /* fightpics.c: fight_pictures' arguments in the order of its stack
  * (S2474's fight_show passes them), and `sp` the stack pointer at its
@@ -264,7 +265,11 @@ extern int loop_replay;
  * called; it has returned (SideIn's `seeded` and `seed` are read next);
  * the battle's end has shown its texts (loop_end_texts, the first side's
  * and the second's) and waits for a press (wait_press) */
-enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT, LOOP_END };
+enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT, LOOP_END, LOOP_QUIT };
+/* LOOP_QUIT: the pass waits for the answer to the question whether to
+ * leave the battle; the hook lets the timer's routine run on and sets
+ * loop_abort when no answer can come */
+extern int loop_abort;
 extern void (*loop_hook)(int at, uint16_t side);
 extern uint16_t loop_end_texts[2];
 /* where orders_hook is called in attacks_run, for the time the original
@@ -299,7 +304,8 @@ uint16_t mouse_show(void);
  * (play_start); 0, or FFFFh (a file could not be loaded).  menu_stopped
  * is set when it could not go on (what it met).  menu_log_to: a file that
  * gets a line for each thing that came in: time, what (1 chosen, 2 the
- * other page, 5 another item), the page, the item's place and number */
+ * other page, 5 another item), the page, the item's place and number;
+ * and "TIME 0" when the menu has returned */
 extern const char *menu_stopped;
 void menu_log_to(const char *path);
 void inputs_release(int wait);

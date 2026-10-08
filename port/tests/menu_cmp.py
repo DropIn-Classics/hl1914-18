@@ -82,6 +82,15 @@ def memory(what, x, y):
                 at = lo + 0x4CB7
                 print('  the passes counted in the battle before: %d, port %d' %
                       (int.from_bytes(x[at:at + 4], 'little'), int.from_bytes(y[at:at + 4], 'little')))
+                # with another count of passes the views' repeat counters
+                # (byte 2Ch of the two records of 31h bytes from 4D92h),
+                # which side_input counts down a pass at a time, are
+                # elsewhere too
+                held = [i for i in d if i - lo in (0x4D92 + 0x2C, 0x4D92 + 0x31 + 0x2C)]
+                d = [i for i in d if i not in held]
+                if held:
+                    print('  the views\' repeat counters, counted down by the pass, differ (%d bytes), told apart'
+                          % len(held))
         if name == 'the mouse' and what.endswith('end'):
             # the pointer's place (words 10h and 12h): game_loop opens the
             # mouse again behind the menu, the original's driver then has

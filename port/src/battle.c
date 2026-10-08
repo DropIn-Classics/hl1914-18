@@ -59,7 +59,7 @@ static int start_file(int16_t ext, uint16_t keep, uint16_t rec)
  * memory, 2 a file.
  * The sound's start is snd_init with both devices (sound.c; the port is
  * the game with both found).  Left out: the command line's /a and /b,
- * dsp_rate(10000) and music_fade (S30EF:1C2D, S2F39:1058), S27FE:0013, S27FE:056C, S1571:0426 and S1571:0443 (not read), and of
+ * dsp_rate(10000) (S30EF:1C2D), S27FE:0013, S27FE:056C, S1571:0426 and S1571:0443 (not read), and of
  * S1650:0003 all but what it keeps of the keys: the far pointer to the
  * table of keys at S331F:0292, which game_loop compares the key of a pass
  * with, and twelve of its entries at S331F:02C7 (it also loads a file and
@@ -104,6 +104,7 @@ int start_setup(void)
     fww(S_GAME, 0x4D31, 0);
     fww(S_GAME, 0x4D2F, 0);
     SETW(map_number, 0, 0);
+    music_fade(4);      /* the call before key_install's at S066A:0344; no music is on yet */
     return 0;
 }
 
@@ -222,11 +223,15 @@ static void battle_score(Far work)
  * battle was won, 6000h, and battle_score went on to the next; the map's
  * own after the last, 20h); after the last map 100h is set and 1 and 2
  * cleared, which ends the program with 7Bh; 6030h cleared.  Returns that
- * 7Bh or 0.  The pictures are not shown (battle_hook is told each); left
- * out too: the music's end (S2F39:1058), fade_out and S2AF3:000A. */
+ * 7Bh or 0.  The music is faded out first when it is on (S066A:45E8).
+ * The pictures are not shown (battle_hook is told each); left out too:
+ * fade_out and S2AF3:000A. */
 uint16_t battle_after(void)
 {
     uint16_t result = 0, gs = NW(game_state, 0);
+
+    if (gs & 0x40)
+        music_fade(4);
 
     if (gs & 0x10 && battle_hook)
         battle_hook(gs & 0x2000 ? 0xCD : 0xD0, NW(views, 0x22) == 0x0F ? 0 : 1);
@@ -498,8 +503,8 @@ int libs_start(Far *place)
  * the computer's file of a single player's map, the tables and counts of
  * a battle's beginning, each side's view put on the field of its record
  * of sites_40, fight_rec's routines.  Returns 0, or 2 for a file that
- * cannot be loaded.
- * Left out: the music's start (S2F39:0F87). */
+ * cannot be loaded.  At its end the battle's tune is started when the
+ * music is on (40h in game_state; the call before S066A:0ED0). */
 int battle_begin(void)
 {
     Far st = game_text(A_game_state), rec, p;
@@ -643,6 +648,8 @@ int battle_begin(void)
     page_flip();
     page_copy();
     fade_in();
+    if (NW(game_state, 0) & 0x40)
+        music_start(far_at(S_music_data, A_music_data), 0, 0xFF);
     SETB(game_state, 0x0C, 0);
     SETW(game_state, 0, NW(game_state, 0) | 2);
     return 0;

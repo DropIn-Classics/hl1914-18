@@ -527,11 +527,13 @@ uint16_t move_start(Far view, uint16_t side)
 /* S0AE0:02E3 (attack_unmark): after an attack was ordered or given up,
  * the side's marks of the fields that can be attacked (4 in field_bits,
  * 8 for the second side) are cleared and the view's unit (word 1Eh) loses
- * 100h in unit_flags (unit_mark); the view is drawn again (left out). */
+ * 100h in unit_flags (unit_mark); the view and its marks are drawn again. */
 void attack_unmark(Far view, uint16_t side)
 {
     field_bits_clear(side ? 8 : 4);
     unit_mark((uint8_t)pb(view, 0x1E), 0x100, side, 0);
+    view_draw(pw(view, 2), side);
+    marks_draw(pw(view, 2), side);
 }
 
 /* S0AE0:0008 (attack_order): the button on the cursor's field (the view's
@@ -693,7 +695,8 @@ void marks_erase(uint16_t field, uint16_t side, uint8_t mask)
  * the way's fields (path_len of them at 1F40h of the side's work buffer),
  * the field goes to the unit's word 11h and 1 is returned.  8 is added for
  * a unit with 40h in unit_flags.  The unit is move_rec's walker either
- * way.  The drawing is left out. */
+ * way.  The view's marks are drawn again at the end (marks_draw at
+ * S10E1:05B4). */
 uint16_t move_aim(Far view, Far map, uint16_t side)
 {
     uint8_t no = (uint8_t)pw(view, 0x1E), mark = side ? 2 : 1;
@@ -738,6 +741,7 @@ uint16_t move_aim(Far view, Far map, uint16_t side)
         }
     }
     pww(unit, 0x11, field);
+    marks_draw(pw(view, 2), side);
     return r;
 }
 

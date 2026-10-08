@@ -66,7 +66,7 @@ static uint16_t pixel_at(uint16_t x, uint16_t y, uint8_t *mask)
 }
 
 /* S292E:000A: the pixel DATA:00DC, 00DE in the colour DATA:00DA */
-static void pixel_put(void)
+void pixel_put(void)
 {
     uint8_t m;
     uint16_t di = pixel_at(DW(0x00DC), DW(0x00DE), &m);

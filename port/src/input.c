@@ -2,9 +2,9 @@
  * keyboard's (S27FE:04F4) and the routine the timer calls 72.8 times a
  * second (S27FE:008C, a period of 3FFFh of the timer's counts), which
  * keeps the last key pressed and on every fourth call fills the two
- * sides' input records from the keys held.  Translated over the program's
- * memory; the joysticks and the mouse are left out (the places are named
- * where they stand).  port/README.md says how this was compared with the
+ * sides' input records from the keys held and the mouse.  Translated
+ * over the program's memory; the joysticks are left out (the places are
+ * named where they stand).  port/README.md says how this was compared with the
  * original.
  */
 #include "hl.h"
@@ -93,6 +93,72 @@ static void count_gap(uint16_t c)
     }
 }
 
+/* S27FE:04CF (mouse_center): with neither of the two buttons held the
+ * pointer to the middle, A0h and 64h, in the mouse's record and the
+ * driver (interrupt 33h function 4) */
+static void mouse_center(void)
+{
+    if (dw(0x0448) || dw(0x0444))
+        return;
+    sw(0x0424, 0xA0);
+    sw(0x0426, 0x64);
+    mouse_to(0xA0, 0x64);
+}
+
+/* S27FE:03D4 (input_mouse): the mouse as a side's directions and button,
+ * into the five bytes at `cur`.  While the first button is held the
+ * driver's ratio is the record's words 30h and 32h (DATA:0430) and the
+ * step word 22h (0436h), else words 18h and 1Ah and word 20h (0434h); at
+ * its letting go the pointer goes to the middle, and with the second
+ * button held then ten calls give nothing (the first of them does).  With
+ * both buttons held nothing; else a pointer the step or more from the
+ * middle (A0h, 64h) gives that direction, across and down, and goes back
+ * to the middle; the first button held is the side's button. */
+static void input_mouse(uint16_t cur)
+{
+    int16_t d;
+
+    if (dw(0x0444)) {
+        if (!dw(0x041E)) {
+            mouse_ratio(dw(0x0430), dw(0x0432));
+            sw(0x041E, 0xFFFF);
+            sw(0x0420, dw(0x0436));
+        }
+    } else if (dw(0x041E)) {
+        mouse_ratio(dw(0x042C), dw(0x042E));
+        sw(0x041E, 0);
+        sw(0x0420, dw(0x0434));
+        mouse_center();
+        if (dw(0x0448))
+            sw(0x0456, 0x0A);
+        return;
+    } else if (dw(0x0456)) {
+        sw(0x0456, (uint16_t)(dw(0x0456) - 1));
+        if (dw(0x0456) != 9 && dw(0x0456))
+            return;
+    }
+    if (dw(0x0444) & dw(0x0448))
+        return;
+    d = (int16_t)(dw(0x0424) - 0xA0);
+    if (d > 0 && d >= (int16_t)dw(0x0420)) {
+        sb((uint16_t)(cur + 1), 0xFF);
+        mouse_center();
+    } else if (d < 0 && -d >= (int16_t)dw(0x0420)) {
+        sb(cur, 0xFF);
+        mouse_center();
+    }
+    d = (int16_t)(dw(0x0426) - 0x64);
+    if (d > 0 && d >= (int16_t)dw(0x0420)) {
+        sb((uint16_t)(cur + 3), 0xFF);
+        mouse_center();
+    } else if (d < 0 && -d >= (int16_t)dw(0x0420)) {
+        sb((uint16_t)(cur + 2), 0xFF);
+        mouse_center();
+    }
+    if (dw(0x0444))
+        sb((uint16_t)(cur + 4), 0xFF);
+}
+
 /* S27FE:0175 and 020E, one side's input record `rec` (DATA:03C8 or 03F4,
  * what DATA:00A6 and 00B6 point to) from the keys held: `cur` are the five
  * bytes found now (left, right, up, down, the button), `prev` those of
@@ -106,8 +172,8 @@ static void count_gap(uint16_t c)
  * within 19h calls (bytes 6 and 7 keep how far that has come).
  * Returns NULL, or what is not translated: a joystick (a side's word at
  * DATA:0384 or 0386 with the word at 03B8 or 03BA; F5 and F6 switch
- * them).  Left out: the mouse (S27FE:03D4, called for the record the
- * word at DATA:0418 names; at rest in the middle it gives nothing). */
+ * them).  The mouse adds to the record the word at DATA:0418 names
+ * (input_mouse). */
 static const char *side_rec(uint16_t cur, uint16_t prev, uint16_t cnt, uint16_t rec, uint16_t table,
                             uint16_t on, uint16_t stick)
 {
@@ -127,6 +193,8 @@ static const char *side_rec(uint16_t cur, uint16_t prev, uint16_t cnt, uint16_t 
         for (i = 0; i < 5; i++)
             sb((uint16_t)(cur + i), db((uint16_t)(cur + i)) | db((uint16_t)(t + 1 + i)));
     }
+    if (dw(0x0414) && dw(0x0418) == rec && dw(0x045A) == 0xFFFF)
+        input_mouse(cur);
     /* a direction begins the opposite one's count of holds again */
     if (db(cur))
         sw((uint16_t)(cnt + 4), 0);
@@ -185,7 +253,7 @@ static const char *side_rec(uint16_t cur, uint16_t prev, uint16_t cnt, uint16_t 
  * read (mouse_read, S2BE7:000A) on every call when its record's word 2 is
  * 1 (the menu), else on every fourth.
  * Left out: S2D0D:0306 with the word at DATA:04B9, the joysticks' reading
- * (S2BAD:0006) and what the mouse gives a side's record (S27FE:03D4). */
+ * (S2BAD:0006). */
 const char *input_tick(void)
 {
     const char *why;

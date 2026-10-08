@@ -10,6 +10,8 @@
 #define S_GAME (HL_S331F + HL_BASE)
 #define DW(o) frw(S_DATA, (o))
 
+static const Far nowhere;       /* pic_draw_save without a save place */
+
 /* a byte at seg:off, from the VGA's window at A000h or from memory, as
  * the CPU reads and writes it */
 uint8_t vrb(uint16_t seg, uint16_t off)
@@ -415,7 +417,7 @@ static int pic_clip(uint16_t *x, uint16_t *y, uint16_t bytes, uint16_t *h)
  * when DATA:00E8 is not 0.  Its variables in its own segment (E6h-FCh)
  * as the original leaves them.  The colour table of S2AE4:000C (the two
  * words 0 in all calls translated) is not. */
-static void pic_blit(uint16_t x, uint16_t y, Far src, uint8_t base)
+static void pic_blit(uint16_t x, uint16_t y, Far src, Far save, uint8_t base)
 {
     uint16_t cs = HL_S2A76 + HL_BASE, es = NW(screen_seg, 0), bytes, w, h, di, si;
     uint8_t mask, skip = (uint8_t)(pb(src, 8) + base);
@@ -441,6 +443,13 @@ static void pic_blit(uint16_t x, uint16_t y, Far src, uint8_t base)
     di = screen_at(x, y);
     mask = (uint8_t)(0x11 << (x & 3));
     fwb(cs, 0x01FC, mask);
+    if (save.seg | save.off) {
+        Far scr;
+
+        scr.seg = es;
+        scr.off = di;
+        under_save((uint16_t)((pw(src, 0x0E) + 7) & 0xFFFC), h, scr, save);
+    }
     si = (uint16_t)(src.off + 0x12 + frw(cs, 0x01F8));
     for (plane = 0; plane < 4; plane++) {
         uint16_t d = di;
@@ -499,7 +508,7 @@ static void text_put(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_
         g.seg = font.seg;
         g.off = (uint16_t)(font.off + o);
         if (pb(g, 9) == 'P' && (int16_t)y >= 0)
-            pic_blit(x, y, g, base);
+            pic_blit(x, y, g, nowhere, base);
         last = pw(g, 0x0E);
         x = (uint16_t)(x + last + gap);
     }
@@ -558,6 +567,60 @@ void show_message(uint16_t text, uint16_t side)
  * segment (332h-35Ah) as the original leaves them.  The cut way
  * (DATA:00E8 not 0, S2AAF:0107 and 0279) and S2AE4:000C's colour table
  * are not translated: with DATA:00E8 set nothing is drawn. */
+/* S2AAF:0107 and 0279, pic_blit_u with the screen's cut on (DATA:00E8):
+ * the picture at x, y (its offsets added) cut to the rectangle DATA:00EC
+ * to 00F2 (left, top, right, bottom; right and bottom not drawn).  Cut on
+ * the left it leaves out the columns cut off rounded down to four and
+ * begins at the left edge, so a cut not on four pixels moves the rest
+ * that much to the left, as the original does.  Written from what the
+ * routine does to the screen, pixel by pixel; its own words in S2AAF
+ * (the counts it keeps) are not kept. */
+static void pic_cut_u(uint16_t x, uint16_t y, Far src, uint8_t base)
+{
+    int16_t w = (int16_t)pw(src, 0x0E), hf = (int16_t)pw(src, 0x10), h = hf, sx = (int16_t)x, sy = (int16_t)y;
+    int16_t l = (int16_t)DW(0x00EC), t = (int16_t)DW(0x00EE), rr = (int16_t)DW(0x00F0), b = (int16_t)DW(0x00F2);
+    int16_t j0 = 0, r0 = 0, j, r, p;
+    uint16_t es = NW(screen_seg, 0), start[4], n[4];
+    uint8_t clear = pb(src, 8);
+
+    if (sx < l) {
+        w = (int16_t)(w - (l - sx));
+        if (w <= 0)
+            return;
+        j0 = (int16_t)((l - sx) & 0xFC);
+        sx = l;
+    } else if (sx > rr)
+        return;
+    if (sy < t) {
+        h = (int16_t)(h - (t - sy));
+        if (h <= 0)
+            return;
+        r0 = (int16_t)(t - sy);
+        sy = t;
+    } else if (sy > b)
+        return;
+    if (sy + h > b && !(h = (int16_t)(b - sy)))
+        return;
+    if (sx + w > rr && !(w = (int16_t)(rr - sx)))
+        return;
+    for (p = 0; p < 4; p++) {
+        n[p] = (uint16_t)((pw(src, 0x0E) >> 2) + (p < (int16_t)(pw(src, 0x0E) & 3)));
+        start[p] = (uint16_t)(p ? start[p - 1] + n[p - 1] * hf : src.off + 0x12);
+    }
+    for (j = 0; j < w; j++) {
+        int16_t c = (int16_t)(j0 + j), px = (int16_t)(sx + j);
+
+        vga_outw(0x3C4, (uint16_t)((1 << (px & 3)) << 8 | 2));
+        for (r = 0; r < h; r++) {
+            uint8_t v = frb(src.seg, (uint16_t)(start[c & 3] + (r0 + r) * n[c & 3] + (c >> 2)));
+
+            if (v != clear)
+                vwb(es, (uint16_t)(screen_at((uint16_t)px, (uint16_t)(sy + r))), (uint8_t)(v + base));
+        }
+    }
+    vga_outw(0x3C4, 0x0F02);
+}
+
 static void pic_blit_u(uint16_t x, uint16_t y, Far src, uint8_t base)
 {
     uint16_t cs = HL_S2AAF + HL_BASE, es = NW(screen_seg, 0), w = pw(src, 0x0E), h, di, si, q, i;
@@ -570,9 +633,11 @@ static void pic_blit_u(uint16_t x, uint16_t y, Far src, uint8_t base)
     for (q = w >> 2, i = 0; i < 4; i++)
         fww(cs, (uint16_t)(0x0340 + 2 * i), (uint16_t)(q + (i < (w & 3))));
     fwb(cs, 0x0358, clear);
-    if (DW(0x00E8))
-        return;
     x = (uint16_t)(x + pw(src, 0x0A));
+    if (DW(0x00E8)) {
+        pic_cut_u((uint16_t)(x), (uint16_t)(y + pw(src, 0x0C)), src, base);
+        return;
+    }
     y = (uint16_t)(y + pw(src, 0x0C));
     h = pw(src, 0x10);
     fww(cs, 0x0338, w);
@@ -680,7 +745,7 @@ void unit_panel(uint8_t no, uint16_t side)
 
         fww(r.seg, (uint16_t)(r.off + 0x18), 0xC8);
         if (pb(pic, 9) == 'P')
-            pic_blit((uint16_t)(x + 0x0E), 0xBC, pic, 0);
+            pic_blit((uint16_t)(x + 0x0E), 0xBC, pic, nowhere, 0);
         else if (pb(pic, 9) != 'X')
             pic_blit_u((uint16_t)(x + 0x0E), 0xBC, pic, 0);
         fww(r.seg, (uint16_t)(r.off + 0x18), keep);
@@ -821,13 +886,14 @@ void cursor_field(Far view, uint16_t side)
 
 /* the side's cursor (as game_loop draws it, e.g. at S066A:3D9A): the
  * picture of the view's byte 1Bh in the table S331F:0167 points to, at
- * the view's words 10h and 12h, colours D0h on */
-void cursor_draw(uint16_t side)
+ * the view's words 10h and 12h, colours D0h on; what it covers kept at
+ * `save` (none: 0) */
+void cursor_draw(uint16_t side, Far save)
 {
     uint16_t v = (uint16_t)(A_views + side * 0x31);
 
-    pic_draw(frw(S_views, (uint16_t)(v + 0x10)), frw(S_views, (uint16_t)(v + 0x12)),
-             pfar(far_add(far_at(S_GAME, 0x0167), 4u * frb(S_views, (uint16_t)(v + 0x1B))), 0), 0xD0);
+    pic_draw_save(frw(S_views, (uint16_t)(v + 0x10)), frw(S_views, (uint16_t)(v + 0x12)),
+                  pfar(far_add(far_at(S_GAME, 0x0167), 4u * frb(S_views, (uint16_t)(v + 0x1B))), 0), save, 0xD0);
 }
 
 /* S1571:01F2: a bar at x, y, h high: with `back` not 0 width / 2 long
@@ -851,18 +917,25 @@ void bar_draw(uint16_t x, uint16_t y, uint16_t colour, uint16_t back, uint16_t h
 
 /* S2A6B:0008 (pic_draw): a picture by its kind (byte 9): 'P' by
  * pic_blit, or at half size by pic_half for y negative; 'X' by pic_x;
- * any other by pic_blit_u */
-void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base)
+ * any other by pic_blit_u.  pic_draw_save is it with its fourth argument,
+ * a save place: not 0, pic_blit keeps what lies under the picture there
+ * first (under_save; the other ways do not take it) */
+void pic_draw_save(uint16_t x, uint16_t y, Far src, Far save, uint8_t base)
 {
     if (pb(src, 9) == 'P') {
         if ((int16_t)y >= 0)
-            pic_blit(x, y, src, base);
+            pic_blit(x, y, src, save, base);
         else
             pic_half(x, (uint16_t)-(int16_t)y, src, base);
     } else if (pb(src, 9) == 'X')
         pic_x(x, y, src, base);
     else
         pic_blit_u(x, y, src, base);
+}
+
+void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base)
+{
+    pic_draw_save(x, y, src, nowhere, base);
 }
 
 /* S2A6F:0002: a packed picture unpacked to `work` (tpwm_unpack) and drawn
@@ -1062,6 +1135,205 @@ int fight_panel(Far rec, uint16_t pictures)
         page_copy();
     }
     return 0;
+}
+
+static void pww(Far p, uint16_t o, uint16_t v) { fww(p.seg, (uint16_t)(p.off + o), v); }
+
+/* S2940:000C: a line down the page drawn in the colour DATA:00DA at x
+ * DATA:00DC from y DATA:00DE to DATA:00E2 (made the smaller first) */
+static void vline_fill(void)
+{
+    uint16_t es = NW(screen_seg, 0), y0 = DW(0x00DE), di, n;
+
+    if ((int16_t)y0 > (int16_t)DW(0x00E2)) {
+        fww(S_DATA, 0x00DE, DW(0x00E2));
+        fww(S_DATA, 0x00E2, y0);
+    }
+    di = screen_at(DW(0x00DC), DW(0x00DE));
+    vga_outw(0x3C4, (uint16_t)((uint8_t)(0x11 << (DW(0x00DC) & 3)) << 8 | 2));
+    for (n = (uint16_t)(DW(0x00E2) - DW(0x00DE) + 1); n; n--, di = (uint16_t)(di + NW(screen_pitch, 0)))
+        vwb(es, di, (uint8_t)DW(0x00DA));
+}
+
+/* S28E8:0000: a box x0, y0 to x1, y1 (each pair made the smaller first)
+ * filled in `fill`, its left and top edges in `light`, its right and
+ * bottom ones in `dark` */
+static void box_3d(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t light, uint16_t dark, uint16_t fill)
+{
+    uint16_t t;
+
+    if (x0 >= x1)
+        t = x1, x1 = x0, x0 = t;
+    if (y0 >= y1)
+        t = y1, y1 = y0, y0 = t;
+    fww(S_DATA, 0x00DC, x0), fww(S_DATA, 0x00DE, y0), fww(S_DATA, 0x00E0, x1), fww(S_DATA, 0x00E2, y1);
+    fww(S_DATA, 0x00DA, fill);
+    rect_fill();
+    fww(S_DATA, 0x00DC, x0), fww(S_DATA, 0x00DE, y0), fww(S_DATA, 0x00E2, (uint16_t)(y1 - 1));
+    fww(S_DATA, 0x00DA, light);
+    vline_fill();
+    fww(S_DATA, 0x00DC, x1), fww(S_DATA, 0x00DE, (uint16_t)(y0 + 1)), fww(S_DATA, 0x00E2, y1);
+    fww(S_DATA, 0x00DA, dark);
+    vline_fill();
+    fww(S_DATA, 0x00DC, x0), fww(S_DATA, 0x00DE, y0), fww(S_DATA, 0x00E0, (uint16_t)(x1 - 1));
+    fww(S_DATA, 0x00DA, light);
+    line_fill();
+    fww(S_DATA, 0x00DC, (uint16_t)(x0 + 1)), fww(S_DATA, 0x00DE, y1), fww(S_DATA, 0x00E0, x1);
+    fww(S_DATA, 0x00DA, dark);
+    line_fill();
+}
+
+/* S131D:007D: the side's half of the screen for the small map: the
+ * second picture of the list S331F:0207 points to at x side * A0h
+ * (unpacked at the free end, colours F0h on), and the box 0Ah, 0Fh to
+ * 8Ch, A5h of it (A0h further right for the second side) in colour F6h */
+void small_map_back(uint16_t side)
+{
+    uint16_t x = (uint16_t)(side * 0xA0);
+
+    pic_unpack_draw(x, 0, pfar(far_add(far_at(S_GAME, 0x0207), 4), 0), 0xF0, free_end());
+    box_fill((uint16_t)(x + 0x0A), 0x0F, (uint16_t)(x + 0x8C), 0xA5, 0xF6);
+}
+
+/* S151F:000D: the map `map` small, its fields col0 to col0 + cols and
+ * row0 to row0 + rows (but the last column and row of the map) from x, y
+ * on, a field 1 << sh wide and high, odd columns sh lower, with the
+ * screen's cut (DATA:00E8) on the rectangle x, y + 2 to the far
+ * corner.  The pictures are those of the library `lib` (26, the offsets
+ * of the far table at its first dword's distance, 0Ch bytes an entry,
+ * word 8); `dat` holds four bytes a ground (the field's first byte):
+ * the ground's picture, what stands on it, a colour's row and six bits
+ * of roads or rivers (pictures 0Eh to 13h, colours from the words at
+ * S330E:0016, four a season, `winter` the season).  First the grounds
+ * and their roads, then what stands (pictures by the bytes at
+ * S330E:000A; kinds 8 to 0Ah moved 8 left and 2 up, 0Bh not moved, the
+ * rest 4 left, at full size; halved for each step sh is below 2).  At the
+ * end a line down the left edge in colour 0 and the cut set back to the
+ * whole screen. */
+static void umap_draw(Far map, Far lib, Far dat, uint16_t col0, uint16_t row0, uint16_t cols, uint16_t rows,
+                      uint16_t x, uint16_t y, uint16_t sh, uint16_t winter)
+{
+    uint16_t S330E = HL_S330E + HL_BASE, w = NW(map_width, 0), h = NW(map_height, 0), r, c, j;
+    Far pics[26], table = far_add(lib, ((uint32_t)pw(lib, 2) << 16) | pw(lib, 0));
+    Far rec = far_at(S_DATA, 0x0092);
+    int pass;
+
+    pww(rec, 0x12, x);
+    pww(rec, 0x14, (uint16_t)(y + 2));
+    pww(rec, 0x16, (uint16_t)(x + (cols << sh) + (1 << sh)));
+    pww(rec, 0x18, (uint16_t)(y + (rows << sh) + (1 << sh)));
+    if (winter)
+        winter = 1;
+    for (j = 0; j < 26; j++) {
+        pics[j].seg = lib.seg;
+        pics[j].off = (uint16_t)(lib.off + pw(far_add(table, 12u * j + 8), 0));
+    }
+    for (pass = 0; pass < 2; pass++)
+        for (r = 0; r <= rows; r++)
+            for (c = 0; c <= cols; c++) {
+                uint16_t f, px, py;
+                Far d;
+
+                if (r + row0 >= h - 1 || c + col0 >= w - 1)
+                    continue;
+                f = (uint16_t)((r + row0) * w + c + col0);
+                d = far_add(dat, 4u * pb(map, (uint16_t)(2 * f)));
+                if (!pass) {
+                    px = (uint16_t)((c << sh) + x);
+                    py = (uint16_t)((r << sh) + y + (c & 1 ? sh : 0));
+                    pic_draw(px, py, pics[pb(d, 0)], 0);
+                    if (pb(d, 2))
+                        for (j = 0; j < 6; j++)
+                            if (pb(d, 3) & 1 << j)
+                                pic_draw(px, py, pics[0x0E + j],
+                                         (uint8_t)frw(S330E, (uint16_t)(0x16 + winter * 8 + pb(d, 2) * 2)));
+                } else if (pb(d, 1)) {
+                    uint16_t k = pb(d, 1);
+                    int16_t dx = -4, dy = 0;
+
+                    if (k >= 8 && k <= 0x0A)
+                        dx = -8, dy = -2;
+                    else if (k == 0x0B)
+                        dx = dy = 0;
+                    px = (uint16_t)((c << sh) + x + (dx >> (2 - sh)));
+                    py = (uint16_t)((r << sh) + y + (dy >> (2 - sh)) + (c & 1 ? sh : 0));
+                    pic_draw(px, py, pics[frb(S330E, (uint16_t)(0x0A + k))], 0);
+                }
+            }
+    pww(rec, 2, pw(rec, 0x12));
+    pww(rec, 4, pw(rec, 0x14));
+    pww(rec, 8, pw(rec, 0x18));
+    pww(rec, 0, 0);
+    fww(S_DATA, 0x00E2, pw(rec, 8));
+    vline_fill();
+    pww(rec, 0x12, 0);
+    pww(rec, 0x14, 0);
+    pww(rec, 0x16, 0x013F);
+    pww(rec, 0x18, 0x00C7);
+}
+
+/* S0E56:08F5: a unit's dot of four pixels at x, y: colour c, c + 1 on
+ * its right, c + 2 below that, c + 1 below it */
+static void unit_dot(uint16_t x, uint16_t y, uint16_t c)
+{
+    static const int8_t at[4][3] = { { 0, 0, 0 }, { 1, 0, 1 }, { 1, 1, 2 }, { 0, 1, 1 } };
+    int i;
+
+    for (i = 0; i < 4; i++) {
+        fww(S_DATA, 0x00DA, (uint16_t)(c + at[i][2]));
+        fww(S_DATA, 0x00DC, (uint16_t)(x + at[i][0]));
+        fww(S_DATA, 0x00DE, (uint16_t)(y + at[i][1]));
+        pixel_put();
+    }
+}
+
+/* S0E56:09AD: the side's map small at x, y (the side's own map: map2
+ * for the second): four boxes around it (S331F:4C88 their fill), the map
+ * (umap_draw with the screen's cut on), a line in colour F8h down its
+ * left edge, and a dot for each unit of `units` (0 to F0h) that is not
+ * gone (word 4 without 8000h, 4000h, 2; word 6 without 2), at its field
+ * on this side's map (word 0Bh + 2 * side), above the box's last row:
+ * colour S331F:4C9A of its owner's (word 4 bit 0) for its own side's unit
+ * with 200h in word 4, else S331F:4C9C of its owner's */
+void small_map_draw(uint16_t side, uint16_t x, uint16_t y)
+{
+    uint16_t sh = frw(S_GAME, 0x0008), w = NW(map_width, 0), h = NW(map_height, 0), c = frb(S_GAME, 0x4C88), i;
+    uint16_t x0 = (uint16_t)(x - 1), y0 = (uint16_t)(y - 1);
+    uint16_t x1 = (uint16_t)(x + ((w - 1) << sh) - 1), y1 = (uint16_t)(y + ((h - 1) << sh) - 2);
+    Far map = side ? far_at(S_GAME, 0x17B2) : far_at(S_GAME, 0x17B6);
+    Far rec = far_at(S_DATA, 0x0092);
+
+    box_3d((uint16_t)(x0 - 3), (uint16_t)(y0 - 3), (uint16_t)(x1 + 3), (uint16_t)(y1 + 3), 0xF4, 0xF8, c);
+    box_3d((uint16_t)(x0 - 2), (uint16_t)(y0 - 2), (uint16_t)(x1 + 2), (uint16_t)(y1 + 2), 0xF7, 0xF7, c);
+    box_3d((uint16_t)(x0 - 1), (uint16_t)(y0 - 1), (uint16_t)(x1 + 1), (uint16_t)(y1 + 1), 0xF7, 0xF7, c);
+    box_3d(x0, y0, x1, y1, 0xF8, 0xF4, c);
+    pww(rec, 0x0E, 1);
+    umap_draw(map, far_at(S_GAME, 0x179E), far_at(S_GAME, 0x17A2), 0, 0,
+              (uint16_t)(w - 2), (uint16_t)(h - 2), (uint16_t)(x - 1), (uint16_t)(y - 2), sh,
+              frb(HL_S37FF + HL_BASE, 0x012F));
+    pww(rec, 0x0E, 0);
+    pww(rec, 2, x0);
+    pww(rec, 4, y0);
+    pww(rec, 8, y1);
+    pww(rec, 0, 0xF8);
+    fww(S_DATA, 0x00E2, y1);
+    vline_fill();
+    for (i = 0; i <= 0xF0; i++) {
+        uint16_t u = (uint16_t)(i * UNIT_SIZE), f4 = NW(units, u + 4), own = f4 & 1, colour;
+        int16_t q, px, py;
+
+        if (f4 & 0xC002 || NW(units, u + 6) & 2)
+            continue;
+        q = (int16_t)((int16_t)(NW(units, (uint16_t)(u + 0x0B + side * 2)) - 1) >> 1);
+        px = (int16_t)(x + ((q % (int16_t)w) << sh));
+        py = (int16_t)(y + ((q / (int16_t)w) << sh) - 2 + (q & 1 ? 2 : 0));
+        if (same_side(own, side) && f4 & 0x200)
+            colour = frb(S_GAME, (uint16_t)(0x4C9A + own));
+        else
+            colour = frb(S_GAME, (uint16_t)(0x4C9C + own));
+        if ((int16_t)(y1 - 1) > py)
+            unit_dot((uint16_t)px, (uint16_t)py, colour);
+    }
 }
 
 /* S131D:13A6: the side's view made dark, field by field as view_draw

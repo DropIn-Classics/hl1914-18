@@ -32,10 +32,12 @@
  * it found and waits for Esc.  -ram writes that memory to FILE as
  * dosrun's -ram does (for doskit/tools/memcmp.py) and ends the program.
  *
- * In the window, -map N without -keys, -passes, -clock or -ram plays the
- * battle there at the original's pace with the player's keys (play.c,
- * play_live) until it is over, the window is closed or something comes
- * that is not translated, and says so on stderr.
+ * In the window, without -keys, -passes, -clock or -ram, the program is
+ * played there at the original's pace with the player's keys and mouse
+ * (play.c, play_live): from the menu on as game_loop goes round (menu,
+ * battle, menu), or with -map N that battle alone; until the program
+ * ends, the window is closed or something comes that is not translated,
+ * and it says so on stderr.
  *
  * With -keys, -passes or -clock the program then plays the battle by
  * itself without drawing it (play.c): the passes of the original's loop,
@@ -377,7 +379,7 @@ static int menu_game(unsigned long passes, double start, double until, int clock
             return 0;
         }
         if (menu_stopped) {
-            why = menu_stopped;
+            why = play_stopped() ? play_stopped() : menu_stopped;
             break;
         }
         menus++;
@@ -411,6 +413,7 @@ static int menu_game(unsigned long passes, double start, double until, int clock
             why = "the time given is over";
             break;
         }
+        play_setup();
         r = battle_setup();
         if (r == 0)
             r = battle_begin();
@@ -533,9 +536,10 @@ int main(int argc, char **argv)
         sys_data_dir(saves, sizeof saves);
         hl_save_dir = saves;
     }
-    /* -map alone in the window: the battle is played there (play_live);
-     * headless too when DK_KEYS or DK_SHOTS script it (plat_null.c) */
-    if (map >= 0 && !play && !ram && (plat_has_window() || getenv("DK_KEYS") || getenv("DK_SHOTS"))) {
+    /* in the window without -keys, -passes, -clock or -ram the program is
+     * played there (play_live): from the menu on, or with -map the battle
+     * alone; headless too when DK_KEYS or DK_SHOTS script it (plat_null.c) */
+    if (!play && !ram && (plat_has_window() || getenv("DK_KEYS") || getenv("DK_SHOTS"))) {
         play_live();
         briefing_player = 1;
         play = 1;

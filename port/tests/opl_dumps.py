@@ -325,4 +325,5 @@ def main():
               % (walk, clobbered))
 
 
-main()
+if __name__ == '__main__':
+    main()

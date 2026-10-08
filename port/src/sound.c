@@ -82,7 +82,8 @@ void (*snd_opl)(uint8_t reg, uint8_t value);
 /* a test's: each sfx_play, with its volume, how many times and its result */
 void (*snd_played)(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, int16_t r);
 /* a test's: each music_start (out 0; a the fade, b the volume) and
- * music_fade (out 1; a the speed) at its end */
+ * music_fade (out 1; a the speed) at its end, and music_fade where it
+ * begins (out 2; a the speed) */
 void (*snd_music)(int out, uint16_t a, uint16_t b, int16_t r);
 
 static double tick_at = -1;
@@ -1139,8 +1140,11 @@ static int16_t music_fade_(uint16_t speed);
 
 int16_t music_fade(uint16_t speed)
 {
-    int16_t r = music_fade_(speed);
+    int16_t r;
 
+    if (snd_music)
+        snd_music(2, speed, 0, 0);
+    r = music_fade_(speed);
     if (snd_music)
         snd_music(1, speed, 0, r);
     return r;

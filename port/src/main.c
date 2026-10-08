@@ -344,10 +344,17 @@ static void snd_logged(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, in
  * port's time at the device's sample 0), for port/tests/soundout_test.sh.  At the end a line to stderr with the
  * samples played and the queue's counts.
  *
+ * -oplcount RATE STEP (without a device; a test's, for
+ * port/tests/oplwav_test.sh): the timer's interrupts counted as with a
+ * device, by samples at RATE a second on a clock that the port's moves
+ * on in steps of STEP microseconds (0: no steps), with no device, queue
+ * or sound.  44100 and 1000 count as the virtual device does.
+ *
  * -opllog FILE: each write, the time on the port's clock, the
  * driver's count of ticks, the register and the value (hex); and a line
  * "start" or "fade" with the time and the count at the end of each
- * music_start and music_fade (for port/tests/opl_cmp.py). */
+ * music_start and music_fade, and "fading" where a music_fade begins
+ * (for port/tests/opl_cmp.py and oplwav_cmp.py). */
 static OPL adlib;
 static FILE *opl_log;
 
@@ -401,6 +408,31 @@ static uint64_t audio_samples(const double *t)
     return n;
 }
 
+/* -oplcount: snd_samples without a device, counted as audio_samples and
+ * plat_null.c's device do together */
+static long count_rate, count_step;
+static int count_moved;
+static uint64_t count_n;        /* steps, or samples when there are none */
+static double count_off, count_t;
+
+static uint64_t count_samples(const double *t)
+{
+    double per = count_step ? 1e6 / (double)count_step : (double)count_rate;
+
+    if (t) {
+        uint64_t to;
+
+        if (!count_moved || *t < count_t)
+            count_off = *t - (double)count_n / per;
+        count_moved = 1;
+        count_t = *t;
+        to = (uint64_t)((*t - count_off) * per);
+        if (to > count_n)
+            count_n = to;
+    }
+    return count_step ? count_n * (uint64_t)count_step * (uint64_t)count_rate / 1000000 : count_n;
+}
+
 static void audio_irq(uint64_t sample, uint32_t next)
 {
     fprintf(opl_at, "i %llu %lu\n", (unsigned long long)sample, (unsigned long)next);
@@ -408,8 +440,13 @@ static void audio_irq(uint64_t sample, uint32_t next)
 
 static void audio_start(void)
 {
-    if (!plat_audio_start(AUDIO_RATE, audio_fill, NULL))
+    if (!plat_audio_start(AUDIO_RATE, audio_fill, NULL)) {
+        if (count_rate > 0) {
+            snd_rate = (int)count_rate;
+            snd_samples = count_samples;
+        }
         return;
+    }
     plat_audio_lock();
     opl_init(&adlib, AUDIO_RATE);
     oplq_init(&adlib_q, &adlib);
@@ -466,9 +503,9 @@ static FILE *mus_log;
 static void mus_logged(int out, uint16_t a, uint16_t b, int16_t r)
 {
     if (opl_log)
-        fprintf(opl_log, "%s %.6f %lu\n", out ? "fade" : "start", play_now(),
+        fprintf(opl_log, "%s %.6f %lu\n", out == 2 ? "fading" : out ? "fade" : "start", play_now(),
                 (unsigned long)((uint32_t)NW(snd_ticks, 2) << 16 | NW(snd_ticks, 0)));
-    if (!mus_log)
+    if (!mus_log || out == 2)
         return;
     fprintf(mus_log, "%.3f %s %u %u %d %lu\n", play_now(), out ? "fade" : "start", a, b, r,
             (unsigned long)((uint32_t)NW(game_state, 0x15) << 16 | NW(game_state, 0x13)));
@@ -826,6 +863,10 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-oplat") && i + 1 < argc)
             opl_at = fopen(argv[++i], "w");
+        else if (!strcmp(argv[i], "-oplcount") && i + 2 < argc) {
+            count_rate = atol(argv[++i]);
+            count_step = atol(argv[++i]);
+        }
         else if (!strcmp(argv[i], "-muslog") && i + 1 < argc) {
             mus_log = fopen(argv[++i], "w");
             if (mus_log)
@@ -856,7 +897,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
                             "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-keylog FILE] [-poke ADDR HEX]... [-dump N FILE]...\n"
-                            "       [-oplat FILE] [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]... [-askvram N FILE]...\n"
+                            "       [-oplat FILE] [-oplcount RATE STEP] [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]... [-askvram N FILE]...\n"
                             "With -keys and no -map the program begins at the menu (at -start seconds).\n");
             return 2;
         }

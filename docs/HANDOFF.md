@@ -87,6 +87,16 @@ every write is at its sample in it (`port/tests/soundout_test.sh`).
 Sound Blaster's bytes are still not played (the bullet "The sound",
 "The AdLib played").
 
+On the branch `mac/oplwav` (2026-10-09) the rendered sound is set beside
+the original's as the runner's chip played it (`-oplwav`), tune by tune
+(`port/tests/oplwav_test.sh`): the same registers at the same ticks
+where the game's side does not write, the levels within 2 dB, the
+original behind in time by the timer interrupts it loses; and the 70
+registers a battle writes at another place with a device are the
+millisecond of the virtual device's clock, no offset. Nothing was
+changed in what is played and **nothing was listened to** (the bullet
+"The sound", "The AdLib beside the original's").
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -4526,6 +4536,62 @@ emulation error (2026-10-02).
       on the samples played instead of `snd_clock`'s time; then
       listening.
 
+  - The AdLib beside the original's (2026-10-09, Mac, branch
+    `mac/oplwav`). port/README.md has the tests and the numbers
+    ("Checked"); here what was learned.
+    - The runner's `-oplwav` file can be had back from its log sample
+      for sample (`oplwav_ref fit`), although the log's moments are
+      whole microseconds: a write near a sample's edge is tried on both
+      samples, looking ahead through the next writes. So the list of a
+      run and its file say the same, on both sides, and the comparison
+      can be made on the lists and the levels.
+    - A tune's writes are compared by ticks from its first tick, not by
+      time and not from `music_start`'s end: the port's count of ticks
+      (`-opllog`) and the count of the original's `adl_tick` calls agree
+      there. `fade_tick`'s writes are logged under the count before its
+      interrupt's tick in both; its steps count from the game's call,
+      so they can be a tick or two off where the game's side called at
+      another moment.
+    - The original loses timer interrupts, the port none. In a tune's
+      first tick `adl_tick` writes all instruments (116 to 120
+      registers, `opl_write`'s delays: 11.6 to 11.9 ms at 06A9h or
+      0854h); the interrupt is taken once when it ends, so the tune is
+      about 7 periods (10 ms) behind the timer from its second tick on. That
+      is the driver's own doing and presumably the same on any machine
+      (the delays are measured, `delay_measure`; not checked). In the
+      fights the original falls further behind, by 98 periods in 119 s
+      of map 8, behind ticks that wrote nothing: something keeps the
+      interrupt waiting more than two periods there (the game's side
+      or another routine; not looked for, and it is the runner's
+      machine). Not modelled in the port, as decided on `mac/soundout`;
+      to model the first, `irq_audio` would have to count a tick's
+      registers.
+    - A tick's registers on one sample change the sound measurably: up
+      to about 1 dB in half a second against the original's own stream
+      spread over the tick (voices keyed in one tick start in step in
+      the port, a tenth of a millisecond apart and more in the
+      original). The chip's rate does not (0.07 dB). Whether it is
+      heard was not tried.
+    - `-map N` is a start the original does not have: the driver is
+      untouched when the battle's tune starts without a fade, and
+      `voice_level` then works with the voices' own volumes 0 (bytes
+      `VOICE + 0Eh`), so the tune's voices are at 3Fh until their first
+      volume event. In the original's memory at that `music_start` the
+      nine bytes are what the menu's tune left (seen in the dump of
+      `opl_dumps.py battle`). Through the menu the port does the same
+      (the walk `brief`). Left as it is; a direct start that sounds
+      like the game's would have to set those bytes.
+    - The 70 registers: the device's clock goes in milliseconds
+      (`plat_sleep_ms`), the port's does not; `-oplcount` counts the
+      interrupts as the device does on a clock of any step and shows
+      the order without a device from 100 microseconds down. A tick's
+      writes have their own sample either way; what moves is on which
+      side of a call of the game's the tick runs.
+    - Not verified: **nothing was listened to**; no sample-for-sample
+      comparison of the two files; the battle's sound (its tune differs
+      from the first tick, see `-map`); what holds the interrupt in the
+      fights; a real machine and a real chip.
+
 ## `HL14-18.EXE` stage 1
 
 - MZ program, entry `0000:000B`, stack `0296:0100`; its relocation
@@ -4826,7 +4892,8 @@ emulation error (2026-10-02).
    found), and the output itself (the OPL2 is fed since `mac/opl` and
    its stream compared, and played on the audio's clock since
    `mac/soundout`, rendered headless and not listened to: the bullet
-   "The AdLib played"; then
+   "The AdLib played"; set beside the runner's `-oplwav` on
+   `mac/oplwav`: "The AdLib beside the original's"; then
    the mixer's bytes, which `dig_mix` now makes in the driver's buffers
    (`mac/sfx`; the bullet "The effects' ways and the mixer" says what
    output still needs) with the timer's interrupts (`snd_irq`) and the

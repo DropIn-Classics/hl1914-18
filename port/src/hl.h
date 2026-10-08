@@ -394,6 +394,7 @@ void play_setup(void);
 int play_idle(void);
 const char *play_stopped(void);
 void play_inputs(const char *path);
+void play_keylog(const char *path);
 void play_rounds(const char *path);
 void play_ends(const char *path);
 void play_bios(uint32_t ticks);

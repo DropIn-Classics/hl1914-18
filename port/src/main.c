@@ -4,7 +4,7 @@
  *     history-line [-game DIR | -gog FILE|FOLDER|SETUP.exe] [-map N] [-ram FILE]
  *                  [-keys FILE] [-passes N] [-until T] [-start T] [-seed N]
  *                  [-clock FILE] [-seeds FILE] [-dump N FILE]... [-inputs FILE]
- *                  [-ends FILE] [-poke ADDR HEX]... [-briefdump DIR]
+ *                  [-ends FILE] [-keylog FILE] [-poke ADDR HEX]... [-briefdump DIR]
  *                  [-infodump DIR]
  *
  * DIR is the game's unpacked files: -game, else $HISTORY_LINE_GAME, else the first
@@ -53,7 +53,9 @@
  * takes from such a log only what the fights' pictures did to the random
  * numbers; -until ends the play at T seconds of the own clock; -dump writes the memory as -ram does at
  * the beginning of pass N (the video memory when FILE ends in .vram), -inputs what each side's part read, -ends the
- * texts a battle's end showed each time it waited for a press, -poke
+ * texts a battle's end showed each time it waited for a press, -keylog
+ * (in the window) the player's keys as a key script that -keys plays the
+ * same (play.c, play_keylog), -poke
  * writes the bytes HEX at the linear address ADDR (hex) of the memory
  * image before the first pass (port/tests/play_pokes.py), -infodump the
  * memory and video memory of the field menu's information into DIR
@@ -532,6 +534,8 @@ int main(int argc, char **argv)
             seed = strtoul(argv[++i], NULL, 0), seeded = 1;
         else if (!strcmp(argv[i], "-inputs") && i + 1 < argc)
             play_inputs(argv[++i]);
+        else if (!strcmp(argv[i], "-keylog") && i + 1 < argc)
+            play_keylog(argv[++i]);
         else if (!strcmp(argv[i], "-rounds") && i + 1 < argc)
             play_rounds(argv[++i]);
         else if (!strcmp(argv[i], "-ends") && i + 1 < argc)
@@ -574,7 +578,7 @@ int main(int argc, char **argv)
         } else {
             fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
-                            "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-poke ADDR HEX]... [-dump N FILE]...\n"
+                            "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-keylog FILE] [-poke ADDR HEX]... [-dump N FILE]...\n"
                             "       [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]...\n"
                             "With -keys and no -map the program begins at the menu (at -start seconds).\n");
             return 2;

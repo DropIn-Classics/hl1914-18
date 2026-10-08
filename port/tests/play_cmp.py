@@ -35,7 +35,10 @@ the two maps and the sides' work buffers; what the computer's player
 keeps and leaves (its segments, S331F:17F2 to 181B, move_args, S3AEC:0000
 to 0007, rand_words); the rest of memory but the stack's segment is
 counted apart, and with it fight_rec's two far pointers of grounds'
-pictures.  The differences at the first dump are the setup's: they
+pictures.  Where both have the video memory of a dump (pNNNN.vram beside
+the port's), the two pages are compared too (a byte different there
+counts as a difference); what lies behind them is only counted.  The
+differences at the first dump are the setup's: they
 are listed once, and at a later pass a byte counts as the setup's while
 both programs still have there what they had at the first dump.
 """
@@ -111,6 +114,22 @@ def regions(mem):
     return kind
 
 
+def video(po, port_path):
+    """the video memory of the original's pass po and of the port's dump
+    beside port_path (pNNNN.vram, play_dumps.py with VRAM=1, and the
+    port's -dump N FILE.vram; byte 4 * offset + plane): None when one is
+    missing, else how many bytes differ in the two pages (200 lines of 80
+    bytes a plane at A000h and A400h) and how many behind them (pictures
+    kept there, not shown)"""
+    a, b = os.path.join(out, 'p%04d.vram' % po), port_path[:-4] + '.vram'
+    if not (os.path.exists(a) and os.path.exists(b)):
+        return None
+    x, y = open(a, 'rb').read(), open(b, 'rb').read()
+    d = [i >> 2 for i in range(min(len(x), len(y))) if x[i] != y[i]]
+    n = len([o for o in d if o < 0x8000 and o % 0x4000 < 200 * 80])
+    return n, len(d) - n
+
+
 def ranges(addrs):
     r = []
     for a in addrs:
@@ -148,7 +167,10 @@ if by_rounds:
         for lo, hi, cnt in ranges([i for i in new if kind[i] < 2])[:12]:
             print('  %s to %s: %d (%s)' % (where(lo), where(hi).split(':')[1], cnt,
                                            'the computer\'s' if kind[lo] == 1 else 'the game\'s state'))
-        if c[0] or c[1]:
+        v = video(po, rpath)
+        if v is not None:
+            print('  video memory: %d bytes different in the two pages, %d behind them' % v)
+        if c[0] or c[1] or (v and v[0]):
             differs = True
         elif not differs:
             agree = (n, po, pp)
@@ -224,7 +246,10 @@ for p in passes:
     for lo, hi, cnt in ranges([i for i in new if kind[i] < 2])[:12]:
         print('  %s to %s: %d (%s)' % (where(lo), where(hi).split(':')[1], cnt,
                                        'the computer\'s' if kind[lo] == 1 else 'the game\'s state'))
-    if c[0] or c[1]:
+    v = video(p, qpath)
+    if v is not None:
+        print('  video memory: %d bytes different in the two pages, %d behind them' % v)
+    if c[0] or c[1] or (v and v[0]):
         bad = 1
         differs = True
     elif not differs:

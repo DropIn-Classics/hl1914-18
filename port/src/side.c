@@ -292,14 +292,17 @@ static void menu_refuse(uint16_t text, uint16_t side)
     show_message(text, side);
 }
 
-/* the view goes to the unit's attack: step 13h of state 0, pointer 0, the
- * unit in word 1Eh and marked 100h (marks_draw, drawing, left out) */
+/* the view goes to the unit's attack (S0CB6:1629, and twice alike before
+ * it): step 13h of state 0, pointer 0, the unit in word 1Eh, the view
+ * drawn with the marks found (marks_draw; on the screen the view in its
+ * darker colours) and the unit marked 100h */
 static void menu_attack(Far view, uint16_t no, uint16_t side)
 {
     pwb(view, 0x17, 0);
     pwb(view, 0x18, 0x13);
     pww(view, 0x1E, no);
     pwb(view, 0x1B, 0);
+    marks_draw(pw(view, 2), side);
     unit_mark((uint8_t)no, 0x100, side, 1);
 }
 

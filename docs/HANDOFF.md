@@ -3334,10 +3334,54 @@ emulation error (2026-10-02).
   `S2B45:0006`), seen in the runner's screen of map 8. Not tried: an
   attack by the player, a site's menus (building, repairing, moving out)
   in the window, the second side's keys, holding a key, the battle's
-  end in the window. port/tests' `orders_test`, `move_test`,
+  end in the window (the player's attack, the second side's keys and
+  held keys since: "Both sides, held keys and the player's attack in
+  the window" below). port/tests' `orders_test`, `move_test`,
   `side_test`, `view_test`, `computer_test`, `load_test` and
   `income_test` do not link since the merge of save.c (save.c needs
   loop.c, which needs more); not fixed here.
+- Both sides, held keys and the player's attack in the window
+  (2026-10-08, `debian/window3`, Linux, headless window; port/README.md
+  has the counts). Learned:
+  - The window needed nothing for the second side: its keys (the left
+    Alt, X, V, D, C) come through the same keyboard table, `input.c`
+    fills its record, and its view and map are the ones `-keys` plays
+    have used since "A human second side". A held key needs nothing of
+    the window either: the platform passes no auto-repeat (`plat_sdl.c`
+    drops it), and the game repeats by itself from the record's counts
+    (held 1.0 s: eight steps of the first side's cursor, the first at
+    once and then about every 0.11 to 0.17 s; the second side's held C
+    1.0 s four, D 0.4 s three).
+  - What was wrong: the window showed its pictures ahead of the game's
+    clock where a routine waits for retraces that the clock counts only
+    after it (`fade_grey` at a round's end: 60h retraces, 1.37 s, counted
+    by `LOOP_ROUND`'s `own_retraces(0x60)`), and a key went to the
+    keyboard's interrupt at once. All keys of that time reached the
+    same call of the timer's routine, so a tap was lost (press and
+    release at one call). Now the window's keys are kept with their
+    picture's time and handed over by the clock (`live_key`), as a key
+    script's are; a play in the window is a key script (`-keylog`), and
+    the original can be run with it. Presumably the same holds for the
+    mouse, which still goes to the driver at once (not changed, not
+    tried in a fade).
+  - Map 8's first side could not attack in the half tried (units 28,
+    30, 32, 33 beside the computer's 27 and 29 each gave "NO ASSAULT
+    TARGETS!"; their kinds were not looked at), so the attack was made
+    on map 48 as in `m48_build`: the cavalry (unit 15h) moved twice to
+    the field beside unit 14h and attacked in its next attack half.
+    The first side's first half on map 48 is its attack half too (the
+    button and up on the cavalry then gives no targets).
+  - `menu_attack` draws the marks (`marks_draw` at `S0CB6:1629` and the
+    two places alike before it); with them the view goes to its darker
+    colours (+90h) while the target is chosen. The port had left this
+    drawing out, which only the video memory showed.
+  - For the comparisons: with a German locale awk compares the clock's
+    times as text (`play_test.sh` sets `LC_ALL=C` now); the video memory
+    behind the two pages differs from the first pass on by 1,442 bytes
+    on map 48 (1,914 after the fight; not looked into).
+  Not done: the SDL window by hand; an attack by the second side, a
+  site's menus and the battle's end in the window; replaying a
+  `-keylog` that begins at the menu.
 - The field menu's information (2026-10-08, Mac; `unit_info`,
   `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
   each does; `port/src/draw.c`). Learned:

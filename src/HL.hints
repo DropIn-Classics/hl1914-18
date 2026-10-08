@@ -623,7 +623,7 @@ comment CODE:0553 ptr_add: DX:AX = the far pointer DX:AX moved on by CX:BX bytes
 name S331F:4CBB map_number
 comment S331F:4CBB map_number: the number of the battle's map, as game_loop puts it into the names of the map's files (set to 0 at the start; the menu sets it, not read).
 name S2C01:0006 lib_read
-comment S2C01:0006 Presumably reads one named entry of a library file: opens [BP+0A], reads a dword and seeks there, then reads 0Ch-byte records while the name at [BP+0E] is not empty (read from the code's start only).
+comment S2C01:0006 lib_read(far place, far file, far names, far pointers, far work): for each name of the list (8 bytes each, ended by an empty one) the library's 12-byte table (its offset the file's first dword) is searched from its start (mem_same, eight bytes); the entry's data, up to the next entry's offset or the table, is read to place, unpacked by tpwm_unpack through work when it begins with "TPWM" and work's segment is not 0; its far pointer goes to pointers, place moves on (ptr_norm). Ends with 0:0 behind the pointers and returns place; FFFF:FFFF when the file cannot be opened or an entry is missing. Its reads go through S2C01:0230 (12 bytes). Read whole; translated (port/src/pictures.c).
 name S2C45:0002 file_load
 comment S2C45:0002 file_load(far place or 0/FFFFFFFF, far name, far work buffer of 1000h bytes or 0): each try writes 0 to DATA:0B17, then opens (up to four tries with a message when DATA:0376 is set), reads eight bytes to S2C45:0486; with a work buffer and the packer's signature there the file is unpacked, else read whole; allocates when no place is given. Returns the place, its offset made 1 to 10h, or 0.
 ; The packed file: the signature, the unpacked length as a dword, then
@@ -1151,17 +1151,92 @@ name S02E6:208E unit_destroy
 ; translated (port/src/orders.c); compared in the fights of m8_site only
 ; where no carrier fought (not checked otherwise).
 name S02E6:2556 carrier_losses
-; pictures_load(free end, work, ...): loads the battle's screen pictures
-; again after a fight picture or a site taken (attacks_run): the file of
-; S331F:024C, a palette named by the number at S37FF:0112 (to
-; S0CB6:187F with 300h) and the libraries of S331F:0159 and 01E5 through
-; S0C66:0009; returns the new free end. Read. It also writes S331F:0284,
-; a digit of the file name at S331F:027E, by the ratio of the sides' unit
-; counts (S02E6:3118 to 318B: '1' above 140h/100h, '3' below C0h/100h,
-; else '2'); found by the map-0 run m0_carry (port/README.md). The rest
-; was not seen to change what the port keeps (presumably pictures and
-; name_buf).
+; pictures_load(far place, far work, far palette buffer): loads what a
+; battle's screen needs to the free end `place` and returns it moved on;
+; called by game_loop's setup and again by attacks_run after a fight
+; picture or a site taken. In order: lbm_show of the file of pict_name
+; (GAME.IFF, drawn to the screen; loaded at the place, which does not move
+; on, so the next file lies over it); the palette file named by
+; num_text(S37FF:0112) with ending 4 (00.PAL) to the palette buffer, its
+; 300h bytes copied to where palette_ptr points (far_copy); lib_load of
+; the records lib_rnd (0159), 01E5 (exp) and 01A9 (bum); the file of
+; bigunit_name with ending 5 (file_load_size) at bigunit_dat; two blocks
+; of 1194h bytes, bigunit_buf and bigunit_ptrs; lib_read of the names at
+; bigunit_list from that name with ending 3 (LIB), its far pointers to
+; bigunit_ptrs, the work buffer 10h bytes into that block, the pictures
+; at bigunit_pics (F3Ch bytes kept for them); lib_load of 01F9
+; (newshop); umap_name made ...DATA with ending 5 to umap_dat; then its
+; letters 6 and 0Fh W or S by pics_winter and the file of umap2_name when
+; word S331F:0008 is 1, else of umap_name, with ending 3 to umap_lib; the
+; file music_name to music_data, its digit by the ratio of the sides'
+; unit counts (S02E6:3118 to 318B: '1' above 140h/100h, '3' below
+; C0h/100h, else '2'; byte 2 of each side's record plus 1, swapped when
+; the sides' bit 2 differs and the first has it), 213Ah bytes kept for
+; it; sfx_load of sfx_name. A file that cannot be loaded goes to the
+; error exit (S0CB6:1842 with 2), but lib_load of rnd and of bum return
+; FFFF:FFFF instead. Read whole; translated (port/src/pictures.c) and
+; compared on its first call on map 0 and map 8 (port/README.md).
 name S02E6:2B87 pictures_load
+; lbm_show(far place, far name, far work): loads an IFF picture to place
+; (rounded up to even) and draws it at screen_seg:0, a line every
+; screen_pitch bytes, unchained (map mask 3C4h index 2, four pixels a
+; byte), the planes 11h, 22h, 44h, 88h in turn. Looks for "PBM " (else
+; "ILBM", which clears S2B06:03DC), "BMHD" and "CMAP" behind it and
+; "BODY" from the segment's offset 0, a word at a time (REPNE SCASW,
+; 1388h words). Width, height, compression (byte 0Ah of BMHD's data) and
+; planes (8) are kept at S2B06:03EA to 03F0; the CMAP's bytes go to
+; palette. Only with compression 1: a PBM's lines are ByteRun1 pixels; an
+; ILBM's lines one plane after another, each bit ORed into video memory
+; as the plane bit S2B06:03F2 (read back through the read map); a
+; picture wider than 168h and higher than F0h is unpacked to
+; screen_seg:0 as bytes, (width+7)/8 a line. A run that goes past a
+; line's end is cut there. Returns FFFF:FFFF, 0:0 when the file cannot be
+; loaded; BX and CX the width and height. Read whole; the PBM path
+; compared through pictures_load, the other two not met.
+name S2B06:0000 lbm_show
+; tpwm_unpack(far from, far to): unpacks the packer's data ("TPWM", its
+; length, then the codes file_load unpacks too) from memory; returns the
+; length, FFFF:FFFF without the signature. Below 64K and inside the
+; segment the word behind the data is kept (S2CA0:01C9 to 01CE); else
+; the count at 01C1 runs down to FFFF:FFFF and one byte more is written.
+name S2CA0:0008 tpwm_unpack
+; mem_same(far a, far b, n): 0 when the n bytes are equal, else FFFFh.
+name S2CF7:0006 mem_same
+; sfx_load(far place, far name, far work): file_load, the place it
+; returns kept at sfx_data and the file's length (file_size) at sfx_size
+; and returned; FFFF:FFFF when the file cannot be loaded. Read,
+; translated as far as memory goes (port/src/pictures.c).
+name S2F39:00FD sfx_load
+name S30EF:0242 sfx_data
+name S30EF:0246 sfx_size
+; Names and places of pictures_load (seen at its return on map 0 and 8):
+name S331F:024C pict_name
+name S331F:022D bigunit_name
+name S331F:0235 bigunit_list
+name S331F:026C umap_name
+name S331F:0275 umap2_name
+name S331F:027E music_name
+name S331F:028A sfx_name
+name S331F:02D7 bigunit_buf
+name S331F:02DB bigunit_pics
+name S331F:02DF bigunit_ptrs
+name S331F:02E3 bigunit_dat
+name S331F:17A2 umap_dat
+name S331F:179E umap_lib
+name S331F:179A music_data
+; num_text's buffer of pictures_load and S02E6:323E (presumably used by
+; others too; not looked for).
+name S331F:177C num_buf
+; FFh after the menu by bit 2 of byte 8 of the map's CODES.DAT record,
+; else 0: the pictures' and grounds' names get W, else S (presumably
+; winter and summer; a guess).
+name S37FF:012F pics_winter
+; The screen: the segment lbm_show draws to (A000h in the runs), the bytes
+; a line, the palette (300h bytes) and a far pointer to it.
+name DATA:0354 screen_seg
+name DATA:02F0 screen_pitch
+name DATA:04E3 palette
+name DATA:00CE palette_ptr
 ; lib_load(far name, far place, far work, far record, byte order): loads
 ; a library of pictures (file_load_size) to place. Its first dword is the
 ; offset of a table of 12-byte entries (eight bytes of name, the dword
@@ -2303,6 +2378,44 @@ name S27FE:0783 pit_add
 name S27FE:07E8 pit_del
 name S27FE:0882 pit_period
 
+; screen_open(w, h, n, dword size, pages): called once by game_loop at
+; its start (S066A:014D, with 320, 200, 4, 2518h, 1). Keeps INT 10h
+; AH=0Fh's AX (the BIOS's mode and columns) at DATA:0346, clears A000:0
+; (7FFFh words, all planes), takes the CRTC's port from 40:63 (DATA:0AF9,
+; 0AFB one more, 0AFD six more), sets the mode (S298E:007C), keeps size at
+; DATA:0342 and pages at DATA:034E, calls pages_set, then screen_clear,
+; page_flip, screen_clear with colour 0 (DATA:00DA). S298E:007C decides
+; by the height only (it compares the width with AX after loading AX with
+; DATA's segment): 200 lines are mode 13h with the DAC made black, chain-4
+; and the CRTC's word mode and double words off (Mode X), 320 by 200,
+; screen_pitch 50h, DATA:02F2 (bytes a page) 3E80h, DATA:02F6 FA00h, and
+; the offsets of F0h lines at DATA:00F8; other heights set a mode of 360
+; by 240 or 480 from the CRTC tables at S298E:02B4 and 02CC (not met). n
+; is not used. Read whole; translated (port/src/screen.c) and compared on
+; its call on map 0 (port/README.md).
+name S298E:000D screen_open
+; pages_set: the pages' segments for the height at DATA:02E6: with two
+; pages (DATA:034E) A400h is drawn (screen_seg) and A000h shown
+; (DATA:0356); further segments and counts at DATA:0322 to 0330 and
+; 035C to 0368 (A7E8h, 4, AC58h, AC4Eh; what they are was not looked at).
+; Read whole; translated, compared through screen_open.
+name S2A10:0006 pages_set
+; screen_clear: DATA:02F2 bytes of all four planes of the page drawn made
+; the colour DATA:00DA. Read; translated, compared through screen_open.
+name S28D9:000C screen_clear
+; page_flip: the page drawn and the one shown change places; the CRTC's
+; start address is set to the new shown one between two retraces. Without
+; DATA:00F6 the words at DATA:0322 to 0328 change places with 032A to 0330
+; first. With DATA:0463 and 0465 both FFFFh it calls S2B51:002A first,
+; which builds the header of a PBM picture of 320 by 200 in a block of
+; 190h bytes (presumably to save the screen to a file; not read further,
+; not met). Read; translated, compared through screen_open.
+name S2974:0002 page_flip
+name DATA:0356 screen_shown
+name DATA:0346 bios_mode_old
+name DATA:0AF9 crtc_port
+name DATA:02F2 page_size
+name DATA:00F8 line_offsets
 ; retrace_wait: waits until the screen's next vertical retrace begins
 ; (8 in the byte read from the port the word at DATA:0AFD names); display_wait until one is over.
 ; The waits and the changes of the screen's colours count their steps by

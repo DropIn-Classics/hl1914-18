@@ -967,17 +967,67 @@ emulation error (2026-10-02).
     (`port/src/files.c`, `battle.c`; `battle_begin` now calls
     `libs_start`) and `lib_load` compared byte for byte on all 13 calls
     of a start on map 0 and on map 8 (port/README.md). Not reached:
-    `pictures_load` (its picture `S2B06:0000`, the palette, `lib_read`,
-    the blocks at `02D7`/`02DF`, sound), `323E` and `lib_pick`
-    (`S0C66:0414`), a library or a list name that is missing.
+    `323E` and `lib_pick` (`S0C66:0414`), a library or a list name that
+    is missing.
+    2026-10-08: `pictures_load` is read whole, translated
+    (`port/src/pictures.c`, called by `battle_begin`, which keeps the free
+    end at `S3303:0028`) and compared. What it does, in order, is in its
+    comment in src/HL.hints; learned on the way:
+    - `S2B06:0000` is `lbm_show`, an IFF loader that draws straight into
+      video memory at `screen_seg` (`DATA:0354`, A000h) unchained, a line
+      every `screen_pitch` (`DATA:02F0`, 50h) bytes: PBM pictures as
+      ByteRun1 pixels, ILBM ones bit by bit ORed into the planes, one
+      larger than 168h x F0h unpacked as bytes. It finds its chunks by a
+      word-aligned search (BODY from the segment's offset 0) and keeps
+      what it found in its own code segment (`S2B06:03DC` to `03F4`). A
+      run past a line's end is cut. The battle's picture is `GAME.IFF`, a
+      320x200 PBM; ILBM and the large path were not met.
+    - The picture is loaded at the free end without moving it, so the
+      libraries after it lie over it. The palette file (`00.PAL` by the
+      number at `S37FF:0112`) goes to the 320h bytes' buffer of
+      `game_loop` (`[BP-0Ch]`) and its 300h bytes on to `palette`
+      (`DATA:04E3`, also where `lbm_show` puts the CMAP).
+    - `lib_read` (`S2C01:0006`) reads named entries of a library and
+      unpacks them through `tpwm_unpack` (`S2CA0:0008`, the packer's codes
+      from memory); `pictures_load` reads `LIB\BIGUNIT.LIB`'s entries of
+      `bigunit_list` (on both maps one, `UNI96HIM`) to `bigunit_pics`, its
+      pointers to the block `bigunit_ptrs`, whose bytes from 10h are the
+      work buffer; the place moves on by F3Ch, not by what was read.
+    - The far pointers at `S331F:179A`, `179E` and `17A2` (music,
+      `UMAPDA?2`/`UMAPDA?A.LIB`, `UMAPDATA.DAT`) are two bytes apart where
+      four are written, so each overwrites half of the next one written
+      before it (as the original does; what reads them was not looked at).
+    - `sfx_load` (`S2F39:00FD`) loads `MNU.AFX` and keeps its place and
+      length at `S30EF:0242`/`0246`; nothing of the sound is started here.
+    Compared (port/README.md): its first call on map 0 and on map 8 and
+    the second on map 0 (by `attacks_run`, after a fight's picture): the
+    memory, the video memory and the free end returned the same byte for
+    byte. Not compared: an ILBM or a picture larger than the screen, a
+    file that cannot be loaded, the -1 returns, `S2CC5:0004` (called by
+    `lbm_show` for a place of 0:0; not read).
     The drawing a battle screen needs, in the order proposed for
     translating (from the calls of `game_loop`'s setup and loop as read
     so far; none of them stepped, the order of the unread ones a guess):
     1. `pictures_load` (`S02E6:2B87`) whole: the screen's picture through
        `S2B06:0000`, the palette to `DATA:00CE` (300h bytes, `far_copy`),
-       `lib_read` (`S2C01:0006`), the libraries exp, bum, newshop.
+       `lib_read` (`S2C01:0006`), the libraries exp, bum, newshop. Done
+       2026-10-08 (above).
     2. The screen's set-up at the start (`S298E:000D`, `S28D9:000C`,
-       `S2974:0002`, left out of `start_setup`; not read).
+       `S2974:0002`, left out of `start_setup`). Done 2026-10-08 as far as
+       a function: `screen_open`, `pages_set` (`S2A10:0006`),
+       `screen_clear`, `page_flip` are read, named and translated
+       (`port/src/screen.c`); `screen_open`'s call on map 0 is the same as
+       the original's in memory, video memory and the VGA's registers
+       (port/README.md). Mode X 320x200 with two pages: A400h drawn,
+       A000h shown at the start, page_flip swaps them. Not yet called by
+       the port's start: the wait for a retrace comes before the mode
+       set, and the runtime's VGA, never set to a mode, shows no retrace
+       (its CRTC registers are 0), so the port must first put the VGA in
+       the state DOS leaves it in (text mode 3; `vga_set_mode` knows only
+       graphics modes, so this wants a change in doskit's runtime).
+       `battle_setup`'s calls of `pages_set` and `page_flip` are not
+       wired in either. Not met: the 360-wide modes (`S298E:02B4`/`02CC`
+       tables), `S2B51:002A` (with `DATA:0463`/`0465` FFFFh).
     3. `view_draw` (`S0E56:0D44`) and `marks_draw` (`0F36`) for each side,
        then `show_message(-1, side)` (`S10AF:000F`).
     4. `S2974:0002`, `S28DC:000A`, `S28E0:0004` at the loop's beginning
@@ -2874,7 +2924,9 @@ emulation error (2026-10-02).
      a side's part changes state and draws
      nothing (building, repairing, moving out), each with a comparison
      as for the setup; the libraries' loading (`lib_load`) is translated
-     and compared (2026-10-08), `pictures_load` is next toward drawing. `attacks_run` around them waits for
+     and compared (2026-10-08), so is `pictures_load` (2026-10-08); next
+     toward drawing is the screen's set-up at the start (the list under
+     "The drawing a battle screen needs"). `attacks_run` around them waits for
      the drawing routines; a fight the first side starts is still to be
      seen (a scripted attack by the player), as are a carrier's and a
      two-part unit's end;

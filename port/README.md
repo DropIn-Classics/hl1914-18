@@ -356,6 +356,41 @@ anything the game needs before the first release.
   from the library (the original writes it on the screen; the port skips
   it), and `battle_begin` as a whole after the change (its `begin` dumps
   were not at hand; see docs/HANDOFF.md).
+- The screen's set-up (2026-10-08, Linux): `screen_open` (`S298E:000D`,
+  Mode X 320x200 for a height of 200), `pages_set`, `screen_clear` and
+  `page_flip` in `src/screen.c`, not yet called by the port's start
+  (docs/HANDOFF.md says why). `load_test.sh` takes `scr` (the video
+  memory beside the dumps as for `pict`; the routine returns nothing, so
+  AX is not compared; the timer's tables at `DATA:0D5F` to `0D9E`,
+  `0E3F` and `0E4B`, which change while the original waits for
+  retraces, are counted apart). Dumps at its entry and its RETF
+  (`S298E:007B`) on map 0 (`dumps.py ... screen_open 1`,
+  `build/n2/scr/`, argument list `scr_test.args`): memory and all video
+  memory the same; the VGA's registers after it (misc, sequencer, CRTC,
+  graphics controller, read from the port by a scratch program
+  `build/n2/scr/regs.c`) the same as the runner's `-vgastate` at that
+  break; the DAC black in both. Not covered: the other heights' modes,
+  `S2B51:002A`, `page_flip` and `pages_set` called on their own.
+- The battle screen's pictures (2026-10-08, Linux): `pictures_load`
+  (`S02E6:2B87`) in `src/pictures.c` with `lbm_show` (`S2B06:0000`, the
+  IFF picture drawn into the runtime's VGA memory, `runtime/vga.h`),
+  `lib_read`, `tpwm_unpack` and `sfx_load` (memory only); `battle_begin`
+  calls it after `libs_start` and keeps the free end at `S3303:0028`.
+  `load_test.sh` takes `pict`: beside each `-ram` dump it loads the
+  `-vram` dump of the same name into the VGA (mode 13h made unchained)
+  and compares the video memory too. Dumps at its entry and at its RETF
+  (`S02E6:3237`) by `port/tests/dumps.py ... pictures_load N` with `VRAM`
+  set (`build/n2/pict/`, argument list `pict_test.args`): call 1 on map 0
+  (`m0_hq`) and on map 8 (`m8_site`), call 2 on map 0 (`m0_carry`, after
+  a fight's picture, 48,959 bytes of video memory changed). All three the
+  same: the free end returned, all memory but the stack and `beside`, and
+  all 256 KB of video memory. The other tests that link `battle.c` (income, side,
+  orders, loop, view, move, load) and `play_test.sh m8_site` are the
+  same as before. Not covered: ILBM pictures and the path for one larger
+  than the screen (written from reading only), a file that cannot be
+  loaded, the original's FFFF:FFFF returns, `S2CC5:0004`. The game's own
+  window does not yet show the picture: the mode, the palette's DAC and
+  the fade-in are the next routines (docs/HANDOFF.md).
 - Whole loads and names (2026-10-04, macOS): the same test takes `map`,
   `shp`, `name` and `num` for calls of `map_load`, `shp_load`, `file_name`
   and `num_text` (dumps by the scratch script `build/n2/calls1.py`: the

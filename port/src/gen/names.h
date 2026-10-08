@@ -313,11 +313,16 @@
     X(S27FE, pit_del, 0x07E8) \
     X(S27FE, pit_period, 0x0882) \
     X(S2892, num_text, 0x0001) \
+    X(S28D9, screen_clear, 0x000C) \
     X(S28E0, fade_in, 0x0004) \
     X(S28E0, fade_out, 0x002B) \
     X(S2945, retrace_wait, 0x000A) \
     X(S2947, display_wait, 0x0006) \
+    X(S2974, page_flip, 0x0002) \
+    X(S298E, screen_open, 0x000D) \
+    X(S2A10, pages_set, 0x0006) \
     X(S2AFE, pal_level, 0x000C) \
+    X(S2B06, lbm_show, 0x0000) \
     X(S2B81, file_load_size, 0x0004) \
     X(S2B85, file_close, 0x0002) \
     X(S2B8F, file_size, 0x000C) \
@@ -328,7 +333,12 @@
     X(S2C95, clock_seed, 0x000E) \
     X(S2C9A, rand_next, 0x0008) \
     X(S2C9E, ptr_norm, 0x0002) \
+    X(S2CA0, tpwm_unpack, 0x0008) \
     X(S2CBE, mem_alloc, 0x000E) \
+    X(S2CF7, mem_same, 0x0006) \
+    X(S2F39, sfx_load, 0x00FD) \
+    X(S30EF, sfx_data, 0x0242) \
+    X(S30EF, sfx_size, 0x0246) \
     X(S3303, take_picture, 0x0021) \
     X(S3306, move_args, 0x000A) \
     X(S3310, name_dirs, 0x0029) \
@@ -346,9 +356,24 @@
     X(S331F, lib_bum, 0x01A9) \
     X(S331F, lib_exp, 0x01E5) \
     X(S331F, lib_newshop, 0x01F9) \
+    X(S331F, bigunit_name, 0x022D) \
+    X(S331F, bigunit_list, 0x0235) \
+    X(S331F, pict_name, 0x024C) \
+    X(S331F, umap_name, 0x026C) \
+    X(S331F, umap2_name, 0x0275) \
+    X(S331F, music_name, 0x027E) \
+    X(S331F, sfx_name, 0x028A) \
     X(S331F, side_points, 0x02B5) \
+    X(S331F, bigunit_buf, 0x02D7) \
+    X(S331F, bigunit_pics, 0x02DB) \
+    X(S331F, bigunit_ptrs, 0x02DF) \
+    X(S331F, bigunit_dat, 0x02E3) \
     X(S331F, ww1gnds_dat, 0x05A3) \
     X(S331F, unit_dat, 0x09BD) \
+    X(S331F, num_buf, 0x177C) \
+    X(S331F, music_data, 0x179A) \
+    X(S331F, umap_lib, 0x179E) \
+    X(S331F, umap_dat, 0x17A2) \
     X(S331F, map_cur, 0x17AE) \
     X(S331F, map2_ptr, 0x17B2) \
     X(S331F, map_ptr, 0x17B6) \
@@ -394,6 +419,7 @@
     X(S331F, views, 0x4D92) \
     X(S331F, attack_pick, 0x4DA8) \
     X(S37FF, no_fight_pics, 0x0115) \
+    X(S37FF, pics_winter, 0x012F) \
     X(S39B6, kind_worth, 0x0000) \
     X(S39B6, unit_plans2, 0x0132) \
     X(S39B6, unit_plans, 0x09AB) \
@@ -421,7 +447,16 @@
     X(S3AEC, ride_carrier, 0x0004) \
     X(S3AEC, fight_rec_ptr, 0x0008) \
     X(S3AED, ground_bonus, 0x0000) \
+    X(DATA, palette_ptr, 0x00CE) \
+    X(DATA, line_offsets, 0x00F8) \
+    X(DATA, screen_pitch, 0x02F0) \
+    X(DATA, page_size, 0x02F2) \
+    X(DATA, bios_mode_old, 0x0346) \
+    X(DATA, screen_seg, 0x0354) \
+    X(DATA, screen_shown, 0x0356) \
+    X(DATA, palette, 0x04E3) \
     X(DATA, rand_words, 0x0AF1) \
+    X(DATA, crtc_port, 0x0AF9) \
     X(DATA, rand_state, 0x11F6) \
 
 #endif

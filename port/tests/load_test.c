@@ -1,7 +1,7 @@
 /* load_test.c - file_load, map_load, shp_load, file_name, num_text,
  * mem_alloc, battle_setup and battle_begin against the original.
  *
- *     load_test GAMEDIR  (load|lib|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram [...]
+ *     load_test GAMEDIR  (load|lib|pict|scr|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram [...]
  *
  * Each set of six is one call in HL.EXE: the routine, SS:SP (hex) at its
  * entry, AX and DX at its RETF, and dosrun's -ram dumps at both.  The
@@ -24,16 +24,63 @@
  * S066A:0938 to S066A:0EE6 (battle_begin), SS:BP likewise, the work buffer
  * read from the frame; begin_apart says what else is counted apart there.
  * `lib` is one call of lib_load (S0C66:0009) with its five arguments.
+ * `pict` is one of pictures_load (S02E6:2B87); beside each dump the
+ * video memory dosrun's -vram wrote (the same name ending .vram) is
+ * loaded into the VGA (mode 13h made unchained) and compared at the end.
+ * `scr` is one of screen_open (S298E:000D), the video memory likewise;
+ * it returns nothing, so AX is not compared.
  * port/tests/load_test.sh builds this.
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "hl.h"
+#include "vga.h"
 
 #define RAM 0xA0000u
 
 static uint8_t entry[RAM], leave[RAM];
+
+#define VRAM 0x40000u
+static uint8_t vleave[VRAM], vtmp[VRAM];
+
+/* a dump's video memory beside it (.ram made .vram): 1, 0 if none */
+static int load_vram(const char *ram, uint8_t *to)
+{
+    char path[1024];
+    size_t n = strlen(ram);
+    FILE *f;
+
+    if (n < 4 || n + 2 > sizeof path)
+        return 0;
+    memcpy(path, ram, n - 4);
+    strcpy(path + n - 4, ".vram");
+    if (!(f = fopen(path, "rb")))
+        return 0;
+    n = fread(to, 1, VRAM, f);
+    fclose(f);
+    return n == VRAM;
+}
+
+/* the video memory beside an entry's dump into the VGA, unchained */
+static void vram_in(const char *ram)
+{
+    unsigned o, pl;
+
+    if (!load_vram(ram, vtmp))
+        return;
+    vga_set_mode(0x13);
+    vga_outb(0x3C4, 4);
+    vga_outb(0x3C5, 0x06);
+    for (pl = 0; pl < 4; pl++) {
+        vga_outb(0x3C4, 2);
+        vga_outb(0x3C5, (uint8_t)(1 << pl));
+        for (o = 0; o < 0x10000; o++)
+            vga_write((uint16_t)o, vtmp[4 * o + pl]);
+    }
+    vga_outb(0x3C4, 2);
+    vga_outb(0x3C5, 0x0F);
+}
 
 static int load(const char *path, uint8_t *to)
 {
@@ -96,12 +143,24 @@ static int begin_apart(uint32_t a)
     return (a >= data + 0xAF1 && a < data + 0xAF5) || a == data + 0x3D0 || a == data + 0x3FC;
 }
 
+/* In `scr`, besides: bytes of the timer's tables (what is left of a
+ * period, DATA:0D5F to 0D9E, and the words at DATA:0E3F and 0E4B), which
+ * change while the original waits for the retraces; presumably its
+ * interrupt handler writes them (not checked). */
+static int scr_apart(uint32_t a)
+{
+    uint32_t data = (uint32_t)(HL_DATA + HL_BASE) << 4;
+
+    return (a >= data + 0xD5F && a < data + 0xD9F) || a == data + 0xE3F || a == data + 0xE40
+        || a == data + 0xE4B || a == data + 0xE4C;
+}
+
 int main(int argc, char **argv)
 {
     int i, bad = 0, calls = 0, skipped = 0;
 
     if (argc < 8 || (argc - 2) % 6) {
-        fprintf(stderr, "usage: load_test GAMEDIR (load|lib|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: load_test GAMEDIR (load|lib|pict|scr|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     hl_game_dir = argv[1];
@@ -110,8 +169,8 @@ int main(int argc, char **argv)
         int wide = 1;
         unsigned ss, sp, ax, dx, d_stack = 0, d_else = 0, d_beside = 0, d_left = 0, changed = 0, o;
         uint32_t a, lo_stack, hi_stack, kept = ((uint32_t)(HL_S2C45 + HL_BASE) << 4) + 0x494;
-        int left_out = 0;
-        Far to, name, work, got;
+        int left_out = 0, r_pict = 99;
+        Far to, name, work, got = { 0, 0 };
         char text[80];
 
         if (sscanf(argv[i], "%x:%x", &ss, &sp) != 2 || sscanf(argv[i + 1], "%x", &ax) != 1
@@ -182,6 +241,25 @@ int main(int argc, char **argv)
             wide = 0;
             name.seg = name.off = 0;
             left_out = 3;
+        } else if (!strcmp(what, "pict")) {
+            /* pictures_load(place, work, palette buffer) */
+            Far place = to;
+            vram_in(argv[i + 3]);
+            r_pict = pictures_load(&place, name, work);
+            got = place;
+            name.seg = name.off = 0;
+            snprintf(text, sizeof text, "%d", r_pict);
+        } else if (!strcmp(what, "scr")) {
+            /* screen_open(w, h, n, dword size, pages); it returns nothing:
+             * AX and DX are what it leaves */
+            vram_in(argv[i + 3]);
+            screen_open(frw((uint16_t)ss, (uint16_t)(sp + 4)), frw((uint16_t)ss, (uint16_t)(sp + 6)),
+                        frw((uint16_t)ss, (uint16_t)(sp + 10)) | (uint32_t)frw((uint16_t)ss, (uint16_t)(sp + 12)) << 16,
+                        frw((uint16_t)ss, (uint16_t)(sp + 14)));
+            r_pict = 0;
+            got.off = (uint16_t)ax;
+            wide = 0;
+            name.seg = name.off = 0;
         } else if (!strcmp(what, "lib")) {
             /* lib_load(name, place, work, record, order) */
             int32_t r = lib_load(to, name, work, far_at((uint16_t)ss, (uint16_t)(sp + 16)),
@@ -222,7 +300,7 @@ int main(int argc, char **argv)
                 continue;
             if (a >= lo_stack && a < hi_stack)
                 d_stack++;
-            else if (beside(a))
+            else if (beside(a) || (!strcmp(what, "scr") && scr_apart(a)))
                 d_beside++;
             else if (left_out && (mem[a] == entry[a] || a == kept || a == kept + 1))
                 d_left++;
@@ -233,6 +311,15 @@ int main(int argc, char **argv)
                 d_left++;
             else if (d_else++ < 8)
                 printf(" %05X", (unsigned)a);
+        }
+        if (r_pict != 99 && load_vram(argv[i + 5], vleave)) {
+            unsigned vd = 0, pl, o2;
+            for (o2 = 0; o2 < 0x10000; o2++)
+                for (pl = 0; pl < 4; pl++)
+                    if (vga_plane_byte((int)pl, (uint16_t)o2) != vleave[4 * o2 + pl] && vd++ < 4)
+                        printf(" vram %X.%u", o2, pl);
+            printf(" video memory different %u,", vd);
+            d_else += vd;
         }
         if (got.off != ax || (wide && got.seg != dx))
             printf(" returns %04X:%04X, the original %04X:%04X;", got.seg, got.off, dx, ax);

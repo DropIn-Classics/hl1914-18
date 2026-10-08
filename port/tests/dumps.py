@@ -2,10 +2,15 @@
 # map 8, RATIO, when MAP8 is set in the environment) with the side-0 key script
 # (port/tests/keys/); -ram at ROUTINE's entry and at its RETF (the Nth entry and
 # the Nth time its RETF is reached); appends one line to OUTDIR/dumps.log.
-# Never overwrites: refuses when a dump file exists.
+# Never overwrites: refuses when a dump file exists.  With VRAM set in the
+# environment, also -vram (the video memory) beside each -ram.
 import os, re, struct, subprocess, sys
 R={'move_arrive':('S10E1:0AF0','S10E1:0F70',['side','map_off','map_seg']),
    'move_target':('S10E1:0F82','S10E1:1444',['field','side','map_off','map_seg']),
+   'pictures_load':('S02E6:2B87','S02E6:3237',['place_off','place_seg','work_off','work_seg','pal_off','pal_seg']),
+   'screen_open':('S298E:000D','S298E:007B',['w','h','n','size_lo','size_hi','pages']),
+   'page_flip':('S2974:0002','S2974:009A',[]),
+   'pages_set':('S2A10:0006','S2A10:00C2',[]),
    'orders':('S02E6:0E9C','S02E6:19B8',[]),
    'lib_load':('S0C66:0009','S0C66:0246',['name_off','name_seg','place_off','place_seg','work_off','work_seg','rec_off','rec_seg','flag']),
    'file_load':('S2C45:0002','S2C45:011E',['to_off','to_seg','name_off','name_seg','work_off','work_seg']),
@@ -31,7 +36,7 @@ pre=(['-mouse','21','150,73,1','-mouse','21.2','150,73,0','-key','22','r','-key'
 def run(addr,f,n):
     p=os.path.join(out,f)
     if os.path.exists(p): sys.exit('exists: '+p)
-    r=subprocess.run(['python3',kit]+pre+['-break','%s#%s'%(addr,n),'-ram',os.path.abspath(p),'HL.EXE'],capture_output=True,text=True,cwd=out)
+    r=subprocess.run(['python3',kit]+pre+['-break','%s#%s'%(addr,n),'-ram',os.path.abspath(p)]+(['-vram',os.path.abspath(p[:-4]+'.vram')] if os.environ.get('VRAM') else [])+['HL.EXE'],capture_output=True,text=True,cwd=out)
     t=re.search(r'stop (\S+) t=([\d.]+)',r.stdout+r.stderr)
     g=re.search(r'regs (.*)',r.stdout)
     return p,(t.group(1),t.group(2)) if t else ('?','?'),dict(re.findall(r'(\w\w)=([0-9A-F]+)',g.group(1))) if g else {}

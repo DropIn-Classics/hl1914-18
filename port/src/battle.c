@@ -57,9 +57,9 @@ static int start_file(int16_t ext, uint16_t keep, uint16_t rec)
  * one block of memory and the two files that stay at its beginning.
  * Returns 0, or what the original hands its error exit (S0CB6:1842): 1 no
  * memory, 2 a file.
- * Left out: the command line's /a and /b and the sound's start
- * (S2F39:000B, S30EF:1C2D, S2F39:1058; the port is the game with both
- * devices found), S27FE:0013, S27FE:056C, S1571:0426 and S1571:0443 (not read), and of
+ * The sound's start is snd_init with both devices (sound.c; the port is
+ * the game with both found).  Left out: the command line's /a and /b,
+ * dsp_rate(10000) and music_fade (S30EF:1C2D, S2F39:1058), S27FE:0013, S27FE:056C, S1571:0426 and S1571:0443 (not read), and of
  * S1650:0003 all but what it keeps of the keys: the far pointer to the
  * table of keys at S331F:0292, which game_loop compares the key of a pass
  * with, and twelve of its entries at S331F:02C7 (it also loads a file and
@@ -74,7 +74,7 @@ int start_setup(void)
     p = far_at(S_DATA, 0x0096);
     fww(p.seg, p.off, 1);
     fww(p.seg, (uint16_t)(p.off + 2), 0);
-    fww(S_MAIN, 0x0022, 0);
+    fww(S_MAIN, 0x0022, snd_init(3) & 2 ? 0 : 1);
     game_mem.block = mem_alloc(0x445C0);
     if (!(game_mem.block.seg | game_mem.block.off))
         return 1;

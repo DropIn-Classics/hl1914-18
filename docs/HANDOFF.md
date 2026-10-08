@@ -31,6 +31,12 @@ in `src/HL.hints`, but are not translated or fully checked; see the
 `origin/master`, with additional uncommitted changes in `src/HL.hints` and
 `docs/HANDOFF.md`.
 
+On the branch `mac/sound` (2026-10-08) the sound's routines are read whole
+and named, and the effects' part is translated without sound output
+(`port/src/sound.c`; the bullet "The sound" at the end of "`HL.EXE` stage
+1"). It also found a fault in the runner's REP STOS that every earlier
+comparison ran with (said there).
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -3505,6 +3511,104 @@ emulation error (2026-10-02).
   18,000 in frames with code, the largest `S30EF` 4,680 and `CODE` 4,469).
   What is left needs reading: pointers and tables in those frames, and
   whether the launcher's status 7Bh (the last battle won) can be reached.
+- The sound (2026-10-08, Mac, branch `mac/sound`). `S2F39` (the routines
+  the game calls) and the driver's code in `S30EF` (`111F` to `2135`) are
+  read whole from the generated source and named in `src/HL.hints` (the
+  block "The sound" there has the channel and voice records, every
+  routine and the events' meaning; this is the outline).
+  - Two devices, the bits of `snd_devices` (`S30EF:025E`): 1 the AdLib,
+    2 the Sound Blaster. 13 channels: 0 to 7 digital (IFF 8SVX, mixed by
+    the driver into the card's buffer), 8 to 0Bh AdLib effects (ADLX), 0Ch
+    the music (ADLX). The nine OPL voices are shared: the tune has the
+    first ones (its AHDR's byte 0Ah says how many), an effect takes voices
+    from the top down (`adl_used` counts them) and the tune's state for a
+    voice taken is kept in a second copy and put back when the effect
+    ends.
+  - `sfx_play(channel, n, volume, times, step)` (`S2F39:06E3`) plays
+    effect n of the file `sfx_load` loaded: an 8SVX form goes to
+    `dig_play`, an ADLX one to `adl_play`, which only loads it;
+    `snd_pass` (`S2F39:096A`, once a pass of every loop that sounds)
+    starts it (`adl_start`). The timer's routine `adl_tick` (through
+    `pit_add`, period 1843h until a tune or effect sets another: the
+    menu's tune 06A9h, 700 a second) reads the events of the tune and of
+    each playing effect and ends an effect at its event 77h (`adl_stop`).
+  - Who calls `sfx_play`: `game_loop` (the cursor's step: effect 4 for the
+    first side on channel 0Bh, 5 for the second on 9; 100h in
+    `game_state`'s word 4 at the end of a side's part: the effect whose
+    number is `site_taken`, same channels; both only with effects on, 80h
+    in `game_state`), `panel_sound` (4 a figure drawn on the fight's
+    panel, 5 one taken off; channel 8), the menu and its text input
+    (channel 8, volume FFh), `attacks_run`, `event_picture` and
+    `site_picture` (not looked at further). The fight's pictures call
+    `dig_play` themselves (`pics_play`) and `chan_stop`. Volume DCh, once,
+    step 200h everywhere in `game_loop` and the panel.
+  - The music: `music_start(far ADLX, fade, volume)` (`S2F39:0F87`),
+    `music_fade(speed)` (`S2F39:1058`), `music_volume` (`S2F39:1127`); a
+    fade is a second timer routine (`fade_tick`, period 1D1EBh) that
+    steps the volume and takes itself away; `music_fade` with a speed
+    waits in a loop until it has. `game_loop` calls `dsp_rate(10000)`
+    right after `snd_init` (which had set 8000).
+  - Not decoded and without a caller found (bytes in the source):
+    `S2F39:0F2C`, `11AC`, `149B`, `180E`, `1A0B`, `1A30` (what they
+    presumably are is in the hints); `music_restore` (`S2F39:18FE`) is
+    decoded but only reached through a flag nothing found sets.
+  - Quirks read, kept in the port: `adl_play` takes `adl_load`'s FFFFh
+    for success; `adl_start` leaves the lock (`snd_lock`) set when an
+    effect needs more voices than are free, after which `adl_tick` does
+    nothing until something clears it (not seen in a run); `dig_kick`
+    halts the card and mixes anew in every pass while digital channels
+    play (read, not listened to).
+  - **A fault of the runner found** (doskit `tools/run/cpu.c`, `strop`,
+    there since the kit's first commit): its fast path for REP MOVS/STOS
+    adds the count to SI for REP STOS too. `drv_clear` (REP STOSB of 488h
+    bytes) therefore hands `snd_init` SI = 0488h, and `snd_devices` is
+    048Bh in every run of the runner instead of 3. With the two lines
+    changed in a copy of the runner (SI only for MOVS) `snd_init` returns
+    3 and the run's memory hash differs. The game only tests bits 0 and 1
+    and against 0, so nothing else was seen to change; but any routine
+    that keeps a register variable in SI over a REP STOS of 16 or more
+    elements ran differently in the runner than on a PC, and the port was
+    compared against that. Not fixed here (a change to the kit goes into
+    doskit with a test; this branch may not push there): to do in doskit,
+    then all comparisons rerun.
+  - The port (`port/src/sound.c`, port/README.md): `snd_init`,
+    `sfx_play`, `dig_play`, `adl_play`, `adl_load`, `adl_start`,
+    `adl_stop`, `adl_voices_free`, `chan_stop`, `snd_pass`, `adl_tick`
+    with `music_events` and `effect_events`, and the voices' routines of
+    the driver, over the program's memory; called where `game_loop`, the
+    fight's panel, the menu and the start call them. No sound comes out.
+    Compared call by call with the original (304 calls, the driver's
+    variables the same) and by which effects the menu and a battle play
+    (`port/tests/sound_dumps.py`, `sound_test.sh`; port/README.md
+    "Checked" has the numbers and what was not reached). `site_taken`
+    (`S331F:4CAA`) is, besides order 4's mark, the number of the effect
+    the end of a side's part plays when 100h is in word 4 (0 and 1 were
+    seen for certain).
+  - What sound output would need (not done):
+    - AdLib: the registers are already handed over in the original's
+      order (`snd_opl(register, value)`, a hook, unset): an OPL2 (the
+      runtime has `opl.c`) fed from it, mixed into the platform's audio
+      callback. The original waits between a register's number and its
+      value (`delay`); a synthesizer does not need that. The timer's
+      routine must run at the tune's rate on the audio's clock, not on
+      the port's own clock of passes as now (`snd_clock`), or the tune's
+      speed follows the drawing.
+    - Sound Blaster: `dig_mix` translated (two bytes a step for each
+      playing channel at count * step / 100h, signed, times half the
+      volume, summed, divided by the count of channels, plus 7Fh;
+      unsigned 8 bit mono) and called for 400h bytes whenever the output
+      has played a buffer, at the rate `dsp_rate` set (10000 a second
+      from `game_loop`; the DSP's time constant 256 - 1000000/rate, so
+      really 1000000/100 = 10000), resampled to the platform's. The
+      original plays two buffers in turn by DMA channel 1 and the card's
+      interrupt (found among 7, 5, 3, 2; port 210h to 260h); none of that
+      is needed. The channels' end (`dig_count`, `dig_mask`) comes from
+      the mixer, so until it exists a digital channel in the port stays
+      "playing" until `chan_stop` or the next `dig_play`.
+    - The music: `music_start`, `music_fade`, `music_volume` and
+      `fade_tick` translated (short; `music_fade`'s wait becomes time on
+      the port's clock) and called where battle.c, briefing.c, menu.c,
+      loop.c (F2) and orders.c leave them out today.
 
 ## `HL14-18.EXE` stage 1
 
@@ -3788,6 +3892,12 @@ emulation error (2026-10-02).
 
 ## Next
 
+0. The sound (branch `mac/sound`, the bullet "The sound" above): fix the
+   runner's REP STOS in doskit (SI must stay) with a test there and run
+   the comparisons again; then the music (`music_start`, `music_fade`,
+   `music_volume`, `fade_tick`), the calls left out in `orders.c` and
+   `fightpics.c`, `dig_mix`, and the output itself (an OPL2 from
+   `snd_opl`, the mixer's bytes) on the audio's clock.
 1. For `HL14-18.EXE`, keep the remaining C0015 gaps and vector handlers
    unclassified until an incoming call or table target is evidenced. Do not
    repeat ordinary launcher runs for these gaps. The dispatcher and

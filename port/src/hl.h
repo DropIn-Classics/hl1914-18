@@ -129,6 +129,21 @@ int lbm_show(Far place, Far name, Far work);
 int32_t tpwm_unpack(Far from, Far to);
 int lib_read(Far *place, Far file, Far names, Far ptrs, Far work);
 int32_t sfx_load(Far place, Far name, Far work);
+
+/* sound.c */
+extern void (*snd_opl)(uint8_t reg, uint8_t value);
+extern void (*snd_played)(uint16_t ch, uint16_t n, int16_t r);
+uint16_t snd_init(uint16_t mask);
+int16_t sfx_play(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, uint16_t step);
+int16_t dig_play(uint16_t ch, Far p, uint16_t vol, uint16_t times, uint16_t step);
+int16_t adl_play(uint16_t ch, Far p, uint16_t vol, uint16_t times);
+int16_t adl_load(uint16_t ch, Far p, uint16_t times);
+int16_t adl_start(uint16_t ch, uint16_t vol);
+void adl_stop(uint16_t ch);
+int16_t chan_stop(uint16_t ch);
+void snd_pass(void);
+void adl_tick(void);
+void snd_clock(double t);
 int pictures_load(Far *place, Far work, Far pal);
 int libs_start(Far *place);
 

@@ -424,8 +424,10 @@ static void own_to(double t)
         fww(0x40, 0x6C, (uint16_t)b);
         fww(0x40, 0x6E, (uint16_t)(b >> 16));
         tick(now);
+        snd_clock(now);
     }
     now = t;
+    snd_clock(now);
 }
 
 /* one call of the timer's routine */

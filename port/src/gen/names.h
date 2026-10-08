@@ -411,10 +411,68 @@
     X(S2CA0, tpwm_unpack, 0x0008) \
     X(S2CBE, mem_alloc, 0x000E) \
     X(S2CF7, mem_same, 0x0006) \
+    X(S2F39, snd_init, 0x000B) \
+    X(S2F39, snd_end, 0x0092) \
     X(S2F39, sfx_load, 0x00FD) \
+    X(S2F39, dig_play, 0x0177) \
+    X(S2F39, adl_play, 0x0690) \
+    X(S2F39, sfx_play, 0x06E3) \
+    X(S2F39, snd_pass, 0x096A) \
+    X(S2F39, chan_stop, 0x09C9) \
+    X(S2F39, be_long, 0x0A6F) \
+    X(S2F39, adl_load, 0x0AA8) \
+    X(S2F39, adl_start, 0x0CFB) \
+    X(S2F39, music_start, 0x0F87) \
     X(S2F39, music_fade, 0x1058) \
+    X(S2F39, music_volume, 0x1127) \
+    X(S2F39, adl_voices_free, 0x14B9) \
+    X(S2F39, adl_stop, 0x1754) \
+    X(S2F39, music_restore, 0x18FE) \
+    X(S30EF, adl_period, 0x0000) \
+    X(S30EF, snd_busy, 0x0002) \
+    X(S30EF, dig_port, 0x0004) \
+    X(S30EF, dig_int, 0x0006) \
+    X(S30EF, snd_lock, 0x022A) \
+    X(S30EF, snd_ticks, 0x022E) \
     X(S30EF, sfx_data, 0x0242) \
     X(S30EF, sfx_size, 0x0246) \
+    X(S30EF, music_on, 0x024A) \
+    X(S30EF, fade_on, 0x024C) \
+    X(S30EF, music_volume_now, 0x024E) \
+    X(S30EF, snd_devices, 0x025E) \
+    X(S30EF, adl_used, 0x0260) \
+    X(S30EF, dig_count, 0x0262) \
+    X(S30EF, dig_mask, 0x0264) \
+    X(S30EF, snd_channel, 0x0268) \
+    X(S30EF, drv_clear, 0x111F) \
+    X(S30EF, delay_measure, 0x1133) \
+    X(S30EF, delay, 0x11A9) \
+    X(S30EF, opl_write, 0x11E6) \
+    X(S30EF, voice_level, 0x1205) \
+    X(S30EF, fade_tick, 0x12D9) \
+    X(S30EF, fade_stop, 0x1325) \
+    X(S30EF, fade_start, 0x1342) \
+    X(S30EF, voice_instrument, 0x136B) \
+    X(S30EF, voice_off, 0x14A5) \
+    X(S30EF, voice_note, 0x14F7) \
+    X(S30EF, voice_volume, 0x1565) \
+    X(S30EF, music_events, 0x15C7) \
+    X(S30EF, effect_events, 0x175F) \
+    X(S30EF, adl_tick, 0x192D) \
+    X(S30EF, opl_silence, 0x1A2B) \
+    X(S30EF, adl_remove, 0x1A59) \
+    X(S30EF, adl_detect, 0x1A7D) \
+    X(S30EF, dsp_write, 0x1B41) \
+    X(S30EF, dma_start, 0x1B6B) \
+    X(S30EF, dsp_rate, 0x1C2D) \
+    X(S30EF, dig_buffers, 0x1C68) \
+    X(S30EF, dig_mix, 0x1CED) \
+    X(S30EF, dig_irq, 0x1DF8) \
+    X(S30EF, dig_kick, 0x1E8B) \
+    X(S30EF, dig_find, 0x1EF4) \
+    X(S30EF, dig_detect, 0x2050) \
+    X(S30EF, dig_remove, 0x20AD) \
+    X(S30EF, dsp_reset, 0x2108) \
     X(S3303, take_picture, 0x0021) \
     X(S3306, move_args, 0x000A) \
     X(S3310, name_dirs, 0x0029) \
@@ -524,6 +582,8 @@
     X(S3AEC, ride_carrier, 0x0004) \
     X(S3AEC, fight_rec_ptr, 0x0008) \
     X(S3AED, ground_bonus, 0x0000) \
+    X(S3CFE, snd_started, 0x0006) \
+    X(S3CFE, snd_ended, 0x0008) \
     X(DATA, palette_ptr, 0x00CE) \
     X(DATA, line_offsets, 0x00F8) \
     X(DATA, screen_pitch, 0x02F0) \

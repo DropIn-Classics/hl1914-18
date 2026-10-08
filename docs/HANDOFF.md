@@ -2651,6 +2651,34 @@ emulation error (2026-10-02).
       another state and no later round ends. The original's passes are
       longer there (it draws the marks of the move). There is no
       length of a key that is sampled the same whenever it falls.
+    - Why `m48_move`'s round 2 never ends on the own clock (2026-10-08,
+      Mac): not the port's doing, the script's. With the up read alone
+      in four passes the aim goes three fields up (the first of the four
+      passes does not test the record's byte 8) and with the step right
+      onto a field where a unit of the side stands; the two presses of
+      the button there give "NO TRANSPORTER" each instead of the move,
+      and the view stays where it chooses the aim (state 0 with 16h in
+      byte 18h, the fields it can reach still marked). There the
+      script's button and left does not end the half, so the first
+      side's view shows "WAITING FOR MOVEMENT-MODE" from then on and F1
+      ends no round; every later gesture of the script meets the same
+      state. Shown with the original: `m48_aim.keys` is `m48_move` with
+      the up let go 0.3 s after the button and the step right held
+      0.12 s (`make_two.py`'s new `/H`: `2m70/0.3 2R73/0.12`), which the
+      original samples as the port's clock samples `m48_move` (up alone
+      in the passes 672 to 675, tested in the last three; right in 713
+      and 714). The original then stalls the same way (one round's end
+      in 120 s, screenshots at 76 s to 99 s), the port on the original's
+      clock is the same as it at every pass compared, and the port's own
+      play of `m48_move` is the same as the original's of `m48_aim` at
+      72, 76, 84.9, 99.9 and 119.9 s but for what counts passes
+      (`play_test.sh m48_aim at m48_move T...`, new). Lengths between
+      stall too (up let go 0.33 and 0.36 s after: five passes); with
+      0.4 s (six passes) the rounds go on (four ends in 120 s; where the
+      unit went was not looked at). Not looked at: which key leaves the
+      choosing of an aim without a move (the script has none), and what
+      "NO TRANSPORTER" is in the code (presumably `move_target`'s
+      refusal of a field with a unit that carries nothing).
     Not reached with two human sides: a fight (no unit of one side
     came next to the other's), a site entered, a unit built or
     repaired, a carrier, the keys F2 to F9, a battle's end, a map from

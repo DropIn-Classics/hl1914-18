@@ -315,6 +315,20 @@ anything the game needs before the first release.
     every one. On the own clock the same to round 1 (pass 601); the
     move's gesture is then read by other numbers of passes and the
     port's round 2 never ends.
+  - Why it never ends (2026-10-08, macOS): the script, not the port.
+    `m48_aim` (`m48_move` with `2m70/0.3 2R73/0.12`: the lengths the
+    port's clock sampled, given to the original) stalls the original the
+    same way: the aim lands on a unit of the own side, the button gives
+    "NO TRANSPORTER", the view stays in the choosing of an aim and the
+    script's later keys never end that side's half. On the original's
+    clock `m48_aim` is the same at every pass compared (1,566 passes in
+    120 s, 3,132 parts read the same, 11 passes compared). And
+    `sh tests/play_test.sh m48_aim at m48_move 72 76 84.9 99.9 119.9`
+    (new: the port plays another script on its own clock and is compared
+    with the original's run of the tag at the first pass each begins at
+    or after a second): the game's state and the computer's the same at
+    all five, the passes' 3 to 6 bytes apart. Not checked: a time after
+    120 s.
   Not reached: a fight between two human sides, a site, building,
   repairing, the function keys, a battle's end, other maps for two
   players.

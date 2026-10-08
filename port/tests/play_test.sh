@@ -6,6 +6,7 @@
 # passes port/tests/play_dumps.py dumped (build/play/TAG/, ignored).
 #
 #     sh port/tests/play_test.sh [TAG [own|rounds|seeds]]
+#     sh port/tests/play_test.sh TAG at KEYS T...
 #
 # With `own` the port plays on its own clock instead: of the original's
 # log it takes only when the first pass began and the BIOS's count of
@@ -24,6 +25,12 @@
 # its fights' pictures did to the random numbers (-seeds: the number each
 # started them with and its calls of rand_next), and the random numbers
 # are compared too: what still differs then has another cause.
+# With `at KEYS T...` the port plays another key script, tests/keys/KEYS.keys,
+# on its own clock and is compared with the original's run of TAG at the
+# first pass each begins at or after T seconds (the original's needs a dump:
+# PASSES in play_dumps.py's environment, the test names the passes).  For a
+# script TAG that gives the original the keys as the port's clock sampled
+# those of KEYS: the two plays should then be the same but for the passes'.
 # A tag ending in _nopics (dumps made with NOPICS=1) plays the same key
 # script with the fights not shown as pictures (-nopics); one beginning
 # with m0 is map 0, with mNN_ map NN, else map 8.
@@ -41,6 +48,26 @@ KEYS=${TAG%_nopics}
 NOPICS=
 [ "$KEYS" = "$TAG" ] || NOPICS=-nopics
 sh build.sh
+if [ "$2" = at ]; then
+    START=$(awk '$2 == "P" { print $1; exit }' "$D/clock.txt")
+    SEED=$(awk '$2 == "S" { v = $3 } $2 == "P" { print substr(v, 1, length(v) - 4); exit }' "$D/clock.txt")
+    RUN="build/history-line-headless -game $GAME -map $MAP -keys tests/keys/$3.keys -start $START -seed 0x$SEED $NOPICS"
+    shift 3
+    rm -f "$D"/r[0-9][0-9][0-9][0-9].ram
+    : > "$D/rounds.txt"
+    i=1
+    for t in "$@"; do
+        o=$(awk -v t="$t" '$2 == "P" && $1 >= t { print $3; exit }' "$D/clock.txt")
+        [ -f "$D/p$(printf %04d "$o").ram" ] || { echo "no dump of the original's pass $o ($t s): PASSES=$o python3 port/tests/play_dumps.py $KEYS.keys"; exit 1; }
+        # shellcheck disable=SC2086
+        p=$($RUN -until "$t" 2>&1 | awk '/passes played/ { print $1 + 1 }')
+        # shellcheck disable=SC2086
+        $RUN -until "$t" -dump 1 "$D/r0001.ram" -dump "$p" "$D/r$(printf %04d "$p").ram" > /dev/null 2>&1
+        echo "$i $o $p" >> "$D/rounds.txt"
+        i=$((i + 1))
+    done
+    exec python3 tests/play_cmp.py "$TAG" at
+fi
 if [ "$2" = rounds ] || [ "$2" = seeds ]; then
     START=$(awk '$2 == "P" { print $1; exit }' "$D/clock.txt")
     SEED=$(awk '$2 == "S" { v = $3 } $2 == "P" { print substr(v, 1, length(v) - 4); exit }' "$D/clock.txt")

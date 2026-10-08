@@ -1,0 +1,16 @@
+# map 48, two human sides: each ends its half (the button and a
+# direction in the field's menu), then with both waiting the key of entry
+# 1Ah of the table of keys (D) saves and 3 is the saved game's number;
+# later D again and Esc, which leaves without saving
+45.00 space+
+45.30 left+
+45.70 space-
+45.90 left-
+46.50 lalt+
+46.80 x+
+47.20 lalt-
+47.40 x-
+50.00 d
+52.00 3
+58.00 d
+60.00 esc

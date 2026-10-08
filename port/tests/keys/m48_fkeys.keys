@@ -1,0 +1,21 @@
+# map 48, two human sides: the keys of entries 0Dh to 14h of the table of
+# keys, two seconds apart: F2 and F3 twice each (off, on), F4, F5 twice,
+# F6, F8 three times (the mouse's speed), F9 three times, F7 (the mouse
+# off).  F7 once more (the mouse on again) is left out: the original's
+# mouse then gives the first side's record a direction (input_mouse,
+# S27FE:03D4, which the port does not have yet), see port/README.md
+30.00 f2
+32.00 f2
+34.00 f3
+36.00 f3
+38.00 f4
+40.00 f5
+42.00 f5
+44.00 f6
+46.00 f8
+48.00 f8
+50.00 f8
+52.00 f9
+54.00 f9
+56.00 f9
+58.00 f7

@@ -105,6 +105,7 @@ static KeyEv *keys;
 static long keys_n, keys_at;
 static int key_byte;            /* the next byte of keys[keys_at], by K lines */
 static int by_k, in_battle;     /* the log has K lines; its first P is passed */
+static int in_menu;             /* before a battle (play_start): the keys come by their times */
 static ClockLine *clk;
 static long clk_n, clk_at;
 static int have_clock;
@@ -370,7 +371,7 @@ static void tick(double t)
 {
     const char *why;
 
-    if (!by_k)
+    if (!by_k || in_menu)
         keys_to(t);
     why = input_tick();
     if (why && !stopped)
@@ -849,6 +850,28 @@ static void hook(int at, uint16_t side)
             own_tick();
         break;
     }
+    case LOOP_SAVE: {
+        /* save_game waits for its key: on the original's clock the log's
+         * next call of the timer's routine or key, a line a turn (the
+         * wait has no line of its own); on the port's own a call of the
+         * timer's routine */
+        static int idle;
+
+        if (have_clock) {
+            if (clk_at < clk_n && (clk[clk_at].kind == 'T' || clk[clk_at].kind == 'K')) {
+                clock_run(clk_at + 1, 0);
+                clk_at++;
+            } else
+                loop_abort = 1;
+        } else {
+            idle = keys_at >= keys_n ? idle + 1 : 0;
+            if (idle > 400)
+                loop_abort = 1;
+            else
+                own_tick();
+        }
+        break;
+    }
     case LOOP_END: {
         double t = now;
 
@@ -909,9 +932,27 @@ void play_begin(double start)
     loop_reset();
     play_passes = play_misses = 0;
     clk_at = fights_at = 0;
-    key_byte = in_battle = 0;
-    if (start < 0)      /* the clock goes on (play_start, the menu before) */
+    key_byte = in_battle = in_menu = 0;
+    if (start < 0) {
+        /* the clock goes on (play_start, the menu before); with the
+         * original's clock for the battle the number its setup started
+         * the random numbers with, as below */
+        long i, calls = 0;
+
+        for (i = 0; have_clock && i < clk_n && clk[i].kind != 'P'; i++)
+            if (clk[i].kind == 'S')
+                seed_set(clk[i].v);
+            else if (clk[i].kind == 'T')
+                calls++;
+        /* and which of its four calls the timer's routine is at, which
+         * fills the sides' records on every fourth (DATA:0B19): the
+         * original's, not the one the port's menu left */
+        if (have_clock) {
+            fww(S_DATA, 0x0B19, (uint16_t)(calls & 3));
+            clk_at = i;
+        }
         return;
+    }
     now = began = pic_at = start;
     tick_at = start + TICK;
     keys_at = 0;
@@ -940,9 +981,14 @@ double play_now(void)
  * that are passed over; play_begin with a start below 0 then goes on with
  * it.  play_tick is one call of the timer's routine, play_retraces n
  * waits for a retrace, play_fade a fade_in or fade_out, play_idle whether
- * the key script has no key left */
+ * the key script has no key left.  With a clock's file given too the menu
+ * still runs on the port's own clock, its keys by their times, and the
+ * battle behind it on the original's: the log's keys before its first
+ * pass are the menu's and passed over, the key script's that are left are
+ * the battle's. */
 void play_start(double start)
 {
+    in_menu = 1;
     now = began = start;
     tick_at = start + TICK;
     keys_at = 0;

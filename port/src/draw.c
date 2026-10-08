@@ -111,38 +111,69 @@ static void unit_blit(uint16_t x, uint16_t y, uint8_t base, Far src)
     fwb(HL_S2931 + HL_BASE, 0x00F9, clear);
 }
 
+/* one field at x, y of the side's half: its ground by the table of far
+ * pointers S331F:0153 points to, then its unit (below F1h) by the one
+ * S331F:013F points to, picture byte 0Fh + side of its record plus 6
+ * times byte 8, in colours 30h when bit 0 of its word 4 is set, else
+ * 20h; a unit with 2 in word 6 that is not on the side's side
+ * (same_side) is not drawn (as view_draw, field_draw and marks_erase do
+ * it, each written out in the original) */
+static void field_put(uint16_t x, uint16_t y, Far map, uint16_t at, uint16_t side)
+{
+    uint8_t unit;
+    uint16_t rec, pic;
+
+    ground_blit(x, y, pfar(far_add(far_at(S_GAME, 0x0153), 4u * pb(map, at)), 0));
+    unit = pb(map, (uint16_t)(at + 1));
+    if (unit > 0xF0)
+        return;
+    rec = (uint16_t)(A_units + unit * UNIT_SIZE);
+    if ((frw(S_units, (uint16_t)(rec + 6)) & 2) && !same_side(frw(S_units, (uint16_t)(rec + 4)), side))
+        return;
+    pic = (uint16_t)(frb(S_units, (uint16_t)(rec + 0x0F + side)) + frb(S_units, (uint16_t)(rec + 8)) * 6);
+    unit_blit(x, y, frw(S_units, (uint16_t)(rec + 4)) & 1 ? 0x30 : 0x20,
+              pfar(far_add(far_at(S_GAME, 0x013F), 4u * pic), 0));
+}
+
+static Far side_map(uint16_t side)
+{
+    return side ? far_at(S_map2_ptr, A_map2_ptr) : far_at(S_map_ptr, A_map_ptr);
+}
+
 /* S0E56:0D44 (view_draw): the 9 by 7 fields of a side's view from
  * `field` (a byte offset in the map, two bytes a field: ground, unit)
- * on: the second side's half of the screen lies A0h to the right and
- * takes its map from map2_ptr.  Each field's ground by the table of far
- * pointers S331F:0153 points to, then its unit (below F1h) by the one
- * S331F:013F points to, picture byte 0Fh + side of its record plus 6 times byte 8,
- * in colours 30h when bit 0 of its word 4 is set, else 20h; a unit with
- * 2 in word 6 that is not on the side's side (same_side) is not drawn.
- * Odd columns lie 0Ch lower. */
+ * on (field_put): the second side's half of the screen lies A0h to the
+ * right and takes its map from map2_ptr.  Odd columns lie 0Ch lower. */
 void view_draw(uint16_t field, uint16_t side)
 {
-    Far map = side ? far_at(S_map2_ptr, A_map2_ptr) : far_at(S_map_ptr, A_map_ptr);
+    Far map = side_map(side);
     uint16_t row_bytes = (uint16_t)(NW(map_width, 0) << 1), x = side ? 0xA0 : 0, col, row;
 
     for (col = 0; col < 9; col++, x = (uint16_t)(x + 0x10)) {
         uint16_t y = col & 1 ? 0x0C : 0, at = (uint16_t)(field + 2 * col);
 
-        for (row = 0; row < 7; row++, y = (uint16_t)(y + 0x18), at = (uint16_t)(at + row_bytes)) {
-            uint8_t unit;
-            uint16_t rec, pic;
+        for (row = 0; row < 7; row++, y = (uint16_t)(y + 0x18), at = (uint16_t)(at + row_bytes))
+            field_put(x, y, map, at, side);
+    }
+}
 
-            ground_blit(x, y, pfar(far_add(far_at(S_GAME, 0x0153), 4u * pb(map, at)), 0));
-            unit = pb(map, (uint16_t)(at + 1));
-            if (unit > 0xF0)
-                continue;
-            rec = (uint16_t)(A_units + unit * UNIT_SIZE);
-            if ((frw(S_units, (uint16_t)(rec + 6)) & 2) && !same_side(frw(S_units, (uint16_t)(rec + 4)), side))
-                continue;
-            pic = (uint16_t)(frb(S_units, (uint16_t)(rec + 0x0F + side)) + frb(S_units, (uint16_t)(rec + 8)) * 6);
-            unit_blit(x, y, frw(S_units, (uint16_t)(rec + 4)) & 1 ? 0x30 : 0x20,
-                      pfar(far_add(far_at(S_GAME, 0x013F), 4u * pic), 0));
-        }
+/* S0E56:1217 (marks_erase), its drawing: the fields of the side's view
+ * from `field` on (as view_draw's) that have `mask` in field_bits drawn
+ * again by field_put, so without their marks.  The caller (move.c)
+ * clears the mask after it as the original does. */
+void marks_redraw(uint16_t field, uint16_t side, uint8_t mask)
+{
+    Far map = side_map(side);
+    int16_t f = (int16_t)field >> 1, w = (int16_t)NW(map_width, 0);
+    uint16_t at0 = (uint16_t)(f % w + (f / w << 6)), row_bytes = (uint16_t)(w << 1);
+    uint16_t x = side ? 0xA0 : 0, col, row;
+
+    for (col = 0; col < 9; col++, x = (uint16_t)(x + 0x10)) {
+        uint16_t y = col & 1 ? 0x0C : 0, at = (uint16_t)(field + 2 * col), bit = (uint16_t)(at0 + col);
+
+        for (row = 0; row < 7; row++, y = (uint16_t)(y + 0x18), at = (uint16_t)(at + row_bytes), bit = (uint16_t)(bit + 0x40))
+            if (NB(field_bits, bit) & mask)
+                field_put(x, y, map, at, side);
     }
 }
 
@@ -220,6 +251,40 @@ void marks_draw(uint16_t field, uint16_t side)
     }
 }
 
+/* S0E56:145A (field_draw): the field at `field` (a map offset) drawn
+ * again in the side's half when its view is in state 0, 1, 7 or 8 (byte
+ * 17h) and the field lies in its 9 by 7 fields from the view's word 2:
+ * field_put, then its mark by the side's bits of field_bits (55h or
+ * AAh), the table chosen by byte 1Bh of the first side's view (the
+ * original passes S331F:4D92 for both sides). */
+void field_draw(uint16_t side, uint16_t field)
+{
+    Far view, view0;
+    int16_t w = (int16_t)NW(map_width, 0), f = (int16_t)field >> 1, v;
+    int16_t col = f % w, row = f / w, vcol, vrow;
+    uint16_t x, y, bit;
+    uint8_t st, mine = side ? 0xAA : 0x55, b;
+
+    view.seg = view0.seg = S_views;
+    view.off = (uint16_t)(A_views + side * 0x31);
+    view0.off = A_views;
+    v = (int16_t)pw(view, 2) >> 1;
+    vcol = v % w;
+    vrow = v / w;
+    st = pb(view, 0x17);
+    if (st != 0 && st != 1 && st != 8 && st != 7)
+        return;
+    if (col < vcol || vcol + 9 <= col || row < vrow || vrow + 7 <= row)
+        return;
+    x = (uint16_t)(((col - vcol) << 4) + (side ? 0xA0 : 0));
+    y = (uint16_t)(((col - vcol) & 1 ? 0x0C : 0) + (row - vrow) * 0x18);
+    field_put(x, y, side_map(side), field, side);
+    bit = (uint16_t)(col + (row << 6));
+    b = NB(field_bits, bit);
+    if (b & mine)
+        field_mark(x, y, (uint16_t)(b & mine), view0);
+}
+
 /* S28FA:0000: a line of the page drawn in the colour DATA:00DA from x
  * DATA:00DC to DATA:00E0 (made the smaller first, kept so) at y DATA:00DE;
  * the masks of a group's first and last pixels and the pixels left in the
@@ -277,14 +342,178 @@ static void rect_fill(void)
     }
 }
 
-/* S10AF:000F (show_message) with the text -1: the side's status line
- * (x 5 to 94h, y BCh to C4h, the second side's A0h to the right) filled
- * with colour D7h through the record DATA:0092 points to (colour, x0, y0,
- * x1, y1).  A text's drawing (other numbers) is not translated. */
-void message_clear(uint16_t side)
+/* S2A76:0139: a picture at x, y, `bytes` (two pixels each) a row of a
+ * plane, `h` rows, cut to the rectangle DATA:00EC-00F2 (left, top,
+ * right, bottom); the rows cut off above and below kept in its own
+ * segment (F8h and FAh, in source bytes); 0 when nothing is left, with
+ * x, y and h as cut */
+static int pic_clip(uint16_t *x, uint16_t *y, uint16_t bytes, uint16_t *h)
 {
-    Far r = far_at(S_DATA, 0x0092);
-    uint16_t x = side ? 0xA0 : 0;
+    uint16_t cs = HL_S2A76 + HL_BASE;
+    int16_t ax = (int16_t)*x, bx = (int16_t)*y, cx = (int16_t)bytes, dx = (int16_t)*h, di;
+
+    if (ax < (int16_t)DW(0x00EC)) {
+        cx = (int16_t)(cx - ((int16_t)DW(0x00EC) - ax));
+        if (cx <= 0)
+            return 0;
+        ax = (int16_t)DW(0x00EC);
+    } else if (ax > (int16_t)DW(0x00F0))
+        return 0;
+    if (bx < (int16_t)DW(0x00EE)) {
+        dx = (int16_t)(dx - ((int16_t)DW(0x00EE) - bx));
+        if (dx <= 0)
+            return 0;
+        bx = (int16_t)DW(0x00EE);
+    } else if (bx > (int16_t)DW(0x00F2))
+        return 0;
+    di = (int16_t)(dx + bx);
+    if (di > (int16_t)DW(0x00F2)) {
+        dx = (int16_t)(dx - (di - (int16_t)DW(0x00F2)));
+        if (!dx)
+            return 0;
+    }
+    di = (int16_t)(cx + ax);
+    if (di > (int16_t)DW(0x00F0)) {
+        cx = (int16_t)(cx - (di - (int16_t)DW(0x00F0)));
+        if (!cx)
+            return 0;
+    }
+    fww(cs, 0x01FA, (uint16_t)((*h - dx) * frw(cs, 0x01F0)));
+    fww(cs, 0x01F8, (uint16_t)((bx - *y) * frw(cs, 0x01F0)));
+    *x = (uint16_t)ax;
+    *y = (uint16_t)bx;
+    *h = (uint16_t)dx;
+    return 1;
+}
+
+/* S2A76:0002, reached through S2A6B:0008 for a picture of kind 'P'
+ * (byte 9) and y not negative: pixels of 4 bits from byte 12h on, plane
+ * by plane (each a plane's rows of (width + 7) / 8 bytes, the high half
+ * first, the two pixels four apart on the screen), each made `base` +
+ * its 4 bits, byte 8 the transparent one; placed at x, y moved by the
+ * words at 0Ah and 0Ch, width at 0Eh, height at 10h.  Cut to DATA:00EC
+ * when DATA:00E8 is not 0.  Its variables in its own segment (E6h-FCh)
+ * as the original leaves them.  The colour table of S2AE4:000C (the two
+ * words 0 in all calls translated) is not. */
+static void pic_blit(uint16_t x, uint16_t y, Far src, uint8_t base)
+{
+    uint16_t cs = HL_S2A76 + HL_BASE, es = NW(screen_seg, 0), bytes, w, h, di, si;
+    uint8_t mask, skip = (uint8_t)(pb(src, 8) + base);
+    int plane, r, k;
+
+    fww(cs, 0x01FA, 0);
+    fww(cs, 0x01F8, 0);
+    x = (uint16_t)(x + pw(src, 0x0A));
+    y = (uint16_t)(y + pw(src, 0x0C));
+    bytes = (uint16_t)(((pw(src, 0x0E) + 7) & 0xFFFC) >> 3);
+    fww(cs, 0x01F0, bytes);
+    fww(cs, 0x01F2, bytes);
+    fww(cs, 0x01F6, (uint16_t)(NW(screen_pitch, 0) - 2 * bytes));
+    w = (uint16_t)(2 * bytes);
+    h = pw(src, 0x10);
+    if (DW(0x00E8) && !pic_clip(&x, &y, w, &h)) {
+        vga_outw(0x3C4, 0x0F02);
+        return;
+    }
+    fww(cs, 0x01EA, w);
+    fww(cs, 0x01E8, h);
+    /* S2955:0002: the place, and the plane mask 11h rotated by x & 3 */
+    di = screen_at(x, y);
+    mask = (uint8_t)(0x11 << (x & 3));
+    fwb(cs, 0x01FC, mask);
+    si = (uint16_t)(src.off + 0x12 + frw(cs, 0x01F8));
+    for (plane = 0; plane < 4; plane++) {
+        uint16_t d = di;
+        vga_outw(0x3C4, (uint16_t)(frb(cs, 0x01FC) << 8 | 2));
+        for (r = h; r; r--) {
+            fww(cs, 0x01E6, (uint16_t)r);
+            for (k = 0; k < (int)bytes; k++, d = (uint16_t)(d + 2)) {
+                uint8_t c = frb(src.seg, si++), hi = (uint8_t)((c >> 4) + base), lo = (uint8_t)((c & 0x0F) + base);
+                if (hi != skip)
+                    vwb(es, d, hi);
+                if (lo != skip)
+                    vwb(es, (uint16_t)(d + 1), lo);
+            }
+            d = (uint16_t)(d + frw(cs, 0x01F6));
+            si = (uint16_t)(si + frw(cs, 0x01F4));
+        }
+        fww(cs, 0x01E6, 0);
+        mask = frb(cs, 0x01FC);
+        fwb(cs, 0x01FC, (uint8_t)(mask << 1 | mask >> 7));
+        di = (uint16_t)(di + (mask >> 7));
+        si = (uint16_t)(si + frw(cs, 0x01FA));
+    }
+    vga_outw(0x3C4, 0x0F02);
+}
+
+/* S2B45:0006: the text `text` (host bytes, ended by 0) from x, y on with
+ * the font `font` and the table `map` (a word a character: the place of
+ * its picture in the font, FFFFh for a gap half the last picture's width;
+ * 0:0 for either takes DATA:036A / 036E), each picture drawn in colours
+ * `base` on and followed by `gap` pixels; '|' and 0Dh begin a line
+ * `line` lower at the first x.  Only pictures of kind 'P' at y not
+ * negative are drawn (the other ways of S2A6B:0008 are not translated;
+ * the game's font is 'P'). */
+static void text_put(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_t base, const uint8_t *text, Far font, Far map)
+{
+    uint16_t x0 = x, last = 0;
+    uint8_t c;
+
+    if (!font.seg && !font.off)
+        font = far_at(S_DATA, 0x036A);
+    if (!map.seg && !map.off)
+        map = far_at(S_DATA, 0x036E);
+    while ((c = *text++) != 0) {
+        uint16_t o = pw(map, (uint16_t)(2 * c));
+        Far g;
+
+        if (c == '|' || c == 0x0D) {
+            y = (uint16_t)(y + line);
+            x = x0;
+            continue;
+        }
+        if (o == 0xFFFF) {
+            x = (uint16_t)(x + (last >> 1));
+            continue;
+        }
+        g.seg = font.seg;
+        g.off = (uint16_t)(font.off + o);
+        if (pb(g, 9) == 'P' && (int16_t)y >= 0)
+            pic_blit(x, y, g, base);
+        last = pw(g, 0x0E);
+        x = (uint16_t)(x + last + gap);
+    }
+}
+
+/* text_put for a text in the program's memory; its length (CODE:2BD8:
+ * 0 for 0:0) in *len when len is not NULL */
+static void text_draw(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_t base, Far text, uint16_t *len)
+{
+    uint8_t buf[256];
+    uint16_t n = 0;
+    Far none = {0, 0};
+
+    if (text.seg || text.off)
+        while (n < sizeof buf - 1 && (buf[n] = pb(text, n)) != 0)
+            n++;
+    buf[n] = 0;
+    if (len)
+        *len = n;
+    else
+        text_put(x, y, gap, line, base, buf, none, none);
+}
+
+/* S10AF:000F (show_message): the side's status line (x 5 to 94h, y BCh
+ * to C4h, the second side's A0h to the right) filled with colour D7h
+ * through the record DATA:0092 points to (colour, x0, y0, x1, y1); for a
+ * text other than FFFFh then the text of that number (the table of word
+ * offsets S331F:17BA points to) centred at 3Eh less 3/2 of its length,
+ * y BDh, in colours 73h (75h for the second side), and game_state's word
+ * 0 gets 4 (8 for the second side) until timer_fire clears it. */
+void show_message(uint16_t text, uint16_t side)
+{
+    Far r = far_at(S_DATA, 0x0092), t;
+    uint16_t x = side ? 0xA0 : 0, n = 0;
 
     fww(r.seg, (uint16_t)(r.off + 2), (uint16_t)(x + 5));
     fww(r.seg, (uint16_t)(r.off + 4), 0xBC);
@@ -292,4 +521,154 @@ void message_clear(uint16_t side)
     fww(r.seg, (uint16_t)(r.off + 8), 0xC4);
     fww(r.seg, r.off, 0xD7);
     rect_fill();
+    if (text == 0xFFFF)
+        return;
+    t = far_at(S_GAME, 0x17BA);
+    t.off = (uint16_t)(t.off + frw(t.seg, (uint16_t)(t.off + 2 * text)));
+    text_draw(0, 0, 0, 0, 0, t, &n);
+    text_draw((uint16_t)(x + 0x3E - ((int16_t)(n * 3) >> 1)), 0xBD, 0, 6, side ? 0x75 : 0x73, t, NULL);
+    SETW(game_state, 0, NW(game_state, 0) | (side ? 8 : 4));
+}
+
+/* S2AAF:0000, reached through S2A6B:0008 for a picture of kind 'U': 8-bit
+ * pixels from byte 12h on, plane by plane (the plane of x first), each
+ * plane's rows as wide as S2949:0002 makes them (width / 4, one more for
+ * the first width & 3 planes), byte 8 the transparent one, `base` added;
+ * placed as pic_blit places its pictures.  Its variables in its own
+ * segment (332h-35Ah) as the original leaves them.  The cut way
+ * (DATA:00E8 not 0, S2AAF:0107 and 0279) and S2AE4:000C's colour table
+ * are not translated: with DATA:00E8 set nothing is drawn. */
+static void pic_blit_u(uint16_t x, uint16_t y, Far src, uint8_t base)
+{
+    uint16_t cs = HL_S2AAF + HL_BASE, es = NW(screen_seg, 0), w = pw(src, 0x0E), h, di, si, q, i;
+    uint8_t clear = pb(src, 8), mask;
+    int plane;
+
+    fww(cs, 0x0332, NW(screen_pitch, 0));
+    fww(cs, 0x035A, DW(0x00E8));
+    fww(cs, 0x033E, 0x0340);
+    for (q = w >> 2, i = 0; i < 4; i++)
+        fww(cs, (uint16_t)(0x0340 + 2 * i), (uint16_t)(q + (i < (w & 3))));
+    fwb(cs, 0x0358, clear);
+    if (DW(0x00E8))
+        return;
+    x = (uint16_t)(x + pw(src, 0x0A));
+    y = (uint16_t)(y + pw(src, 0x0C));
+    h = pw(src, 0x10);
+    fww(cs, 0x0338, w);
+    fww(cs, 0x0336, h);
+    di = screen_at(x, y);
+    mask = (uint8_t)(0x11 << (x & 3));
+    si = (uint16_t)(src.off + 0x12);
+    for (plane = 0; plane < 4; plane++) {
+        uint16_t n = frw(cs, (uint16_t)(0x0340 + 2 * plane)), r, k, d = di;
+
+        vga_outw(0x3C4, (uint16_t)(mask << 8 | 2));
+        if (n)
+            for (r = 0; r < h; r++, d = (uint16_t)(d + frw(cs, 0x0332)))
+                for (k = 0; k < n; k++) {
+                    uint8_t c = frb(src.seg, si++);
+                    if (c != clear)
+                        vwb(es, (uint16_t)(d + k), (uint8_t)(c + base));
+                }
+        di = (uint16_t)(di + (mask >> 7));
+        mask = (uint8_t)(mask << 1 | mask >> 7);
+    }
+    fwb(cs, 0x0359, mask);
+    vga_outw(0x3C4, 0x0F02);
+}
+
+/* the rectangle x0, y0 to x1, y1 in colour c through the record DATA:0092
+ * points to (rect_fill) */
+static void box_fill(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t c)
+{
+    Far r = far_at(S_DATA, 0x0092);
+
+    fww(r.seg, (uint16_t)(r.off + 2), x0);
+    fww(r.seg, (uint16_t)(r.off + 4), y0);
+    fww(r.seg, (uint16_t)(r.off + 6), x1);
+    fww(r.seg, (uint16_t)(r.off + 8), y1);
+    fww(r.seg, r.off, c);
+    rect_fill();
+}
+
+/* S2532:1A8F and S2532:1BC3: a flag 12 by 6 pixels at x, y of three
+ * stripes in colours c1, c2, c3: lying (two rows each) or standing (four
+ * columns each) */
+static void flag_draw(uint16_t x, uint16_t y, uint16_t c1, uint16_t c2, uint16_t c3, int standing)
+{
+    if (standing) {
+        box_fill(x, y, (uint16_t)(x + 3), (uint16_t)(y + 5), c1);
+        box_fill((uint16_t)(x + 4), y, (uint16_t)(x + 7), (uint16_t)(y + 5), c2);
+        box_fill((uint16_t)(x + 8), y, (uint16_t)(x + 0x0B), (uint16_t)(y + 5), c3);
+    } else {
+        box_fill(x, y, (uint16_t)(x + 0x0B), (uint16_t)(y + 1), c1);
+        box_fill(x, (uint16_t)(y + 2), (uint16_t)(x + 0x0B), (uint16_t)(y + 3), c2);
+        box_fill(x, (uint16_t)(y + 4), (uint16_t)(x + 0x0B), (uint16_t)(y + 5), c3);
+    }
+}
+
+/* S1571:0134: `value` in decimal at x, y in the colour the record of
+ * DATA:0092 holds (its word 0, the last one filled) */
+static void num_draw(int16_t value, uint16_t x, uint16_t y)
+{
+    uint8_t rev[12], txt[12];
+    int n = 0, i;
+    Far none = {0, 0};
+
+    do {
+        rev[n++] = (uint8_t)('0' + value % 10);
+        value = (int16_t)(value / 10);
+    } while (value);
+    for (i = 0; i < n; i++)
+        txt[i] = rev[n - 1 - i];
+    txt[n] = 0;
+    text_put(x, y, 0, 6, (uint8_t)pw(far_at(S_DATA, 0x0092), 0), txt, none, none);
+}
+
+/* S10AF:0131 (unit_panel): the unit's line in the side's status line
+ * (x 5, the second side's A5h): the line cleared (show_message(-1)),
+ * the flag of the unit's side at x + 7Ah (standing in 3Eh, 1, 11h for a
+ * unit with bit 0 of word 4, else lying in 0, 1, 11h), its count at
+ * x + 6 (byte 3 when its kind has 4 in word 09CCh of its record of 45h
+ * bytes, else byte 2), its experience (byte 1, at most 6) as the picture
+ * of that number less 1 from the table S331F:01F3 points to at x + 0Eh,
+ * y BCh (word 18h of the record of DATA:0092 set to C8h meanwhile), and
+ * without 2 in its word 4 its kind's name (S331F:09E9 in the kind's
+ * record) at x + 28h, y BDh in colours 73h (75h). */
+void unit_panel(uint8_t no, uint16_t side)
+{
+    Far unit, r = far_at(S_DATA, 0x0092);
+    uint16_t x = side ? 0xA5 : 5, kind;
+    uint8_t exp;
+
+    unit.seg = S_units;
+    unit.off = (uint16_t)(A_units + no * UNIT_SIZE);
+    kind = (uint16_t)(pb(unit, 8) * 0x45);
+    show_message(0xFFFF, side);
+    if (pw(unit, 4) & 1)
+        flag_draw((uint16_t)(x + 0x7A), 0xBC, 0x3E, 1, 0x11, 1);
+    else
+        flag_draw((uint16_t)(x + 0x7A), 0xBC, 0, 1, 0x11, 0);
+    num_draw(frw(S_GAME, (uint16_t)(0x09CC + kind)) & 4 ? pb(unit, 3) : pb(unit, 2), (uint16_t)(x + 6), 0xBD);
+    exp = pb(unit, 1);
+    if (exp > 6)
+        exp = 6;
+    if (exp) {
+        uint16_t keep = pw(r, 0x18);
+        Far pic = pfar(far_add(far_at(S_GAME, 0x01F3), 4u * (uint8_t)(exp - 1)), 0);
+
+        fww(r.seg, (uint16_t)(r.off + 0x18), 0xC8);
+        if (pb(pic, 9) == 'P')
+            pic_blit((uint16_t)(x + 0x0E), 0xBC, pic, 0);
+        else if (pb(pic, 9) != 'X')
+            pic_blit_u((uint16_t)(x + 0x0E), 0xBC, pic, 0);
+        fww(r.seg, (uint16_t)(r.off + 0x18), keep);
+    }
+    if (!(pw(unit, 4) & 2)) {
+        Far name;
+        name.seg = S_GAME;
+        name.off = (uint16_t)(0x09E9 + kind);
+        text_draw((uint16_t)(x + 0x28), 0xBD, 0, 6, side ? 0x75 : 0x73, name, NULL);
+    }
 }

@@ -150,8 +150,8 @@ void view_copy(Far view, int back)
  * 6) in the side's work buffer on the map at S331F:17AE, the unit is put
  * on that map, gets 100h in unit_flags and its field 40h (80h for the
  * second side) in field_bits, and the view goes to step 16h of state 0
- * with the unit in word 1Eh and pointer 4.  The drawing in between
- * (S0E56:0D44, 0F36, 145A) is left out. */
+ * with the unit in word 1Eh and pointer 4; before that the view is drawn
+ * again with its marks and the cursor's field (S0E56:0D44, 0F36, 145A). */
 void move_out(Far view, uint16_t side)
 {
     Far site = far_at(view.seg, (uint16_t)(view.off + 0x24));
@@ -177,6 +177,9 @@ void move_out(Far view, uint16_t side)
     pww(unit, 4, pw(unit, 4) | 0x100);
     SETB(field_bits, (p % (int16_t)w) + (p / (int16_t)w) * 0x40,
          NB(field_bits, (p % (int16_t)w) + (p / (int16_t)w) * 0x40) | (side ? 0x80 : 0x40));
+    view_draw(pw(view, 2), side);
+    marks_draw(pw(view, 2), side);
+    field_draw(side, pw(view, 0));
     pwb(view, 0x17, 0);
     pwb(view, 0x18, 0x16);
     pwb(view, 0x19, 3);
@@ -231,16 +234,6 @@ uint16_t side_input(Far rec, Far view)
             pwb(view, 0x2B, 2);
     }
     return cx;
-}
-
-/* S10AF:000F (show_message): the text with number `text` in the side's
- * message line; the drawing is left out.  What stays in the game's state:
- * game_state's word 0 gets 4 (8 for the second side) for a text, not for
- * FFFFh (which only takes the line off), until timer_fire clears it. */
-void show_message(uint16_t text, uint16_t side)
-{
-    if (text != 0xFFFF)
-        SETW(game_state, 0, NW(game_state, 0) | (side ? 8 : 4));
 }
 
 /* S0E56:18A3 (depot_places): the ten fields at depot_steps from `field`
@@ -410,7 +403,8 @@ void field_menu(Far view, uint16_t side, uint16_t bits)
             pwb(view, 0x18, 0x16);
             pww(view, 0x1E, mover);
         } else {
-            field_bits_clear(side ? 2 : 1); /* marks_erase, then again */
+            marks_erase(pw(view, 2), side, side ? 2 : 1);
+            field_bits_clear(side ? 2 : 1);
             menu_refuse(0x54, side);
             taken = 1;
             pwb(view, 0x17, 0);

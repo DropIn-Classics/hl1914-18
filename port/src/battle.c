@@ -514,8 +514,8 @@ int battle_begin(void)
         view_draw(NW(views, i * 0x31 + 2), i);
         marks_draw(NW(views, i * 0x31 + 2), i);
     }
-    message_clear(0);
-    message_clear(1);
+    show_message(0xFFFF, 0);
+    show_message(0xFFFF, 1);
     SETW(game_state, 0, NW(game_state, 0) & 0xFFF3);
     rec = far_at(S_DATA, 0xBE);
     fww(rec.seg, (uint16_t)(rec.off + 4), 0);

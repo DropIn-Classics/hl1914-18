@@ -32,8 +32,11 @@
  * video memory dosrun's -vram wrote (the same name ending .vram) is
  * loaded into the VGA (mode 13h made unchained) and compared at the end.
  * `view` is one of view_draw (S0E56:0D44), `marks` one of marks_draw
- * (S0E56:0F36), `msg` one of show_message(-1, side) (S10AF:000F, its
- * RETF at 009B for -1), the video memory likewise,
+ * (S0E56:0F36), `msg` one of show_message(text, side) (S10AF:000F, its
+ * RETF at 009B for -1, at 0130 for a text), `fdraw` one of field_draw
+ * (S0E56:145A, RETF at 1725), `merase` one of marks_erase (S0E56:1217,
+ * RETF at 1459), `panel` one of unit_panel (S10AF:0131, RETF at
+ * S10E1:000E), the video memory likewise,
  * AX and DX not compared (it returns nothing); begin_apart's bytes are
  * counted beside (byte 8 of the input records changed while it ran).
  * `scr` is one of screen_open (S298E:000D), the video memory likewise;
@@ -279,9 +282,34 @@ int main(int argc, char **argv)
             name.seg = name.off = 0;
             snprintf(text, sizeof text, "%d", r_pict);
         } else if (!strcmp(what, "msg")) {
-            /* show_message(-1, side): video memory likewise */
+            /* show_message(text, side): video memory likewise */
             vram_in(argv[i + 3]);
-            message_clear(frw((uint16_t)ss, (uint16_t)(sp + 6)));
+            show_message(frw((uint16_t)ss, (uint16_t)(sp + 4)), frw((uint16_t)ss, (uint16_t)(sp + 6)));
+            r_pict = 0;
+            got.off = (uint16_t)ax;
+            got.seg = (uint16_t)dx;
+            name.seg = name.off = 0;
+        } else if (!strcmp(what, "fdraw")) {
+            /* field_draw(side, field, flag): video memory likewise */
+            vram_in(argv[i + 3]);
+            field_draw(frw((uint16_t)ss, (uint16_t)(sp + 4)), frw((uint16_t)ss, (uint16_t)(sp + 6)));
+            r_pict = 0;
+            got.off = (uint16_t)ax;
+            got.seg = (uint16_t)dx;
+            name.seg = name.off = 0;
+        } else if (!strcmp(what, "panel")) {
+            /* unit_panel(unit, side): video memory likewise */
+            vram_in(argv[i + 3]);
+            unit_panel(frb((uint16_t)ss, (uint16_t)(sp + 4)), frw((uint16_t)ss, (uint16_t)(sp + 6)));
+            r_pict = 0;
+            got.off = (uint16_t)ax;
+            got.seg = (uint16_t)dx;
+            name.seg = name.off = 0;
+        } else if (!strcmp(what, "merase")) {
+            /* marks_erase(field, side, mask): video memory likewise */
+            vram_in(argv[i + 3]);
+            marks_erase(frw((uint16_t)ss, (uint16_t)(sp + 4)), frw((uint16_t)ss, (uint16_t)(sp + 6)),
+                        frb((uint16_t)ss, (uint16_t)(sp + 8)));
             r_pict = 0;
             got.off = (uint16_t)ax;
             got.seg = (uint16_t)dx;
@@ -348,7 +376,9 @@ int main(int argc, char **argv)
             if (a >= lo_stack && a < hi_stack)
                 d_stack++;
             else if (beside(a) || (!strcmp(what, "scr") && scr_apart(a))
-                     || ((!strcmp(what, "view") || !strcmp(what, "marks") || !strcmp(what, "msg")) && begin_apart(a)))
+                     || ((!strcmp(what, "view") || !strcmp(what, "marks") || !strcmp(what, "msg")
+                          || !strcmp(what, "fdraw") || !strcmp(what, "merase") || !strcmp(what, "panel"))
+                         && begin_apart(a)))
                 d_beside++;
             else if (left_out && (mem[a] == entry[a] || a == kept || a == kept + 1))
                 d_left++;

@@ -471,6 +471,51 @@ anything the game needs before the first release.
   `build/n2/scr/regs.c`) the same as the runner's `-vgastate` at that
   break; the DAC black in both. Not covered: the other heights' modes,
   `S2B51:002A`, `page_flip` and `pages_set` called on their own.
+- A unit's panel (2026-10-08, Linux): `unit_panel` (`S10AF:0131`) with
+  `flag_draw` (`S2532:1A8F`, `1BC3`), `num_draw` (`S1571:0134`) and
+  `pic_blit_u` (`S2AAF:0000` without its cutting) in `src/draw.c`; the
+  loop's hover calls it (`src/loop.c`). `text_draw` became `text_put`
+  over host bytes (the number's digits lie on the original's stack) with
+  `text_draw` reading the program's memory. `load_test.sh` takes
+  `panel`. Nine calls (`build/n2/panel/`, `panel_test.args`; m0_hq 1, 20,
+  28, m8_site 1, m8_d5r 30, 285, 294, 296, 300): eight the same in memory
+  and video memory; m0_hq call 28 differs in DATA:03CF and 03D2 only,
+  bytes of the first input record the original's interrupts changed while
+  it ran (presumably, as byte 8 counted beside; not looked at further).
+  Not covered: experience above 0 (the 'U' pictures), a unit with bit 0
+  of word 4 (the standing flag), a unit with 2 in word 4 (no name), the
+  second side's x.
+- A field drawn again, and the marks taken off (2026-10-08, Linux):
+  `field_draw` (`S0E56:145A`) and the drawing of `marks_erase`
+  (`S0E56:1217`, `marks_redraw`) in `src/draw.c`, `marks_erase` itself in
+  `src/move.c`; called by `move_step`, `move_done`, `move_arrive`,
+  `move_out`, `timer_fire` (kind 5), the hover of the loop (`src/loop.c`),
+  `move_aim` and `field_menu` where the original calls them
+  (docs/HANDOFF.md). `load_test.sh` takes `fdraw` and `merase` and now
+  links `move.c`, `range.c` and `side.c`. Dumps (`build/n2/fdraw/`,
+  `fdraw_test.args`): `field_draw` calls 1, 10, 40 of m0_hq and 1, 8 of
+  m8_d5r, `marks_erase` calls 1, 7 of m0_hq and 2 of m8_d5r: all eight
+  the same in memory and video memory (between 0 and 1,024 bytes of
+  video memory written; call 40 wrote none that differ from before).
+  Not compared: the routines that call them, as a whole with the
+  drawing (the state tests run as before, below); a `field_draw` that
+  returns early (state other than 0, 1, 7, 8, or outside the view).
+- A text in a status line (2026-10-08, Linux): `show_message`
+  (`S10AF:000F`) whole in `src/draw.c`, with `text_draw` (`S2B45:0006`),
+  `pic_blit` (`S2A76:0002`, the 'P' way of `S2A6B:0008`) and `pic_clip`
+  (`S2A76:0139`); it replaces `message_clear` and the state-only
+  `show_message` of `src/side.c`, so the loop's calls now draw.
+  `dumps.py` takes `show_message` (RETF at `S10AF:0130`, reached only for
+  a text; the call numbers of entry and RETF counted from a run with
+  `-log` on both). `load_test.sh`'s `msg` passes the text now. Seven
+  calls (`build/n2/msgt/`, `msgt_test.args`): m0_hq calls 3, 4, 30, 900
+  and m8_d5r calls 3 (m8_site), 700, 940, texts 61h, 61h, 4Fh, 63h, 61h,
+  33h, 33h, all for side 1: the same in memory and video memory (the
+  first wrote 155 bytes of video memory). The four `-1` calls of
+  `msg_test.args` give the same as before. Not covered: side 0's colour
+  73h with a text, the cutting (DATA:00E8 was 0 in all seven), line
+  breaks and gap characters, `S2AE4:000C`'s colour table (its two words
+  are 0 in these calls).
 - The drawn views shown (2026-10-08, Linux): `page_copy` (`S28DC:000A`),
   `pal_level` (`S2AFE:000C`), `fade_in` and `fade_out` (`S28E0:0004`,
   `002B`) in `src/screen.c`; `battle_begin` calls `page_flip`,

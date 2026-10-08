@@ -969,3 +969,24 @@ anything the game needs before the first release.
   freed carrier (in `m0_carry` no freed carrier had a unit in its row).
   Not checked: which of the digit's values ('1', '2', '3') the runs had
   besides the '2' and '3' of the difference.
+- A side's part in the passes (2026-10-08, Linux): building, repairing
+  and moving out (`build_unit`, `repair`, `move_out`, `build_list` in
+  `src/side.c`, called by `src/loop.c`) were compared on single calls
+  before; now also in whole runs of `tests/loop_test.sh`, the computer's
+  side played by `computer_turn`. New loop dumps (`tests/loop_dumps.py`):
+  `m8_d5r.keys 345` with `NOPICS=1` (with pictures on, the dumps script
+  refuses the run: `rand_next` called by other code than `rand_range` in
+  pass 2265), `m0_s2c.keys 110` and `m0_hq.keys 260`; each is run as
+  `tests/loop_test.sh $(cat ../build/loop/TAG/loop_test.args)`. The game's
+  state and the computer's the same at every pass compared in all of
+  them and in `m8_site`, `m8_long` and `m0_carry`. Reached (counted with
+  a coverage build of the test): `build_unit` 5 calls in `m8_site`, 8 in
+  `m8_long`, 2 in `m8_d5r_nopics`; `move_out` 41, 48, 36, 4 (`m0_carry`),
+  2 (`m0_hq`) and 1 in `m0_s2c`, that one out of a carrier (the field one
+  less); `repair` with text 50h (`m8_site`), 51h (`m8_d5r_nopics`) and 4Ah
+  (`m0_hq`). The calls were not split between the human and the computer.
+  Not reached: a build list scrolled (word 20h of the view not 0), a
+  carrier's kind built, a build or repair by a human second side, a
+  repair of a unit with lost count and no 4000h in word 6, a move out of
+  a unit with 4 or 10h in word 6, and the computer's own repair step
+  (`step_site_menu`, reached on no map, docs/HANDOFF.md).

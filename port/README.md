@@ -382,6 +382,9 @@ screens):
   second later the same);
 - `play_test.sh m48_attack live`: the window's play and the `-keys` play
   the same in all 3,918 parts and all 34 dumps.
+- Rerun with the runner of doskit 22292c0 (the REP STOS fix), the
+  original's dumps made again: all of the above the same, to the byte
+  counts.
 `play_test.sh m8_d5r` and `m8_site` still the same at every pass,
 `m8_d5r rounds` to round 4 as before. The menu in the headless window by
 keys (map 48's code and START) still reaches the battle. Not done or not

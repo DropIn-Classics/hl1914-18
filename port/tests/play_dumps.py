@@ -6,7 +6,9 @@ battle (port/src/play.c) with.
 
 HL.EXE is run on the runner with a key script of port/tests/keys/
 (default m8_site.keys, map 8 chosen in the menu as loop_dumps.py does; a
-script whose name starts with m0 plays map 0) up to UNTIL emulated seconds
+script whose name starts with m0 plays map 0, one with mNN_, two digits,
+map NN, whose code for the menu is read from the game's CODES.DAT; the
+maps from 48 on are for two human sides) up to UNTIL emulated seconds
 (default 400).  One run logs, with their times:
 
     27FE:008C  the routine the timer calls (72.8 times a second)
@@ -65,6 +67,18 @@ keypath = os.path.join(HERE, 'keys', keys)
 if keys.startswith('m0'):
     pre = ['-mouse', '22', '150,48,1', '-mouse', '22.2', '150,48,0',
            '-mouse', '31', '230,80,1', '-mouse', '31.2', '230,80,0']
+elif re.match(r'm\d\d_', keys):
+    # the menu's CODE row, the map's five letters (the first five bytes of
+    # its ten-byte record in the unpacked CODES.DAT, a letter the byte less
+    # 11h), Enter, START
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import tpwmfiles
+    game = os.environ.get('DOSKIT_GAME') or os.path.join(ROOT, 'game')
+    rec = tpwmfiles.unpack(open(os.path.join(game, 'CODES.DAT'), 'rb').read())[int(keys[1:3]) * 10:][:5]
+    pre = ['-mouse', '21', '150,73,1', '-mouse', '21.2', '150,73,0']
+    for i, b in enumerate(rec):
+        pre += ['-key', str(22 + i * 0.5), chr(b - 0x11 + ord('a'))]
+    pre += ['-key', '25', 'enter', '-mouse', '27', '150,48,1', '-mouse', '27.2', '150,48,0']
 else:
     pre = ['-mouse', '21', '150,73,1', '-mouse', '21.2', '150,73,0', '-key', '22', 'r',
            '-key', '22.5', 'a', '-key', '23', 't', '-key', '23.5', 'i', '-key', '24', 'o',

@@ -289,8 +289,37 @@ anything the game needs before the first release.
   docs/HANDOFF.md); with them given, nothing else parts the plays in
   these runs but the taps and that left. The test with the clock's file says the same
   as before for `m8_site`, `m8_d5r` and `m0_hq`.
+  A human second side (2026-10-08, macOS; docs/HANDOFF.md, "A human
+  second side"). Map 48 is for two players; `tests/keys/make_two.py`
+  writes scripts with keys for both sides (the second's: X, V, D, C and
+  the left Alt), and `play_dumps.py` and `play_test.sh` take the map
+  from a script's name (`mNN_`). Three runs of the original, compared
+  with the port from its own setup:
+  - `m48_two` (`make_two.py 45:400`: both sides end their halves every
+    15 s, F1 twice; 400 s): on the original's clock 5,493 passes, 10,986
+    parts read the same, 53 passes compared (24 rounds' ends), "the
+    inputs, the game's state and the computer's the same at every pass
+    compared"; on the port's own clock (`rounds`) the same in all 24
+    rounds.
+  - `m48_steps` (`45:400 seed=7`: the second side's cursor steps and
+    button with each direction, eight a round from a fixed sequence, and
+    steps of the first side; 400 s): on the original's clock 5,847
+    passes, 11,694 parts, 37 passes compared (16 rounds' ends), the
+    same at every one. On the own clock the same to round 1's end only
+    (its steps are sampled otherwise).
+  - `m48_move` (`2R45 2R46 2u47 2m48.5 2R52 2a54 2a56 1E58 2E60 2f64
+    2f64.8 2m70 2R73 2a75 2a77 1E79 2E81 2f85 2f85.8 95:200`; 200 s):
+    the second side moves a unit in its second round. On the original's
+    clock 2,615 passes, 5,230 parts, 23 passes compared (9 rounds' ends,
+    the order given by pass 930 and carried out by 931), the same at
+    every one. On the own clock the same to round 1 (pass 601); the
+    move's gesture is then read by other numbers of passes and the
+    port's round 2 never ends.
+  Not reached: a fight between two human sides, a site, building,
+  repairing, the function keys, a battle's end, other maps for two
+  players.
   Not checked: a battle played to its end; maps other than 0 and 8; a
-  second human side's keys; a computer first side; a thinking loop ended
+  computer first side; a thinking loop ended
   by a key; a run with the fight pictures switched off; `move_test`'s,
   `view_test`'s, `side_test`'s, `orders_test`'s and `income_test`'s dumps
   that are only on the Linux worker's machine (not rerun here after the

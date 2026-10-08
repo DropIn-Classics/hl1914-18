@@ -2484,9 +2484,9 @@ emulation error (2026-10-02).
     compared by state (`m0_hq` has one, but the port's play had left the
     original before; its length agrees), a site taken after a fight, the
     blasts' turns of a fight without pictures, a fight's pictures ended
-    by a key, a wait ended by the button, a battle's end. Not done: a
-    human second side with a key script for both sides (task 2 of this
-    round; not begun).
+    by a key, a wait ended by the button, a battle's end. A human
+    second side with a key script for both sides followed (the bullet
+    "A human second side" below).
     Not read: `S2AF3:000A`, `S2F39`'s routines called here, the stream of
     the site's picture, `S2532` beyond its frame loop's frame count and
     end, `inputs_release` with its second argument set. Not seen in a
@@ -2582,6 +2582,53 @@ emulation error (2026-10-02).
     `fight_frames` translated; the tick's loss followed; a script whose
     rounds end at the same second in both (F1 only when both computers
     are done), which would take cause (a) away but not the others.
+  - A human second side (2026-10-08, Mac; `port/tests/keys/make_two.py`,
+    `m48_two.keys`, `m48_steps.keys`, `m48_move.keys`;
+    `port/tests/play_dumps.py` and `play_test.sh` play the map a
+    script's name begins with, `mNN_`; port/README.md has the counts).
+    - How the original gets there: the maps 48 to 71 are for two
+      players (byte 6 of the record in `CODES.DAT` is 2), and the menu's
+      CODE row with such a map's five letters and START gives the battle
+      with both sides human, no other choice needed. `play_dumps.py`
+      reads the letters from the player's `CODES.DAT` when it runs; none
+      is in the repository.
+    - The second side's keys, from its table (`DATA:0B2E`, read in a
+      dump): X left, V right, D or F up, C down, the left Alt or the
+      left Ctrl the button. Its view is the right one.
+    - What was seen on map 48 (screenshots and the log): the round's end
+      comes with the first F1 of a pair once both sides have ended
+      their halves with the button and left (24 rounds in the 400 s of
+      `m48_two`, one every 15 s). The second side's first half is its attack half: the
+      button and up on its unit gives "NO ASSAULT TARGETS!", and its
+      button and left there shows "QUIT WITH JOYSTICK BUTTON" in every
+      round of `m48_two` (what state that is was not read; the round
+      ends nevertheless). In its second round the same keys move the
+      unit: the button and up on unit 19h, a step right, the button
+      twice, "UNIT HAS BEEN MOVED"; the order is on the second map from
+      then and the unit on its new field after the round's end (map
+      offsets 2B3h and 2B5h, passes 930 and 931 of `m48_move`).
+    - The port needed no change for it: `battle.c` already makes both
+      sides human for such a map, `input.c` fills both records, and
+      `loop.c` runs `view_step` for either. On the original's clock all
+      three scripts are the same at every pass compared, inputs
+      included. On its own clock `m48_two` (no steps of the cursor) is
+      the same in all 24 rounds; `m48_steps` and `m48_move` leave the
+      original at the first key whose length is sampled (cause 3
+      above): in `m48_move` the up of the move's gesture, let go 0.2 s
+      after the button, is read alone by two passes of the original
+      (672, 673) and four of the port (674 to 677), the step right by
+      one and two; the port's aim is another field, its view stays in
+      another state and no later round ends. The original's passes are
+      longer there (it draws the marks of the move). There is no
+      length of a key that is sampled the same whenever it falls.
+    Not reached with two human sides: a fight (no unit of one side
+    came next to the other's), a site entered, a unit built or
+    repaired, a carrier, the keys F2 to F9, a battle's end, a map from
+    24 to 47 (where `rec_of` exchanges the two records; those maps
+    have a computer's side), the joysticks and the mouse, and what
+    `m48_steps` did beyond moving the cursor and opening what its
+    button opens (its units' records did not change; not looked at
+    which states its views went through).
   - The fights of `attacks_run` (2026-10-07, Linux; `S02E6:0122` to
     `0D48`, `0D63` to `0E9C`, order 1 at `0ED9`, `order_undo`, read and
     translated, `port/src/orders.c` and `move.c`). Learned on the way:

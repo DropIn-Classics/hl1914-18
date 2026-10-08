@@ -97,6 +97,14 @@ millisecond of the virtual device's clock, no offset. Nothing was
 changed in what is played and **nothing was listened to** (the bullet
 "The sound", "The AdLib beside the original's").
 
+On the branch `mac/scores` (2026-10-09) the best scores' screen of a map
+that has scores and a winner's name corrected with the backspace are
+compared with the original, in the headless window too: game state,
+video memory and the scores' file the same, with what the port's own
+clock makes different told apart or met by the keys' times (the bullet
+"The best scores with scores there and the name corrected"). Nothing of
+the port changed. Not run: the SDL window by hand, the sounds.
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -3630,6 +3638,71 @@ emulation error (2026-10-02).
     `-keylog` wrote (`live57`); for the others the keylog differs.
   Not done: HISCORE with scores present, the backspace in the name, the
   SDL window by hand, the sounds.
+- The best scores with scores there and the name corrected (2026-10-09,
+  `mac/scores`, Mac, headless window; port/README.md has the counts).
+  Learned:
+  - The port needed no change. Four new walks of `menu_dumps.py`:
+    `name57` (the winner's name with the backspace, then MISC's HISCORE
+    for the map just won), `twice57` (begun with the scores' file
+    `name57`'s run wrote: HISCORE for map 57 with that score, the battle
+    won again, a second name) and the two as the window played them
+    (`livename57`, `livetwice57`).
+  - A name shorter than five letters keeps the cursor: text_input writes
+    the `]` into the text behind the letters while it is shown, and the
+    five bytes behind the name's first are copied into the scores
+    whatever they are. With Enter pressed while the cursor shows, the
+    file has the `]` as the name's next letter and the best scores show
+    it (`name57`: four letters and `]`, in the original's file and the
+    port's). With the cursor away it has a 0 there (`twice57`, three
+    letters). A name of five letters was not run this way.
+  - The cursor changes every 17th pass of text_input (the count above
+    0Fh), and a pass is a retrace in the original (0.014268 s between
+    most of the 784 passes logged at `S167A:35C6`; a pass that takes a
+    key is longer). The port's passes on its own clock are others: the
+    code's typing took 272 passes in the original and 280 in the port,
+    and the port asks for the name earlier (76.26 s against 77.16 s in
+    `name57`). So whether the `]` is in the name, and which of the two
+    pages has the pointer afterwards, depends on both counts. `name57`'s
+    Enter is at 84.825 s for that: 535 passes of the name's typing in
+    the original and 601 in the port, 31 and 35 changes of the cursor,
+    and 807 and 881 passes with the code's, both odd. The page's side
+    of it holds for a few milliseconds only (at 84.820 the original had
+    806). `twice57`'s Enter at 91 s: 333 and 402 passes, 19 and 23
+    changes; 605 and 682 with the code's, so its pages are exchanged in
+    the menu afterwards. `menu_cmp.py` now tells that apart: each page
+    is then compared with the other program's other page.
+    The port's counts were read with a print put into text_input for
+    the measuring and taken out again (not committed); `name57`'s were
+    counted before origin/master aea5a2e and 4dfe673 were merged, and
+    not again afterwards (the comparisons were).
+  - The backspace with nothing typed changes nothing, a sixth letter is
+    not taken; the text and the screen at text_input's end are the same
+    as the original's after both.
+  - A second score equal to the first (the same battle won twice, A0h)
+    goes into the file's second place; the file and the screen are the
+    same in both. Which of the two the screen shows first was not
+    looked at.
+  - A matter of `play.c`'s own clock, not changed here: with the
+    battle's keys of `m57_win` moved by 9.00 s (START 9 s later than
+    `end57`'s) the port's second wait at the battle's end was over
+    0.057 s after it began, the script's Space still being held from the
+    first, where the original waited for the next Space 5 s later. Of 16
+    shifts tried in the port 6 waited as the original (9 s less 0.06,
+    plus 0.03 to 0.05, 0.08, 0.10). Presumably it is whether the timer's
+    routine had filled the side's button again when the wait began; the
+    original's code was not read for it. In the original only 9.00 and
+    9.04 were run, both waited. `twice57` has 9.04.
+  - With the same count of passes in both (`twice57`: 349) the first
+    view's repeat counter (`S331F:4DBE`) still differs by 1 after the
+    battle; `menu_cmp.py` now tells it apart for every walk with a
+    battle played to its end, not only where the counts differ.
+  - `menu_test.sh live` is meaningful for `livename57` and `livetwice57`
+    (their scripts are the window's `-keylog`), not for `name57` and
+    `twice57`.
+  Not done: four scores with the lowest replaced, a score not above the
+  lowest (no name asked for), a score outside 0 to 7EF4h in a file, the
+  screens between the name's keys (only text_input's beginning and end
+  are dumped), the SDL window by hand, the sounds; run on macOS only.
 - The computer's attack as the second side in the window (2026-10-09,
   `debian/window10`, Linux, headless window; port/README.md has the
   counts). Learned:

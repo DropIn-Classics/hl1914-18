@@ -213,6 +213,13 @@ extern int loop_replay;
  * called; it has returned (SideIn's `seeded` and `seed` are read next) */
 enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT };
 extern void (*loop_hook)(int at, uint16_t side);
+/* where orders_hook is called in attacks_run, for the time the original
+ * spends there showing what the port does not draw: a fight is about to
+ * be worked out (n: its pictures are on); a turn of the blasts' loop of a
+ * fight without pictures; a fight is over (n: pictures); a site is taken
+ * (n: a fight came before in this attacks_run) */
+enum { ORDERS_FIGHT, ORDERS_BLAST, ORDERS_FOUGHT, ORDERS_TAKEN };
+extern void (*orders_hook)(int at, int n);
 void timer_fire(uint16_t kind, uint16_t timer);
 const char *loop_pass(const SideIn in[2]);
 void loop_reset(void);
@@ -228,6 +235,7 @@ const char *input_tick(void);
 const char *play_keys(const char *path);
 const char *play_clock(const char *path);
 void play_inputs(const char *path);
+void play_rounds(const char *path);
 void play_bios(uint32_t ticks);
 void play_begin(double start);
 void play_sync(void);

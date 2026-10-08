@@ -993,14 +993,20 @@ name S331F:4CA2 map_height
 ; side whose half it is (map_ptr or map2_ptr); used by moving out (not
 ; checked beyond that).
 name S331F:17AE map_cur
-; A word order 4 sets to 1, presumably read by the round's end that
-; follows (not checked).
+; A word order 4 sets to 1. At a round's end game_loop sets it first: 1
+; when the side whose attacks are run (side 0 with 2 in attack_pick, else
+; side 1) has attackers (byte 15h of its record in sides), else 0. With 0
+; the screen goes grey around attacks_run (fade_grey, fade_back); with 1
+; and fight pictures on it goes dark before (fade_out) and comes back
+; after (fade_in) unless take_picture is set. So a site taken in a round
+; without fights leaves it 1 and game_loop's fade_back out: order 4 has
+; done it already.
 name S331F:4CAA site_taken
 ; The count of the depots built: the next record of sites_100 a depot
 ; gets (orders 0Bh and 0Dh stop at 0Ah).
 name S331F:4CAE depot_count
-; A byte set to 1 before the picture of a site taken (what reads it was
-; not looked at).
+; A byte set to 1 before the picture of a site taken; game_loop clears it
+; before attacks_run and leaves its fade_in out after it when it is set.
 name S3303:0021 take_picture
 
 ; map_load (read, not stepped in a run): loads the map file with
@@ -1281,7 +1287,12 @@ name S331F:01F9 lib_newshop
 name S10AF:0131 unit_panel
 ; fight_panel(fight record, pictures): draws the fight's panel; with
 ; pictures 0 it calls fight_losses itself (fight_show does when they are
-; on). Sets fight_rec_ptr. Read, not stepped.
+; on). Sets fight_rec_ptr. Read, not stepped. Its time (read from
+; S131D:1AB5 to 1F0D and counted in runs): with pictures a fade_in first
+; (S131D:1AC8; game_loop or the fight before left the screen dark), then the marks on the
+; map in six steps, each drawn and followed by wait_frames(6), then
+; wait_frames(0Ch); with pictures wait_input(96h) and fade_out, without
+; them the six steps back with wait_frames(6) each and wait_input(46h).
 name S131D:178D fight_panel
 ; Set when the fights are not shown as pictures: then fight_panel works
 ; the losses out and attacks_run counts the blasts down on the map itself
@@ -2441,7 +2452,62 @@ name S1650:0003 start_setup
 ; fade_back(far palette): the way back after attacks_run, 40h and 20h
 ; steps. Together 192 retraces, 2.74 s: what a round's end without fights
 ; lasts in the runs (pass 291 of m8_site: 96 calls of retrace_wait before
-; attacks_run and 96 after it). The other branch (site_taken 1) calls
-; S28E0:002B and S28E0:0004, 64 steps of S2AFE:000C each (not read).
+; attacks_run and 96 after it). The other branch (site_taken 1, see
+; there) calls fade_out and fade_in when fight pictures are on.
 name S0E56:21D8 fade_grey
 name S0E56:1F91 fade_back
+; pal_level(level, far palette): sets the screen's 256 colours to the
+; palette's (300h bytes of 0 to 255) times level / 100h, a quarter of it
+; to the port 3C9h. After each colour's first two bytes it waits, with
+; interrupts off, for the next beginning of a horizontal blank (bit 0 of
+; the port 3DAh clear, then set): a call lasts 256 scan lines, 8.1 ms in
+; the runner (449 lines a retrace; its bit pulses in the vertical blank
+; too, on a real screen presumably longer: not checked), and the timer's
+; interrupt is held back for that long.
+name S2AFE:000C pal_level
+; fade_in: pal_level with the levels 0, 4, ... FCh and the palette at
+; DATA:04E3 (64 calls, 0.52 s in the runs); fade_out: the levels FFh,
+; FBh, ... 3. Both read and write nothing else. Besides the round's end
+; they are called by the fight's panel, the pictures of events (S1A39)
+; and the menus (S1650, S167A).
+name S28E0:0004 fade_in
+name S28E0:002B fade_out
+; inputs_release(1, wait): clears the key's word 4 (behind DATA:00BE),
+; byte 4 of both sides' input records (DATA:00A6, 00B6) and the words 30h
+; and 34h behind DATA:00C2 (presumably the mouse's buttons) and waits
+; wait_frames(5), again as long as one of them was set since: at least
+; twice. With `wait` not 0 it then waits until one is set (that part was
+; not read to its end). Called with 0 at the beginning of event_picture.
+name S167A:2F83 inputs_release
+; event_picture(far, far, kind, ...): the picture shown for an event.
+; After inputs_release it goes by kind: C8h to D0h through the table at
+; S1A39:02B3, others to S1A39:059D twice (not read). CAh and CBh, the
+; site taken by the first or the second side (attacks_run's order 4),
+; both go to site_picture, with 0 or A0h as its first argument.
+name S1A39:0001 event_picture
+; site_picture: loads its files (S1A39:034C with 3 and the names at
+; S3812:086C; not read), starts a sound (S2F39:0F87, not read), then
+; shows the frames of the stream at S3812:0888 until S2982:0002 returns
+; FFFF:FFFF for the next one; a frame lasts until the timer's count
+; (DATA:0308, set to 0 before it) is 6, tested after each retrace_wait.
+; Then wait_frames(C8h) and S2F39:1058(14h) (not read). How many frames
+; the stream has was not read: the frames lasted 1.84 s in the one run
+; with a site taken (m0_hq), some 22 of them. It reads no input.
+name S1A39:1906 site_picture
+; fight_pictures: the fight shown as pictures (called by fight_show with
+; the counts before and after). Keeps its arguments in S3AEE, calls
+; clock_seed(0), loads its file (S2532:0357) and sets up (0.53 s in the
+; runs), clears the key's word 4 (S2532:0131) and runs fight_frames;
+; then pal_level from the level reached down to 0 in steps of 4 and
+; S2F39:09C9 for eight channels (presumably the sound's; not read).
+name S2532:0008 fight_pictures
+; fight_frames: the frames 1 to 2EDh (the count at S3AEE:0680). A frame
+; below 40h first sets the colours (pal_level, level 4 * frame + 3: the
+; picture comes up); then the figures' moves are worked out, and at the
+; frame's end the key's word 4 is tested: not 0 ends the pictures at once
+; (a key, not a side's button). The screen is drawn and shown
+; (S2AF3:000A, not read) in every second frame at least. In the runs the
+; 749 frames lasted 13.58 and 13.71 s (18 ms a frame; the drawing's time,
+; not counted). The calls of rand_next come from S2532:17D1 (not read
+; further, see HANDOFF).
+name S2532:0CAA fight_frames

@@ -32,6 +32,9 @@
 #define A_depot (0x4C97u - 0x4C7Au)
 /* S331F:4CAE depot_count, the next record of sites_100: names.h */
 
+void (*orders_hook)(int at, int n);
+static int fought;      /* a fight was shown in this attacks_run */
+
 static Far unit_at(uint8_t unit)
 {
     Far p;
@@ -191,6 +194,8 @@ static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, ui
 
     SETW(game_state, 0, NW(game_state, 0) | 0x1000);
     fww(S_site_taken, A_site_taken, 1);
+    if (orders_hook)
+        orders_hook(ORDERS_TAKEN, fought);
     view_to_field(a, field);
     /* the site's field is marked with 30h while the view is drawn and
      * the mark taken off again */
@@ -463,6 +468,8 @@ static void blasts_run(Far map)
     do {
         uint16_t i;
 
+        if (orders_hook)
+            orders_hook(ORDERS_BLAST, 0);
         active = 0;
         for (i = 0; i < 4; i++) {
             uint16_t b = (uint16_t)(i * BLAST_SIZE);
@@ -566,6 +573,9 @@ static void fights_run(uint16_t a, uint16_t m, Far map)
          * fight_show also keeps the counts before and after) */
         fww(S_fight_rec_ptr, A_fight_rec_ptr, A_fight_rec);
         fww(S_fight_rec_ptr, (uint16_t)(A_fight_rec_ptr + 2), S_fight_rec);
+        if (orders_hook)
+            orders_hook(ORDERS_FIGHT, pictures);
+        fought = 1;     /* [BP-0Eh], S02E6:08F5 */
         if (pictures) {
             fwb(S_fight_rec_ptr, 0x0F, NB(unit_count, u * UNIT_SIZE));
             fwb(S_fight_rec_ptr, 0x0E, NB(unit_count, t * UNIT_SIZE));
@@ -603,6 +613,8 @@ static void fights_run(uint16_t a, uint16_t m, Far map)
         fww(S_GAME, A_fight_wait, 4);
         if (!pictures && destroyed)
             blasts_run(map);
+        if (orders_hook)
+            orders_hook(ORDERS_FOUGHT, pictures);
     }
 }
 
@@ -640,6 +652,7 @@ uint8_t attacks_run(void)
     uint16_t a, m, u, c0 = 0, c1 = 0;
     Far map, other, v0, v1;
 
+    fought = 0;
     field_bits_clear(0xFF);
     show_message(0xFFFF, 0);
     show_message(0xFFFF, 1);

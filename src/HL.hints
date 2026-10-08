@@ -982,18 +982,35 @@ name S2B87:000C file_read
 ; joy_setup(): clears the words that say which joysticks are there
 ; (DATA:0384, 0386), their bits (03B4) and ranges, writes the game port
 ; (201h), waits two retraces and reads it: a stick whose axes' bits (3,
-; 0Ch) are 0 is there (FFFFh in its word) and measured by S2BAD:0006 (not
-; read); DATA:03B6 gets the largest range. Called at the start and by
-; game_loop for F5 and F6. Translated for a machine without a game port
-; (port/src/loop.c): on the runner the port reads FFh, no stick.
+; 0Ch) are 0 is there (FFFFh in its word) and measured by joy_read where
+; it stands: that is its middle, the range (0398, 039A; 03A8, 03AA) twice
+; it, the edges (039C to 03A2; 03AC to 03B2) the middle less and plus half
+; of it; the second stick after two more retraces. DATA:03B6 is FFFFh
+; meanwhile and gets the largest range, 0 without a stick. Called at the
+; start (input_install) and by game_loop for F5 and F6. Translated for a
+; machine without a game port in port/src/loop.c and whole in
+; port/src/joy.c (joy_measure); compared with sticks at the runner's game
+; port (port/tests/options_test.sh).
 name S2B9B:000A joy_setup
+; joy_read(): writes the game port and reads it: a button of the first
+; stick held (bits 4, 5 clear) gives FFFFh in DATA:038C, of the second
+; (bits 6, 7) in 0392. Then, interrupts off, the port is read up to
+; [03B6] times until every axis bit of the sticks that are there (03B4)
+; has fallen, one axis a read (the lowest bit first); the count at which
+; an axis fell goes to 0388 (first X), 038A (first Y), 038E, 0390 (the
+; second's), [03B6] for one that did not fall. Called by joy_setup and by
+; input_tick on every fourth call while a stick is wanted (03B8, 03BA).
+; Translated (port/src/joy.c) and compared as joy_setup.
+name S2BAD:0006 joy_read
 ; game_loop's keys F2 to F9 (S066A:14BA to 1B17, the entries 0Dh to 14h of
 ; the table of keys, tested in each side's part): read, translated
 ; (setting_keys in port/src/loop.c, what each does is listed there) and
 ; compared (port/tests/fkeys_test.sh). The words F5 and F6 switch are 34h
 ; and 36h of the record DATA:009A points to, which is DATA:0384: so
 ; DATA:03B8 and 03BA, the words the timer's routine tests with 0384 and
-; 0386 before it reads a stick.
+; 0386 before it reads a stick. Both are FFFFh from the program's start
+; (seen in every first dump): the sticks are wanted until F5 or F6 says
+; otherwise.
 
 ; First instruction starts observed outside decoded code in runs of 1800 s
 ; with a mode change every few seconds (rounds 4 and 5 reached).
@@ -2776,11 +2793,12 @@ name S3AE8:000E script_gestures
 
 ; The interrupts' segment S27FE (read 2026-10-08 on the Mac; input_tick,
 ; input_side0/1 and key_irq are translated in port/src/input.c and
-; compared through port/tests/play_test.sh, the rest is read only;
+; compared through port/tests/play_test.sh, input_mouse and the sticks'
+; part through port/tests/options_test.sh, the rest is read only;
 ; docs/HANDOFF.md, "The port's program plays a battle by itself" and
 ; "The port's own clock").
 ; input_install: pit_install, then input_tick is given to the timer with
-; the period 3FFFh (pit_add), S2B9B:000A is called (not read), and
+; the period 3FFFh (pit_add), joy_setup is called, and
 ; interrupt 24h is set to crit_error, the old one kept at S27FE:000E.
 name S27FE:0013 input_install
 ; input_remove: interrupt 24h back, then pit_remove.
@@ -2793,8 +2811,14 @@ name S27FE:0060 input_remove
 name S27FE:008C input_tick
 ; input_side0, input_side1 (SI the five bytes found now, DI those of the
 ; call before, BX the counts of holds and gaps, BP the side's record):
-; with the side's joystick switched on the directions and the button come
-; from it, else from the side's table of keys (input_keys).
+; with the side's joystick wanted (03B8, 03BA) and there (0384, 0386) the
+; directions come from what joy_read measured against the stick's edges
+; (at or below the first left or up, at or above the second right or
+; down; each begins the opposite one's count of holds again) and the
+; button from its word, and input_record follows; when the stick gives
+; nothing at all, and without one, the side's table of keys (input_keys).
+; Translated (side_rec in port/src/input.c) and compared
+; (port/tests/options_test.sh).
 name S27FE:0175 input_side0
 name S27FE:020E input_side1
 ; input_keys (AX the table of keys, seven bytes a key): the bytes of every
@@ -2810,7 +2834,8 @@ name S27FE:029E input_keys
 name S27FE:0320 input_record
 ; input_mouse: the mouse's part of a record: its distance from the middle
 ; (A0h, 64h) beyond the word at DATA:0420 gives a direction, the word at
-; DATA:0444 the button. Read, not translated, not seen in a run.
+; DATA:0444 the button. Translated (port/src/input.c) and compared with a
+; scripted mouse, F7 and F8 (port/tests/options_test.sh m48_mouse).
 name S27FE:03D4 input_mouse
 ; mouse_center: puts the mouse back to the middle (INT 33h, 4) unless a
 ; button is held.

@@ -1,0 +1,58 @@
+# the sticks for m48_joy.keys ("T N,X,Y,B": stick N with one-shots of X
+# and Y microseconds and the buttons B, 1 the first and 2 the second;
+# "T N,off" takes it away).  570 is a stick's middle here.
+# the first stick, there when F5 looks for it at 32 and 34; its left
+# before that is not seen
+31.00 0,100,570,0
+31.60 0,570,570,0
+# left, right, up, down, right and down at once
+35.00 0,100,570,0
+35.60 0,570,570,0
+36.00 0,1100,570,0
+36.60 0,570,570,0
+37.00 0,570,100,0
+37.60 0,570,570,0
+38.00 0,570,1100,0
+38.60 0,570,570,0
+39.00 0,1100,1100,0
+39.60 0,570,570,0
+# its first button, its second, the first twice in a row
+40.00 0,570,570,1
+40.30 0,570,570,0
+41.00 0,570,570,2
+41.30 0,570,570,0
+42.00 0,570,570,1
+42.10 0,570,570,0
+42.20 0,570,570,1
+42.30 0,570,570,0
+# just inside the left edge (half the middle), then just outside
+43.00 0,300,570,0
+43.50 0,270,570,0
+43.80 0,570,570,0
+# the second stick, there when F6 looks for it at 44.5 and 45.5
+44.00 1,600,500,0
+46.00 1,100,500,0
+46.60 1,600,500,0
+47.00 1,600,1000,1
+47.60 1,600,500,0
+# both at once
+48.00 0,1100,570,0
+48.00 1,600,100,0
+48.60 0,570,570,0
+48.60 1,600,500,0
+# the first side's stick not wanted from 52: it gives nothing
+53.00 0,100,570,0
+53.60 0,570,570,0
+# the first stick gone when F5 looks at 57 (wanted again, not there: the
+# keys); the second held left while F6 measures it at 59, back to its
+# middle, left again, and gone while wanted
+56.00 0,off
+58.00 1,100,500,0
+60.00 1,600,500,0
+61.00 1,100,500,0
+61.50 1,600,500,0
+# (not at 62.00: that falls into a read of the original's timer routine,
+# 0.46 ms after its call at 61.99954 while it still polls the port, so the
+# original loses the stick in the middle of a read; the port's script
+# changes the sticks between two calls)
+62.10 1,off

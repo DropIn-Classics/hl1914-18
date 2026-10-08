@@ -401,6 +401,7 @@
     X(S2B87, file_read, 0x000C) \
     X(S2B8F, file_size, 0x000C) \
     X(S2B9B, joy_setup, 0x000A) \
+    X(S2BAD, joy_read, 0x0006) \
     X(S2BB9, file_save, 0x000A) \
     X(S2BC5, file_write, 0x0008) \
     X(S2BCD, mouse_open, 0x0008) \

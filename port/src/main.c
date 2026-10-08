@@ -651,6 +651,7 @@ static int play_game(unsigned long passes, double start, double until, int clock
     if (!passes)
         passes = 1000000;
     play_begin(start);
+    joy_battle(start < 0);
     fight_sounds_wire();
     dumps_ok = 1;
     if (nopics)
@@ -826,6 +827,14 @@ int main(int argc, char **argv)
                 return 1;
             }
         }
+        else if (!strcmp(argv[i], "-joys") && i + 1 < argc) {
+            const char *why = joy_script(argv[++i]);
+
+            if (why) {
+                fprintf(stderr, "%s\n", why);
+                return 1;
+            }
+        }
         else if (!strcmp(argv[i], "-rounds") && i + 1 < argc)
             play_rounds(argv[++i]);
         else if (!strcmp(argv[i], "-ends") && i + 1 < argc)
@@ -906,6 +915,9 @@ int main(int argc, char **argv)
         why = play_keys(keys);
     if (!why && clock_file)
         why = play_clock(clock_file);
+    /* also without a sticks' script: joy_measure waits by these times */
+    if (!why && clock_file)
+        why = joy_clock(clock_file);
     if (!why && seeds_file)
         why = play_seeds(seeds_file);
     if (why) {

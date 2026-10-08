@@ -106,7 +106,9 @@ Then the program plays a battle by itself, without drawing it
 with a key script as the human's input (`-keys FILE`, the format of
 `tests/keys`), through translations of the original's keyboard interrupt
 and of the routine its timer calls, which fill the sides' input records
-(`key_irq`, `input_tick`; the joysticks and the mouse are left out). The
+(`key_irq`, `input_tick`; the joysticks and the mouse were left out
+then: the mouse came with the window, the joysticks on 2026-10-09, see
+below). The
 port's own clock calls that routine 72.8 times a second, lets a pass
 last as many calls as the original waits for at its end and a round's
 end as long as the original's: the retraces and scan lines its waits
@@ -282,6 +284,32 @@ music's paragraph below; no sound comes out), F4 a text with two numbers, F5 and
 port in the port: the word is switched and no stick found), F7 the mouse
 off and on, F8 its speed in three steps, F9 the three settings of the
 fights' pictures. The play no longer stops at them.
+
+2026-10-09 (`mac/options`), the joysticks (`src/joy.c`, `src/input.c`):
+`joy_read` (`S2BAD:0006`: the sticks' buttons, and each axis as the
+number of reads of the game port until its bit falls), `joy_setup`
+(`S2B9B:000A`: which sticks are there, each one's middle where it
+stands, its range and edges; `joy_measure` in the port) and the sticks'
+part of the sides' input records (`S27FE:01AC`, `0232`: directions by
+the edges and the button, before the keys and the mouse, which are asked
+only when the stick gives nothing). The timer's routine reads the sticks
+on every fourth call while one is wanted, as the original. The game port
+is the port's own, made like the runner's: a stick is the microseconds
+its two one-shots stay high after a write (`joy_stick`), and the reads
+are counted on a clock of the original's instructions at the runner's 6
+million a second, so a stick measures what it does in a run of the
+original there. **This is a changeable choice of machine, not the
+game's**: a faster or slower PC counts other numbers for the same stick.
+Sticks come from a script only (`-joys FILE`, lines `T N,X,Y,B` or
+`T N,off` as the runner's `-joys`); the window's program has no stick (a
+controller is keys there), so there F5 and F6 still find none.
+Different from the original, because `src/loop.c` was not to be changed
+on this branch: F5 and F6 still call `loop.c`'s own `joy_setup` (the one
+for a machine without a game port), and the real one is started by the
+timer's routine at its next call, when it sees that a stick's wanted
+word has changed; it then waits through the original's retraces by the
+calls' times, to within a call. `input_tick` no longer returns "a
+joystick" as not translated.
 
 2026-10-08, the program's end: when the menu ends the program (EXIT TO
 DOS on the exit's page) `menu_game` in `src/main.c` does what
@@ -1651,7 +1679,79 @@ anything the game needs before the first release.
   on a machine without music or effects (10h, 20h of word 2 clear), the
   keys while 200h is set (pressed again within ten passes), a computer's
   first side (the text then goes to the second side's line), F6 pressed
-  twice, a joystick that is there, F8 without a mouse.
+  twice, a joystick that is there, F8 without a mouse. (F7 twice, F6
+  twice and sticks that are there: the next point.)
+
+- The mouse and the joysticks as a side's input (2026-10-09, macOS,
+  `mac/options`): `sh port/tests/options_test.sh dumps` and
+  `sh port/tests/options_test.sh`, made as the F keys' test (both
+  programs through the menu by keys to map 48, two human sides, the
+  port's battle on the original's clock; memory a second after each key
+  and half a second after each line of the mouse's or the sticks'
+  script). The runner needs doskit's `-joy`/`-joys` (branch
+  `doskit/gameport`). Three runs:
+  - `m48_mouse` (`tests/keys/m48_mouse.keys` and `.mice`): F7 off, the
+    mouse moved while off, F7 on (the driver's reset leaves the pointer
+    at 319: "right" once, in both), then the pointer put the step (40)
+    right of the middle, one short of it, left, down, up, right and
+    down at once, the first button, the second alone, both, the first
+    let go with the second held and a move in the ten calls after it,
+    F8 three times with a move after each, a move with the first button
+    held, F7 off and on with a button held. 36 passes compared.
+  - `m48_joy` (`.keys`, `.joy`): no stick at the start; the first stick
+    plugged in and found by F5 (off) and F5 (on); its four directions,
+    two at once, each button, the first twice in a row, a place just
+    inside and just outside the left edge; the second stick found by F6
+    twice, its directions and button, both sticks at once; a key while
+    the stick rests; F5 off (the stick gives nothing), F6 off; the first
+    stick taken away and F5 on; F6 on while the second stick is held
+    left (its middle measured there), back, left, and taken away while
+    wanted (right and down for ever). 51 passes compared.
+  - `m48_joy0`: a stick there from the program's start (found by the
+    setup at the start, in the first dump), used at once, F5 off and on,
+    F6 with no second stick. 19 passes compared.
+
+  In all three: every side's part read the same input (1,484, 1,484 and
+  614 parts, 0 different; in the first two the mouse and the first
+  stick gave each of the four directions and the button), the game's state the same at every pass
+  compared, and of DATA 0380 up to 045C (the joysticks' words, both
+  sides' input records with their counts, the mouse's record) no byte
+  different (`tests/options_cmp.py`), with two things given:
+  - the input records and their counts of holds and gaps (03BC up to
+    0414) are set once, before the first pass, to what the original has
+    there (`-poke`): they run on from the menu, which takes another
+    time in the port (without this the gaps' counts stand 4 apart from
+    the first pass on and nothing else differs; the timer routine's
+    call of four is taken from the clock's log by `play.c` for the same
+    reason);
+  - the pointer's place in the mouse's record (0424 up to 042C) is
+    compared only from the mouse script's first line on (in `m48_joy`
+    and `m48_joy0` not at all), as in the F keys' test.
+
+  Found on the way: the runner's first game port compared times as
+  sums of fractions and so read an axis one count off where the
+  one-shot ended exactly on a read (two of the first run's words); it
+  counts instructions now. A script line at 62.00 fell into a read of
+  the original and changed the stick in the middle of it (moved to
+  62.10). The second stick's side read "left" once during `joy_setup`'s
+  wait in the original; a setup done at once did not (1 part and 1 byte
+  of state different), the one that waits does. The F keys' test
+  (`fkeys_test.sh`, F5 and F6 without a stick) caught that this wait
+  needs the clock's times also without a sticks' script; rerun with
+  the other comparisons after the change (`check.py`, `fkeys_test.sh`,
+  `play_test.sh`, `menu_test.sh`, `save_test.sh`, `loop_test.sh`,
+  `info_test.sh`, `briefing_test.sh`, `fight_test.sh`, `units_test.sh`:
+  as before; their dumps of the original were not made anew).
+  Not compared: the window and a real stick or controller, the menu
+  with a stick moved or its button pressed, the texts of F5 to F8 as
+  video memory, the port's own clock (the sticks' script goes by
+  `play_now()` there: built, not run), `-map` with a clock's log and a
+  sticks' script (the script then counts the log's calls from its
+  beginning: not run), a machine of another speed, `joy_read` with a
+  stick whose range is 0, a stick changed in the middle of a read, the
+  exact call at which the port's `joy_measure` ends against the
+  original's `joy_setup` (to within a call; seen the same in the runs'
+  dumps, none of which falls into a setup).
 
 - Saving and loading (2026-10-08, macOS): `sh port/tests/save_test.sh
   dumps` runs the original twice through its menu by keys

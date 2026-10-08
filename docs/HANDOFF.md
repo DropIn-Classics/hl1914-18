@@ -2046,7 +2046,56 @@ emulation error (2026-10-02).
       fights (`fight_percent` at 151.04 s).
     Not translated in the pass: the keys F2 to F9, Esc and saving, and
     what draws, sounds and waits (the fights, order 1, `order_undo` and
-    `S02E6:2B87` followed, see the next bullet); the computer's player beyond what comes in as input.
+    `S02E6:2B87` followed, see the next bullet); the computer's player beyond what comes in as input
+    (it followed too: "The pass with the computer's own turn" below).
+  - The pass with the computer's own turn (2026-10-08, Mac):
+    `port/src/loop.c` calls `computer_turn` for a computer's side
+    instead of replaying the original's log; 400 s of `m8_site` are the
+    same as the original at 29 passes, the computer's state included
+    (port/README.md has the counts). Learned on the way:
+    - The computer's part of a pass (`S066A:1020` to `1190`): one call
+      of `computer_turn`, the side's word of `computer_out` as the
+      input and its second word as the text. With 80h in `game_state`'s
+      word 2 it first clears byte 4 of both input records and word 4
+      behind `DATA:00BE`, shows the text 64h and then calls
+      `computer_turn` again and again inside the one pass while 20h or
+      40h is in the side's `computer_phase`, until one of those three
+      (a human's button, a key) is set; then both texts are taken off,
+      0Ch cleared in `game_state`'s word 0 and the 80h cleared. State 5
+      of a human's side sets the 80h when the other side is the
+      computer's and has 20h or 40h in its phase (`S066A:40EA` to
+      `414E`): so a human who has ended the half lets the computer
+      think through at once. In `m8_site` that is passes 671, 3088 and
+      5017 with 60, 238 and 336 calls, none ended by a key.
+    - What ends such a loop early comes from the interrupts, so the
+      number of calls is an input of the pass beside the keys (the
+      test stops at the original's number).
+    - The random numbers are a second input: `clock_seed` with 0 takes
+      the BIOS's count of ticks, and besides the battle's setup the
+      fight's pictures call it (`S2532:0008`; once a fight, twice in
+      the round's end of pass 2615 and five times in that of 4543). The
+      only reader seen is `computer_queue`'s state 6, which draws the
+      kinds to build (`rand_range`: five calls in pass 4394, three in
+      6454). With the seed left out the port drew another third kind
+      in pass 4394; with it everything is the same.
+      For the port's program this means: seed from its own clock where
+      the fight's pictures would be, or the same battle is not played
+      differently for that. `S2532` has calls of `rand_next` of its own
+      (`S2532:183B` on) that did not come in the run; if they do, the
+      numbers the computer draws depend on the pictures.
+    - What the planning leaves between passes and HANDOFF had listed
+      as counted apart is now the same byte for byte at every pass
+      compared: `move_args`, `S331F:17F2` to `181B`, `S3AEC:0000` to
+      `0007`, and the computer's segments `S39B6` to `S3AEB`
+      themselves; `rand_words` was added to them.
+    - `S1C74:0354`, called after the turn while the computer thinks
+      and the side's `attack_pick` is 1, counts the side's units and
+      plans for a bar drawn by `S1571:01F2`; presumably it writes
+      nothing of the state (read to the first loop only, not checked
+      to its end; the comparisons show no difference from it).
+    Open: a loop ended early by a key, a computer first side in the
+    pass (the single calls of `computer_turn` covered side 0, the pass
+    did not), and the pass is still only run by the test.
   - The fights of `attacks_run` (2026-10-07, Linux; `S02E6:0122` to
     `0D48`, `0D63` to `0E9C`, order 1 at `0ED9`, `order_undo`, read and
     translated, `port/src/orders.c` and `move.c`). Learned on the way:

@@ -171,13 +171,22 @@ uint8_t view_step(Far view, Far rec, uint16_t bits, Far map, uint16_t side);
  * and 8 as view_step reads them (-1 not read); whether the original set
  * 80h in game_state's word 2 in state 5 (by the computer's phase); and
  * whether the computer's turn set 8 in the side's word 0 of `sides` (its
- * steps do, computer_step, which the port's pass does not run) */
+ * steps do, computer_step).  Of the computer's side only `turns` is used,
+ * the number of calls of computer_turn in the loop at S066A:10CD (-1 not
+ * known), unless loop_replay is set: then its word, text, set80 and set8
+ * stand in for computer_turn.  seeded: clock_seed was called in the part
+ * (the fight's pictures do, with the BIOS's count of ticks), and `seed`
+ * is what it left in rand_words (word 2 above word 0) */
 typedef struct {
     uint8_t key;
     uint16_t word, text;
     int16_t rec5, rec8;
     int set80, set8;
+    int turns;
+    int seeded;
+    uint32_t seed;
 } SideIn;
+extern int loop_replay;
 void timer_fire(uint16_t kind, uint16_t timer);
 const char *loop_pass(const SideIn in[2]);
 void loop_reset(void);

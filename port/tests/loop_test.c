@@ -1,7 +1,7 @@
 /* loop_test.c - passes of game_loop (port/src/loop.c) against the
  * original.
  *
- *     loop_test START.ram INPUTS.txt N DUMP.ram [N DUMP.ram ...]
+ *     loop_test [-replay] START.ram INPUTS.txt N DUMP.ram [N DUMP.ram ...]
  *
  * START.ram is memory at the beginning of the original's first pass,
  * INPUTS.txt what each side's part read from outside the translated code
@@ -9,10 +9,14 @@
  * beginning of pass N.  The port runs the passes from START.ram with those
  * inputs and is compared at each N: the game's state (S3306 up to the
  * computer's player's segments S39B6 to S3AEB, and S3AEC up to DATA), the
- * two maps and the sides' work buffers; the computer's segments, which
- * the port does not keep, the results its planning leaves in S331F:17F2
- * to 1806, and the rest of memory but the stack's segment
- * (pictures, the input records, the interrupts' data) are counted apart.
+ * two maps and the sides' work buffers, and what the computer's player
+ * keeps and leaves (its segments, S331F:17F2 to 181B, move_args,
+ * S3AEC:0000 to 0007, rand_words), which the port's computer_turn writes too; the
+ * rest of memory but the stack's segment (pictures, the input records,
+ * the interrupts' data) is counted apart.  With -replay the computer's
+ * side is not played by computer_turn but replayed from INPUTS.txt (its
+ * input word, its text, 80h in game_state's word 2, 8 in its side's
+ * word), and what the computer's player keeps is only counted.
  * port/tests/loop_test.sh builds this.
  */
 #include <stdio.h>
@@ -52,7 +56,8 @@ static uint32_t far_lin(Far p) { return lin(p.seg, p.off); }
  * field_neighbours, move_target), S331F:17F2 to 181B (path_find's way,
  * neighbours, move_rec) and move_args (S3306:000A, 12h bytes); and
  * S3AEC:0000 to 0007, which only code in S2138 (computer_queue) was seen
- * writing; 2 else, and name_buf (S3310:00B9, 40h bytes here), the name of
+ * writing; and rand_words (DATA:0AF1, 8 bytes), from which computer_queue
+ * draws what to build; 2 else, and name_buf (S3310:00B9, 40h bytes here), the name of
  * the last file opened, and S3AEE, the fight pictures' data, which the
  * pictures the port does not draw change */
 static int region(uint32_t a)
@@ -60,6 +65,7 @@ static int region(uint32_t a)
     uint32_t scratch = ((uint32_t)S_units << 4) + A_free_depth;
     uint32_t args = ((uint32_t)S_move_args << 4) + A_move_args;
     uint32_t name = ((uint32_t)S_name_buf << 4) + A_name_buf;
+    uint32_t rnd = ((uint32_t)S_rand_words << 4) + A_rand_words;
     /* S3AEE, the data of the fight's pictures (only S2532, which
      * fight_show calls, uses it) */
     uint32_t pics = (uint32_t)(HL_S3AEE + HL_BASE) << 4, pics_end = (uint32_t)(HL_S3B5D + HL_BASE) << 4;
@@ -73,7 +79,8 @@ static int region(uint32_t a)
     Far m0 = far_at(S_map_ptr, A_map_ptr), m1 = far_at(S_map2_ptr, A_map2_ptr);
     Far w0 = far_at(S_sides, A_sides + 0x0D), w1 = far_at(S_sides, A_sides + 0x17 + 0x0D);
 
-    if ((a >= comp && a < comp_end) || (a >= scratch && a < scratch + 0x2A) || (a >= args && a < args + 0x12))
+    if ((a >= comp && a < comp_end) || (a >= scratch && a < scratch + 0x2A) || (a >= args && a < args + 0x12)
+        || (a >= rnd && a < rnd + 8))
         return 1;
     if (a >= name && a < name + 0x40)
         return 2;
@@ -95,6 +102,11 @@ int main(int argc, char **argv)
     int i, bad = 0, done = 1, last = 0;
     uint32_t st;
 
+    if (argc > 1 && !strcmp(argv[1], "-replay")) {
+        loop_replay = 1;
+        argc--;
+        argv++;
+    }
     if (argc < 5 || (argc - 3) % 2) {
         fprintf(stderr, "usage: loop_test START.ram INPUTS.txt N DUMP.ram ...\n");
         return 2;
@@ -109,10 +121,15 @@ int main(int argc, char **argv)
         return 2;
     }
     while (fgets(line, sizeof line, f)) {
-        int p, s, r5, r8, s80, s8;
+        int p, s, r5, r8, s80, s8, turns = -1, seeded = 0;
         unsigned k, w, t;
+        unsigned long seed = 0;
 
-        if (sscanf(line, "%d %d %x %x %x %d %d %d %d", &p, &s, &k, &w, &t, &r5, &r8, &s80, &s8) != 9
+        /* the columns from the tenth on (the computer's calls in its
+         * loop, clock_seed) are not in inputs logged before computer_turn
+         * was called by the pass */
+        if (sscanf(line, "%d %d %x %x %x %d %d %d %d %d %d %lx", &p, &s, &k, &w, &t, &r5, &r8, &s80, &s8, &turns,
+                   &seeded, &seed) < 9
             || p < 1 || p >= MAXP || s < 0 || s > 1)
             continue;
         in[p][s].key = (uint8_t)k;
@@ -122,6 +139,9 @@ int main(int argc, char **argv)
         in[p][s].rec8 = (int16_t)r8;
         in[p][s].set80 = s80;
         in[p][s].set8 = s8;
+        in[p][s].turns = turns;
+        in[p][s].seeded = seeded;
+        in[p][s].seed = (uint32_t)seed;
         have[p] |= 1 << s;
         if (p > last)
             last = p;
@@ -155,14 +175,19 @@ int main(int argc, char **argv)
             if (mem[a] == want[a] || (a >= st && a < st + 0x10000u))
                 continue;
             r = region(a);
+            if (r == 1 && !loop_replay) {
+                if (d[1] < (getenv("LOOP_ALL") ? 100000u : 12u))
+                    printf("\n  %05X: port %02X, original %02X (the computer's)", (unsigned)a, mem[a], want[a]);
+            }
             if (r == 0 && d[0] < (getenv("LOOP_ALL") ? 100000u : 12u))
                 printf("\n  %05X: port %02X, original %02X", (unsigned)a, mem[a], want[a]);
             d[r]++;
         }
         printf("\n  game's state %u different; the computer's %u, elsewhere %u\n", d[0], d[1], d[2]);
-        if (d[0])
+        if (d[0] || (d[1] && !loop_replay))
             bad = 1;
     }
-    printf("%s\n", bad ? "DIFFERENT" : "the game's state the same at every pass compared");
+    printf("%s\n", bad ? "DIFFERENT" : loop_replay ? "the game's state the same at every pass compared"
+           : "the game's state and the computer's the same at every pass compared");
     return bad;
 }

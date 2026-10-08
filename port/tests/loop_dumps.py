@@ -23,10 +23,24 @@ what a pass reads from outside the translated code, by registers at:
     066A:4147  80h set in game_state's word 2 by the computer's phase
     1E4B:0610, 063C, 0886, 0C78  computer_step sets 8 in its side's word 0
                of `sides` (BX the side times 17h)
+    066A:10CD  computer_turn called in the loop that runs while the
+               computer thinks (80h in game_state's word 2): a human's
+               button or a key ends that loop early, so the number of
+               calls is input
+    2C95:0024, 004A  clock_seed sets rand_words, to its argument (AX,
+               DX) or to the BIOS's count of ticks (DX, CX): the fight's
+               pictures (S2532) do that, and computer_queue draws from
+               it what to build
+    0CB6:0713, 2C9A:0008  rand_range and rand_next: the run is refused
+               when rand_next is called by other code than rand_range
+               (only the computer's player was seen to use that), since
+               the port would not know of it
     02E6:000F  attacks_run (to choose passes)
 
 and writes build/loop/inputs.txt, a line a side's part: pass, side, key,
-word, text, rec5, rec8, set80, set8 (hex; -1 not read).  Further runs dump memory
+word, text, rec5, rec8, set80, set8, turns, seeded, seed (hex; -1 not
+read; turns the calls at 066A:10CD, decimal; seed the two words of
+rand_words the last clock_seed of the part left).  Further runs dump memory
 at the first pass (start.ram) and at the beginning of chosen passes
 (pNNNN.ram, the state after pass NNNN-1), and loop_test.args lists them.
 Existing dumps are kept; PASSES in the environment (numbers apart by
@@ -59,7 +73,8 @@ R8 = ('0CB6:0799', '0CB6:08DA', '0CB6:0AF5', '0CB6:0C7C')
 R5 = ('0CB6:084D', '0CB6:09C5', '0CB6:0BDA')
 SET8 = ('1E4B:0610', '1E4B:063C', '1E4B:0886', '1E4B:0C78')
 LOGS = ('066A:0EE9', '066A:0FC3', '066A:1003', '0CB6:0658', '066A:1243', '066A:118B',
-        '10AF:009F', '066A:1190', '066A:4147', '02E6:000F') + R8 + R5 + SET8
+        '10AF:009F', '066A:1190', '066A:4147', '02E6:000F', '066A:10CD',
+        '2C95:0024', '2C95:004A', '0CB6:0713', '2C9A:0008') + R8 + R5 + SET8
 
 
 def run(args):
@@ -75,7 +90,8 @@ if not os.path.exists(log):
         a += ['-log', 'S' + l]
     open(log, 'w').write(run(a))
 
-rows = []          # [pass, side, key, word, text, rec5, rec8, set80, human, set8]
+rows = []          # [pass, side, key, word, text, rec5, rec8, set80, human, set8, turns,
+                   #  seeded, seed]
 row = None
 passes = 0
 fights = []        # passes attacks_run ran in
@@ -89,7 +105,8 @@ for line in open(log):
     if at == '066A:0EE9':
         passes += 1
     elif at == '066A:0FC3':
-        row = [passes, reg('SI'), 0, 0, 0xFFFF, -1, -1, 0, False, 0]
+        row = [passes, reg('SI'), 0, 0, 0xFFFF, -1, -1, 0, False, 0, 0, 0, 0]
+        in_range = False
         rows.append(row)
     elif row is None:
         continue
@@ -118,13 +135,25 @@ for line in open(log):
         if reg('BX') // 0x17 != row[1]:
             sys.exit('pass %d: 8 set in the word of side %d in side %d\'s part' % (passes, reg('BX') // 0x17, row[1]))
         row[9] = 1
+    elif at == '066A:10CD':
+        row[10] += 1
+    elif at == '2C95:0024':
+        row[11:13] = [1, reg('DX') << 16 | reg('AX')]
+    elif at == '2C95:004A':
+        row[11:13] = [1, reg('CX') << 16 | reg('DX')]
+    elif at == '0CB6:0713':
+        in_range = True
+    elif at == '2C9A:0008':
+        if not in_range:
+            sys.exit('pass %d: rand_next called by other code than rand_range' % passes)
+        in_range = False
     elif at == '02E6:000F':
         fights.append(passes)
 
 # the computer's side: its word is DI; a human's is what side_input saw
 with open(os.path.join(out, 'inputs.txt'), 'w') as f:
     for r in rows:
-        f.write('%d %d %X %X %X %d %d %d %d\n' % (tuple(r[:8]) + (r[9],)))
+        f.write('%d %d %X %X %X %d %d %d %d %d %d %X\n' % (tuple(r[:8]) + tuple(r[9:13])))
 
 extra = [int(x) for x in os.environ.get('PASSES', '').split()]
 chosen = sorted(set([1, 50, 200, 400] + [p + 1 for p in fights] + [p for p in fights]

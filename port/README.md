@@ -94,10 +94,12 @@ carrier's load (`carrier_losses`), experience, the blasts counted down
 when the fights are not pictures), frees the units marked 4 with
 `order_undo` (`src/move.c`), and order 1 (`order_capture`); the
 pictures shown meanwhile and loaded again after them (`pictures_load`,
-`S02E6:2B87`) are left out. What the keyboard
-handler and the computer's player give a pass comes in from outside
-(`SideIn`): the computer's planning is not translated. Nothing calls
-the pass yet but `tests/loop_test.c`.
+`S02E6:2B87`) are left out. The computer's side of a pass is played by
+`computer_turn` (`src/plan.c`); what the keyboard handler gives a pass
+comes in from outside (`SideIn`), as do two things of the clock's: how
+long a human's key lets the computer think on in one pass, and the
+number the fight's pictures start the random numbers with. Nothing
+calls the pass yet but `tests/loop_test.c`.
 
 ## Build and run
 
@@ -827,3 +829,47 @@ anything the game needs before the first release.
   these passes (counted with an instrumented build): a unit destroyed in
   a fight, `carrier_losses`, the freeing of units marked 4, `order_undo`,
   order 1 and the blasts with fight pictures off.
+- The pass with the computer's own turn (2026-10-08, Mac; `src/loop.c`
+  `computer_part`, `S066A:1020` to `1190`, and the 80h of state 5 at
+  `S066A:40EA` to `414E`): the computer's side is no longer replayed
+  from the original's log but played by `computer_turn`, so the 400 s of
+  `m8_site` run from the memory at the first pass with the human's keys
+  alone and two inputs of the clock (below). `tests/loop_test.sh`
+  compares 29 passes (50 to 6581: each of the six rounds' ends and the
+  pass after it, the three passes in which the computer thinks in a loop
+  and the pass after each, and eleven others): the game's state the same
+  at all of them, and now with it, compared and no longer counted apart,
+  what the computer's player keeps and leaves: its segments `S39B6` to
+  `S3AEB` (the phases, steps, scripts, plans and aims), `S3AEC:0000` to
+  `0007`, `S331F:17F2` to `181B` (the way, `neighbours`, `move_rec`),
+  `move_args` and `rand_words`: 0 bytes different at every pass.
+  `computer_turn` ran 7,211 times in those passes (counted with a
+  coverage build of the test): `computer_assess` 26 calls,
+  `computer_plan` 1,939, `computer_queue` 976, `computer_step` 3,544;
+  634 of the calls in the three loops with 80h in `game_state`'s word 2
+  (passes 671, 3088 and 5017: 60, 238 and 336 calls).
+  The two inputs besides the keys, both logged by `tests/loop_dumps.py`
+  (columns 10 to 12 of `inputs.txt`): the number of calls in such a loop
+  (a human's button or a key ends it early; the port stops at the
+  original's number and refuses a loop that is through at another), and
+  what `clock_seed` leaves in `rand_words` when the fight's pictures
+  call it with the BIOS's count of ticks (once a fight: twice in pass
+  2615, five times in 4543; the last of a pass is given to the port
+  after `attacks_run`). `rand_range` was called eight times in the run
+  (five in pass 4394, three in 6454).
+  The one difference found was that seed: without it the third kind
+  `computer_queue` drew to build in pass 4394 was another (a byte of
+  `step_draft` and two of `computer_steps` at the passes 4543 to 6216);
+  nothing in the translated code was changed for it.
+  `tests/loop_test.sh -replay` plays the computer's side from the log
+  as before (the game's state the same at the 29 passes; the computer's
+  then differs, 688 bytes at the last, since nothing writes it). Not
+  covered: a loop ended early by a key (all three ran until the
+  thinking was through: the same result with the numbers left out);
+  `rand_next` called by other code than `rand_range` (the dumps script
+  refuses such a run; `S2532` has calls that did not come); a computer
+  first side, two computers; `plan_to_site`, `plan_approach` and
+  `step_site_menu`, which these passes do not reach (the first two were
+  reached on no map, docs/HANDOFF.md). Not verified: the bar the
+  original draws while the computer thinks (`S1C74:0354`, read as
+  counting only; not translated).

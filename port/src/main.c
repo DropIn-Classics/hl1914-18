@@ -2,8 +2,8 @@
  * installed copy of the original game.
  *
  *     history-line [-game DIR | -gog FILE|FOLDER|SETUP.exe] [-map N] [-ram FILE]
- *                  [-keys FILE] [-passes N] [-start T] [-seed N] [-clock FILE]
- *                  [-dump N FILE]... [-inputs FILE]
+ *                  [-keys FILE] [-passes N] [-until T] [-start T] [-seed N]
+ *                  [-clock FILE] [-seeds FILE] [-dump N FILE]... [-inputs FILE]
  *
  * DIR is the game's unpacked files: -game, else $HISTORY_LINE_GAME, else the first
  * folder `game` holding HL14-18.EXE beside the program, in the current
@@ -40,7 +40,9 @@
  * ends.  -seed is the BIOS's count of ticks at the setup, from which the
  * random numbers start (without it the time of day's); -clock runs the
  * passes by the times of a log of the original (port/tests/play_dumps.py)
- * instead of the port's own clock; -dump writes the memory as -ram does at
+ * instead of the port's own clock; -seeds keeps the port's own clock and
+ * takes from such a log only what the fights' pictures did to the random
+ * numbers; -until ends the play at T seconds of the own clock; -dump writes the memory as -ram does at
  * the beginning of pass N, -inputs what each side's part read.  All of
  * them are aids for this work, not for players.
  */
@@ -249,7 +251,7 @@ static int nopics;      /* -nopics: the fights are not shown as pictures */
 /* the battle played from the setup on (play.c), at most `passes` passes
  * (0: no limit but a million); a line about how far it came in `line`.
  * 0 if a dump could not be written. */
-static int play_game(unsigned long passes, double start, int clocked, char *line, size_t n)
+static int play_game(unsigned long passes, double start, double until, int clocked, char *line, size_t n)
 {
     const char *why = NULL;
     int i, ok = 1;
@@ -264,7 +266,7 @@ static int play_game(unsigned long passes, double start, int clocked, char *line
         for (i = 0; i < dumps_n; i++)
             if (dumps[i].pass == play_passes + 1 && rm_write(dumps[i].file) != 0)
                 ok = 0;
-        if (play_passes >= passes)
+        if (play_passes >= passes || (until > 0 && play_now() >= until))
             break;
         if (!(NW(game_state, 0) & 2)) {
             why = "the battle is over";
@@ -275,7 +277,7 @@ static int play_game(unsigned long passes, double start, int clocked, char *line
             break;
     }
     snprintf(line, n, "%lu passes played%s%s.", play_passes, why ? ", then: " : "", why ? why : "");
-    if (clocked)
+    if (clocked)    /* with -seeds: fights the log had no seed for */
         snprintf(line + strlen(line), n - strlen(line), " %lu places where the clock's file did not fit.",
                  play_misses);
     return ok;
@@ -284,10 +286,11 @@ static int play_game(unsigned long passes, double start, int clocked, char *line
 int main(int argc, char **argv)
 {
     const char *given = NULL, *gog = NULL, *ram = NULL, *keys = NULL, *clock_file = NULL, *why = NULL;
+    const char *seeds_file = NULL;
     char game[SYS_PATH], line[300];
     int i, map = 0, ok, play = 0, seeded = 0;
     unsigned long passes = 0, seed = 0;
-    double start = 0;
+    double start = 0, until = 0;
 
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-game") && i + 1 < argc)
@@ -304,6 +307,10 @@ int main(int argc, char **argv)
             clock_file = argv[++i], play = 1;
         else if (!strcmp(argv[i], "-passes") && i + 1 < argc)
             passes = strtoul(argv[++i], NULL, 0), play = 1;
+        else if (!strcmp(argv[i], "-seeds") && i + 1 < argc)
+            seeds_file = argv[++i];
+        else if (!strcmp(argv[i], "-until") && i + 1 < argc)
+            until = atof(argv[++i]), play = 1;
         else if (!strcmp(argv[i], "-start") && i + 1 < argc)
             start = atof(argv[++i]);
         else if (!strcmp(argv[i], "-seed") && i + 1 < argc)
@@ -319,7 +326,8 @@ int main(int argc, char **argv)
             dumps[dumps_n++].file = argv[++i];
         } else {
             fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
-                            "       [-keys FILE] [-passes N] [-start T] [-seed N] [-clock FILE] [-nopics] [-rounds FILE] [-dump N FILE]...\n");
+                            "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
+                            "       [-nopics] [-rounds FILE] [-inputs FILE] [-dump N FILE]...\n");
             return 2;
         }
     }
@@ -327,6 +335,8 @@ int main(int argc, char **argv)
         why = play_keys(keys);
     if (!why && clock_file)
         why = play_clock(clock_file);
+    if (!why && seeds_file)
+        why = play_seeds(seeds_file);
     if (why) {
         fprintf(stderr, "%s\n", why);
         return 2;
@@ -342,7 +352,7 @@ int main(int argc, char **argv)
     ok = start_game(game, map, seeded ? (uint32_t)seed : bios_now(), line, sizeof line);
     if (ok && play) {
         fprintf(stderr, "%s\n", line);
-        ok = play_game(passes, start, clock_file != NULL, line, sizeof line);
+        ok = play_game(passes, start, until, clock_file != NULL || seeds_file != NULL, line, sizeof line);
     }
     if (ram || play) {
         if (ok && ram && rm_write(ram) != 0)

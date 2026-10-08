@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compares the port's own play of a battle with the original's.
 
-    python3 port/tests/play_cmp.py [TAG [own|rounds]]
+    python3 port/tests/play_cmp.py [TAG [own|rounds|seeds]]
 
 In build/play/TAG/ (default m8_site): pNNNN.ram is the original's memory
 at the beginning of pass NNNN and inputs.txt what each side's part read
@@ -19,9 +19,13 @@ round's end of each and the one after.  The two are then at different
 passes, so what counts passes is counted apart as "the passes'": the
 count of passes in game_state (dword 13h) and its copy in fight_rec
 (3Ah), the timers' kinds and the passes they are due at (19h to 63h),
-byte 2Ch of both views (counted down a pass) and rand_words (the seed is
+byte 2Ch of both views (counted down a pass), the bits 4 and 8 of
+game_state's word 0 (a side's text is shown; the timers of kinds 1 and 2
+take them off) and rand_words (the seed is
 the BIOS's count of ticks when a fight's pictures begin, and those
-pictures' own calls of rand_next are not made).
+pictures' own calls of rand_next are not made).  With `seeds` the port
+took both from the original's log (play.c, -seeds) and rand_words is
+compared with the computer's.
 
 Compared as port/tests/loop_test.c does: the game's state (S3306 up to the
 computer's player's segments S39B6 to S3AEB, and S3AEC:0008 up to DATA),
@@ -39,7 +43,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 tag = sys.argv[1] if len(sys.argv) > 1 else 'm8_site'
 own = len(sys.argv) > 2 and sys.argv[2] == 'own'
-by_rounds = len(sys.argv) > 2 and sys.argv[2] == 'rounds'
+by_rounds = len(sys.argv) > 2 and sys.argv[2] in ('rounds', 'seeds')
+seeds = len(sys.argv) > 2 and sys.argv[2] == 'seeds'
 out = os.path.join(ROOT, 'build', 'play', tag)
 BASE = 0x76
 RAM = 0xA0000
@@ -96,7 +101,7 @@ def regions(mem):
         gs = name['game_state']
         for lo, hi in ((gs + 0x13, gs + 0x17), (gs + 0x19, gs + 0x64), (name['fight_rec'] + 0x3A, name['fight_rec'] + 0x3E),
                        (name['views'] + 0x2C, name['views'] + 0x2D), (name['views'] + 0x31 + 0x2C, name['views'] + 0x31 + 0x2D),
-                       (name['rand_words'], name['rand_words'] + 8)):
+                       (name['rand_words'], name['rand_words'] + (0 if seeds else 8))):
             kind[lo:hi] = b'\x04' * (hi - lo)
     st = 0x3EA4 << 4            # the stack's segment in the dumps
     kind[st:min(st + 0x10000, RAM)] = b'\x03' * (min(st + 0x10000, RAM) - st)
@@ -129,6 +134,9 @@ if by_rounds:
         o = open(os.path.join(out, 'p%04d.ram' % po), 'rb').read()
         q = open(rpath, 'rb').read()
         kind = regions(q)
+        gs = name['game_state']
+        if not (o[gs] ^ q[gs]) & 0xF3:
+            kind[gs] = 4        # a side's text still shown or not
         d = [i for i in range(RAM) if o[i] != q[i] and kind[i] != 3]
         new = [i for i in d if not (o[i] == first[0][i] and q[i] == first[1][i])]
         c = [sum(kind[i] == k for i in new) for k in (0, 1, 2, 4)]
@@ -141,8 +149,8 @@ if by_rounds:
             differs = True
         elif not differs:
             agree = (n, po, pp)
-    print('round by round on the port\'s own clock: the game\'s state and the computer\'s the same but for the '
-          'passes\' up to %s' % ('round %d (pass %d of the original, %d of the port)' % agree if agree else 'no round'))
+    print('round by round on the port\'s own clock%s: the game\'s state and the computer\'s the same but for the '
+          'passes\' up to %s' % (' with the original\'s seeds' if seeds else '', 'round %d (pass %d of the original, %d of the port)' % agree if agree else 'no round'))
     sys.exit(0)
 
 bad = 0

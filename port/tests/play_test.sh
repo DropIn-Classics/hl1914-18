@@ -5,22 +5,28 @@
 # original's clock, and compares its memory with the original's at the
 # passes port/tests/play_dumps.py dumped (build/play/TAG/, ignored).
 #
-#     sh port/tests/play_test.sh [TAG [own|rounds]]
+#     sh port/tests/play_test.sh [TAG [own|rounds|seeds]]
 #
 # With `own` the port plays on its own clock instead: of the original's
 # log it takes only when the first pass began and the BIOS's count of
 # ticks the setup started the random numbers with (the time of day).  Its
 # passes then are not the original's (it draws nothing), so this says up
 # to which pass compared the two still agree and does not fail later.
-# With `rounds` it plays on its own clock too and is compared round by
-# round instead of pass by pass: its memory at the pass of its n-th
-# round's end and at the one after against the original's at the passes
-# of its n-th (rNNNN.ram, rounds.txt), because the port's passes are
-# shorter and a round's end comes in another pass.  What counts passes is
-# then counted apart (play_cmp.py).  Run `own` first: it writes when the
-# port's rounds end.
+# With `rounds` it plays on its own clock too, up to the second the
+# original's log ends at, and is compared round by round instead of pass
+# by pass: its memory at the pass of its n-th round's end and at the one
+# after against the original's at the passes of its n-th (rNNNN.ram,
+# rounds.txt), because the port's passes are shorter and a round's end
+# comes in another pass.  What counts passes is then counted apart
+# (play_cmp.py).  The port plays twice for it: once to find the passes
+# its rounds end in (own_rounds.txt), once to dump them.
+# With `seeds` the same, but the port takes from the original's log what
+# its fights' pictures did to the random numbers (-seeds: the number each
+# started them with and its calls of rand_next), and the random numbers
+# are compared too: what still differs then has another cause.
 # A tag ending in _nopics (dumps made with NOPICS=1) plays the same key
-# script with the fights not shown as pictures (-nopics).
+# script with the fights not shown as pictures (-nopics); one beginning
+# with m0 is map 0, with mNN_ map NN, else map 8.
 set -e
 cd "$(dirname "$0")/.."
 TAG=${1:-m8_site}
@@ -28,16 +34,22 @@ D=../build/play/$TAG
 GAME=${DOSKIT_GAME:-../game}
 case $TAG in
 m0*) MAP=0 ;;
+m[0-9][0-9]_*) MAP=${TAG%%_*} MAP=${MAP#m} ;;
 *) MAP=8 ;;
 esac
 KEYS=${TAG%_nopics}
 NOPICS=
 [ "$KEYS" = "$TAG" ] || NOPICS=-nopics
 sh build.sh
-if [ "$2" = rounds ]; then
+if [ "$2" = rounds ] || [ "$2" = seeds ]; then
     START=$(awk '$2 == "P" { print $1; exit }' "$D/clock.txt")
     SEED=$(awk '$2 == "S" { v = $3 } $2 == "P" { print substr(v, 1, length(v) - 4); exit }' "$D/clock.txt")
-    N=$(awk '$2 == "P" { n = $3 } END { print n - 1 }' "$D/clock.txt")
+    UNTIL=$(awk 'END { print $1 }' "$D/clock.txt")
+    SEEDS=
+    [ "$2" = rounds ] || SEEDS="-seeds $D/clock.txt"
+    RUN="build/history-line-headless -game $GAME -map $MAP -keys tests/keys/$KEYS.keys -start $START -seed 0x$SEED -until $UNTIL $NOPICS $SEEDS"
+    # shellcheck disable=SC2086
+    $RUN -rounds "$D/own_rounds.txt"
     rm -f "$D"/r[0-9][0-9][0-9][0-9].ram
     DUMPS="-dump 1 $D/r0001.ram"
     : > "$D/rounds.txt"
@@ -53,9 +65,8 @@ if [ "$2" = rounds ]; then
         i=$((i + 1))
     done
     # shellcheck disable=SC2086
-    build/history-line-headless -game "$GAME" -map $MAP -keys tests/keys/"$KEYS".keys -start $START \
-        -seed 0x$SEED -passes $N $NOPICS $DUMPS
-    exec python3 tests/play_cmp.py "$TAG" rounds
+    $RUN $DUMPS
+    exec python3 tests/play_cmp.py "$TAG" "$2"
 fi
 if [ "$2" = own ]; then
     Q=o

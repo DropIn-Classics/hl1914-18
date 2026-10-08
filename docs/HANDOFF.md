@@ -2492,6 +2492,96 @@ emulation error (2026-10-02).
     end, `inputs_release` with its second argument set. Not seen in a
     run: a site taken after a fight, the blasts' turns, a fight's
     pictures ended by a key.
+  - Where the rounds part (2026-10-08, Mac; `port/src/play.c`'s
+    `-seeds` and `-until`, `sh port/tests/play_test.sh TAG rounds` and
+    `TAG seeds`; port/README.md has the results). Followed to the first
+    byte in the map-8 runs; there are four causes and no fifth was
+    found:
+    1. The seed's tick. `m8_wait`: after round 3 (two fights with
+       pictures) `rand_words` has 0008h, 08E2h in the original and
+       0007h, 0774h in the port: the BIOS's count when the last fight's
+       pictures began, 2274 against 1908 ticks. The port's round 3 ends
+       at 90.05 s of the script and the original's at 110.03 s, because
+       the computer's half before it is over sooner in the port (its
+       passes draw nothing) and an earlier F1 of the script ends the
+       round. Nothing reads the numbers until pass 3277 of the original
+       (between rounds 4 and 5), where `computer_queue` draws three
+       kinds to build; from there `side_points`, two units' records,
+       `unit_marks` and `computer_steps` differ (ten bytes at round 5).
+       Even where a round ends at the same second the tick is another:
+       `m8_site`'s round 3 begins at 150.01 s and 150.04 s, the seeds
+       are 0BBCh and 0BB8h. Why the port cannot find it: (a) when the
+       round ends depends on how long the computer's passes last, which
+       is the original's drawing; (b) the moment within a round's end is
+       the runner's measured times (the `T_` numbers), right to 0.1 s
+       where a tick is 0.055 s; (c) the original's count runs slow: it
+       is counted by the game's own timer interrupt, which shares the
+       counts out, and loses interrupts (some 7 ticks in 135 s in
+       `m8_site` by the seeds' times; presumably while `pal_level`
+       waits with interrupts off, not followed); (d) the port's count
+       starts at the first pass with the setup's number, the original's
+       setup was 0.55 s before its first pass. On a player's machine the
+       seed is the time of day, so no number is the right one; only a
+       comparison needs the original's.
+    2. The pictures' calls of `rand_next`. `m8_d5r`, round 3: two calls
+       after each of the two seeds (4.6 s and 4.9 s after the key's
+       clearing);
+       none in `m8_wait`'s 14 fights and `m8_site`'s 7. Read at
+       `S2532:17D1` (called from the frame loop just before
+       `S2532:0F8D` when a figure's script has 10h at this frame, side
+       in `S3AEE:066C`): the
+       losses still to show (`S3AEE:063B` less `0637` for the one side,
+       `063D` less `0639` for the other) are shared out among the
+       volleys left (`0628`, `0626`, set from `063D` and `063B` before
+       the frames): with one volley left all at once, no
+       call; with more losses than volleys `rand_next` modulo the
+       losses; else one falls when `rand_next`'s low byte is above 80h;
+       no call when nothing is left to show. `S2532:1970` then marks up
+       to that many figures that stand (2 in byte 0 of the figure's
+       22h-byte record, 8 in the side's seven bytes at `S3AEE:0688`), the
+       nearest first, and returns how many. So the calls depend on the
+       figures' scripts frame by frame (in the picture's data, not
+       read) and stop when a key ends the pictures. The port can make
+       them once the fight's frames are translated (`fight_frames` with
+       the figures; part of the drawing, not begun here), not from the
+       game's state alone; a key during the pictures stays a matter of
+       time. Not checked: how often `S2532:17D1` is called in a fight
+       (not logged).
+    3. A tap's sampling (known, "The port's own clock" above): in
+       `m8_site` the up of 182.00 s is read by two passes of the
+       original (2787, 2788) and one of the port (3141), the cursor is a
+       field off (the first view's word 0Ah, 2 and 1), and the unit
+       moved in at 185 s takes another place of the site (`sites_400`
+       record 0, bytes 1Dh, 1Eh and 24h, 25h). The port cannot find
+       that: which sample has a tap of 0.08 s is the original's time.
+    4. The script's keys meeting another state. `m8_wait_nopics` from
+       round 6 on (no seeds there: no pictures): four bytes of the first
+       view only (its field, word 0, 64h and 60h, and words 0Ch and 10h:
+       the view stands one column of two fields further left in the
+       port). The script ends the half every 10 s with the button and
+       left, left let go 0.2 s after the button. In the original each of
+       these between rounds 5 and 6 comes while the view does not read
+       its record (the lines of `inputs.txt` have no test of bytes 5 and
+       8 there); in the port the computer is done sooner, the view is
+       back in its plain state, and the left without the button is read
+       by `view_step` (`own_inputs.txt`, passes 4283 to 4285 and twice
+       more) and moves the view. The same reason as 1 (a): how long the
+       computer's passes last. Nothing of the battle differs by it in
+       that run to round 8.
+    Shown by taking the first two from the original's log on the port's
+    own clock (`-seeds`: each fight's seed and its number of calls):
+    then `rand_words` and everything else is the same in all six rounds
+    of `m8_wait` and all four of `m8_d5r`, and in `m8_site` only the
+    tap's five bytes remain to round 6. One byte differed once more
+    (`m8_wait`, round 5, the first dump): bit 4 of `game_state`'s word 0,
+    the first side's text still shown in the port; the timer of kind 1
+    takes it off and timers count passes, so it is now counted with the
+    passes'.
+    Changed in the test: `rounds` plays to the log's last second, not
+    its number of passes, and needs no `own` run before it. Not done:
+    `fight_frames` translated; the tick's loss followed; a script whose
+    rounds end at the same second in both (F1 only when both computers
+    are done), which would take cause (a) away but not the others.
   - The fights of `attacks_run` (2026-10-07, Linux; `S02E6:0122` to
     `0D48`, `0D63` to `0E9C`, order 1 at `0ED9`, `order_undo`, read and
     translated, `port/src/orders.c` and `move.c`). Learned on the way:

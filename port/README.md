@@ -154,7 +154,7 @@ program's keyboard interrupt is out) and the mouse's record
 the program moves; no mouse of the player's yet). Its time is the port's
 own clock: a pass lasts five calls of the timer's routine, the waits and
 changes of colour as long as the original's count, drawing and loading
-nothing. The window does not show it yet (the program plays from a key
+nothing. The window does not show the menu yet (it plays it from a key
 script only). `-start T` is the key script's time at which the menu begins,
 `-menulog FILE` writes what came in, `-menudump N FILE` the memory at
 the menu's N-th return, `-menuvram T FILE` the video memory at the first
@@ -182,6 +182,30 @@ original's (`play.c`). Not done: nothing of it sounds; on the port's own
 clock saving takes no time (the original's two seconds in the runs were
 the wait for the digit; what its drawing and the file take was not
 measured).
+
+2026-10-08: the battle in the window. In the window build `-map N`
+alone (no key script, `-passes`, `-clock` or `-ram`) plays the battle
+there (`play_live`, `src/play.c`): the port's own clock runs at the
+window's time, each picture of the port's video memory and DAC is shown
+at the screen's refresh rate (doskit's `frame_wait`, 70.086 a second in
+the game's mode), and the player's keys go, byte by byte as port 60h gave
+them, to the translation of the keyboard's interrupt (`key_irq`, the same
+path as a key script's); the timer's routine reads them as the
+original's does. The headless build does the same when `DK_KEYS` or
+`DK_SHOTS` script it (doskit's plat_null.c), which is how it was checked
+(below). With it the drawing the loop still lacked: each pass's end draws
+both cursors and shows the page (`S066A:441F`), a cursor's move draws
+its old field again (`cursor_field`, `S0E56:1013`) and the view when it
+scrolled, the round's end fades (`fade_grey`, `fade_back`, `fade_out`,
+`fade_in` where the original calls them) and draws both views, their
+marks and cursors after `attacks_run`, the computer's thinking draws on
+the shown page (`S2952:0006`, `S2953:000E`) and its bar of progress
+(`S1571:01F2` with `computer_progress`, `S1C74:0354`), and the blasts'
+pictures are drawn (`S02E6:225C`, `blast_draw`). `fade_in` and
+`fade_out` took the far pointer stored at `DATA:04E3` for the palette,
+which lies there itself: the screen stayed black (fixed). Not done: the
+mouse, the sounds, the menu in the window (without `-map` the window
+still shows the text screen), the pictures of events, saving.
 
 ## Build and run
 
@@ -768,6 +792,37 @@ anything the game needs before the first release.
   `rand_next` are the port's own now. `orders_test`, `loop_test`,
   `income_test`, `side_test`, `view_test`, `move_test` and `fpanel` the
   same as before. Not run: `m8_wait` (no log here), `m0_*`.
+- The last drawing of a battle (2026-10-08, Linux): `fade_grey`,
+  `fade_back` (with `pal_blend`, `S2A62:0008`) in `src/screen.c`, the bar
+  (`bar_draw`, `S1571:01F2`), `blast_draw` (`S02E6:225C`) and the 'X' way
+  of `pic_draw` (`pic_x`, `S2957:0002`) in `src/draw.c`. `load_test.sh`
+  takes `fgrey`, `fback`, `bar`, `blast` and `pic`, and compares the DAC
+  where a dump has a `.dac` beside it (`dumps.py` with `DAC=1`, the
+  runner's new `-dac`). Ten calls (`build/n2/win/`, `win_test.args`):
+  `fade_grey` 1 of m8_d5r and 2 of m0_hq, `fade_back` 2 of m8_d5r and 4
+  of m0_hq, the bar 1 and 300 of m8_d5r and 700 of m0_hq (lengths 0, 8Ah
+  and 0Eh), the blast 1, 3 and 6 of m57_last without pictures (`dumps.py`
+  now starts the maps other than 0 and 8 as `play_dumps.py` does): all the
+  same in memory, video memory and the DAC, counted apart the keyboard
+  interrupt's bytes during the fades. The 'X' way was reached in no run
+  of the 22 key scripts, with pictures or without: translated, not
+  compared. Not compared either: the cursors at the pass's end and
+  `cursor_field` at their calls (the state tests below are the same, and
+  the picture against the original's, next entry), a blast outside the
+  view, the bar with no back colour.
+- The battle in a window (2026-10-08, Linux, headless build with
+  `DK_SHOTS`/`DK_KEYS`): `history-line-headless -map 8` showed the battle
+  at picture 700; against the original's screen at 45 s of the same map
+  (runner `-shot`, no keys after the menu) 260 of 64,000 pixels differ,
+  all within x 208-231, y 108-131, the computer's cursor (the two are
+  not the same moment). Four taps of the right arrow (`DK_KEYS` E0-4D)
+  moved the human's cursor to the right, its old fields drawn again, and
+  scrolled the view at its edge (how many fields it went was not counted
+  against the original). The SDL build started on a desktop session
+  (`DISPLAY` refused, SDL went on by itself, presumably Wayland) played
+  417 passes in about 20 s until it was stopped; the window itself was
+  not seen from this shell. Not checked: what a player sees in it, the
+  second side's keys, holding a key, the pace measured against a clock.
 - The grounds in video memory (2026-10-08, Linux): `grounds_load`
   (`S02E6:323E`) in `src/pictures.c` with `ground_store` (`S28F5:0006`),
   and `lib_pick` (`S0C66:0414`) in `src/pictures.c` too (it was in `src/files.c` at first), called by

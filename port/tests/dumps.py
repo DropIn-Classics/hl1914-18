@@ -1,9 +1,11 @@
 # dumps.py OUTDIR TAG KEYSFILE UNTIL ROUTINE N[/M] : two runs of HL.EXE (Germany; map 0, or
 # map 8, RATIO, when MAP8 is set in the environment) with the side-0 key script
-# (port/tests/keys/); -ram at ROUTINE's entry and at its RETF (the Nth entry and
+# (port/tests/keys/; a script mNN_ other than m0 and m8 is map NN, chosen
+# by its code, with its pokes); -ram at ROUTINE's entry and at its RETF (the Nth entry and
 # the Nth time its RETF is reached); appends one line to OUTDIR/dumps.log.
 # Never overwrites: refuses when a dump file exists.  With VRAM set in the
-# environment, also -vram (the video memory) beside each -ram; with NOPICS
+# environment, also -vram (the video memory) beside each -ram, and with DAC
+# set -dac (the DAC's 256 colours) as a .dac file; with NOPICS
 # set, no_fight_pics (S37FF:0115) poked to 1 at the loop's beginning.
 import os, re, struct, subprocess, sys
 R={'move_arrive':('S10E1:0AF0','S10E1:0F70',['side','map_off','map_seg']),
@@ -23,6 +25,11 @@ R={'move_arrive':('S10E1:0AF0','S10E1:0F70',['side','map_off','map_seg']),
    'fight_pictures':('S2532:0008','S2532:01C1',['near0','standing','show','winter','kind0','kind1','ground0','ground1','count0','count1','after0','after1','none_off','none_seg','place_off','place_seg','work_off','work_seg']),
    'fight_frames':('S2532:0CAA','S2532:013C',[]),
    'fight_panel0':('S131D:178D','S131D:1F0C',['rec_off','rec_seg','pictures']),
+   'fade_grey':('S0E56:21D8','S0E56:241E',['pal_off','pal_seg']),
+   'fade_back':('S0E56:1F91','S0E56:21D7',['pal_off','pal_seg']),
+   'bar':('S1571:01F2','S066A:1212',['x','y','colour','back','h','value','width']),
+   'blast_draw':('S02E6:225C','S02E6:0BC2',['n','map_off','map_seg','view','side']),
+   'pic_x':('HL.EXE+2957:0002','HL.EXE+2957:00A8',[]),
    'attacks_run':('S02E6:000F','S02E6:2064',['work_off','work_seg','place_off','place_seg','map_off','map_seg','pal_off','pal_seg','libs_off','libs_seg']),
    'game_begin':('S066A:0938','S066A:0EE6',[]),
    'game_start':('S066A:000D','S066A:0349',[]),
@@ -48,11 +55,23 @@ out,tag,keys,until,rt,n=sys.argv[1:7]
 n_in,n_out=(n.split('/')+[n])[:2]
 here=os.path.dirname(os.path.abspath(__file__)); kit=os.path.join(here,'../../doskit/tools/run.py')
 ent,ex,an=R[rt]
-pre=(['-mouse','21','150,73,1','-mouse','21.2','150,73,0','-key','22','r','-key','22.5','a','-key','23','t','-key','23.5','i','-key','24','o','-key','25','enter','-mouse','27','150,48,1','-mouse','27.2','150,48,0'] if os.environ.get('MAP8') else ['-mouse','22','150,48,1','-mouse','22.2','150,48,0','-mouse','31','230,80,1','-mouse','31.2','230,80,0'])+(['-poke','S066A:0EE9#1','S37FF:0115','01'] if os.environ.get('NOPICS') else [])+['-keys',os.path.abspath(keys),'-until',until]
+tag_k=os.path.basename(keys)[:-5]
+if re.match(r'm\d\d_',tag_k) and not tag_k.startswith(('m0','m8_')):
+    # map NN, chosen in the menu by its code as play_dumps.py does, and
+    # the key script's pokes
+    sys.path.insert(0,os.path.join(here,'../../tools')); import tpwmfiles
+    game=os.environ.get('DOSKIT_GAME') or os.path.join(here,'../../game')
+    rec=tpwmfiles.unpack(open(os.path.join(game,'CODES.DAT'),'rb').read())[int(tag_k[1:3])*10:][:5]
+    pre=['-mouse','21','150,73,1','-mouse','21.2','150,73,0']
+    for i,b in enumerate(rec): pre+=['-key',str(22+i*0.5),chr(b-0x11+ord('a'))]
+    pre+=['-key','25','enter','-mouse','27','150,48,1','-mouse','27.2','150,48,0']
+    pre+=subprocess.run(['python3',os.path.join(here,'play_pokes.py'),tag_k],capture_output=True,text=True).stdout.split()
+    pre+=(['-poke','S066A:0EE9#1','S37FF:0115','01'] if os.environ.get('NOPICS') else [])+['-keys',os.path.abspath(keys),'-until',until]
+else: pre=(['-mouse','21','150,73,1','-mouse','21.2','150,73,0','-key','22','r','-key','22.5','a','-key','23','t','-key','23.5','i','-key','24','o','-key','25','enter','-mouse','27','150,48,1','-mouse','27.2','150,48,0'] if os.environ.get('MAP8') else ['-mouse','22','150,48,1','-mouse','22.2','150,48,0','-mouse','31','230,80,1','-mouse','31.2','230,80,0'])+(['-poke','S066A:0EE9#1','S37FF:0115','01'] if os.environ.get('NOPICS') else [])+['-keys',os.path.abspath(keys),'-until',until]
 def run(addr,f,n):
     p=os.path.join(out,f)
     if os.path.exists(p): sys.exit('exists: '+p)
-    r=subprocess.run(['python3',kit]+pre+['-break','%s#%s'%(addr,n),'-ram',os.path.abspath(p)]+(['-vram',os.path.abspath(p[:-4]+'.vram')] if os.environ.get('VRAM') else [])+['HL.EXE'],capture_output=True,text=True,cwd=out)
+    r=subprocess.run(['python3',kit]+pre+['-break','%s#%s'%(addr,n),'-ram',os.path.abspath(p)]+(['-vram',os.path.abspath(p[:-4]+'.vram')] if os.environ.get('VRAM') else [])+(['-dac',os.path.abspath(p[:-4]+'.dac')] if os.environ.get('DAC') else [])+['HL.EXE'],capture_output=True,text=True,cwd=out)
     t=re.search(r'stop (\S+) t=([\d.]+)',r.stdout+r.stderr)
     g=re.search(r'regs (.*)',r.stdout)
     return p,(t.group(1),t.group(2)) if t else ('?','?'),dict(re.findall(r'(\w\w)=([0-9A-F]+)',g.group(1))) if g else {}

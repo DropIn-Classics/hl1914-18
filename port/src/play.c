@@ -72,6 +72,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "hl.h"
+#include "frame.h"
 
 #define S_DATA (HL_DATA + HL_BASE)
 #define TICK (0x3FFF / 1193182.0)       /* the timer routine's period, s */
@@ -120,6 +121,8 @@ static double part_at, round_at; /* when the part began, attacks_run was called 
 static double tick_at;          /* when the timer's routine is called next */
 static uint32_t bios0;          /* the BIOS's count when it began */
 static const char *stopped;     /* what the timer's routine met */
+static int live;                /* play_live: the window's time, keys and pictures */
+static double pic_at;           /* live: when the next picture is shown, s */
 
 unsigned long play_passes, play_misses;
 
@@ -379,6 +382,13 @@ static void own_to(double t)
     while (tick_at <= t) {
         uint32_t b;
 
+        /* live: the pictures due before the call, each at its time of
+         * the window's clock (frame_wait: the player's keys go to the
+         * keyboard's interrupt meanwhile) */
+        for (; live && pic_at <= tick_at; pic_at += RETRACE)
+            if (!frame_wait() && !stopped)
+                stopped = "the window was closed";
+
         now = tick_at;
         tick_at += TICK;
         b = bios0 + (uint32_t)((now - began) / BIOS_TICK);
@@ -466,7 +476,7 @@ static void own_wait_press(void)
     }
     press_clear();
     while (!pressed()) {
-        if (keys_at >= keys_n && ++idle > 16) {
+        if (!live && keys_at >= keys_n && ++idle > 16) {
             if (!stopped)
                 stopped = "the battle's end waits for a press the key script does not have";
             break;
@@ -867,6 +877,16 @@ static void hook(int at, uint16_t side)
     }
 }
 
+/* the play in the window, at the original's pace (the own clock's time
+ * is the window's: frame.h), with the player's keys as the keyboard's
+ * interrupt gets them (key_irq) instead of a key script, the picture the
+ * port's video memory and DAC hold shown at the screen's refresh rate */
+void play_live(void)
+{
+    live = 1;
+    frame_set_keyboard(key_irq);
+}
+
 /* after the port's setup (battle_begin): the first pass begins at `start`
  * seconds of the key script's time (the port's own clock; the original's
  * has its own times) */
@@ -899,7 +919,7 @@ void play_begin(double start)
         }
         return;
     }
-    now = began = start;
+    now = began = pic_at = start;
     tick_at = start + TICK;
     keys_at = 0;
     if (have_clock) {

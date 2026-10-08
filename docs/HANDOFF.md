@@ -1199,6 +1199,25 @@ emulation error (2026-10-02).
        round 4 (the last dumped): of the list "What still has to come from
        a log" item 5 (R) is no longer needed; the seeds (S) and the key
        that may end the frames (its time) still are.
+       The rest done 2026-10-08 (branch `debian/window`, port/README.md
+       "The last drawing of a battle"): `fade_grey`, `fade_back` and
+       `pal_blend` (`S2A62:0008`; the fades end one step short of the
+       palette, step 1Fh of 20h), the bar (`S1571:01F2`, the computer's
+       progress, `S1C74:0354`), the blasts' pictures (`S02E6:225C`) and the
+       'X' way (`S2957:0002`, met in no run of the 22 key scripts), all
+       compared at their calls with the DAC (the runner's new `-dac`;
+       `-vgastate` prints only 32 colours). Learned on the way: the
+       palette of `fade_in`/`fade_out` lies at `DATA:04E3` itself (the
+       port had read a pointer there, and its screen stayed black: no
+       comparison had the DAC); a cursor is taken off by drawing its field
+       again (`S0E56:1013`, at `S066A:1EE2` before `view_cursor`), each
+       pass's end draws both cursors and flips and copies the pages
+       (`S066A:441F`); pic_draw's fourth argument is a save place, not
+       colours: with it the 'P' blitter keeps what lies under the picture
+       (`under_save`), used for the cursor in the small map (bit 2 of a
+       side's word in `sides`, put back by `S2904:000E`; not translated).
+       The battle now runs in the window (`-map N`, `play_live` in
+       `port/src/play.c`).
   - State, all translated: `field_bits_clear(FFh)` empties `field_bits`
     (`S331F:3B5A`); `view_tables` fills `row_y`, `row_y_odd` and `col_x` (a
     field is 10h wide and 18h high on the screen, odd columns 0Ch lower);

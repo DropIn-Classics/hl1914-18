@@ -40,6 +40,15 @@
  * record counted apart as for `fpanel`), the video memory likewise,
  * AX and DX not compared (it returns nothing); begin_apart's bytes are
  * counted beside (byte 8 of the input records changed while it ran).
+ * `fgrey` and `fback` are fade_grey (S0E56:21D8, RETF at 241E) and
+ * fade_back (S0E56:1F91, RETF at 21D7), `bar` the bar of S1571:01F2 (its
+ * RETF taken at the caller, S066A:1212; its seven argument words, two
+ * of which it halves, counted as the stack), `blast` S02E6:225C (RETF at
+ * the caller, S02E6:0BC2) and `pic` pic_draw (S2A6B:0008), each with the
+ * video memory likewise; for the fades the keyboard interrupt's bytes
+ * counted apart (key_apart).  Beside every dump a .dac (dumps.py with
+ * DAC set, the runner's -dac) is loaded into the VGA's DAC at the entry
+ * and compared at the exit.
  * `scr` is one of screen_open (S298E:000D), the video memory likewise;
  * it returns nothing, so AX is not compared.
  * port/tests/load_test.sh builds this.
@@ -75,6 +84,54 @@ static int load_vram(const char *ram, uint8_t *to)
     return n == VRAM;
 }
 
+/* a dump's DAC beside it (.ram made .dac, dumps.py with DAC set: 256
+ * colours of three 6-bit bytes): 1, 0 if none */
+static int load_dac(const char *ram, uint8_t *to)
+{
+    char path[1024];
+    size_t n = strlen(ram);
+    FILE *f;
+
+    if (n < 4 || n + 1 > sizeof path)
+        return 0;
+    memcpy(path, ram, n - 4);
+    strcpy(path + n - 4, ".dac");
+    if (!(f = fopen(path, "rb")))
+        return 0;
+    n = fread(to, 1, 768, f);
+    fclose(f);
+    return n == 768;
+}
+
+static uint8_t dac_tmp[768];
+
+/* the DAC beside an entry's dump into the VGA */
+static void dac_in(const char *ram)
+{
+    int k;
+
+    if (!load_dac(ram, dac_tmp))
+        return;
+    vga_outb(0x3C8, 0);
+    for (k = 0; k < 768; k++)
+        vga_outb(0x3C9, dac_tmp[k]);
+}
+
+/* the colours of the VGA's DAC that differ from those beside the exit's
+ * dump; -1 if there is none */
+static int dac_diff(const char *ram)
+{
+    int k, d = 0;
+
+    if (!load_dac(ram, dac_tmp))
+        return -1;
+    vga_outb(0x3C7, 0);
+    for (k = 0; k < 768; k++)
+        if (vga_inb(0x3C9) != dac_tmp[k])
+            d++;
+    return d;
+}
+
 /* the video memory beside an entry's dump into the VGA, unchained */
 static void vram_in(const char *ram)
 {
@@ -83,6 +140,7 @@ static void vram_in(const char *ram)
     if (!load_vram(ram, vtmp))
         return;
     vga_set_mode(0x13);
+    dac_in(ram);
     vga_outb(0x3C4, 4);
     vga_outb(0x3C5, 0x06);
     for (pl = 0; pl < 4; pl++) {
@@ -126,6 +184,16 @@ static int sound_apart(uint32_t a)
     uint32_t snd = (uint32_t)(HL_S30EF + HL_BASE) << 4, data = (uint32_t)(HL_DATA + HL_BASE) << 4;
 
     return (a >= snd && a < snd + 0x1400) || a == data + 0x0309 || (a >= data + 0x045C && a < data + 0x0462);
+}
+
+/* in `fgrey` and `fback` (1.4 s each) what the keyboard's interrupt
+ * writes meanwhile: the table of keys held and the last byte
+ * (DATA:0B1B to 0B2B, key_irq) */
+static int key_apart(uint32_t a)
+{
+    uint32_t data = (uint32_t)(HL_DATA + HL_BASE) << 4;
+
+    return a >= data + 0x0B1B && a <= data + 0x0B2B;
 }
 
 static int beside(uint32_t a)
@@ -356,6 +424,53 @@ int main(int argc, char **argv)
             got.seg = (uint16_t)dx;
             r_pict = 0;
             name.seg = name.off = 0;
+        } else if (!strcmp(what, "fgrey") || !strcmp(what, "fback")) {
+            /* fade_grey or fade_back(far palette): the video memory and
+             * the DAC likewise */
+            vram_in(argv[i + 3]);
+            (what[1] == 'g' ? fade_grey : fade_back)(far_at((uint16_t)ss, (uint16_t)(sp + 4)));
+            r_pict = 0;
+            got.off = (uint16_t)ax;
+            got.seg = (uint16_t)dx;
+            name.seg = name.off = 0;
+        } else if (!strcmp(what, "bar")) {
+            /* bar(x, y, colour, back, h, value, width), its RETF taken
+             * at the caller (S066A:1212): video memory likewise */
+            uint16_t p0 = (uint16_t)(sp + 4);
+
+            vram_in(argv[i + 3]);
+            bar_draw(frw((uint16_t)ss, p0), frw((uint16_t)ss, (uint16_t)(p0 + 2)), frw((uint16_t)ss, (uint16_t)(p0 + 4)),
+                     frw((uint16_t)ss, (uint16_t)(p0 + 6)), frw((uint16_t)ss, (uint16_t)(p0 + 8)),
+                     (int16_t)frw((uint16_t)ss, (uint16_t)(p0 + 10)), (int16_t)frw((uint16_t)ss, (uint16_t)(p0 + 12)));
+            r_pict = 0;
+            got.off = (uint16_t)ax;
+            got.seg = (uint16_t)dx;
+            name.seg = name.off = 0;
+        } else if (!strcmp(what, "blast")) {
+            /* S02E6:225C(n, far map, view, side), its RETF taken at the
+             * caller (S02E6:0BC2): video memory likewise */
+            uint16_t p0 = (uint16_t)(sp + 4);
+
+            vram_in(argv[i + 3]);
+            blast_draw(frw((uint16_t)ss, p0), far_at((uint16_t)ss, (uint16_t)(p0 + 2)), frw((uint16_t)ss, (uint16_t)(p0 + 6)),
+                       frw((uint16_t)ss, (uint16_t)(p0 + 8)));
+            r_pict = 0;
+            got.off = (uint16_t)ax;
+            got.seg = (uint16_t)dx;
+            name.seg = name.off = 0;
+        } else if (!strcmp(what, "pic")) {
+            /* pic_draw(x, y, far picture, dword colours, base) entered at
+             * S2A6B:0008 or at the blitter it jumps to (the same frame):
+             * video memory likewise */
+            uint16_t p0 = (uint16_t)(sp + 4);
+
+            vram_in(argv[i + 3]);
+            pic_draw(frw((uint16_t)ss, p0), frw((uint16_t)ss, (uint16_t)(p0 + 2)), far_at((uint16_t)ss, (uint16_t)(p0 + 4)),
+                     frb((uint16_t)ss, (uint16_t)(p0 + 12)));
+            r_pict = 0;
+            got.off = (uint16_t)ax;
+            got.seg = (uint16_t)dx;
+            name.seg = name.off = 0;
         } else if (!strcmp(what, "merase")) {
             /* marks_erase(field, side, mask): video memory likewise */
             vram_in(argv[i + 3]);
@@ -418,7 +533,7 @@ int main(int argc, char **argv)
         /* with the routine's own arguments, which the original changes
          * (a pointer moved along, a width counted down): 12 bytes, 10 of
          * file_name */
-        hi_stack = lin((uint16_t)ss, (uint16_t)(sp + 4 + (strcmp(what, "name") ? 12 : 10)));
+        hi_stack = lin((uint16_t)ss, (uint16_t)(sp + 4 + (!strcmp(what, "name") ? 10 : !strcmp(what, "bar") ? 14 : 12)));
         printf("%s %s:", what, text);
         for (a = 0; a < RAM; a++) {
             changed += mem[a] != entry[a];
@@ -427,9 +542,12 @@ int main(int argc, char **argv)
             if (a >= lo_stack && a < hi_stack)
                 d_stack++;
             else if (beside(a) || (!strcmp(what, "scr") && scr_apart(a))
-                     || ((!strcmp(what, "fpanel") || !strcmp(what, "fpics")) && sound_apart(a))
+                     || ((!strcmp(what, "fpanel") || !strcmp(what, "fpics") || !strcmp(what, "fgrey") || !strcmp(what, "fback")) && sound_apart(a))
+                     || ((!strcmp(what, "fgrey") || !strcmp(what, "fback")) && key_apart(a))
                      || ((!strcmp(what, "view") || !strcmp(what, "marks") || !strcmp(what, "msg")
-                          || !strcmp(what, "fdraw") || !strcmp(what, "merase") || !strcmp(what, "panel") || !strcmp(what, "fpanel") || !strcmp(what, "fpics"))
+                          || !strcmp(what, "fdraw") || !strcmp(what, "merase") || !strcmp(what, "panel") || !strcmp(what, "fpanel") || !strcmp(what, "fpics")
+                          || !strcmp(what, "fgrey") || !strcmp(what, "fback") || !strcmp(what, "bar") || !strcmp(what, "blast")
+                          || !strcmp(what, "pic"))
                          && begin_apart(a)))
                 d_beside++;
             else if (left_out && (mem[a] == entry[a] || a == kept || a == kept + 1))
@@ -456,6 +574,14 @@ int main(int argc, char **argv)
                 printf(" video memory written by the original only %u,", va);
             printf(" video memory different %u,", vd);
             d_else += vd;
+        }
+        {
+            int dd = dac_diff(argv[i + 5]);
+
+            if (dd >= 0) {
+                printf(" DAC bytes different %d,", dd);
+                d_else += (unsigned)dd;
+            }
         }
         if (got.off != ax || (wide && got.seg != dx))
             printf(" returns %04X:%04X, the original %04X:%04X;", got.seg, got.off, dx, ax);

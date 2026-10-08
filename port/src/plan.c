@@ -1913,3 +1913,37 @@ void computer_turn(uint16_t side)
 #undef PHASE
 #undef LIST_AT_0
 }
+
+/* S1C74:0354: how far the side's computer has got with its units, 0 to
+ * 63h, for the bar game_loop draws.  Counted are the units (0 to F0h) on
+ * the side's side but the second halves of two-part ones, those with
+ * C000h in word 4, 20h in word 6 or 380h in the kind's word of
+ * kind_worth; done are those whose byte 8 in the side's table of plans is
+ * 0.  64h less done * 100h / (count * 100h / 64h), 0 to 63h; 0 when none
+ * is counted. */
+uint16_t computer_progress(uint16_t side)
+{
+    Far plans = plans_of(side);
+    int32_t n = 0, done = 0, p;
+    unsigned u;
+
+    for (u = 0; u <= 0xF0; u++) {
+        uint16_t w4 = UW(u, 4);
+
+        if ((w4 & 0x40) && !(w4 & 0x80))
+            continue;
+        if ((w4 & 0xC000) || (UW(u, 6) & 0x20) || (NW(kind_worth, UB(u, 8) * 6 + 2) & 0x380))
+            continue;
+        if (!same_side(w4, side))
+            continue;
+        n++;
+        if (!pb(plans, (uint16_t)(u * PLAN_SIZE + 8)))
+            done++;
+    }
+    if (n <= 0)
+        return 0;
+    p = 0x64 - (done << 8) / ((n << 8) / 0x64);
+    if (p < 0)
+        return 0;
+    return (uint16_t)(p > 0x63 ? 0x63 : p);
+}

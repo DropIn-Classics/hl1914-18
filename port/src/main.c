@@ -32,6 +32,11 @@
  * it found and waits for Esc.  -ram writes that memory to FILE as
  * dosrun's -ram does (for doskit/tools/memcmp.py) and ends the program.
  *
+ * In the window, -map N without -keys, -passes, -clock or -ram plays the
+ * battle there at the original's pace with the player's keys (play.c,
+ * play_live) until it is over, the window is closed or something comes
+ * that is not translated, and says so on stderr.
+ *
  * With -keys, -passes or -clock the program then plays the battle by
  * itself without drawing it (play.c): the passes of the original's loop,
  * the human's keys from the key script FILE (the runner's format, the
@@ -484,6 +489,12 @@ int main(int argc, char **argv)
 
         sys_data_dir(saves, sizeof saves);
         hl_save_dir = saves;
+    }
+    /* -map alone in the window: the battle is played there (play_live);
+     * headless too when DK_KEYS or DK_SHOTS script it (plat_null.c) */
+    if (map >= 0 && !play && !ram && (plat_has_window() || getenv("DK_KEYS") || getenv("DK_SHOTS"))) {
+        play_live();
+        play = 1;
     }
     if (!play && map < 0)
         map = 0;

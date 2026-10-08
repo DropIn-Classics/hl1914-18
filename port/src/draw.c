@@ -12,14 +12,14 @@
 
 /* a byte at seg:off, from the VGA's window at A000h or from memory, as
  * the CPU reads and writes it */
-static uint8_t vrb(uint16_t seg, uint16_t off)
+uint8_t vrb(uint16_t seg, uint16_t off)
 {
     uint32_t a = lin(seg, off);
 
     return a >= 0xA0000 && a < 0xB0000 ? vga_read((uint16_t)(a - 0xA0000)) : mem[a];
 }
 
-static void vwb(uint16_t seg, uint16_t off, uint8_t v)
+void vwb(uint16_t seg, uint16_t off, uint8_t v)
 {
     uint32_t a = lin(seg, off);
 
@@ -326,7 +326,7 @@ static void line_fill(void)
 
 /* S28E5:0004: the lines from y DATA:00DE to DATA:00E2 (made the smaller
  * first), DATA:00DE counted on past the last */
-static void rect_fill(void)
+void rect_fill(void)
 {
     uint16_t n = (uint16_t)(DW(0x00E2) - DW(0x00DE));
 
@@ -487,7 +487,7 @@ static void text_put(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_
 
 /* text_put for a text in the program's memory; its length (CODE:2BD8:
  * 0 for 0:0) in *len when len is not NULL */
-static void text_draw(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_t base, Far text, uint16_t *len)
+void text_draw(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_t base, Far text, uint16_t *len)
 {
     uint8_t buf[256];
     uint16_t n = 0;
@@ -595,7 +595,7 @@ static void box_fill(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_
 /* S2532:1A8F and S2532:1BC3: a flag 12 by 6 pixels at x, y of three
  * stripes in colours c1, c2, c3: lying (two rows each) or standing (four
  * columns each) */
-static void flag_draw(uint16_t x, uint16_t y, uint16_t c1, uint16_t c2, uint16_t c3, int standing)
+void flag_draw(uint16_t x, uint16_t y, uint16_t c1, uint16_t c2, uint16_t c3, int standing)
 {
     if (standing) {
         box_fill(x, y, (uint16_t)(x + 3), (uint16_t)(y + 5), c1);
@@ -745,7 +745,7 @@ static void pic_half(uint16_t x, uint16_t y, Far src, uint8_t base)
 /* S2A6B:0008 (pic_draw): a picture by its kind (byte 9): 'P' by
  * pic_blit, or at half size by pic_half for y negative; 'X' (S2957:0002)
  * is not translated and draws nothing here; any other by pic_blit_u */
-static void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base)
+void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base)
 {
     if (pb(src, 9) == 'P') {
         if ((int16_t)y >= 0)

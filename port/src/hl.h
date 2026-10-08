@@ -142,6 +142,31 @@ void fade_out(void);
 /* draw.c */
 void view_draw(uint16_t field, uint16_t side);
 void marks_draw(uint16_t field, uint16_t side);
+uint8_t vrb(uint16_t seg, uint16_t off);
+void vwb(uint16_t seg, uint16_t off, uint8_t v);
+void rect_fill(void);
+void text_draw(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_t base, Far text, uint16_t *len);
+void flag_draw(uint16_t x, uint16_t y, uint16_t c1, uint16_t c2, uint16_t c3, int standing);
+void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base);
+
+/* fightpics.c: fight_pictures' arguments in the order of its stack
+ * (S2474's fight_show passes them), and `sp` the stack pointer at its
+ * entry (where lib_read's list goes, as on the original's stack) */
+typedef struct {
+    uint8_t near0, standing;
+    uint16_t show, winter, kind0, kind1, ground0, ground1, count0, count1, after0, after1;
+    Far none, place, work;
+    uint16_t sp;
+} FightPics;
+/* where pics_hook is called: instead of clock_seed(0), after the loading
+ * (before the key is cleared), in each frame before the key is tested,
+ * at each level of the fade, at its end */
+enum { PICS_SEED, PICS_LOADED, PICS_FRAME, PICS_LEVEL, PICS_END };
+extern void (*pics_hook)(int at);
+void clock_seed_bios(void);
+void sprite_draw(int16_t x, int16_t y, Far pic, Far save, uint16_t base, int16_t sx, int16_t sy);
+void unders_restore(void);
+int fight_pictures(const FightPics *a);
 
 /* mem.c */
 Far mem_alloc(uint32_t size);

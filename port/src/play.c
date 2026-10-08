@@ -475,10 +475,55 @@ static void own_wait_press(void)
     }
 }
 
+/* fight_pictures' times on the port's own clock (pics_hook): its seed
+ * (clock_seed(0); with play_seeds the original's number instead; the
+ * calls of rand_next are its own, volley_end), its loading, its frames
+ * and its fade */
+static void pics_clock(int at)
+{
+    static uint16_t kept[4];
+    int i;
+
+    switch (at) {
+    case PICS_SEED:
+        if (have_clock) {
+            /* the log's S and R come after attacks_run and the frames
+             * take no time here (no key ends them): rand_words are
+             * given back at the end */
+            for (i = 0; i < 4; i++)
+                kept[i] = NW(rand_words, 2 * i);
+            seed_set(clock_seed0());
+        } else if (fights_at < fights_n)
+            seed_set(fights[fights_at++].v);
+        else {
+            if (fights_n)
+                play_misses++;
+            seed_set(clock_seed0());
+        }
+        break;
+    case PICS_LOADED:
+        if (!have_clock)
+            own_busy(T_PIC_LOAD);
+        break;
+    case PICS_FRAME:
+        if (!have_clock)
+            own_busy(T_PIC_FRAME);
+        break;
+    case PICS_LEVEL:
+        if (!have_clock)
+            own_busy(T_PIC_LEVEL);
+        break;
+    case PICS_END:
+        if (have_clock)
+            for (i = 0; i < 4; i++)
+                SETW(rand_words, 2 * i, kept[i]);
+        break;
+    }
+}
+
 /* attacks_run's waits and pictures (orders_hook), on the port's own clock */
 static void round_hook(int at, int n)
 {
-    Far k = far_at(S_DATA, 0x00BE);
     static int first;
     int i;
 
@@ -498,35 +543,9 @@ static void round_hook(int at, int n)
         }
         own_retraces(13);
         if (n) {
-            int level = 0;
-
             own_wait_input(0x96);
             own_fade();
-            /* fight_pictures, S2532:0008: clock_seed(0); with play_seeds
-             * the original's number instead and the calls of rand_next
-             * its pictures made (S2532:17D1, not translated) */
-            if (fights_at < fights_n) {
-                int r = fights[fights_at].r;
-
-                seed_set(fights[fights_at++].v);
-                while (r-- > 0)
-                    rand_next();
-            } else {
-                if (fights_n)
-                    play_misses++;
-                seed_set(clock_seed0());
-            }
-            own_busy(T_PIC_LOAD);
-            fww(k.seg, (uint16_t)(k.off + 4), 0);
-            for (i = 1; i < 0x2EE; i++) {
-                if (i < 0x40)
-                    level = 4 * i + 3;
-                own_busy(T_PIC_FRAME);
-                if (pw(k, 4))
-                    break;
-            }
-            for (; level > 0; level -= 4)
-                own_busy(T_PIC_LEVEL);
+            /* then fight_pictures, through pics_hook */
         } else {
             for (i = 0; i < 6; i++) {
                 own_busy(T_MARK);
@@ -820,6 +839,7 @@ void play_begin(double start)
 {
     loop_hook = hook;
     orders_hook = round_hook;
+    pics_hook = pics_clock;
     loop_reset();
     now = began = start;
     tick_at = start + TICK;

@@ -1171,15 +1171,34 @@ emulation error (2026-10-02).
        pictures in the runs compared). `attacks_run` as a whole was not
        compared in video memory; its state through `orders_test`,
        `loop_test` and `play_test.sh m8_site` (the same).
-       Left for the next step: `S2532` whole (3,356 lines of the
-       listing; its parts by size and calls are in the hints at
-       `fight_pictures`), with its blitters not yet read (`S2AF3:000A`,
-       which `attacks_run` also calls, `S294A:000A`, `S29C1:001F`,
-       `S292E:000A`, `S2B76:0004`) and its calls of `rand_next` at
-       `S2532:17D1`, which need the frame loop and the figures' scripts;
-       the 'X' way of `pic_draw` (`S2957:0002`); `S02E6:225C`; the bar
-       (`S1571:01F2`) and `fade_grey`/`fade_back` (252 lines each; they
-       change the DAC and write a grey palette behind `S3303:0028`).
+       `S2532` done 2026-10-08 (`port/src/fightpics.c`, names in
+       the hints from `fight_pictures` on, port/README.md "A fight's
+       pictures"): read whole with its blitters and translated, the same
+       as the original on m8_d5r's two fights with pictures in memory
+       (`rand_words` too) and video memory. Learned: the pictures are
+       driven by the fight's file (`S3AEE:0061`, its tables at its words
+       0, 2, 4, 6, 8, 0Ah): each side's list of figure records (22h
+       bytes: flags, figure, first and last frame, x/y and scale at both
+       ends, the picture or a sequence of them); the frame loop moves them
+       by `long_mul`/`long_div`, and a volley's last frame (flag 10h)
+       calls `volley_end`, which shares the other side's losses still to
+       show among the volleys left and draws `rand_next` for it
+       (`figures_fall` then marks the nearest standing figures by x). So
+       the number of calls depends only on the file, the counts before
+       and after, and the key that may end the frames early, not on the
+       drawing. Drawing: `sprite_draw` keeps what each figure covers in a
+       list per page in video memory (`DATA:0322`, `under_save`),
+       `page_flip` swaps the lists and `unders_restore` puts the other
+       page's back after the flip. The 'X' way of `pic_draw`
+       (`S2957:0002`), `S02E6:225C`, the bar (`S1571:01F2`) and
+       `fade_grey`/`fade_back` (252 lines each; they change the DAC and
+       write a grey palette behind `S3303:0028`) are still to do; so are
+       the pictures' sounds (`S2F39`). `attacks_run` calls it where
+       the original does, and on the port's own clock with only the log's
+       seeds `play_test.sh m8_d5r seeds` keeps `rand_words` the same to
+       round 4 (the last dumped): of the list "What still has to come from
+       a log" item 5 (R) is no longer needed; the seeds (S) and the key
+       that may end the frames (its time) still are.
   - State, all translated: `field_bits_clear(FFh)` empties `field_bits`
     (`S331F:3B5A`); `view_tables` fills `row_y`, `row_y_odd` and `col_x` (a
     field is 10h wide and 18h high on the screen, odd columns 0Ch lower);

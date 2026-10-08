@@ -457,6 +457,36 @@ static void rec_unit(uint16_t which, uint8_t u, uint16_t field, Far map)
     rec_far(which ? 0x22 : 0x1E, pic.seg, pic.off);
 }
 
+/* fight_show (S2474:000E) after fight_losses: fight_pictures with what
+ * fight_rec says of the two units and their fields (the units' word 4
+ * bit 0 and byte 8, the fields' grounds' byte 5, whether they are
+ * neighbours), S37FF:0130, pics_winter and the counts kept at S3AEC:000C
+ * to 000F, at attacks_run's work buffer plus 2710h.  0F08h is the
+ * original's stack pointer at fight_pictures' entry (in the dumps). */
+static void fight_show(Far rec)
+{
+    FightPics a;
+    Far u0 = pfar(rec, 0), u1 = pfar(rec, 4);
+
+    a.near0 = pw(rec, 0x2E) == 0;
+    a.standing = pw(u0, 4) & 1;
+    a.show = frb(HL_S37FF + HL_BASE, 0x0130);
+    a.winter = NB(pics_winter, 0);
+    a.kind0 = (uint16_t)(pb(u0, 8) + 1);
+    a.kind1 = (uint16_t)(pb(u1, 8) + 1);
+    a.ground0 = pb(pfar(rec, 0x12), 5);
+    a.ground1 = pb(pfar(rec, 0x16), 5);
+    a.count0 = frb(S_fight_rec_ptr, 0x0F);
+    a.count1 = frb(S_fight_rec_ptr, 0x0E);
+    a.after0 = frb(S_fight_rec_ptr, 0x0D);
+    a.after1 = frb(S_fight_rec_ptr, 0x0C);
+    a.none.seg = a.none.off = 0;
+    a.work = game_mem.work;
+    a.place = far_add(game_mem.work, 0x2710);
+    a.sp = 0x0F08;
+    fight_pictures(&a);
+}
+
 /* S02E6:208E's blasts counted down and the fields put back (the loop at
  * S02E6:0B61, when the fights are not pictures): each turn every blast
  * whose byte 2 is not negative counts down, and one that goes below 0
@@ -587,8 +617,7 @@ static void screen_word_1c(uint16_t v)
  * the other side, map side a's.  Drawn as the original draws (the view,
  * the panels, fight_panel, the blasts); left out: what is played and
  * waited for (the port's clock, play.c, through orders_hook), the
- * fight's pictures (fight_pictures, S2532:0008), S2AF3:000A and
- * S02E6:225C. */
+ * sounds and S02E6:225C. */
 static void fights_run(uint16_t a, uint16_t m, Far map)
 {
     Far list = far_at(S_sides, (uint16_t)(A_sides + a * SIDE_SIZE + 0x11));
@@ -652,8 +681,8 @@ static void fights_run(uint16_t a, uint16_t m, Far map)
         page_flip();
 
         /* the losses: fight_panel, and with pictures fight_show (it keeps
-         * the counts before and after and draws the pictures, S2532:0008:
-         * not translated), then pictures_load and libs_start again */
+         * the counts before and after and draws the pictures,
+         * fight_pictures), then pictures_load and libs_start again */
         fww(S_fight_rec_ptr, A_fight_rec_ptr, A_fight_rec);
         fww(S_fight_rec_ptr, (uint16_t)(A_fight_rec_ptr + 2), S_fight_rec);
         if (orders_hook)
@@ -668,6 +697,7 @@ static void fights_run(uint16_t a, uint16_t m, Far map)
             fight_losses();
             fwb(S_fight_rec_ptr, 0x0D, NB(unit_count, u * UNIT_SIZE));
             fwb(S_fight_rec_ptr, 0x0C, NB(unit_count, t * UNIT_SIZE));
+            fight_show(rec);
             p = game_mem.pics;
             pictures_load(&p, game_mem.work, game_mem.save_buf);
             page_flip();
@@ -709,13 +739,14 @@ static void fights_run(uint16_t a, uint16_t m, Far map)
         exp_add(t, gain_t);
         fww(S_GAME, A_fight_wait, 4);
         if (!pictures) {
-            /* S02E6:0AE6: the two units' panels again, then S2AF3:000A
-             * (not read, not translated) */
+            /* S02E6:0AE6: the two units' panels again, then
+             * unders_restore */
             page_copy();
             unit_panel(t, m);
             unit_panel(u, a);
             page_flip();
             page_copy();
+            unders_restore();
             if (destroyed)
                 blasts_run(map, m);
         }

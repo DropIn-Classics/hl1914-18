@@ -18,6 +18,9 @@
 #define S_EV (HL_S3812 + HL_BASE)       /* the pictures' table of files */
 
 int (*event_hook)(int at, int n);
+/* a test's: the frame of the picture shown, from 0; -1 before its first
+ * and outside a picture */
+int event_frame = -1;
 
 static int hook(int at, int n)
 {
@@ -184,6 +187,7 @@ static void flip(void)
 static void frame_begin(void)
 {
     hook(EV_FRAME, 0);
+    event_frame++;
     pww(scr(), 0x22E, 0);
 }
 
@@ -449,6 +453,7 @@ int16_t event_picture(Far place, Far work, uint16_t kind, uint16_t arg)
         flip();
     }
     hook(EV_RELEASE, 0);
+    event_frame = -1;
     switch (kind) {
     case 0xCD:
         res = pic_wiped(place, work);
@@ -464,6 +469,7 @@ int16_t event_picture(Far place, Far work, uint16_t kind, uint16_t arg)
         fprintf(stderr, "event_picture: kind %X not translated\n", (unsigned)kind);
         break;
     }
+    event_frame = -1;
     if (whole) {
         for (i = 0; i < 6; i++)
             pww(r, at[i], keep[i]);

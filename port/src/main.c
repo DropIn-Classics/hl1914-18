@@ -299,14 +299,16 @@ static int dumps_n;
 static int nopics;      /* -nopics: the fights are not shown as pictures */
 
 /* -sndlog FILE: each call of sfx_play, its time on the port's clock, the
- * channel, the effect's number, what it returned and the battle's count
- * of passes (for the test) */
+ * channel, the effect's number, what it returned, the battle's count
+ * of passes, the volume, how many times and the frame of the picture
+ * behind the loop it came in, from 0 (event_frame, events.c; -1: not in
+ * one; for the tests). */
 static FILE *snd_log;
 
-static void snd_logged(uint16_t ch, uint16_t n, int16_t r)
+static void snd_logged(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, int16_t r)
 {
-    fprintf(snd_log, "%.3f %u %u %d %lu\n", play_now(), ch, n, r,
-            (unsigned long)((uint32_t)NW(game_state, 0x15) << 16 | NW(game_state, 0x13)));
+    fprintf(snd_log, "%.3f %u %u %d %lu %u %u %d\n", play_now(), ch, n, r,
+            (unsigned long)((uint32_t)NW(game_state, 0x15) << 16 | NW(game_state, 0x13)), vol, times, event_frame);
     fflush(snd_log);
 }
 

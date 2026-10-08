@@ -743,6 +743,41 @@ mixer and `dsp_rate`. On the original's clock (a battle played with
 `-clock`) `snd_clock` is not called, so a tune started there does not go
 on but in a fade's wait.
 
+2026-10-08 (macOS, branch `mac/sfx`): the effects' other ways and the
+digital mixer's memory side, in `src/sound.c`, still without any sound
+coming out. `sfx_play` and what it reaches were already there as read;
+their ways not reached before (a call that fails, an effect played more
+than once or endless, an 8SVX effect) are now compared and needed no
+change. New: `dig_mix` (each pair of bytes of a buffer from the playing
+digital channels' bytes, their volumes and their count; a channel at
+its end begun again or taken off `dig_mask` and `dig_count`), `dig_irq`
+(the card's interrupt: the buffer that waits started, the other mixed
+anew), `dig_kick` (the first buffer mixed and the interrupt, from
+`snd_pass` while digital channels play, as in the original) and
+`dsp_rate` (the rate, kept beside the memory; `start_setup` calls it
+with 10000 where `game_loop` does). The bytes stay in the driver's two
+buffers in the program's memory. The card's interrupt, which the
+original gets when a buffer has been played, comes from `snd_clock` the
+buffer's length / the rate after it was started, on the port's own
+clock only; with `-clock` only `snd_pass` moves the digital channels.
+So a digital effect now ends and counts its times down as in the
+original at the calls compared, where before it stayed marked as
+playing until `chan_stop` or the next effect on its channel.
+Called where the game calls `sfx_play`: nothing new was needed. Of the
+original's 20 call sites the port has the ten that lie in what is
+translated (`attacks_run`'s, `game_loop`'s two, `panel_sound`, the
+menu's four, `pic_wiped`'s two in `src/events.c`); the other ten are in
+the pictures C8h, C9h and CCh of `event_picture`, which the port does
+not have (docs/HANDOFF.md, "The effects' ways and the mixer", has what
+they play and that no caller passing these kinds was found).
+`-sndlog` now writes the volume, the count of times and the picture's
+frame (`event_frame`, counted in `src/events.c` for the test) behind
+each call's line.
+Not done: sound output (docs/HANDOFF.md says what it still needs: a
+hook for the buffers' bytes where `dig_irq` starts one, the queue
+dropped at `dig_kick`, the interrupt from the audio's clock), `snd_end`,
+the three pictures.
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -772,6 +807,79 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The effects' ways and the mixer (2026-10-08, macOS, branch `mac/sfx`;
+  `src/sound.c`): `python3 port/tests/sfx_dumps.py` runs the original on
+  map 57 with `m57_win.keys` (a battle that ends at the first round's
+  end with picture CDh, `pic_wiped`, which plays its effects by
+  `sfx_play` at frames of a table) in seven variants and keeps memory
+  at the entry and the end of every `sfx_play` of the picture, of the
+  `snd_pass` behind each, of calls of the timer's routine `adl_tick`
+  (the first twelve behind each of the first three effects, those in
+  which an effect ended or began again and the one before each) and, in
+  two, of the card's interrupt `dig_irq` (the first three behind each
+  call, without those `dig_kick` makes inside `snd_pass`). The game's
+  own tables play every effect once, so the other ways come from pokes
+  (not the game's own doing): `dig` the game's own, 16 digital (8SVX)
+  effects on the channels 0 to 6; `digx` with entries of the table
+  changed when the first pass begins (two endless, one three times, one
+  twice, one with a number beyond the file); `adl` with `S3303:0022`
+  set, the AdLib's file and table, 14 effects on the channels 8 to 0Ah;
+  `adlx` that with the same changes; `chan` one call's channel made
+  0Ch on the stack; `voices` `adl_used` made 9 at one call's entry
+  (`adl_load` finds no voice free); `lock` `adl_used` made 9 at one
+  `snd_pass` (`adl_start` needs more voices than are free and leaves
+  `snd_lock` set). `sh port/tests/sfx_test.sh` then compares two
+  things.
+  Memory: the port's routine gets the entry's memory and arguments
+  (`port/tests/sound_test.c`, `irq` a new kind) and the driver's
+  variables (`S30EF:0000` to `111E`) and the result are compared with
+  the end's: 610 calls, none different (dig 114: 16 `sfx_play`, 16
+  `snd_pass`, 36 `adl_tick`, 46 `dig_irq`; digx 116 with 48 `dig_irq`;
+  adl 84 with 56 `adl_tick`; adlx 86 with 58; chan 68; voices 78; lock
+  64), in 126 of them with the timer's interrupt in between as before.
+  The mixer's bytes are judged now: both buffers of 400h bytes with
+  their headers, `dig_mix`'s sums and count, the digital channels'
+  counts of steps and of times, `dig_mask` and `dig_count` are the
+  original's after every `snd_pass` and `dig_irq` compared. Among the
+  calls: the two failing ones (FFFFh, nothing changed), `adl_load`'s
+  FFFFh that `adl_play` takes for success, `adl_start`'s failure with
+  the lock left 1 and every later call under that lock (no effect ends
+  any more in the original either), effects beginning again at their
+  end and stopped at the last, endless ones stopped by the next effect
+  on their channel (`chan_stop` 1 for a digital one, `adl_stop` for an
+  AdLib one).
+  Which effect comes when: the port's program plays `m57_win.keys` with
+  the variant's pokes (`dig`, `digx`, `adl`, `adlx`; the three others
+  poke at one call, which the program cannot) on the original's clock
+  and on its own (`-sndlog`), and `port/tests/sfx_cmp.py` compares
+  every call of `sfx_play` from the first pass on: 16, 16, 14 and 14
+  calls, all in the picture, the same in the picture's frame, channel,
+  number, volume, count of times and result, on both clocks.
+  Run again with the mixer in, after origin/master `a6c857a` was
+  merged: `sound_test.sh` (304 calls, none different, the menu's 38
+  effects and the battle's 1,185 against 1,186 calls as before),
+  `fsound_test.sh` (m8_site 57 calls, m8_d5r 81, m8_wait_nopics 4, none
+  different; the triggers as before) and `music_test.sh` (297, none
+  different): `sound_test.c` no longer leaves the mixer's bytes out, so
+  the 32 calls of the fight's pictures that go on to `dig_play` are now
+  the original's in the buffers too. `play_test.sh` m57_win (the
+  original's clock and `rounds`), m8_site and m8_site `own`: exit
+  status 0, the inputs, the game's state and the computer's the same
+  at every pass compared; "elsewhere" was not compared with its counts
+  before the change (at m57_win's frames 101 to 121 of the picture: 826
+  to 1,733 bytes on the original's clock, where the port has no card's
+  interrupts, and 20 to 28 on the port's own).
+  Not checked or not reached: nothing was listened to; when the
+  original's card interrupt comes against `snd_clock`'s (its timing is
+  the port's own); `dig_irq` with less than 28h bytes waiting or while
+  it is already at work (not looked for among the 94 calls); a step
+  other than 200h; an 8SVX form of the kind 3; an effect that is
+  neither 8SVX nor ADLX; the pictures C8h, C9h and CCh and their
+  effects (not in the port; no run reached them); `orders_test.sh`,
+  `move_test.sh`, `range_test.sh`, `load_test.sh`, `menu_test.sh`,
+  `loop_test.sh` and the tests with dumps in `build/n2` to `build/n6`
+  and `build/computer` (not run again); the Windows and Linux builds
+  (no new source file; not built).
 - The fight's sound triggers (2026-10-08, macOS, branch
   `mac/fightsound`; `src/sound.c`, called from `src/main.c`'s hooks):
   `python3 port/tests/fsound_dumps.py` runs the original on map 8 with

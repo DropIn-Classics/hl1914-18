@@ -1392,7 +1392,11 @@ name S2F39:0690 adl_play
 ; entry n's dword at n*0Ch+8 there where the effect is; FORM....8SVX
 ; goes to dig_play, ADLX....AHDR to adl_play, anything else and a channel
 ; of 0Ch or above give FFFFh. Seen: the menu plays on channel 8 with
-; volume FFh, 1 and 200h; all nine calls of a walk were ADLX.
+; volume FFh, 1 and 200h; all nine calls of a walk were ADLX. Seen
+; 2026-10-08 in pic_wiped (port/README.md): 8SVX effects on the channels
+; 0 to 6, and by pokes a number beyond the file and a channel of 0Ch
+; (FFFFh, nothing changed), times 0 (endless) and above 1. Its 20 call
+; sites all pass the step 200h.
 name S2F39:06E3 sfx_play
 ; snd_pass, once a pass of every loop that sounds: dig_kick when digital
 ; channels play, then adl_start for channels 8 to 0Bh with their records'
@@ -1515,11 +1519,21 @@ name S30EF:1C68 dig_buffers
 ; playing channel's two bytes at step count times step / 100h, signed,
 ; times half its volume, summed, divided by dig_count, plus 7Fh; a
 ; channel at its end begins again or is taken off. AX the bytes made.
+; In detail (2026-10-08, translated in port/src/sound.c and compared,
+; port/README.md): a channel at or past its length gives nothing to that
+; pair; when the last channel is taken off the routine ends at once, the
+; pair not written. The sums are at S30EF:10C3 and 10C5, the pairs left
+; at 10BB; AX is the length in bytes less the pairs left.
 name S30EF:1CED dig_mix
 ; dig_irq, the card's interrupt: the other buffer started when it has
 ; 28h bytes or more and the one played filled again; else the interrupt
 ; masked. dig_kick: the DSP halted (D0h), the first buffer mixed and
-; dig_irq called.
+; dig_irq called. The headers (8 bytes, at S30EF:049B and 08A5): the length
+; mixed, the DMA's page and address, the buffer's place; byte 0499 bit 0
+; says the first is the one to start, byte 0496 that dig_irq is at work.
+; dig_kick so mixes both buffers in a pass, 800h bytes ahead (seen: an
+; effect of that length is off dig_mask when snd_pass returns).
+; Translated without output and compared (port/README.md).
 name S30EF:1DF8 dig_irq
 name S30EF:1E8B dig_kick
 ; dig_find: the DSP looked for at 210h to 260h (dsp_reset), then its
@@ -2963,7 +2977,10 @@ name S167A:2F83 inputs_release
 ; D0h to pic_won (2026-10-08, read whole for those four and translated,
 ; port/src/events.c). game_loop gives its [BP-10h] as the work buffer
 ; and 2710h behind it as the place; battle_score its own, moved on by
-; 2710h, 3E8h and 32h by then.
+; 2710h, 3E8h and 32h by then. The table's other three: C8h S1A39:1DD5,
+; C9h S1A39:1A11, CCh S1A39:149D (not read but for their calls of
+; sfx_play and chan_stop, docs/HANDOFF.md; no caller passing these kinds
+; as a constant was found, not looked for in a run).
 name S1A39:0001 event_picture
 ; site_picture: loads its files (S1A39:034C with 3 and the names at
 ; S3812:086C; not read), starts a sound (S2F39:0F87, not read), then

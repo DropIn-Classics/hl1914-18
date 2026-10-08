@@ -59,6 +59,15 @@ sounds"). `fightpics.c` and `orders.c` were not to be touched, so the
 triggers are driven from their hooks by `main.c`; the lines their owners
 can put in instead are listed there.
 
+On the branch `mac/sfx` (2026-10-08) the ways of `sfx_play` not reached
+before are compared with the original (a failing call, an effect played
+more than once or endless, an 8SVX effect: reached in the picture
+`pic_wiped` with pokes, since the game's own tables play every effect
+once) and the digital mixer's memory side is translated (`dig_mix`,
+`dig_irq`, `dig_kick`; still no sound output), so the port's digital
+channels end and repeat as the original's (the bullet "The sound", "The
+effects' ways and the mixer").
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -3872,7 +3881,10 @@ emulation error (2026-10-02).
       interrupt (found among 7, 5, 3, 2; port 210h to 260h); none of that
       is needed. The channels' end (`dig_count`, `dig_mask`) comes from
       the mixer, so until it exists a digital channel in the port stays
-      "playing" until `chan_stop` or the next `dig_play`.
+      "playing" until `chan_stop` or the next `dig_play`. (Since
+      `mac/sfx` the mixer's memory side exists, with `dig_irq` and
+      `dig_kick`, and the channels end; the bullet "The effects' ways
+      and the mixer" below says what is left for output.)
     - The music: its control is translated (the next bullet). For
       sound it needs the AdLib's part above and the timer's interrupts
       (`snd_irq`) on the audio's clock; `music_fade`'s wait then has to
@@ -4039,6 +4051,172 @@ emulation error (2026-10-02).
       need" above; for the fight's pictures in particular `dig_mix`,
       since all their sounds are digital and a channel's end comes from
       the mixer.
+  - The effects' ways and the mixer (2026-10-08, Mac, branch `mac/sfx`).
+    What `mac/sound` had listed as not reached of `sfx_play`: a call
+    that fails, an effect played more than once or endless, an 8SVX
+    effect. `sfx_play`, `dig_play`, `adl_play`, `adl_load`, `adl_start`
+    and the events' end (77h) were already translated as read; they are
+    now compared on those ways and none needed a change. New in
+    `port/src/sound.c`: the digital mixer's memory side (`dig_mix`,
+    `dig_irq`, `dig_kick`, `dsp_rate`), because a digital effect's
+    repeating and ending is the mixer's doing and `snd_pass` behind an
+    8SVX effect could not be the original's without it.
+    - Where the game calls `sfx_play` with other than "once" or with a
+      digital effect: only in the pictures of events (`S1A39`). Its 20
+      call sites, all with a constant step of 200h: `attacks_run`
+      (`S02E6:0B2B`), `game_loop` (two), `panel_sound`, the menu (four),
+      all ADLX on the channels 8 to 0Bh, once, and all called by the
+      port since `mac/sound` and `mac/fightsound`; `pic_wiped` (CDh,
+      two: `S3303:0022` chooses the file, the table and the channels),
+      called by `port/src/events.c` since `debian/window5`; and ten in
+      three pictures the port does not have: `S1A39:149D` (CCh in
+      `event_picture`'s table), `S1A39:1A11` (C9h) and `S1A39:1DD5`
+      (C8h). Read at the call sites only: CCh starts effect 5 of the
+      same file 258h times (volume AAh with `S3303:0022`, else 1Eh)
+      before its first frame, plays others from a table at `S3812:0764`
+      (30h bytes for each value of `S3303:0022`) and ends with
+      `chan_stop` for the channels 0 to 0Bh; C9h plays effect 2 FFh and
+      C8h times, C8h effect 1 twice on channel 9 and effect 2 C8h times
+      on channel 0Bh or 7; both end with `chan_stop`. No call of
+      `event_picture` that passes C8h, C9h or CCh as a constant was
+      found in the generated source (its four callers pass CAh/CBh,
+      CEh/CFh, CDh/D0h and a map's number); whether anything reaches
+      them was not looked for in a run. So in what runs, every effect
+      is played once; the other ways are in the routines, not in the
+      game's own calls seen.
+    - `pic_wiped`'s table (`S3812:03C4`, six bytes an entry: the frame,
+      how many times, the number, the volume) has 19 entries for the
+      digital file, its end's included, and the AdLib's entries follow
+      at once; but with `S3303:0022` set the routine looks 7Eh bytes
+      further on, which is 21 entries: two past the AdLib's first, so
+      its entries of the frames 1 and 5 are never read and the
+      picture's first sound comes at frame 10.
+      The picture has 82h frames, so the entries of the frames 130 and
+      135 never play: 16 calls digital, 14 AdLib.
+    - Reached by pokes, since the game's tables only play once
+      (`port/tests/sfx_dumps.py`, on `m57_win.keys`, which ends a
+      battle at the first round's end with picture CDh): entries of
+      the table changed when the first pass begins (times 0, 3, 2, a
+      number of FFh), `S3303:0022` set to 1 for the AdLib's way with
+      the Sound Blaster still found, one call's channel made 0Ch on
+      the stack, and `adl_used` made 9 at one call's entry and at one
+      `snd_pass`. Not the game's own doing; what the routines do with
+      such arguments is the original's.
+    - What the runs showed (all the same in the port):
+      - A number beyond the file and a channel of 0Ch give FFFFh and
+        change nothing of the driver's variables. The picture goes on
+        to its next channel all the same.
+      - A digital effect: `dig_play` stops the channel first (FFFFh
+        from `chan_stop` when its last effect has ended by itself, 1
+        when it still played: an endless one always does). With times
+        0 the record's flags are 2 and its count at +4 is left as it
+        was.
+      - `adl_load` with no voice free returns FFFFh, `adl_play` takes
+        that for success, so `sfx_play` returns 1 and nothing plays
+        (the record keeps the flags `adl_stop` left). `adl_start`
+        with more voices needed than free takes its count back and
+        leaves `snd_lock` 1: seen for the first time, and from then on
+        every later call found it 1 (`adl_start` and `adl_stop` put
+        back what they found), so `adl_tick` only counts its ticks and
+        no effect ends any more; later effects still load and start
+        while voices are free. Nothing in the picture clears it.
+      - An AdLib effect played three times or twice begins again at
+        its event 77h (`S30EF:18DA`) and is stopped by the last one
+        (`adl_stop` from the timer's routine); an endless one goes on
+        until the next `sfx_play` on its channel stops it.
+    - The mixer, read whole and translated without output:
+      - `dig_mix` (`S30EF:1CED`; DX the buffer, BX its length): for
+        each pair of bytes every channel in `dig_mask` (its low byte,
+        channels 0 to 7): the place is count * step >> 8 (the count of
+        steps at +10h, the step at +26h); at or past the length
+        (+0Ah) the channel gives nothing to this pair and either
+        begins again (count 0: endless, or its times at +4 counted
+        down and still above 0) or is taken off (`dig_mask`,
+        `dig_count`); when that was the last channel the routine
+        ends at once without writing the pair. Else the two bytes at
+        the place, each signed, times half the volume (+1Ch, a byte),
+        the product's upper byte added to a sum of its own
+        (`S30EF:10C3`, `10C5`), the count moved on by one. Then each
+        sum divided by `dig_count` (signed), plus 7Fh, one byte each.
+        The pairs left are counted at `S30EF:10BB`. It returns the
+        length in bytes less the pairs not made (bytes less pairs, as
+        it is written). `snd_busy` is 1 while it works. So step 200h
+        plays the file's bytes one for one, two a step.
+      - `dig_irq` (`S30EF:1DF8`, the card's interrupt; nothing while
+        byte `0496` is set): of the two buffers (headers at
+        `S30EF:049B` and `08A5`: the length, the DMA's page and
+        address, the buffer's place) the one that waits (byte `0499`
+        bit 0: the first) is started when it has 28h bytes or more
+        (`dma_start`), `0499` flipped, its length cleared and the
+        other one mixed anew with 400h; with less the interrupt is
+        masked and nothing more comes until the next `dig_kick`.
+      - `dig_kick` (`S30EF:1E8B`, from `snd_pass` while `dig_count` is
+        not 0): the DSP halted (D0h), the first buffer mixed, `0499`
+        1, the interrupt unmasked and `dig_irq` called: so both
+        buffers are mixed in the pass, 800h bytes ahead, and what was
+        mixed before and not yet played is thrown away while the
+        channels' counts have already moved past it. An effect of up
+        to 800h bytes at step 200h is therefore at its end, and off
+        `dig_mask`, when the `snd_pass` that began it returns (seen:
+        the picture's short effects), and each further `snd_pass`
+        skips up to 800h bytes of every channel still playing (read
+        from the code and the counts; not listened to).
+      - `dsp_rate` keeps nothing in memory; `game_loop` calls it with
+        2710h at `S066A:00EB` whatever `snd_init` found.
+    - In the port: `snd_pass` calls `dig_kick` as the original does;
+      `dig_irq` is public. No bytes leave the buffers. The card's
+      interrupt is made by `snd_clock`, the buffer's length / the rate
+      (`dsp_rate`'s: 8000 from `snd_init`, 10000 from `battle.c` where
+      `game_loop` sets it) after the buffer was started, so on the
+      port's own clock digital channels move on and end between the
+      passes; on the original's clock (`-clock`) `snd_clock` is not
+      called in a battle and only `snd_pass` moves them. That timing
+      is the port's own (the original's interrupt comes from the DMA's
+      end; not compared in time).
+    - Compared (`port/tests/sfx_dumps.py`, `sfx_test.sh`, `sfx_cmp.py`;
+      port/README.md "Checked" has the numbers): memory at the entry
+      and the end of every `sfx_play` of the picture, of the
+      `snd_pass` behind each, of calls of `adl_tick` (those in which
+      an effect ended or began again among them) and of `dig_irq`, in
+      seven variants: 610 calls, the driver's variables the same in
+      all, the mixer's buffers included. The port's program plays the
+      picture's effects in the same frames with the same channel,
+      number, volume, times and result in the four variants it can
+      play, on the original's clock and on its own. With the mixer in,
+      the earlier tests no longer leave its bytes out and are still
+      without a difference (`sound_test.sh` 304 calls, `fsound_test.sh`
+      142, `music_test.sh` 297).
+    - That overtakes what the bullet above says of the mixer ("The
+      port has none of that"): the port's digital channels now end
+      and count down as the original's in the calls compared.
+    - Not verified: nothing was listened to (no output); the card's
+      interrupt in time (when the original's comes against
+      `snd_clock`'s); `dig_irq` while byte `0496` is set and its way
+      with less than 28h bytes at the dumps' places was not looked
+      for among the 94 calls; a step other than 200h; a digital
+      effect of the kind 3 (the VHDR's byte 13h set); an effect that
+      is neither 8SVX nor ADLX (FFFFh, read); `adl_load` with a file
+      whose chunks are not in order; the pictures C8h, C9h and CCh;
+      the fights' pictures on the port's own clock against the
+      original's memory (their channels now move with `snd_clock`).
+      Built and run on macOS only (no new source file).
+    - What sound output still needs (not done), in place of the
+      Sound Blaster's part under "What sound output would need" above:
+      the bytes are there. Where `dig_irq` starts a buffer
+      (`dma_start` in the original) its bytes (the header's length, at
+      the header's place in `S30EF`; unsigned, 8 bit, mono, at
+      `dsp_rate`'s rate) go to a hook as the AdLib's registers go to
+      `snd_opl`; the platform's mixer resamples them to its rate and
+      adds the OPL2's and the CD's. `dig_kick` must drop what is
+      queued and not yet played (the DSP's halt), or the port sounds
+      longer than the original. The next `dig_irq` must come when
+      the device has played the buffer, counted in samples of the
+      audio's clock and carried out on the game's thread (the
+      routines write the program's memory), not from `snd_clock`'s
+      own count as now; with the original's clock (`-clock`) there is
+      none. Whether the skipping of `dig_kick` is audible, and
+      whether a faster machine than the runner's would have sounded
+      the same, was not looked into.
 
 ## `HL14-18.EXE` stage 1
 
@@ -4332,9 +4510,14 @@ emulation error (2026-10-02).
    hooks. Then their calls put inside `orders.c` and `fightpics.c` by
    the owners (the list is in that bullet), the music's three calls of
    `attacks_run` moved from `loop.c` into `orders.c` by its owner,
-   `S1A39`'s screens with their tunes, `snd_end`, `dig_mix`, and the
-   output itself (an OPL2 from `snd_opl`, the mixer's bytes) with the
-   timer's interrupts (`snd_irq`) on the audio's clock.
+   `S1A39`'s screens with their tunes (the pictures of `events.c`
+   leave `music_start` and `music_fade` out; the pictures C8h, C9h and
+   CCh with their effects are not translated, and no caller of them was
+   found), `snd_end`, and the output itself (an OPL2 from `snd_opl`,
+   the mixer's bytes, which `dig_mix` now makes in the driver's buffers
+   (`mac/sfx`; the bullet "The effects' ways and the mixer" says what
+   output still needs) with the timer's interrupts (`snd_irq`) and the
+   card's (`dig_irq`) on the audio's clock.
 1. For `HL14-18.EXE`, keep the remaining C0015 gaps and vector handlers
    unclassified until an incoming call or table target is evidenced. Do not
    repeat ordinary launcher runs for these gaps. The dispatcher and

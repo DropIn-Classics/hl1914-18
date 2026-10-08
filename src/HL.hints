@@ -660,12 +660,24 @@ comment S2CBE:000E mem_alloc(dword size): INT 21h AH=48h for size/16+1 paragraph
 ; With -1 it only fills the side's status line (x 5 to 94h, the second
 ; side's A0h further, y BCh to C4h) with colour D7h through the record
 ; DATA:0092 points to (DATA:00DA: colour, x0, y0, x1, y1) and S28E5:0004,
-; and returns at S10AF:009B; other texts are drawn after it (not read).
-; The -1 part translated (port/src/draw.c, message_clear) and compared.
+; and returns at S10AF:009B. Another text is then drawn from the table of
+; word offsets the far pointer S331F:17BA points to, by S2B45:0006 at
+; x 3Eh (plus A0h) less 3/2 of its length (CODE:2BD8 counts it), y BDh, colours
+; 73h (75h for the second side), and game_state's word 0 gets 4 (8);
+; RETF at S10AF:0130. Translated whole (port/src/draw.c) and compared.
 name S10AF:000F show_message
 comment S10AF:000F show_message(text number, side)
 comment S28E5:0004 rect_fill: lines y DATA:00DE to 00E2 by S28FA:0000, DATA:00DE counted past the last. Translated (port/src/draw.c).
 comment S28FA:0000 line_fill: one line from x DATA:00DC to 00E0 at y DATA:00DE in colour DATA:00DA on the page drawn, Mode X masks from its own segment (00A6, 00AA, words at 009E). Translated (port/src/draw.c).
+comment S2B45:0006 text_draw(x, y, gap, line, colour, far text, far font, far map): each character's picture (font + map's word for it; FFFFh a gap of half the last width; 0:0 font and map take DATA:036A and 036E) by S2A6B:0008, then x on by its width (word 0Eh) and gap; '|' or 0Dh a new line. Translated (port/src/draw.c).
+comment S2A6B:0008 pic_draw(x, y, far pic, dword colours, base): by byte 9 of the picture: 'P' to S2A76:0002 (y negative: S2A95:000E with -y), 'X' to S2957:0002, else S2AAF:0000. Only the 'P' way translated.
+comment S2A76:0002 pic_blit_4: 4-bit pixels plane by plane, two a byte, base added, byte 8 transparent; cut by S2A76:0139 to DATA:00EC-00F2 when DATA:00E8 is not 0. Translated (port/src/draw.c, the S2AE4:000C table call left out).
+comment S2532:1A8F flag_lying(x, y, c1, c2, c3): three stripes 12 by 2 pixels by rect_fill. Translated (port/src/draw.c, flag_draw).
+comment S2532:1BC3 flag_standing(x, y, c1, c2, c3): three stripes 4 by 6 pixels by rect_fill. Translated (port/src/draw.c, flag_draw).
+comment S1571:0134 num_draw(value, x, y): the number's decimal digits on the stack, drawn by S2B45:0006 in the colour of word 0 of DATA:0092's record. Translated (port/src/draw.c).
+comment S2AAF:0000 pic_blit_8: 8-bit pixels plane by plane, each plane's row width from S2949:0002, byte 8 transparent, base added; S2AAF:0107 cuts when DATA:00E8 is not 0. The uncut way translated (port/src/draw.c, pic_blit_u).
+comment S2949:0002 plane_widths: CX = width: (width & 3) words of width/4+1, then the rest of four words width/4, at ES:DI.
+comment S2955:0002 screen_at with plane: DI = row table DATA:00F8 + x/4, CH = 11h rotated left by x & 3.
 
 ; Instructions written as DB because the assembler would pick other bytes
 ; (build.py output; made anew after the segment bounds were set).
@@ -1289,8 +1301,15 @@ name S331F:0159 lib_rnd
 name S331F:01A9 lib_bum
 name S331F:01E5 lib_exp
 name S331F:01F9 lib_newshop
-; unit_panel(unit, side): draws a unit's panel for a fight (its count and
-; experience) after show_message(-1, side). Read; only the drawing.
+; unit_panel(unit, side): the unit's line in the side's status line (x 5,
+; the second side's A5h): show_message(-1, side), a flag at x+7Ah, y BCh
+; (S2532:1BC3 standing stripes 3Eh, 1, 11h for a unit with bit 0 of word 4,
+; else S2532:1A8F lying stripes 0, 1, 11h), the count at x+6 (byte 3 when
+; the kind has 4 in its word at S331F:09CC, else byte 2) by S1571:0134, the
+; experience (byte 1, at most 6) as picture n-1 of the table S331F:01F3
+; points to (kind 'U') with word 18h of DATA:0092's record C8h meanwhile,
+; and without 2 in word 4 the kind's name (S331F:09E9) at x+28h, y BDh in
+; colours 73h (75h). RETF at S10E1:000E. Translated (port/src/draw.c).
 name S10AF:0131 unit_panel
 ; fight_panel(fight record, pictures): draws the fight's panel; with
 ; pictures 0 it calls fight_losses itself (fight_show does when they are

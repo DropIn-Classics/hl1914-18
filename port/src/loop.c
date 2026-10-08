@@ -143,7 +143,8 @@ static void effect(uint16_t e)
 
 /* S066A:12A4 to 14BA: with no direction in state 0, the unit on the
  * cursor's field: the mark of its aim (a timer of kind 5; the mark in
- * field_bits is only there while it is drawn) and a timer of kind 1 or 2 */
+ * field_bits is only there while field_draw draws it), its panel in
+ * the status line (unit_panel) and a timer of kind 1 or 2 */
 static void hover(Far view, uint16_t side)
 {
     Far map = far_at(S_map_cur, A_map_cur);
@@ -169,9 +170,18 @@ static void hover(Far view, uint16_t side)
     {
         uint16_t aim = NW(unit_aim, u * UNIT_SIZE);
 
-        if (pb(view, 0x16) & 2 && aim && same_side(side, NW(unit_flags, u * UNIT_SIZE)))
+        if (pb(view, 0x16) & 2 && aim && same_side(side, NW(unit_flags, u * UNIT_SIZE))) {
+            int16_t p = (int16_t)aim >> 1, w = (int16_t)NW(map_width, 0);
+            uint16_t bit = (uint16_t)(p % w + (p / w << 6));
+            uint8_t was = NB(field_bits, bit);
+
             timer_set(5, 1, aim);
+            SETB(field_bits, bit, was | (side ? 8 : 4));
+            field_draw(side, aim);
+            SETB(field_bits, bit, was);
+        }
     }
+    unit_panel(u, side);
     timer_set(side ? 2 : 1, 5, 0);
 }
 
@@ -856,10 +866,11 @@ static void side_part(uint16_t side, const SideIn *in)
 }
 
 /* S0CB6:035A (timer_fire): what a timer of the kind does when it is due;
- * kind 5 only draws */
+ * kind 5 only draws the field kept in game_state's word 64h + 2 * timer
+ * again (field_draw), for the second side when bit 1 of its view's byte
+ * 16h is set, else for the first */
 void timer_fire(uint16_t kind, uint16_t timer)
 {
-    (void)timer;
     switch (kind) {
     case 1:
         show_message(0xFFFF, 0);
@@ -874,6 +885,9 @@ void timer_fire(uint16_t kind, uint16_t timer)
         break;
     case 4:
         gs_or(4, 0x40);
+        break;
+    case 5:
+        field_draw(frb(S_views, (uint16_t)(A_views + 0x31 + 0x16)) & 2 ? 1 : 0, gs((uint16_t)(0x64 + 2 * timer)));
         break;
     case 6:
         gs_and(4, 0xFDFF);

@@ -1050,8 +1050,18 @@ emulation error (2026-10-02).
        on map 8 (port/README.md). `marks_draw` done too, with
        `S0E56:24ED` and `mark_blit` (`S2A1C:0004`), compared on seven
        calls. `show_message(-1, side)` done as `message_clear` with
-       `S28E5:0004` and `S28FA:0000` (it fills the status line; texts
-       are not translated). `battle_begin` now calls the five as the
+       `S28E5:0004` and `S28FA:0000` (it fills the status line). The
+       text part done 2026-10-08 too: `show_message` is whole in
+       `port/src/draw.c` (side.c's state-only one and `message_clear`
+       gone), with `text_draw` (`S2B45:0006`) and the 'P' way of
+       `S2A6B:0008` (`S2A76:0002`, 4-bit pictures plane by plane, and
+       its cutting `S2A76:0139`); the game's font (DATA:036A, map at
+       036E) is of kind 'P'. Compared on seven calls with texts 33h, 4Fh,
+       61h, 63h on map 0 and map 8, all side 1 (port/README.md). Not met:
+       a side-0 text (none in the first 1,000 calls of m0_hq or m8_d5r
+       looked at), DATA:00E8 not 0 (the cutting), a '|' or 0Dh or a gap
+       character in a text, the 'X' and other kinds and negative y of
+       `S2A6B:0008` (these are the sides' pointers' too, step 5). `battle_begin` now calls the five as the
        original does at `S066A:0DE8`; with that the begin part is the
        same as the original's in memory on map 0 and map 8, and its video
        memory at the end is the original's right after the second
@@ -1080,6 +1090,38 @@ emulation error (2026-10-02).
        the sides' pointers (`S2A6B:0008`, `S2A6F:0002`), the bar of
        `S1571:01F2`, `unit_panel` (`S10AF:0131`), the fades
        (`fade_grey`, `fade_back`).
+       `field_draw(side, field, flag)` and `marks_erase`'s drawing done
+       2026-10-08 (`port/src/draw.c`: `field_put` is the one field's
+       ground and unit that `view_draw`, `field_draw` and `marks_erase`
+       each write out; the third argument of `field_draw` is not read).
+       `field_draw` passes `S331F:4D92` (the first view) to the mark's
+       table for both sides. Called where the original calls it:
+       `move_step` (5 calls: the field left and the one reached, and the
+       other half's), `move_done` (its end, `S10E1:0283`, always draws the
+       view, its marks and the unit's fields as they were at the entry),
+       `move_arrive` (kinds 2 and 5; kind 5 passes the place, field + 1,
+       not the field), `timer_fire` kind 5 (the field of the timer's word
+       64h + 2n, the side by bit 1 of the second view's byte 16h), the
+       hover of `game_loop` (`S066A:13FB`: the aim's field drawn with 4
+       or 8 set in `field_bits` for the drawing only) and `move_out`
+       (`S066A:30D8`: view, marks and the cursor's field). `marks_erase`
+       now has its field and side and is called with them by `move_aim`
+       and `field_menu`. Left out: the call in `attacks_run`'s blast loop
+       (`S02E6:0BD9`, with the two maps swapped and the view's state 0
+       for the drawing; it belongs with the blasts' pictures, step 6).
+       Compared (port/README.md) on five `field_draw` and three
+       `marks_erase` calls. All 79 `field_draw` calls of m0_hq to 120 s
+       reached the RETF at `1725` (none was outside its view).
+       `unit_panel` (`S10AF:0131`) done 2026-10-08 with the flags
+       (`S2532:1A8F`, `1BC3`), the number (`S1571:0134`) and the 'U' way
+       of `S2A6B:0008` (`S2AAF:0000`, uncut only) for the experience
+       pictures (the table at `S331F:01F3`; all six of kind 'U'); called by
+       the loop's hover (`S066A:148B`, only after the checks that let the
+       aim be shown pass). Not called yet: its four calls in `attacks_run`
+       (`S02E6:07C7`, `0AE6`), in the fight's drawing with the maps
+       swapped and pages flipped, left out with it. Compared on nine
+       calls, none with experience above 0 or a unit with bit 0 of word 4
+       (so the 'U' blitter and the standing flag are not checked).
     6. Last the fight: `fight_panel` (`S131D:178D`), the fight's pictures
        (`S2532`), and `S02E6:323E` with `lib_pick` for the parts' list.
   - State, all translated: `field_bits_clear(FFh)` empties `field_bits`

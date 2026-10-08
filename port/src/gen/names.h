@@ -250,6 +250,7 @@
     X(S131D, big_unit, 0x0C50) \
     X(S131D, battle_info, 0x0EE5) \
     X(S131D, view_dim, 0x13A6) \
+    X(S131D, view_cover, 0x1426) \
     X(S131D, build_list, 0x14D4) \
     X(S131D, row_load, 0x15FB) \
     X(S131D, side_income, 0x1685) \
@@ -411,6 +412,7 @@
     X(S2CBE, mem_alloc, 0x000E) \
     X(S2CF7, mem_same, 0x0006) \
     X(S2F39, sfx_load, 0x00FD) \
+    X(S2F39, music_fade, 0x1058) \
     X(S30EF, sfx_data, 0x0242) \
     X(S30EF, sfx_size, 0x0246) \
     X(S3303, take_picture, 0x0021) \

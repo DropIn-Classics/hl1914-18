@@ -14,6 +14,8 @@
   oT  the button and up: move the unit on the place out
   lT  the button and right: leave the place menu / the site
   dT, uT, LT, RT  one step down, up, left, right
+  xT:U  from T to U: the half ended (E) every 10 s and F1 5 s after each,
+      for long play where the first side only waits (m8_long.keys)
 The times were found from screenshots and hits of S131D:1745 and of the
 compared blocks, not computed; the computer's turn decides when a half
 begins."""
@@ -31,6 +33,13 @@ def gesture(t, d):        # the button held, a direction, both let go
 
 
 for arg in sys.argv[1:]:
+    if arg[0] == 'x':
+        t, u = (float(x) for x in arg[1:].split(':'))
+        while t < u:
+            gesture(t, 'left')
+            ev.append((t + 5, 'f1'))
+            t += 10
+        continue
     c, t = arg[0], float(arg[1:])
     if c in 'eE':
         gesture(t, 'left')

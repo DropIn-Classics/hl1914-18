@@ -43,11 +43,14 @@ read; turns the calls at 066A:10CD, decimal; seed the two words of
 rand_words the last clock_seed of the part left).  Further runs dump memory
 at the first pass (start.ram) and at the beginning of chosen passes
 (pNNNN.ram, the state after pass NNNN-1), and loop_test.args lists them.
+NOPICS=1 in the environment
+sets no_fight_pics (S37FF:0115) at the first pass, into build/loop/TAG_nopics/.
 Existing dumps are kept; PASSES in the environment (numbers apart by
 spaces) adds passes to dump.  Everything goes to build/loop/ (ignored); no
 game data is kept in this file.
 """
 import os, re, subprocess, sys
+from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -66,6 +69,11 @@ else:
            '-key', '25', 'enter', '-mouse', '27', '150,48,1', '-mouse', '27.2', '150,48,0']
 pre += ['-keys', keypath, '-until', until]
 tag = os.path.splitext(keys)[0]
+if os.environ.get('NOPICS'):
+    # fight pictures off: no_fight_pics set at the first pass, written
+    # before the dump there (a poke, not the game's own way of setting it)
+    pre += ['-poke', 'S066A:0EE9#1', 'S37FF:0115', '01']
+    tag += '_nopics'
 out = os.path.join(OUT, tag)
 os.makedirs(out, exist_ok=True)
 
@@ -159,13 +167,16 @@ extra = [int(x) for x in os.environ.get('PASSES', '').split()]
 chosen = sorted(set([1, 50, 200, 400] + [p + 1 for p in fights] + [p for p in fights]
                     + [passes - 1] + extra))
 chosen = [p for p in chosen if 1 <= p < passes]
-have = sorted(int(f[1:5]) for f in os.listdir(out) if re.match(r'p\d{4}\.ram$', f))
+have = sorted(int(f[1:-4]) for f in os.listdir(out) if re.match(r'p\d{4,}\.ram$', f))
 lines = []
+todo = []
 for p in chosen:
     name = 'start.ram' if p == 1 else 'p%04d.ram' % p
     path = os.path.join(out, name)
     if not os.path.exists(path):
-        run(['-break', 'S066A:0EE9#%d' % p, '-ram', path])
+        todo.append(['-break', 'S066A:0EE9#%d' % p, '-ram', path])
+with ThreadPoolExecutor(os.cpu_count() or 1) as pool:   # a run each, side by side
+    list(pool.map(run, todo))
 for p in sorted(set(chosen + have)):
     if p > 1:
         path = os.path.join(out, 'p%04d.ram' % p)

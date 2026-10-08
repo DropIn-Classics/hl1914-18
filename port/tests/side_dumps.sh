@@ -23,6 +23,9 @@ wait
 # map 8: m8_site.keys, made by make_m8.py with the arguments below
 python3 keys/make_m8.py $M8 | cmp -s - keys/m8_site.keys \
     || { echo "keys/m8_site.keys is not what make_m8.py makes" >&2; exit 1; }
+# m8_long.keys (port/tests/loop_dumps.py): m8_site's steps up to 375 s, then waiting
+python3 keys/make_m8.py ${M8% u388*} x385:900 | cmp -s - keys/m8_long.keys \
+    || { echo "keys/m8_long.keys is not what make_m8.py makes" >&2; exit 1; }
 MAP8=1 d m8b2 m8_site.keys 196 build_list 2 &
 MAP8=1 d m8b3 m8_site.keys 196 build_list 3 &
 MAP8=1 d m8u1 m8_site.keys 196 build_unit 1 &
@@ -41,6 +44,10 @@ wait
 { cat keys/m0_s2.keys; python3 keys/make_m8.py $C2; } | sort -n | cmp -s - keys/m0_s2c.keys \
     || { echo "keys/m0_s2c.keys is not m0_s2.keys with the steps of C2" >&2; exit 1; }
 d c2o1 m0_s2c.keys 108 move_out 1
+# m0_carry.keys (port/tests/loop_dumps.py): m0_s2.keys, then waiting while
+# the computer fights the loaded carrier
+{ cat keys/m0_s2.keys; python3 keys/make_m8.py d52 E55 f60 f65 E72 f80 f85 x95:700; } | sort -n \
+    | cmp -s - keys/m0_carry.keys || { echo "keys/m0_carry.keys is not what side_dumps.sh says" >&2; exit 1; }
 # side_input (S0CB6:05F1) in m8_d5r.keys: the calls around the taps of
 # right at 245.00 (3996 to 3998) and the move gesture at 248.00 (4045,
 # 4049 to 4051); the numbers were counted with -log at those times

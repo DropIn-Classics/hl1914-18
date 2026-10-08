@@ -1308,16 +1308,209 @@ name S2CF7:0006 mem_same
 ; and returned; FFFF:FFFF when the file cannot be loaded. Read,
 ; translated as far as memory goes (port/src/pictures.c).
 name S2F39:00FD sfx_load
-; music_fade(speed): FFFFh at once when bit 0 of S30EF:025E is clear or
-; S30EF:024A is 0 (presumably no music playing); else stops channels 8 to
-; 0Bh (S2F39:1754), and with speed 0 clears 024A, otherwise starts a fade
-; (023C the speed, 023E from 024E) and waits until S30EF:024C is 0 (the
-; driver's interrupt counts it down, not read) before clearing 024A; 1.
+; music_fade(speed): FFFFh without the AdLib; channels 8 to 0Bh stopped
+; (adl_stop); FFFFh when no music is on (music_on 0). fade_stop; with
+; speed 0 music_on is cleared at once, else a fade from the volume to 0
+; in `speed` steps (fade_start), waited for until fade_on is 0 (fade_tick
+; clears it), then music_on 0, snd_channel 0 and opl_silence; 1.
 ; Called with 4 by attacks_run's order 4 when 40h (music) is in game_state,
 ; which also counts [BP-0Dh] up so that attacks_run starts the music again
-; at its end (S2F39:0F87 with music_data, 0, FFh). The name is a guess from
-; this reading; the port has no sound and leaves it out.
+; at its end (music_start with music_data, 0, FFh). Read whole; the port
+; leaves it out.
 name S2F39:1058 music_fade
+; ---- The sound (S2F39 the routines the game calls, S30EF the driver),
+; read whole 2026-10-08 from the generated source; what a run showed is
+; said so, the rest is read only. Two devices: bit 0 of snd_devices the
+; AdLib (music and the effects of the .AFX files, ADLX), bit 1 the Sound
+; Blaster (digital effects, IFF 8SVX). 13 channel records of 2Ah bytes
+; from S30EF:0008: 0 to 7 digital, 8 to 0Bh AdLib effects, 0Ch the music
+; (its record is S30EF:0200). A record: +4 how often it is played (when 2
+; is clear in the flags), +6 far its data's beginning, +0Ah length, +0Ch
+; 2 or 3 (3: byte 13h of the VHDR not 0), +0Eh the VHDR's rate (kept, not
+; used), +10h far the place reached (digital: +10h the count of steps,
+; +12h the segment), +14h half the length, +1Ch volume, +1Eh dword the
+; tick its next event is due, +22h how many of the 9 OPL voices it needs
+; (the AHDR's byte 0Ah), +24h its first voice, +26h digital: the step
+; (100h a sample each pair of bytes mixed); AdLib: its speed against the
+; tune's (100h the same), +28h flags: 1 playing, 2 endless, 4 loaded.
+; Voice records of 14h bytes from S30EF:026C: 0Ch bytes of instrument,
+; +0Ch the channel's volume, +0Eh the voice's, +10h the channel that has
+; it, +12h the word last sent to registers A0h/B0h; from S30EF:0320 the
+; same for what the music would have in a voice an effect has taken, and
+; from S30EF:03D4 a third copy (music_restore).
+; snd_init(mask): snd_end first when it ran before; drv_clear; with bit 1
+; dig_detect, nine frames waited and dsp_rate(8000); with bit 0
+; adl_detect; the devices found to snd_devices and returned. In the
+; runner both are found. The runner (doskit, tools/run/cpu.c) adds REP
+; STOS's count to SI as well, so drv_clear's 488h comes back in SI and
+; snd_devices is 048Bh there; with that corrected in a copy of the runner
+; it is 3. Every test of the word is of bit 0, bit 1 or against 0.
+name S2F39:000B snd_init
+name S3CFE:0006 snd_started
+name S3CFE:0008 snd_ended
+; snd_end: nothing when it ran before and no device is left; else the
+; lock set, fade_stop, dig_remove and adl_remove by the devices,
+; snd_devices 0. Not run to its end here.
+name S2F39:0092 snd_end
+; dig_play(channel, far FORM, volume, times, step): needs the Sound
+; Blaster and a channel below 8. Looks for the bytes VHDR and then BODY
+; behind FORM and its length (FFFFh when the form's end is passed), FFFFh
+; for a body above FA00h bytes; chan_stop, then the record filled (times
+; 0: endless), the count of channels dig_count and their bits dig_mask.
+; Waits while the mixer works (snd_busy).
+name S2F39:0177 dig_play
+; adl_play(channel, far ADLX, volume, times): channel 8 and above;
+; adl_stop, adl_load, the volume to the record. It does not start the
+; effect: snd_pass does. (adl_load's FFFFh is taken for success too.)
+name S2F39:0690 adl_play
+; sfx_play(channel, n, volume, times, step): effect n of the file at
+; sfx_data: the dword at the file's beginning is where its table is,
+; entry n's dword at n*0Ch+8 there where the effect is; FORM....8SVX
+; goes to dig_play, ADLX....AHDR to adl_play, anything else and a channel
+; of 0Ch or above give FFFFh. Seen: the menu plays on channel 8 with
+; volume FFh, 1 and 200h; all nine calls of a walk were ADLX.
+name S2F39:06E3 sfx_play
+; snd_pass, once a pass of every loop that sounds: dig_kick when digital
+; channels play, then adl_start for channels 8 to 0Bh with their records'
+; volume (which starts what adl_play loaded and fails for the others).
+name S2F39:096A snd_pass
+; chan_stop(channel): a digital channel's times to 0 and, the mixer
+; done, its bit and count taken off (FFFFh when it was not playing); 8 to
+; 0Bh adl_stop.
+name S2F39:09C9 chan_stop
+; be_long(dword): its four bytes turned round (the files' lengths).
+name S2F39:0A6F be_long
+; adl_load(channel, far ADLX, times): the chunks ADLX, AHDR, IMAP, TRCK
+; one behind the other (else FFFFh); an effect needing more voices than
+; are free (9 - adl_used) FFFFh. For the music (0Ch) the far pointer
+; behind IMAP's header to S30EF:025A and the AHDR's word 0Eh to
+; S30EF:022C. The record: speed 100h, length, voices, place and
+; beginning behind TRCK's header, flags 4 (and 2 with times 0).
+name S2F39:0AA8 adl_load
+; adl_start(channel, volume): a loaded channel not yet playing. An
+; effect takes the voices below those in use (adl_used counted up; more
+; than 9: FFFFh, and the lock stays set as the routine leaves it); what
+; the music has in them is kept in the second copy, the voices silenced.
+; Flags 1, the first event due three ticks on.
+name S2F39:0CFB adl_start
+; S2F39:0F2C (not decoded, no caller found): a channel's place back to
+; its beginning.
+; music_start(far ADLX, fade, volume): fade_stop, adl_load and adl_start
+; for channel 0Ch, music_on 1; without a fade music_volume(volume), else
+; from 0 to the volume in `fade` steps of the fade's timer (fade_start).
+name S2F39:0F87 music_start
+; music_volume(volume): music_volume_now set and voice_level for each of
+; the tune's voices.
+name S2F39:1127 music_volume
+; S2F39:11AC (not decoded, no caller found): presumably the tune moved to
+; a place given in its time, the voices' state there worked out without
+; sound into the third copy. S2F39:149B (no caller found) clears
+; S30EF:0250, which makes adl_tick call music_restore at the place
+; S30EF:0256.
+; adl_voices_free(channel): the voices of an effect given back: the
+; effects below it move up (their instruments and notes sent again), and
+; the music gets its voices back from the second copy.
+name S2F39:14B9 adl_voices_free
+; adl_stop(channel): a playing effect (8 to 0Bh): flags 0, its place back
+; to the beginning, adl_voices_free; under the lock.
+name S2F39:1754 adl_stop
+; S2F39:180E (not decoded, no caller found): an effect played on the
+; first of channels 8 to 0Bh that is free, else on the oldest.
+; music_restore: the tune's place and the voices from the third copy
+; (S30EF:03D4); called by adl_tick only. Not run.
+name S2F39:18FE music_restore
+; S2F39:1A0B and 1A30 (not decoded, no caller found): presumably how far
+; the tune is and how long it is, in units of S30EF:022C.
+; The driver. drv_clear: its first 488h bytes 0.
+name S30EF:111F drv_clear
+; delay_measure: counts a loop over one tick of the BIOS's timer
+; (interrupt 8 taken twice) for delay (AX units of it), the wait between
+; a register's number and its value.
+name S30EF:1133 delay_measure
+name S30EF:11A9 delay
+; opl_write: BH the register (port 388h), BL the value (389h).
+name S30EF:11E6 opl_write
+; voice_level(voice, level): the channel's volume; the carrier's level
+; (and the modulator's when the instrument's word 0Ah has 1) from the
+; instrument's, the voice's volume and this. For the music while an
+; effect has the voice only the second copy is written.
+name S30EF:1205 voice_level
+; fade_tick, the fade's timer (pit_add with the period 1D1EBh):
+; music_volume by the step; at the end the timer is taken away.
+name S30EF:12D9 fade_tick
+name S30EF:1325 fade_stop
+name S30EF:1342 fade_start
+; voice_instrument(voice, far 0Ch bytes): registers 20h 40h 60h 80h E0h
+; of both operators, 1 (20h), C0h; voice_off: bit 20h off in B0h;
+; voice_note(voice, word): A0h and B0h; voice_volume(voice, volume).
+name S30EF:136B voice_instrument
+name S30EF:14A5 voice_off
+name S30EF:14F7 voice_note
+name S30EF:1565 voice_volume
+; music_events and effect_events: a channel's events from its place until
+; one that waits. The byte's upper four bits: 0 a wait of twelve bits
+; times 80h ticks (the lower four and the next byte), 1 a note (voice in
+; the lower four bits, a word), 2 a note off, 3 a voice's volume (a
+; byte), 4 an instrument (0Bh bytes), 5 nothing, 6 the speed (a word,
+; high byte first: the timer's period; an effect while music plays takes
+; it as its own speed against the tune's), 7: 77h the end (played again
+; from the beginning while times are left or endless, else the music's
+; flag 1 cleared, an effect adl_stop), other 7xh skipped by their length;
+; 80h and above a wait of the lower seven bits. An effect's voices are
+; counted from its first, its waits times its speed.
+name S30EF:15C7 music_events
+name S30EF:175F effect_events
+; adl_tick, the timer's routine (pit_add, period 1843h until a tune sets
+; another): snd_ticks counted; unless the lock is set, the music's events
+; when they are due, then those of each playing effect.
+name S30EF:192D adl_tick
+name S30EF:1A2B opl_silence
+name S30EF:1A59 adl_remove
+; adl_detect: delay_measure, the AdLib's timer test at port 388h, then
+; pit_install and adl_tick given to the timer (its number at S30EF:1116).
+name S30EF:1A7D adl_detect
+; The Sound Blaster. dsp_write (AL to the DSP), dma_start (DMA channel 1,
+; single cycle, DSP command 14h: BX bytes at page CH, address DX),
+; dsp_rate(rate): command 40h with 256 - 1000000/rate.
+name S30EF:1B41 dsp_write
+name S30EF:1B6B dma_start
+name S30EF:1C2D dsp_rate
+; dig_buffers: the two buffers of 400h bytes (S30EF:04A3 and 08AD, their
+; headers of 8 bytes before them), moved to S30EF:0CB7 when one would
+; cross a DMA page.
+name S30EF:1C68 dig_buffers
+; dig_mix (DX the buffer, BX its length): for each pair of bytes every
+; playing channel's two bytes at step count times step / 100h, signed,
+; times half its volume, summed, divided by dig_count, plus 7Fh; a
+; channel at its end begins again or is taken off. AX the bytes made.
+name S30EF:1CED dig_mix
+; dig_irq, the card's interrupt: the other buffer started when it has
+; 28h bytes or more and the one played filled again; else the interrupt
+; masked. dig_kick: the DSP halted (D0h), the first buffer mixed and
+; dig_irq called.
+name S30EF:1DF8 dig_irq
+name S30EF:1E8B dig_kick
+; dig_find: the DSP looked for at 210h to 260h (dsp_reset), then its
+; interrupt among 7, 5, 3, 2 by a transfer of 3 bytes; dig_detect:
+; delay_measure, dig_find, dig_irq set, speaker on (D1h).
+name S30EF:1EF4 dig_find
+name S30EF:2050 dig_detect
+name S30EF:20AD dig_remove
+name S30EF:2108 dsp_reset
+name S30EF:0000 adl_period
+name S30EF:0002 snd_busy
+name S30EF:0004 dig_port
+name S30EF:0006 dig_int
+name S30EF:022A snd_lock
+name S30EF:022E snd_ticks
+name S30EF:024A music_on
+name S30EF:024C fade_on
+name S30EF:024E music_volume_now
+name S30EF:025E snd_devices
+name S30EF:0260 adl_used
+name S30EF:0262 dig_count
+name S30EF:0264 dig_mask
+name S30EF:0268 snd_channel
 name S30EF:0242 sfx_data
 name S30EF:0246 sfx_size
 ; Names and places of pictures_load (seen at its return on map 0 and 8):
@@ -1453,8 +1646,9 @@ name S131D:0C50 big_unit
 ; panel_whole(far unit, x, y, base): a unit of a kind with 40h in word 4
 ; on the fight's panel, two of the unit pictures. Translated, not met.
 name S131D:1F0D panel_whole
-; panel_sound(n): a sound of a step of the fight's panel (S2F39:06E3,
-; 096A; not read). Not translated.
+; panel_sound(n): a sound of a step of the fight's panel: sfx_play(8, n,
+; DCh, 1, 200h), then snd_pass. fight_panel calls it with 4 for each
+; figure drawn and 5 for each taken off. Translated (port/src/draw.c).
 name S131D:1FF0 panel_sound
 ; Set when the fights are not shown as pictures: then fight_panel works
 ; the losses out and attacks_run counts the blasts down on the map itself

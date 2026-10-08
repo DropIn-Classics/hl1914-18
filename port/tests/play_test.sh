@@ -99,7 +99,7 @@ if [ "$2" = live ]; then
     ARGS="-game $GAME -map $MAP -start $START -seed 0x$SEED $NOPICS"
     # shellcheck disable=SC2086
     build/history-line-headless $ARGS $MICE -keys tests/keys/$KEYS.keys -until "$UNTIL" -rounds "$D/own_rounds.txt" > /dev/null 2>&1
-    rm -f "$D"/[kw][0-9][0-9][0-9][0-9].ram "$D"/[kw][0-9][0-9][0-9][0-9].vram "$D"/[kw][ef][0-9]*.ram "$D"/[kw][ef][0-9]*.vram
+    rm -f "$D"/[kw][0-9][0-9][0-9][0-9].ram "$D"/[kw][0-9][0-9][0-9][0-9].vram "$D"/[kw][efg][0-9]*.ram "$D"/[kw][efg][0-9]*.vram
     K="-evdump $D/k" W="-evdump $D/w"
     for p in 1 $(awk '{ print $1, $1 + 1 }' "$D/own_rounds.txt"); do
         f=$(printf %04d "$p")
@@ -123,7 +123,7 @@ if [ "$2" = live ]; then
     else
         echo "inputs: DIFFERENT"; bad=1
     fi
-    for f in "$D"/k[0-9][0-9][0-9][0-9].* "$D"/k[ef][0-9]*.*; do
+    for f in "$D"/k[0-9][0-9][0-9][0-9].* "$D"/k[efg][0-9]*.*; do
         [ -f "$f" ] || continue
         g=$D/w${f##*/k}
         if [ ! -f "$g" ]; then
@@ -145,7 +145,7 @@ if [ "$2" = rounds ] || [ "$2" = seeds ]; then
     RUN="build/history-line-headless -game $GAME -map $MAP -keys tests/keys/$KEYS.keys -start $START -seed 0x$SEED -until $UNTIL $NOPICS $MICE $SEEDS"
     # shellcheck disable=SC2086
     $RUN -rounds "$D/own_rounds.txt"
-    rm -f "$D"/r[0-9][0-9][0-9][0-9].ram "$D"/r[0-9][0-9][0-9][0-9].vram "$D"/r[ef][0-9]*.ram "$D"/r[ef][0-9]*.vram
+    rm -f "$D"/r[0-9][0-9][0-9][0-9].ram "$D"/r[0-9][0-9][0-9][0-9].vram "$D"/r[efg][0-9]*.ram "$D"/r[efg][0-9]*.vram
     DUMPS="-dump 1 $D/r0001.ram -evdump $D/r"
     : > "$D/rounds.txt"
     i=1
@@ -164,6 +164,7 @@ if [ "$2" = rounds ] || [ "$2" = seeds ]; then
     $RUN $DUMPS
     exec python3 tests/play_cmp.py "$TAG" "$2"
 fi
+SEEDS=
 if [ "$2" = own ]; then
     Q=o
     START=$(awk '$2 == "P" { print $1; exit }' "$D/clock.txt")
@@ -174,9 +175,12 @@ if [ "$2" = own ]; then
 else
     Q=q
     CLOCK="-clock $D/clock.txt"
+    # the fights' pictures started with the original's numbers (its S
+    # lines), so that rand_words are its in their frames too
+    SEEDS="-seeds $D/clock.txt"
     IN=$D/port_inputs.txt
 fi
-rm -f "$D"/$Q[0-9][0-9][0-9][0-9].ram "$D"/$Q[0-9][0-9][0-9][0-9].vram "$D"/${Q}[ef][0-9]*.ram "$D"/${Q}[ef][0-9]*.vram
+rm -f "$D"/$Q[0-9][0-9][0-9][0-9].ram "$D"/$Q[0-9][0-9][0-9][0-9].vram "$D"/${Q}[efg][0-9]*.ram "$D"/${Q}[efg][0-9]*.vram
 DUMPS=
 for p in $(cat "$D/passes.txt"); do
     DUMPS="$DUMPS -dump $p $D/$Q$(printf %04d "$p").ram"
@@ -185,5 +189,5 @@ for p in $(cat "$D/passes.txt"); do
 done
 # shellcheck disable=SC2086
 build/history-line-headless -game "$GAME" -map $MAP -keys tests/keys/"$KEYS".keys $CLOCK $NOPICS $MICE \
-    -inputs "$IN" -ends "$D/${Q}_ends.txt" -evdump "$D/$Q" $DUMPS
+    -inputs "$IN" -ends "$D/${Q}_ends.txt" -evdump "$D/$Q" $DUMPS $SEEDS
 exec python3 tests/play_cmp.py "$TAG" $2

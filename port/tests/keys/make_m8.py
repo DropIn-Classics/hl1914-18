@@ -24,6 +24,7 @@
         after it), written to the file of `-moves FILE` (the first
         argument) as the window's motions, "T DX,DY,B" a line, for
         live_keys.py --moves
+m8_cattack.keys is the window's -keylog of `x45:200` (port/README.md).
 The mouse's steps of m8_mouse are made with `-moves m8_mouse.moves`
 (port/README.md); its key script and m8_mouse.mice are what the window
 wrote of that play (-keylog, -micelog).

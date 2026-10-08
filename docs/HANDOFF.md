@@ -3584,6 +3584,24 @@ emulation error (2026-10-02).
     `-keylog` wrote (`live57`); for the others the keylog differs.
   Not done: HISCORE with scores present, the backspace in the name, the
   SDL window by hand, the sounds.
+- The computer's attack as the second side in the window (2026-10-09,
+  `debian/window10`, Linux, headless window; port/README.md has the
+  counts). Learned:
+  - The port's play needed no change: `m8_cattack` (map 8, the first side
+    only ends its halves) is the same as the original at every pass, at
+    every tenth frame of both fights shown with pictures (memory and both
+    video pages), on its own clock round by round, and between window
+    and `-keys`.
+  - On the original's clock the port had started the fights' pictures
+    with the BIOS's count, not the original's seed, and given
+    `rand_words` back at their end; only dumps inside the pictures show
+    it. `play_test.sh` now passes `-seeds` there too.
+  - `S2532:156D` is the place in fight_frames where a frame ends and the
+    key is tested; `play_dumps.py` dumps there (`gFNNN`). In this script
+    the original's two fights with pictures (both in pass 1850) end at a
+    key after 149 and 151 frames (which key not checked).
+  Not done: a fight's pictures to their end on the original's clock, the
+  SDL window by hand, the sounds.
 - The field menu's information (2026-10-08, Mac; `unit_info`,
   `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
   each does; `port/src/draw.c`). Learned:

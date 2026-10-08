@@ -4,12 +4,16 @@
  * that record and moves the pointer itself, so its state is part of what
  * the menu leaves.
  *
- * The driver is not the game's: here it is a pointer that only the
- * program moves (no mouse of the player's yet), with what a driver has
+ * The driver is not the game's: here it is one with what a driver has
  * after its reset on a screen of 320 by 200 as the runner's has it
  * (doskit/tools/run/mouse.c: the middle of 640 by 200, three buttons,
  * speeds 50, 50 and 64), since that is what the runs of the original
- * this is compared with had.
+ * this is compared with had.  The player's mouse moves it by
+ * mouse_motion (in the window, play.c), as a driver's interrupt does:
+ * the system's counts taken as mickeys, eight pixels per the mickeys
+ * the ratio says (interrupt 33h function 0Fh; 8 and 16 after the
+ * reset), within the range.  The speeds (functions 1Ah, 1Bh) and the
+ * double speed's threshold (13h) are kept but change nothing.
  *
  * The pointer's picture is drawn on the page shown (pointer_draw,
  * pointer_erase).  port/README.md says how this was compared.
@@ -26,6 +30,8 @@ static void sw(uint16_t o, uint16_t v) { fww(S_DATA, o, v); }
 static struct {
     uint16_t x, y, min_x, max_x, min_y, max_y;
     uint16_t speed_x, speed_y, threshold, buttons;
+    uint16_t ratio_x, ratio_y;  /* mickeys per 8 pixels */
+    int rest_x, rest_y;         /* mickeys not yet a pixel */
 } drv;
 
 static uint16_t clamp(uint16_t v, uint16_t lo, uint16_t hi)
@@ -43,6 +49,33 @@ static void drv_reset(void)
     drv.speed_x = drv.speed_y = 50;
     drv.threshold = 64;
     drv.buttons = 0;
+    drv.ratio_x = 8;
+    drv.ratio_y = 16;
+    drv.rest_x = drv.rest_y = 0;
+}
+
+/* the driver's interrupt: the mouse moved by dx, dy mickeys, `buttons`
+ * held (1 left, 2 right, 4 middle) */
+void mouse_motion(int dx, int dy, int buttons)
+{
+    int x, y;
+
+    drv.rest_x += dx * 8;
+    drv.rest_y += dy * 8;
+    x = drv.x + drv.rest_x / (drv.ratio_x ? drv.ratio_x : 1);
+    y = drv.y + drv.rest_y / (drv.ratio_y ? drv.ratio_y : 1);
+    drv.rest_x %= drv.ratio_x ? drv.ratio_x : 1;
+    drv.rest_y %= drv.ratio_y ? drv.ratio_y : 1;
+    drv.x = (uint16_t)(x < drv.min_x ? drv.min_x : x > drv.max_x ? drv.max_x : x);
+    drv.y = (uint16_t)(y < drv.min_y ? drv.min_y : y > drv.max_y ? drv.max_y : y);
+    drv.buttons = (uint16_t)(buttons & 7);
+}
+
+/* interrupt 33h function 0Fh: the mickeys per 8 pixels */
+void mouse_ratio(uint16_t x, uint16_t y)
+{
+    drv.ratio_x = x;
+    drv.ratio_y = y;
 }
 
 /* the page drawn and the page shown change places for the pointer's
@@ -53,28 +86,6 @@ static void pages_swap(void)
 
     SETW(screen_seg, 0, NW(screen_shown, 0));
     SETW(screen_shown, 0, a);
-}
-
-/* S2904:000E (pointer_erase): what under_save kept at the far pointer
- * DATA:0366 (the screen's offset, the rows, the bytes a row, then the
- * rows) put back through the latches */
-static void pointer_erase(void)
-{
-    Far save = far_at(S_DATA, 0x0366);
-    uint16_t es = NW(screen_seg, 0), pitch = NW(screen_pitch, 0), si = save.off, di, rows, n, k;
-
-    di = (uint16_t)(vrb(save.seg, si) | vrb(save.seg, (uint16_t)(si + 1)) << 8);
-    rows = (uint16_t)(vrb(save.seg, (uint16_t)(si + 2)) | vrb(save.seg, (uint16_t)(si + 3)) << 8);
-    n = (uint16_t)(vrb(save.seg, (uint16_t)(si + 4)) | vrb(save.seg, (uint16_t)(si + 5)) << 8);
-    si = (uint16_t)(si + 6);
-    vga_outw(0x3C4, 0x0F02);
-    vga_outw(0x3CE, 0x4105);
-    do {
-        for (k = 0; k < n; k++)
-            vwb(es, di++, vrb(save.seg, si++));
-        di = (uint16_t)(di + pitch - n);
-    } while (--rows);
-    vga_outw(0x3CE, 0x4005);
 }
 
 /* S2967:0004 (pointer_draw(x, y, far picture, far save, base)): what the
@@ -146,7 +157,7 @@ uint16_t mouse_read(void)
         mode = vga_inb(0x3CF);
         pages_swap();
         if (dw(0x041C))
-            pointer_erase();
+            pointer_erase(far_at(S_DATA, 0x0366));
         sw(0x041C, 0);
         if (dw(0x0458)) {
             pointer_draw(dw(0x0424), dw(0x0426), far_at(S_DATA, 0x0362), far_at(S_DATA, 0x0366), 0);
@@ -195,7 +206,7 @@ uint16_t mouse_close(void)
         return 0xFFFF;
     if (dw(0x041C)) {
         pages_swap();
-        pointer_erase();
+        pointer_erase(far_at(S_DATA, 0x0366));
         pages_swap();
     }
     drv.speed_x = dw(0x0450);
@@ -231,6 +242,7 @@ uint16_t mouse_speed(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e,
 {
     if (!dw(0x0414))
         return 0xFFFF;
+    mouse_ratio(a, b);
     sw(0x042C, a);
     sw(0x042E, b);
     sw(0x0438, e);

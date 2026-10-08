@@ -61,12 +61,30 @@ int loop_replay;
 int loop_abort;
 void (*loop_hook)(int at, uint16_t side);
 
+static Far no_save(void)
+{
+    Far p = { 0, 0 };
+
+    return p;
+}
+
+/* where a side's cursor on the small map keeps what it covers: the far
+ * pointer at byte 5 of its record of `sides` (a place in video memory) */
+static Far side_save(uint16_t side)
+{
+    Far p;
+
+    p.off = NW(sides, side * SIDE_SIZE + 5);
+    p.seg = NW(sides, side * SIDE_SIZE + 7);
+    return p;
+}
+
 /* a side's view, its marks and its cursor drawn */
 static void view_redraw(uint16_t side)
 {
     view_draw(NW(views, side * VIEW_SIZE + 2), side);
     marks_draw(NW(views, side * VIEW_SIZE + 2), side);
-    cursor_draw(side);
+    cursor_draw(side, no_save());
 }
 
 static uint16_t phase_word(uint16_t side)
@@ -313,6 +331,8 @@ static void state_map(Far view, uint16_t side, uint16_t di, Far rec)
         pww(view, 0x0E, (uint16_t)((int8_t)pb(view, 0x15) * 2));
         pww(view, 0x10, (uint16_t)(pw(view, 0x10) + (pw(view, 0x0C) << sh)));
         pww(view, 0x12, (uint16_t)(pw(view, 0x12) + (pw(view, 0x0E) << sh)));
+        small_map_back(side);
+        small_map_draw(side, pw(view, 4), pw(view, 6));
         SETW(sides, side * SIDE_SIZE, side_word(side) | 4);
         gs_or(4, 0x100);
         SETW(site_taken, 0, 0);
@@ -327,7 +347,10 @@ static void state_map(Far view, uint16_t side, uint16_t di, Far rec)
         pwb(view, 0x14, (uint8_t)((int16_t)pw(view, 0x0C) >> 1));
         pwb(view, 0x15, (uint8_t)((int16_t)pw(view, 0x0E) >> 1));
         pww(view, 2, (uint16_t)(pw(view, 0x0C) * 2 + pw(view, 0x0E) * NW(map_width, 0) * 2));
+        pointer_erase(side_save(side));
         SETW(sides, side * SIDE_SIZE, side_word(side) & 0xFFFB);
+        view_draw(pw(view, 2), side);
+        marks_draw(pw(view, 2), side);
         pww(view, 4, pw(view, 8));
         pww(view, 0x0C, pw(view, 8));
         pww(view, 6, pw(view, 0x0A));
@@ -362,6 +385,7 @@ static void state_map(Far view, uint16_t side, uint16_t di, Far rec)
                 pww(view, 0x10, (uint16_t)(pw(view, 0x10) + step));
             }
         }
+        pointer_erase(side_save(side));
     }
 }
 
@@ -1184,14 +1208,12 @@ static void pass_end(void)
         gs_and(4, 0xFFBF);
     }
     /* S066A:441F to 4554: each side's cursor but in its view's state 4,
-     * shown.  Left out: with 4 in the side's word 0 of `sides` the far
-     * pointer at its byte 5 (a place in video memory) goes to pic_draw
-     * as its fourth argument, which the port's pic_draw does not take
-     * (presumably what lies under the cursor kept there; not read), and
-     * the sound (S2F39:096A) */
+     * shown; with 4 in the side's word 0 of `sides` (the small map) what
+     * it covers kept at side_save, which state_map puts back
+     * (pointer_erase).  Left out: the sound (S2F39:096A) */
     for (i = 0; i < 2; i++)
         if (NB(views, i * VIEW_SIZE + 0x17) != 4)
-            cursor_draw(i);
+            cursor_draw(i, side_word(i) & 4 ? side_save(i) : no_save());
     page_flip();
     page_copy();
     n = ((uint32_t)gs(0x15) << 16 | gs(0x13)) + 1;

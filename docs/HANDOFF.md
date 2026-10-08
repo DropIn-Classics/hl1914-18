@@ -3234,6 +3234,38 @@ emulation error (2026-10-02).
     (`S274D:0003`, left out before: the port's battle begins at once),
     and the times: the port's menu takes the same passes but no time for
     drawing or loading, so a key comes up to 0.54 s apart in the two.
+- The program in the window (2026-10-08, branch `debian/window2`;
+  port/README.md "the program in the window"). Learned: after the menu
+  the original's first `input_mouse` (`S27FE:03D4`, the mouse given to a
+  side's record) sees the pointer the driver's reset put at 319 and
+  gives "right" with `mouse_center` (`S27FE:04D0`, at 20.19 s in the
+  walk `back`); the setup that follows takes 2.75 s and clears the
+  sides' records, so the battle never sees it. The mouse's speeds in a
+  battle are `mouse_speed(0Ah, 0Ah, 0Ah, 0Ah, FA0h, 28h, 28h)` at
+  `S066A:03B1` (and by the options' item `S37FF:0113`, 32h, 0Ah or 3,
+  at `S066A:197A`); the menu's are 10h/20h with steps of 1F4h
+  (`S167A:067E`). The small map is drawn by `S131D:007D` and
+  `S0E56:09AD` with `S151F:000D` (translated, port/README.md "the small
+  map"); UMAP's pictures are 8-bit ones drawn with the screen's cut
+  (`S2AAF:0107`).
+- What a player meets in the window (2026-10-08, `debian/window2`,
+  headless build scripted by `DK_KEYS`/`DK_MOUSEMOVE`, map 8 and from
+  the menu): works: the menu by keys and mouse, START, the battle,
+  the cursor by keys and by the mouse (a motion of 60 counts up moved
+  it a field), the field menu's move (range marked, way kept), the
+  small map (right; drawn, frame moved without copies, the view on
+  leaving), the end of a half (left: "F1: MODE CHANGE" as in the
+  original's screen). Draws nothing yet: the field menu's information
+  (down): on a unit `S131D:0483` (389 lines; `S290A:0006`,
+  `S131D:0148`, `big_unit`), on a field without one the statistics
+  `S131D:0EE5` (488 lines; `S1571:0134`, `game_text_at`, `view_dim`,
+  `S2B45:0006`), seen in the runner's screen of map 8. Not tried: an
+  attack by the player, a site's menus (building, repairing, moving out)
+  in the window, the second side's keys, holding a key, the battle's
+  end in the window. port/tests' `orders_test`, `move_test`,
+  `side_test`, `view_test`, `computer_test`, `load_test` and
+  `income_test` do not link since the merge of save.c (save.c needs
+  loop.c, which needs more); not fixed here.
 - Saving and loading, read whole and translated (2026-10-08, Mac;
   `save_game`, `load_game`, `save_blocks` in src/HL.hints with what each
   does; `port/src/save.c`). Learned:

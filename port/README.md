@@ -207,6 +207,70 @@ which lies there itself: the screen stayed black (fixed). Not done: the
 mouse, the sounds, the menu in the window (without `-map` the window
 still shows the text screen), the pictures of events, saving.
 
+2026-10-08 (branch `debian/window2`): the program in the window. Without
+`-map` the window build (and the headless one under `DK_KEYS`/`DK_SHOTS`)
+begins at the menu and goes round as `game_loop` does (menu, battle,
+menu), on the window's time (`play_live`). The original's setup between
+the menu's return and the loop's first pass takes 2.75 s in the runner
+(walk `back`: `S066A:0390` at 20.18 s, `S066A:0EE9` at 22.93 s); the
+port's clock now lets that time pass before `battle_setup`
+(`play_setup`), with the timer's routine going on, as in the original.
+The player's mouse: in the window the platform's mouse (held by the
+window, `plat_mouse_grab`) moves the driver of `src/mouse.c` as a
+driver's interrupt would (`mouse_motion`: the system's counts as
+mickeys, 8 pixels per the ratio's mickeys, interrupt 33h function 0Fh,
+which `mouse_speed` now sets; within the range), its buttons held as
+they are. In a battle the mouse adds to a side's record as the original
+does (`input_mouse`, `S27FE:03D4`, and `mouse_center`, `S27FE:04D0`,
+translated in `src/input.c`): a pointer the step (record word 20h or
+22h) or more from the middle (A0h, 64h) is a direction and goes back to
+the middle, the left button is the side's button, its letting go with
+the right one held gives ten calls without the mouse. The pictures of
+the fades: at each wait of `retrace_wait` and at the end of each
+`pal_level` (`screen_hook`, `src/screen.c`) the pictures due by then
+are shown, so a fade's steps are seen; the clock's own account of those
+waits then finds them shown. The small map's cursor: `pic_draw_save`
+(`S2A6B:0008` with its save place; `pic_blit` keeps what lies under
+the picture by `under_save`), the pass's end passes the side's place
+(byte 5 of `sides`) with 4 in the side's word, and `state_map` puts it
+back (`pointer_erase`, `S2904:000E`, now in `src/screen.c`, for the
+mouse's pointer too) after a move and before leaving, where it also
+draws the view and its marks again as the original does (`S066A:2118`).
+
+Compared: `sh port/tests/menu_test.sh` (all five walks: no byte
+different at the menu's return; the walk `back` has a battle with the
+mouse open between, and its first `input_mouse` gives a direction in
+both, cleared by the setup: before `play_setup` the port's cursor went
+one field right and 4 bytes differed), `loop_test.sh` (the same at
+every pass compared), `check.py`. In the headless build scripted by
+`DK_KEYS` (Space twice): the menu, then map 0's battle on screen; by
+`DK_MOUSEMOVE` (200 counts down, the left button): the pointer to GAME
+SETUP and that page shown. Not compared: a scripted mouse walk against
+the original (the runner takes `-mouse T X,Y,B` and `-mice FILE`, at
+places, not motion: not done yet), the small map's cursor in video
+memory, the fades' pictures against the original's timing, the feel of
+the mickey ratio with a real mouse. Still not drawn: the small map
+itself (`S131D:007D`, `S0E56:09AD`).
+
+2026-10-08 (`debian/window2`): the small map. Entering state 3
+(`state_map` with 4 in byte 18h) now draws it as `S066A:2400` does:
+`small_map_back` (`S131D:007D`: the battle's second background picture
+in the side's half and a box in colour F6h) and `small_map_draw`
+(`S0E56:09AD`: four boxes `box_3d`, `S28E8:0000`, with lines
+`vline_fill`, `S2940:000C`; the map by `umap_draw`, `S151F:000D`, from
+UMAP's library and table with the screen's cut on; a line down its left
+edge; a dot of four pixels for each unit, `unit_dot`, `S0E56:08F5`).
+UMAP's pictures are of the 8-bit kind, so `pic_blit_u` now has its cut
+(`pic_cut_u`, `S2AAF:0107`/`0279`, written from what it does to the
+screen, not instruction by instruction; its own counts in `S2AAF` are
+not kept). Compared: the headless build with `DK_KEYS` (Space held,
+right, let go: the small map; down, right: the frame moved without
+leaving copies; Space: the view drawn at the corner) against the
+runner's `-shot` of map 8 with the same keys after the menu walk of
+`play_dumps.py`: the small map's half the same but for the frame, which
+stands 33 pixels further right in the original (its cursor was
+elsewhere; the port's run began with `-map 8`, not from the menu), 314
+of 64,000 pixels different, all of them the two frames.
 2026-10-08, the keys F2 to F9 in a battle (`setting_keys` and
 `joy_setup` in `src/loop.c`, `num_draw` of `src/draw.c` for F4): F2 the
 music and F3 the effects off and on (the bits of `game_state`; the port
@@ -223,6 +287,20 @@ keyboard's interrupt given back, `mem_alloc`'s blocks freed. Left out as
 the machine's part: the screen's old mode, the sound's end, interrupt
 24h and the timer. The window build does not get there yet (its menu is
 not in the window).
+
+2026-10-08 (`debian/window2`): the range's marks drawn again where the
+original does, found by comparing each routine's calls of `view_draw`,
+`marks_draw`, `marks_erase` and `field_draw` with the port's:
+`field_menu`'s move (pointer 4) draws the marks after `move_range`
+(`S0CB6:1101`); `view_step`'s step 18h draws the view and its marks after
+its `move_range` (`S0CB6:0A2B`); `move_aim` draws the marks at its end
+(`S10E1:05B4`, after the marks but the way's were taken off);
+`attack_unmark` draws the view and its marks (`S0AE0:02E3`). State
+unchanged: `play_test.sh m8_site` and `m8_d5r` and `loop_test.sh` the
+same as before. Seen in the headless window (`DK_KEYS`, map 8): the
+range marked on choosing a unit's move, the way left marked after the
+target. Not compared with the original's screen (the runner's key
+script did not bring its cursor to the same unit; not pursued).
 
 ## Build and run
 

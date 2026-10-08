@@ -219,3 +219,62 @@ void screen_open(uint16_t w, uint16_t h, uint32_t size, uint16_t pages)
     page_flip();
     screen_clear();
 }
+
+/* S28DC:000A (page_copy): the page shown copied to the page drawn,
+ * page_size bytes in each of the four planes through the latches (write
+ * mode 1, all planes on); write mode 0 again after it, the map mask left
+ * on all four planes */
+void page_copy(void)
+{
+    uint16_t to = (uint16_t)((NW(screen_seg, 0) - 0xA000u) << 4);
+    uint16_t from = (uint16_t)((NW(screen_shown, 0) - 0xA000u) << 4);
+    uint16_t n = NW(page_size, 0), i;
+
+    vga_outw(0x3C4, 0x0F02);
+    vga_outw(0x3CE, 0x4105);
+    for (i = 0; i < n; i++)
+        vga_write((uint16_t)(to + i), vga_read((uint16_t)(from + i)));
+    vga_outw(0x3CE, 0x4005);
+}
+
+/* S2AFE:000C (pal_level): the 256 colours of the far palette pal (300h
+ * bytes) times level / 100h, a quarter of that to the DAC; after each
+ * colour's first two bytes a wait for the next time the display is off
+ * (bit 0 of 3DAh clear, then set; interrupts off in the original) */
+void pal_level(uint8_t level, Far pal)
+{
+    uint16_t si = pal.off;
+    int i, k;
+
+    vga_outb(0x3C8, 0);
+    for (i = 0; i < 0x100; i++) {
+        for (k = 0; k < 3; k++) {
+            if (k == 2) {
+                while (vga_inb(0x3DA) & 1)
+                    ;
+                while (!(vga_inb(0x3DA) & 1))
+                    ;
+            }
+            vga_outb(0x3C9, (uint8_t)((frb(pal.seg, si++) * level >> 8) >> 2));
+        }
+    }
+}
+
+/* S28E0:0004 (fade_in): pal_level at the levels 0, 4, ... FCh with the
+ * palette at DATA:04E3 */
+void fade_in(void)
+{
+    unsigned l;
+
+    for (l = 0; l < 0x100; l += 4)
+        pal_level((uint8_t)l, far_at(S_DATA, 0x04E3));
+}
+
+/* S28E0:002B (fade_out): the levels FFh, FBh, ... 3 */
+void fade_out(void)
+{
+    int l;
+
+    for (l = 0xFF; l >= 0; l -= 4)
+        pal_level((uint8_t)l, far_at(S_DATA, 0x04E3));
+}

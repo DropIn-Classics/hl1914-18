@@ -314,6 +314,7 @@
     X(S27FE, pit_period, 0x0882) \
     X(S2892, num_text, 0x0001) \
     X(S28D9, screen_clear, 0x000C) \
+    X(S28DC, page_copy, 0x000A) \
     X(S28E0, fade_in, 0x0004) \
     X(S28E0, fade_out, 0x002B) \
     X(S2945, retrace_wait, 0x000A) \

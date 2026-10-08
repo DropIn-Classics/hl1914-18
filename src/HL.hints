@@ -2429,6 +2429,13 @@ name S28D9:000C screen_clear
 ; 190h bytes (presumably to save the screen to a file; not read further,
 ; not met). Read; translated, compared through screen_open.
 name S2974:0002 page_flip
+; page_copy: the page shown (screen_shown) copied to the page drawn
+; (screen_seg), page_size bytes in each plane through the latches (write
+; mode 1, map mask all four planes), write mode 0 after it. Called by
+; game_loop after page_flip at a battle's beginning, so both pages hold
+; the drawn views. Read; translated (port/src/screen.c), compared at its
+; call on map 0 and map 8 (port/README.md).
+name S28DC:000A page_copy
 name DATA:0356 screen_shown
 name DATA:0346 bios_mode_old
 name DATA:0AF9 crtc_port
@@ -2487,7 +2494,8 @@ name S2AFE:000C pal_level
 ; DATA:04E3 (64 calls, 0.52 s in the runs); fade_out: the levels FFh,
 ; FBh, ... 3. Both read and write nothing else. Besides the round's end
 ; they are called by the fight's panel, the pictures of events (S1A39)
-; and the menus (S1650, S167A).
+; and the menus (S1650, S167A). Both and pal_level translated
+; (port/src/screen.c); fade_in compared through battle_begin's end.
 name S28E0:0004 fade_in
 name S28E0:002B fade_out
 ; inputs_release(1, wait): clears the key's word 4 (behind DATA:00BE),

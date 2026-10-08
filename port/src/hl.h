@@ -130,6 +130,10 @@ void screen_open(uint16_t w, uint16_t h, uint32_t size, uint16_t pages);
 void pages_set(void);
 void screen_clear(void);
 void page_flip(void);
+void page_copy(void);
+void pal_level(uint8_t level, Far pal);
+void fade_in(void);
+void fade_out(void);
 
 /* draw.c */
 void view_draw(uint16_t field, uint16_t side);

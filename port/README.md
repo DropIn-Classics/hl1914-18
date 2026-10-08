@@ -437,6 +437,20 @@ anything the game needs before the first release.
   `build/n2/scr/regs.c`) the same as the runner's `-vgastate` at that
   break; the DAC black in both. Not covered: the other heights' modes,
   `S2B51:002A`, `page_flip` and `pages_set` called on their own.
+- The drawn views shown (2026-10-08, Linux): `page_copy` (`S28DC:000A`),
+  `pal_level` (`S2AFE:000C`), `fade_in` and `fade_out` (`S28E0:0004`,
+  `002B`) in `src/screen.c`; `battle_begin` calls `page_flip`,
+  `page_copy` and `fade_in` after the views as at `S066A:0E95`.
+  `load_test.sh`'s `begin` now compares the video memory as well: on
+  map 0 and map 8 (`build/n2/st/begin_test.args`) the port's at its end
+  is the same as the original's at `S066A:0EE6`, memory as before.
+  `setup` compares it too, the grounds' area AC58:0 to the end (offsets
+  C580h-F4BFh, written by `S02E6:323E`, not translated) counted as
+  written by the original only (47,704 bytes on map 0), the rest the
+  same. `start` does not (its left-out routines draw on both pages).
+  Not compared: the DAC after `fade_in`, each of the three at its own
+  call, `fade_out` (not called by the port yet). All other
+  `load_test` argument sets give the same results as before.
 - The views drawn at a battle's beginning (2026-10-08, Linux):
   `message_clear` (`show_message(-1, side)`, `S10AF:000F` to its RETF at
   `009B`, with `S28E5:0004` and `S28FA:0000`) in `src/draw.c`;

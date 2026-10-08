@@ -660,6 +660,62 @@ hand, the sounds. `menu_test.sh live` for walks whose scripts no
 `-keylog` wrote (all but `live57`) reports the keylog NOT the script and
 some memory DIFFERENT; that was not looked into (it was never claimed).
 
+2026-10-09 (`mac/scores`): the best scores of a map that has scores and
+a winner's name corrected with the backspace, compared as game state and
+video memory, in the headless window too. Nothing the port does changed.
+Four walks more in `menu_dumps.py`, all with `m57_win`'s battle and its
+pokes: `name57` types the name as a letter, the backspace, the backspace
+with nothing left, five letters, a sixth (not taken), the backspace
+twice, a letter, Enter (four letters stay), leaves the scores, goes to
+MISC and shows the best scores of the map just won (one score, three
+`EMPTY`); `twice57` begins with the scores' file `name57`'s run of the
+original wrote (`SEEDS`: copied into the runner's `-state` folder before
+every run and into the port's `-saves` folder by `menu_test.sh`; so
+`name57` is dumped first), types map 57's code, shows the best scores
+(the one there), wins the battle again and types a second name with one
+letter taken off; `livename57` and `livetwice57` are the two as the
+headless window played them (`tests/keys/menu57_name.keys`,
+`menu57_twice.keys`: its `-keylog`, the code's letters as `code1` to
+`code5`). The battle's end is not dumped again for them (`NOENDS`;
+`end57` and `live57` have it). Each walk has six screens outside the
+menu's loop (text_input's beginning and end for the code and the name,
+the best scores after the battle and by the menu's item).
+`sh port/tests/menu_test.sh name57 twice57` and `sh
+port/tests/menu_test.sh live livename57 livetwice57`, after origin/master
+4dfe673 was merged:
+- what came in the same in all four (14 things in the two `name57`, 12 in
+  the two `twice57`; times at most 0.06 s apart);
+- memory at the menu's second return and at all 24 screens: no byte
+  different in the regions compared, with the battle's count of passes
+  (348, port 349) and the timers' due passes told apart in the two
+  `name57`, and the first view's repeat counter (1 byte) in the two
+  `twice57`, where the count is the same;
+- video memory: both pages the same at all 24 screens and at the menu's
+  passes kept (4 in each `name57`, 3 in each `twice57`), but for the pass
+  at 102 s of the two `twice57`, where the two pages are exchanged and
+  the same then (told apart, see below);
+- the scores' file (`MAP\04.HI`) the same in all four: one score with
+  the corrected name, then two;
+- the window: its `-keylog` is the script again for both, and its memory
+  and video memory are the same as the `-keys` play's at all 81 dumps.
+The key times are chosen: whether the cursor's `]` gets into a short
+name and which page has the pointer afterwards depend on the count of
+text_input's passes, which is not the same on the port's own clock
+(docs/HANDOFF.md, "The best scores with scores there and the name
+corrected"). `menu_cmp.py` tells two things more apart for that: a
+pass's two pages exchanged (each must then be the same as the other
+program's other page; `--vram A B` does it for two files, used by
+`menu_test.sh live`), and the views' repeat counters for every walk with
+a battle played to its end. The earlier walks rerun with it (`back
+code57 end57 exit noload pages start0 start24`, `live live57`; `end57`
+and `live57` dumped again here): all the same as before.
+Not done or not checked: four scores with the lowest replaced, a score
+not above the lowest, a score outside 0 to 7EF4h in a file, the screens
+between the name's keys, a name of five letters ended with the cursor
+shown, the SDL window by hand, the sounds. Run on macOS only.
+`menu_test.sh live name57 twice57` reports the keylog NOT the script, as
+for every walk no `-keylog` wrote.
+
 2026-10-09 (`debian/window10`): the computer's attack as the second side
 in the window, with the fights' pictures compared frame by frame.
 `m8_cattack.keys` (map 8, 200 s; the computer is the second side) is what

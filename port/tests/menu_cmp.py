@@ -37,9 +37,38 @@ Compared:
     number of passes), and the files the original wrote (written/)
     against the port's (port_saves/).
 
+  * a pass's two pages exchanged are told apart: text_input shows the
+    other page every pass, and the port's passes on its own clock are
+    not the original's, so after a code or a name typed the page with
+    the pointer can be the other one (an odd number of passes apart).
+    Then each page is compared with the other program's other page, and
+    nothing may differ.
+
 Exit status 0 when the order is the same and no byte differs.
+
+    python3 port/tests/menu_cmp.py --vram A B
+
+compares two files of video memory that way (menu_test.sh's `live`):
+exit status 0 when the pages are the same or the same exchanged.
 """
 import os, sys
+
+
+def pages_differ(v, w):
+    """the bytes that differ in the two pages (200 lines of 80 bytes a
+    plane at A000h and A400h, byte 4 * offset + plane), page for page
+    and with the pages exchanged, and behind them"""
+    d = [i >> 2 for i in range(len(v)) if v[i] != w[i]]
+    pages = len([o for o in d if o < 0x8000 and o % 0x4000 < 200 * 80])
+    n = 200 * 80 * 4
+    other = sum(1 for i in range(n) if v[i] != w[0x10000 + i]) + sum(1 for i in range(n) if v[0x10000 + i] != w[i])
+    return pages, other, len(d) - pages
+
+
+if len(sys.argv) > 1 and sys.argv[1] == '--vram':
+    pages, other, _ = pages_differ(open(sys.argv[2], 'rb').read(), open(sys.argv[3], 'rb').read())
+    print('the same' if not pages else 'the two pages exchanged, the same otherwise' if not other else 'DIFFERENT')
+    sys.exit(1 if pages and other else 0)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -84,6 +113,7 @@ def memory(what, x, y):
     regions.append(('the block', BLOCK + 0x40, BLOCK + 0x40000))
     for name, lo, hi in regions:
         d = [i for i in range(lo, hi) if x[i] != y[i]]
+        count = []
         if name == 'S331F':
             count = [i for i in d if 0x4CB7 <= i - lo < 0x4CBB]
             d = [i for i in d if i not in count]
@@ -91,15 +121,6 @@ def memory(what, x, y):
                 at = lo + 0x4CB7
                 print('  the passes counted in the battle before: %d, port %d' %
                       (int.from_bytes(x[at:at + 4], 'little'), int.from_bytes(y[at:at + 4], 'little')))
-                # with another count of passes the views' repeat counters
-                # (byte 2Ch of the two records of 31h bytes from 4D92h),
-                # which side_input counts down a pass at a time, are
-                # elsewhere too
-                held = [i for i in d if i - lo in (0x4D92 + 0x2C, 0x4D92 + 0x31 + 0x2C)]
-                d = [i for i in d if i not in held]
-                if held:
-                    print('  the views\' repeat counters, counted down by the pass, differ (%d bytes), told apart'
-                          % len(held))
                 # and the timers' kinds and the passes they are due at
                 # (game_state, S331F:4CA4, its bytes 19h to 63h), as
                 # play_cmp.py counts them apart
@@ -107,6 +128,19 @@ def memory(what, x, y):
                 d = [i for i in d if i not in due]
                 if due:
                     print('  the timers\' passes differ (%d bytes), told apart' % len(due))
+        if name == 'S331F' and (count or os.path.exists(os.path.join(out, 'pokes.txt'))):
+            # with a battle before (another count of passes, or a walk
+            # with a battle played to its end), the views' repeat
+            # counters (byte 2Ch of the two records of 31h bytes from
+            # 4D92h), which side_input counts down a pass at a time
+            # while a key is held: the port's passes on its own clock
+            # are not the original's, also where their count is the
+            # same (twice57)
+            held = [i for i in d if i - lo in (0x4D92 + 0x2C, 0x4D92 + 0x31 + 0x2C)]
+            d = [i for i in d if i not in held]
+            if held:
+                print('  the views\' repeat counters, counted down by the pass, differ (%d bytes), told apart'
+                      % len(held))
         if name == 'the mouse' and what.endswith('end'):
             # the pointer's place (words 10h and 12h): game_loop opens the
             # mouse again behind the menu, the original's driver then has
@@ -183,8 +217,11 @@ for what, vf, pf in [('at %5s s' % t, 'shot%s.vram' % t, 'port%s.vram' % t) for 
         bad += 1
         continue
     w = open(pv, 'rb').read()
-    d = [i >> 2 for i in range(len(v)) if v[i] != w[i]]
-    pages = len([o for o in d if o < 0x8000 and o % 0x4000 < 200 * 80])
-    print('  video memory %s: %d bytes differ in the two pages, %d behind them' % (what, pages, len(d) - pages))
+    pages, other, behind = pages_differ(v, w)
+    if pages and not other:
+        print('  video memory %s: the two pages exchanged (told apart), 0 bytes differ then, %d behind them'
+              % (what, behind))
+        continue
+    print('  video memory %s: %d bytes differ in the two pages, %d behind them' % (what, pages, behind))
     bad += bool(pages)
 sys.exit(1 if bad else 0)

@@ -33,9 +33,24 @@ the menu N times.  The walks (default: all):
              scores, START once more: the menu's second return
     live57   the same as the headless window played it from the menu on
              (keys/menu57_win.keys, its -keylog)
+    name57   as end57 with the name corrected: a letter and the backspace,
+             the backspace with nothing typed, five letters, a sixth (not
+             taken), the backspace twice, a letter, Enter; then MISC and
+             the best scores of the map just won (one score, three
+             EMPTY), left, START: the menu's second return
+    twice57  begun with the best scores' file name57's run wrote (SEEDS
+             below; name57 must have been made first): map 57's code,
+             MISC, the best scores (the one there), START, the battle
+             won again (the same score a second time), a name with one
+             backspace, the two scores shown, START
+    livename57, livetwice57   those two as the headless window played
+             them (keys/menu57_name.keys, menu57_twice.keys, its -keylog)
 
 The runner's files written (a best score) go to WALK/state/, emptied
-before each run; those of the first run are kept as WALK/written/.
+before each run (and for a walk of SEEDS filled with the other walk's
+written/); those of the first run are kept as WALK/written/.  WALK/seed/
+has the files the port's program is to begin with (named as its -saves
+folder names them).
 
 Written into build/menu/WALK/ (ignored):
 
@@ -112,6 +127,21 @@ WALKS = {
     # of the two has the pointer afterwards depends on how many passes the typing took)
     'end57': (code57(10) + [(80, 'a'), (81, 'enter'), (90, 'space'), (94, 'space')], 2, 100, [92]),
     'live57': ([], 2, 100, [92]),
+    'name57': (code57(10) + [(78, 'b'), (78.5, 'backspace'), (79, 'backspace'), (79.5, 'q'), (80, 'w'), (80.5, 'e'),
+                             (81, 'r'), (81.5, 't'), (82, 'y'), (82.5, 'backspace'), (83, 'backspace'), (83.5, 'u'),
+                             (84.825, 'enter'), (91, 'space'), (95, 'down'), (96, 'down'), (97, 'down'), (98, 'down'),
+                             (99, 'space'), (101, 'space'), (104, 'space'), (106, 'esc'), (108, 'space')],
+               2, 116, [93, 100, 105, 107]),
+    # (name57's Enter at 84.705: text_input shows the other page every pass and the port's passes are not
+    # the original's, so which page has the pointer afterwards depends on both counts; with Enter in these
+    # 10 ms both are odd, 799 and 873 with the code's; twice57's first START takes the second press as
+    # code57's)
+    'twice57': ([(10, 'down'), (11, 'space')] + code(57, 12) +
+                [(15, 'enter'), (16, 'down'), (17, 'down'), (18, 'down'), (19, 'space'), (20, 'space'), (21.5, 'space'),
+                 (24, 'space'), (26, 'esc'), (28, 'space'), (88, 'n'), (88.5, 'o'), (89, 'backspace'), (89.5, 'e'), (90, 'w'),
+                 (91, 'enter'), (100, 'space'), (104, 'space')], 2, 112, [20.7, 27, 102]),
+    'livename57': ([], 2, 116, [93, 100, 105, 107]),
+    'livetwice57': ([], 2, 112, [20.7, 27, 102]),
 }
 # a walk with a battle played to its end: a key script (port/tests/keys/
 # KEYS.keys, its times moved by the seconds given; a key codeN is the N-th
@@ -123,7 +153,15 @@ WALKS = {
 #            START once more: the menu's second return
 #   live57   the same as the window played it (menu57_win.keys, what its
 #            -keylog wrote of end57 from the menu on)
-BATTLES = {'end57': ('m57_win', -8, 'm57_win', 57), 'live57': ('menu57_win', 0, 'm57_win', 57)}
+#   name57, twice57   m57_win's battle too (twice57's a second later:
+#            its START comes 9 s after end57's)
+BATTLES = {'end57': ('m57_win', -8, 'm57_win', 57), 'live57': ('menu57_win', 0, 'm57_win', 57),
+           'name57': ('m57_win', -8, 'm57_win', 57), 'twice57': ('m57_win', 1.04, 'm57_win', 57),
+           'livename57': ('menu57_name', 0, 'm57_win', 57), 'livetwice57': ('menu57_twice', 0, 'm57_win', 57)}
+# walks that begin with the files another walk's first run wrote
+SEEDS = {'twice57': 'name57', 'livetwice57': 'name57'}
+# walks whose battle's end is not dumped again (end57 and live57 have it)
+NOENDS = ('name57', 'twice57', 'livename57', 'livetwice57')
 # the end's waits (wait_press) and the frames of the pictures behind the
 # loop, as play_dumps.py has them
 PRESS = 'S0CB6:0DA9'
@@ -160,10 +198,27 @@ for walk in sys.argv[1:] or sorted(WALKS):
     state = os.path.join(out, 'state')
     os.makedirs(state, exist_ok=True)
 
+    seed = os.path.join(ROOT, 'build', 'menu', SEEDS[walk], 'written') if walk in SEEDS else None
+    if seed and not os.path.isdir(seed):
+        sys.exit('%s begins with what %s wrote: python3 port/tests/menu_dumps.py %s' % (walk, SEEDS[walk], SEEDS[walk]))
+    # the same files for the port's program, as its -saves folder names
+    # them (a folder's separator is _)
+    shutil.rmtree(os.path.join(out, 'seed'), ignore_errors=True)
+    os.makedirs(os.path.join(out, 'seed'))
+    for d, _, names in os.walk(seed or ''):
+        for name in names:
+            rel = os.path.relpath(os.path.join(d, name), seed)
+            shutil.copyfile(os.path.join(d, name), os.path.join(out, 'seed', rel.replace(os.sep, '_')))
+
     def run(args):
         for d, _, names in os.walk(state):
             for name in names:
                 os.remove(os.path.join(d, name))
+        for d, _, names in os.walk(seed or ''):
+            for name in names:
+                to = os.path.join(state, os.path.relpath(d, seed))
+                os.makedirs(to, exist_ok=True)
+                shutil.copyfile(os.path.join(d, name), os.path.join(to, name))
         return subprocess.run(['python3', KIT] + args + ['HL.EXE'], capture_output=True, text=True, cwd=out)
 
     a = ['-key', '3', 'enter', '-key', '6', 'enter', '-state', state] + pokes
@@ -174,7 +229,7 @@ for walk in sys.argv[1:] or sorted(WALKS):
     a += ['-log', 'S167A:130B', '-log', 'S066A:0390']
     for l in ASKS:
         a += ['-log', l]
-    if battle:
+    if battle and walk not in NOENDS:
         for l in (PRESS,) + FRAMES:
             a += ['-log', l]
     a += ['-until', str(until), '-break', 'S066A:0390#%d' % times, '-ram', os.path.join(out, 'exit.ram')]

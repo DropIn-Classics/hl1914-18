@@ -1,0 +1,92 @@
+# menu57_name: what the headless window wrote (-keylog) playing the walk
+# name57 of menu_dumps.py from the menu on: the CODE row, map 57's code
+# (codeN: the N-th letter of it, which menu_dumps.py takes from the
+# game's CODES.DAT; not kept here), START, m57_win's battle with its
+# pokes, the best score's name corrected with the backspace (a letter
+# taken off, the backspace with none left, five letters, a sixth, two
+# taken off, one more), the scores left, MISC, the best scores of the
+# map (one score now), left, START again.
+10.001868 down+
+10.144548 down-
+11.000628 space+
+11.143308 space-
+11.999388 code1+
+12.156336 code1-
+12.498768 code2+
+12.655716 code2-
+12.998148 code3+
+13.155096 code3-
+13.497528 code4+
+13.654476 code4-
+13.996908 code5+
+14.153856 code5-
+14.995668 enter+
+15.152616 enter-
+15.994428 up+
+16.151376 up-
+16.993188 space+
+17.150136 space-
+19.004976 space+
+19.147656 space-
+36.996924 space+
+37.296552 left+
+37.696056 space-
+37.895808 left-
+38.495064 lalt+
+38.794692 x+
+39.194196 lalt-
+39.393948 x-
+41.990724 f1+
+42.147672 f1-
+42.804000 f1+
+42.946680 f1-
+51.992592 space+
+52.149540 space-
+57.000660 space+
+57.143340 space-
+78.003156 b+
+78.145836 b-
+78.502536 backspace+
+78.645216 backspace-
+79.001916 backspace+
+79.144596 backspace-
+79.501296 q+
+79.643976 q-
+80.000676 w+
+80.143356 w-
+80.500056 e+
+80.657004 e-
+80.999436 r+
+81.156384 r-
+81.498816 t+
+81.655764 t-
+81.998196 y+
+82.155144 y-
+82.497576 backspace+
+82.654524 backspace-
+82.996956 backspace+
+83.153904 backspace-
+83.496336 u+
+83.653284 u-
+84.823260 enter+
+84.980208 enter-
+91.001304 space+
+91.143984 space-
+94.996344 down+
+95.153292 down-
+95.995104 down+
+96.152052 down-
+96.993864 down+
+97.150812 down-
+98.006892 down+
+98.149572 down-
+99.005652 space+
+99.148332 space-
+101.003172 space+
+101.145852 space-
+103.999452 space+
+104.156400 space-
+105.996972 esc+
+106.153920 esc-
+107.994492 space+
+108.151440 space-

@@ -26,8 +26,12 @@
 # also played in the window (play_live, headless: the keys given to the
 # window's pictures at their times, tests/live_keys.py), from the menu on:
 # what its -keylog writes must be the walk's key script again (a walk
-# whose script a -keylog wrote, live57), and its
+# whose script a -keylog wrote: live57, livename57, livetwice57), and its
 # memory and video memory where the -keys play's were dumped the same.
+# The walks name57 and livename57 correct the winner's name with the
+# backspace and show the best scores of a map that has one; twice57 and
+# livetwice57 begin with that best score in the folder (seed/, copied
+# into the port's -saves folder) and win a second.
 set -e
 # awk reads the clock's times as numbers only with a decimal point
 export LC_ALL=C
@@ -36,7 +40,7 @@ GAME=${DOSKIT_GAME:-../game}
 sh build.sh
 LIVE=
 [ "$1" = live ] && { LIVE=1; shift; }
-[ $# -gt 0 ] || set -- back code57 end57 exit live57 noload pages start0 start24
+[ $# -gt 0 ] || set -- back code57 end57 exit live57 livename57 livetwice57 name57 noload pages start0 start24 twice57
 r=0
 for w in "$@"; do
     D=../build/menu/$w
@@ -52,6 +56,8 @@ for w in "$@"; do
     # emptied first, as the original's does
     mkdir -p "$D/port_saves"
     find "$D/port_saves" -type f -delete
+    # a walk that begins with best scores there (menu_dumps.py's SEEDS)
+    for f in "$D"/seed/*; do [ -f "$f" ] && cp "$f" "$D/port_saves/"; done
     [ -f "$D/pokes.txt" ] && V="$V $(cat "$D/pokes.txt") -evdump $D/port_"
     # shellcheck disable=SC2086
     build/history-line-headless -game "$GAME" -keys "$D/keys.txt" -start "$(cat "$D/start.txt")" -seed 0 \
@@ -63,6 +69,7 @@ for w in "$@"; do
     # among them, as long as the walk lasts
     mkdir -p "$D/window_saves"
     find "$D/window_saves" -type f -delete
+    for f in "$D"/seed/*; do [ -f "$f" ] && cp "$f" "$D/window_saves/"; done
     find "$D" -maxdepth 1 -name 'window*' -type f -delete
     W=$(echo "$V" | sed 's/port/window/g')
     # shellcheck disable=SC2086
@@ -81,6 +88,9 @@ for w in "$@"; do
             echo "  live: ${f##*/}: the window did not come so far"; r=1
         elif cmp -s "$f" "$g"; then
             echo "  live: ${f##*/}: the same"
+        elif [ "${f##*.}" = vram ] && python3 tests/menu_cmp.py --vram "$f" "$g" > /dev/null; then
+            # the window's passes of text_input an odd number apart
+            echo "  live: ${f##*/}: the two pages exchanged, the same otherwise"
         else
             echo "  live: ${f##*/}: DIFFERENT"; r=1
         fi

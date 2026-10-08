@@ -144,14 +144,16 @@ def ranges(addrs):
 def ends_cmp(prefix, first):
     """the battle's end's screens (play_dumps.py, the port's -evdump): the
     memory and video memory at each wait for a press with the end's texts
-    (eN) and at every tenth frame of the pictures behind the loop (fNNNN),
+    (eN), at every tenth frame of the pictures behind the loop (fNNNN) and
+    at every tenth of each fight's pictures (gFNNN),
     the port's with `prefix`; a byte that both had at the first dump is
     the setup's.  1 if the game's state, the computer's or the two pages
     differ somewhere"""
     bad = 0
-    for e in sorted(f[:-4] for f in os.listdir(out) if re.match(r'(e\d+|f\d{4})\.ram$', f)):
+    for e in sorted(f[:-4] for f in os.listdir(out) if re.match(r'(e\d+|f\d{4}|g\d{4,})\.ram$', f)):
         qpath = os.path.join(out, '%s%s.ram' % (prefix, e))
-        what = 'the end\'s wait %s' % e[1:] if e[0] == 'e' else 'frame %d of the pictures' % int(e[1:])
+        what = ('the end\'s wait %s' % e[1:] if e[0] == 'e' else 'frame %d of the pictures' % int(e[1:])
+                if e[0] != 'g' else 'fight %s\'s frame %d' % (e[1:-3], int(e[-3:])))
         if not os.path.exists(qpath):
             print('%s: the port did not come so far' % what)
             bad = 1

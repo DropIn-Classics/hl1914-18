@@ -660,6 +660,45 @@ hand, the sounds. `menu_test.sh live` for walks whose scripts no
 `-keylog` wrote (all but `live57`) reports the keylog NOT the script and
 some memory DIFFERENT; that was not looked into (it was never claimed).
 
+2026-10-09 (`debian/window10`): the computer's attack as the second side
+in the window, with the fights' pictures compared frame by frame.
+`m8_cattack.keys` (map 8, 200 s; the computer is the second side) is what
+the headless window wrote (`-keylog`) playing `make_m8.py x45:200`: the
+first side only ends its halves and presses F1, so every attack is the
+computer's. In the original's run of it (`play_dumps.py m8_cattack.keys
+200`, `VRAM=1`) attacks_run runs in passes 345, 1710, 1850 and 3172; the
+two fights of pass 1850's attacks_run are shown with pictures (from
+116.1 s and 126.1 s; why the other rounds' are not was not looked into),
+and the original ends each at a key of the script after 149 and 151 of
+749 frames (which key was not checked). New for the comparison: `play_dumps.py`
+also dumps at every tenth frame of each fight's pictures (`gFNNN`, at
+`S2532:156D`, where fight_frames tests the key at a frame's end), the
+port's `-evdump` at the same place (`pics_hook`'s `PICS_FRAME`),
+`play_cmp.py` compares them with the end's screens; and on the
+original's clock `play_test.sh` now gives the port `-seeds`, so the
+pictures start with the original's number (its S lines) and not the
+BIOS's count: before, `rand_words` differed in the frames (given back at
+the pictures' end, so the passes never showed it).
+- `play_test.sh m8_cattack`: the inputs (7,148 parts), the game's state and
+  the computer's the same at every pass compared (13), both pages the
+  same at all of them, and at all 31 fight frames (1 to 141 and 1 to 151)
+  memory and both pages the same;
+- `rounds`: the same but for the passes' up to round 4, the last, pages
+  included; `seeds`: the same up to round 3, then `rand_words` differ (on
+  the port's own clock no key ends the fights' pictures, so they make
+  other calls of rand_next than the original's cut ones);
+- `live`: the window's play and the `-keys` play the same in the first
+  7,066 parts, at every round's dump and at all 207 fight frames of their
+  seven fights (memory and video memory); the dump after the last pass
+  (3535) is not reached by the window, which closes a pass earlier.
+- After the merge of origin/master b371682, `m8_site`, `m48_sattack` and
+  `m57_win` rerun on the original's clock with `-seeds`: still the same at
+  every pass.
+Not done or not checked: the frames of a fight on the original's clock
+after a key ended the original's (the port's run goes on to 749 frames;
+their dumps have no counterpart), a fight's pictures to their own end on
+the original's clock, the SDL window by hand, the sounds.
+
 2026-10-08, the field menu's information (`unit_info`, `unit_values`,
 `info_rect` and `battle_info` in `src/draw.c`, the original's
 `S131D:0483`, `0148`, `0008` and `0EE5`; `state_field` of `src/loop.c`

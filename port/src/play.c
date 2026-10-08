@@ -484,12 +484,14 @@ void play_rounds(const char *path)
  * side's text and the second's (hex), and on the port's own clock when the
  * wait began and ended */
 static const char *ev_prefix;   /* -evdump: where the end's screens go */
-static long ev_ends, ev_frames;
+static long ev_ends, ev_frames, ev_fights, ev_fframes;
 
 /* -evdump PREFIX: the memory and video memory at each battle's end's
  * wait (PREFIXeN.ram, .vram) and at every tenth frame of the pictures
  * behind the loop, the first and the 11th and so on, counted over all of
- * them (PREFIXfNNNN.ram, .vram), as play_dumps.py makes the original's */
+ * them (PREFIXfNNNN.ram, .vram), and at the frames 1, 11, 21 ... of
+ * the F-th fight's pictures, where fight_frames tests the key
+ * (PREFIXgFNNN.ram, .vram), as play_dumps.py makes the original's */
 void play_evdump(const char *prefix)
 {
     ev_prefix = prefix;
@@ -499,9 +501,10 @@ static void ev_dump(char kind, long n)
 {
     char path[1024];
 
-    if (!ev_prefix || (kind == 'f' && n % 10 != 1))
+    if (!ev_prefix || (kind == 'f' && n % 10 != 1) || (kind == 'g' && n % 1000 % 10 != 1))
         return;
-    snprintf(path, sizeof path, kind == 'e' ? "%se%ld.ram" : "%sf%04ld.ram", ev_prefix, n);
+    snprintf(path, sizeof path, kind == 'e' ? "%se%ld.ram" : kind == 'f' ? "%sf%04ld.ram" : "%sg%04ld.ram",
+             ev_prefix, n);
     if (rm_write(path) != 0)
         fprintf(stderr, "%s: not written\n", path);
     strcpy(path + strlen(path) - 4, ".vram");
@@ -711,13 +714,17 @@ static void pics_clock(int at)
 
     switch (at) {
     case PICS_SEED:
+        ev_fights++;
+        ev_fframes = 0;
         if (have_clock) {
             /* the log's S and R come after attacks_run and the frames
              * take no time here (no key ends them): rand_words are
-             * given back at the end */
+             * given back at the end; with play_seeds the pictures are
+             * started with the original's number, so that rand_words
+             * in their frames are its too */
             for (i = 0; i < 4; i++)
                 kept[i] = NW(rand_words, 2 * i);
-            seed_set(clock_seed0());
+            seed_set(fights_at < fights_n ? fights[fights_at++].v : clock_seed0());
         } else if (fights_at < fights_n)
             seed_set(fights[fights_at++].v);
         else {
@@ -731,6 +738,7 @@ static void pics_clock(int at)
             own_busy(T_PIC_LOAD);
         break;
     case PICS_FRAME:
+        ev_dump('g', ev_fights * 1000 + ++ev_fframes);
         if (!have_clock)
             own_busy(T_PIC_FRAME);
         break;

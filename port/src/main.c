@@ -217,6 +217,23 @@ static int get_game(const char *given, const char *gog, char *out, size_t n)
     return 0;
 }
 
+/* what game_loop does with the mouse when the menu has returned
+ * (S066A:0390 on): the mouse opened for the side's record the options'
+ * byte 114h names, its pointer shown, the battle's speeds, word 46h of the
+ * record behind DATA:00C2 FFFFh, and byte 130h of the options 0 */
+static void menu_mouse(void)
+{
+    uint16_t data = (uint16_t)(HL_DATA + HL_BASE), opt = (uint16_t)(HL_S37FF + HL_BASE);
+    Far ms;
+
+    mouse_open(0, frw(data, frb(opt, 0x0114) > 0 ? 0x00B6 : 0x00A6), 0);
+    mouse_show();
+    mouse_speed(0x0A, 0x0A, 0x0A, 0x0A, 0xFA0, 0x28, 0x28);
+    ms = far_at(data, 0x00C2);
+    fww(ms.seg, (uint16_t)(ms.off + 0x46), 0xFFFF);
+    fwb(opt, 0x0130, 0);
+}
+
 /* HL.EXE into the program's memory and the translated parts of its
  * start and of a battle's setup for map `map`; a line about the result
  * in `line`.  0 if it failed. */
@@ -243,8 +260,15 @@ static int start_game(const char *game, int map, uint32_t bios, char *line, size
     }
     if (r == 0)
         r = menu_result((uint16_t)map);
-    if (r == 0)
+    if (r == 0) {
+        /* as from the menu; the setup's 2.75 s are not played here, in
+         * which the original's first input_mouse (S27FE:03D4) finds the
+         * pointer the driver's reset left at 319 a direction away and puts
+         * it to the middle (its direction cleared by the setup) */
+        menu_mouse();
+        mouse_to(0xA0, 0x64);
         r = battle_setup();
+    }
     if (r == 0)
         r = battle_begin();
     if (r != 0) {
@@ -421,7 +445,7 @@ static int play_game(unsigned long passes, double start, double until, int clock
  * 0 if something failed. */
 static int menu_game(unsigned long passes, double start, double until, int clocked, char *line, size_t n)
 {
-    uint16_t data = (uint16_t)(HL_DATA + HL_BASE), opt = (uint16_t)(HL_S37FF + HL_BASE);
+    uint16_t data = (uint16_t)(HL_DATA + HL_BASE);
     int menus = 0, battles = 0, i, r, ok = 1;
     const char *why = NULL;
     char sub[200];
@@ -429,8 +453,6 @@ static int menu_game(unsigned long passes, double start, double until, int clock
     play_start(start);
     sub[0] = 0;
     for (;;) {
-        Far ms;
-
         SETW(game_state, 0, (NW(game_state, 0) | 1) & 0xFFEF);
         inputs_release(0);
         mouse_close();
@@ -447,12 +469,7 @@ static int menu_game(unsigned long passes, double start, double until, int clock
         for (i = 0; i < menu_dumps_n; i++)
             if (menu_dumps[i].pass == (unsigned long)menus && rm_write(menu_dumps[i].file) != 0)
                 ok = 0;
-        mouse_open(0, frw(data, frb(opt, 0x0114) > 0 ? 0x00B6 : 0x00A6), 0);
-        mouse_show();
-        mouse_speed(0x0A, 0x0A, 0x0A, 0x0A, 0xFA0, 0x28, 0x28);
-        ms = far_at(data, 0x00C2);
-        fww(ms.seg, (uint16_t)(ms.off + 0x46), 0xFFFF);
-        fwb(opt, 0x0130, 0);
+        menu_mouse();
         if (NW(game_state, 0) & 0x100) {
             /* S066A:4739, the program's end: the mouse's pointer taken
              * off, the keyboard's interrupt given back, the blocks of
@@ -536,6 +553,16 @@ int main(int argc, char **argv)
             play_inputs(argv[++i]);
         else if (!strcmp(argv[i], "-keylog") && i + 1 < argc)
             play_keylog(argv[++i]);
+        else if (!strcmp(argv[i], "-micelog") && i + 1 < argc)
+            play_micelog(argv[++i]);
+        else if (!strcmp(argv[i], "-mice") && i + 1 < argc) {
+            const char *why = play_mice(argv[++i]);
+
+            if (why) {
+                fprintf(stderr, "%s\n", why);
+                return 1;
+            }
+        }
         else if (!strcmp(argv[i], "-rounds") && i + 1 < argc)
             play_rounds(argv[++i]);
         else if (!strcmp(argv[i], "-ends") && i + 1 < argc)

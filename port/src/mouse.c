@@ -71,6 +71,23 @@ void mouse_motion(int dx, int dy, int buttons)
     drv.buttons = (uint16_t)(buttons & 7);
 }
 
+/* the mouse put at x, y (the driver's coordinates, within the range) with
+ * `buttons` held, as the runner's -mouse and -mice do (mouse_input in
+ * doskit/tools/run/mouse.c); mouse_where says where it is */
+void mouse_set(uint16_t x, uint16_t y, int buttons)
+{
+    drv.x = clamp(x, drv.min_x, drv.max_x);
+    drv.y = clamp(y, drv.min_y, drv.max_y);
+    drv.buttons = (uint16_t)(buttons & 7);
+}
+
+void mouse_where(uint16_t *x, uint16_t *y, int *buttons)
+{
+    *x = drv.x;
+    *y = drv.y;
+    *buttons = drv.buttons;
+}
+
 /* interrupt 33h function 0Fh: the mickeys per 8 pixels */
 void mouse_ratio(uint16_t x, uint16_t y)
 {

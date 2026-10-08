@@ -36,7 +36,9 @@
 # pictures at their times, tests/live_keys.py) and once by -keys, and
 # says whether the two read the same in every part and have the same
 # memory and video memory at the passes of their rounds' ends and after
-# them.  A script the window wrote (-keylog) must be the same; the
+# them.  A script with a mouse has tests/keys/TAG.mice (the window's
+# -micelog), which every -keys play here and the original's run take,
+# and TAG.moves, the motions the window was given (DK_MOUSEMOVE).  A script the window wrote (-keylog) must be the same; the
 # comparison with the original is then `rounds` or `at`.
 # A tag ending in _nopics (dumps made with NOPICS=1) plays the same key
 # script with the fights not shown as pictures (-nopics); one beginning
@@ -58,6 +60,10 @@ NOPICS=
 [ "$KEYS" = "$TAG" ] || NOPICS=-nopics
 # the script's pokes (tests/keys/TAG.pokes, play_pokes.py), if it has any
 NOPICS="$NOPICS $(python3 tests/play_pokes.py "$KEYS" port)"
+# the script's mouse (tests/keys/TAG.mice, the window's -micelog), if it has
+# one; the window's play in `live` gets the motions of TAG.moves instead
+MICE=
+[ -f "tests/keys/$KEYS.mice" ] && MICE="-mice tests/keys/$KEYS.mice"
 sh build.sh
 # what the port's program writes (a saved game, a map's scores) stays here
 mkdir -p "$D/saves"
@@ -65,7 +71,9 @@ NOPICS="$NOPICS -saves $D/saves"
 if [ "$2" = at ]; then
     START=$(awk '$2 == "P" { print $1; exit }' "$D/clock.txt")
     SEED=$(awk '$2 == "S" { v = $3 } $2 == "P" { print substr(v, 1, length(v) - 4); exit }' "$D/clock.txt")
-    RUN="build/history-line-headless -game $GAME -map $MAP -keys tests/keys/$3.keys -start $START -seed 0x$SEED $NOPICS"
+    MICE=
+    [ -f "tests/keys/$3.mice" ] && MICE="-mice tests/keys/$3.mice"
+    RUN="build/history-line-headless -game $GAME -map $MAP -keys tests/keys/$3.keys -start $START -seed 0x$SEED $NOPICS $MICE"
     shift 3
     rm -f "$D"/r[0-9][0-9][0-9][0-9].ram "$D"/r[0-9][0-9][0-9][0-9].vram
     : > "$D/rounds.txt"
@@ -90,7 +98,7 @@ if [ "$2" = live ]; then
     UNTIL=$(awk 'END { print $1 }' "$D/clock.txt")
     ARGS="-game $GAME -map $MAP -start $START -seed 0x$SEED $NOPICS"
     # shellcheck disable=SC2086
-    build/history-line-headless $ARGS -keys tests/keys/$KEYS.keys -until "$UNTIL" -rounds "$D/own_rounds.txt" > /dev/null 2>&1
+    build/history-line-headless $ARGS $MICE -keys tests/keys/$KEYS.keys -until "$UNTIL" -rounds "$D/own_rounds.txt" > /dev/null 2>&1
     rm -f "$D"/[kw][0-9][0-9][0-9][0-9].ram "$D"/[kw][0-9][0-9][0-9][0-9].vram
     K= W=
     for p in 1 $(awk '{ print $1, $1 + 1 }' "$D/own_rounds.txt"); do
@@ -99,9 +107,11 @@ if [ "$2" = live ]; then
         W="$W -dump $p $D/w$f.ram -dump $p $D/w$f.vram"
     done
     # shellcheck disable=SC2086
-    build/history-line-headless $ARGS -keys tests/keys/$KEYS.keys -until "$UNTIL" -inputs "$D/keys_inputs.txt" $K
+    build/history-line-headless $ARGS $MICE -keys tests/keys/$KEYS.keys -until "$UNTIL" -inputs "$D/keys_inputs.txt" $K
     # shellcheck disable=SC2086
-    DK_KEYS=$(python3 tests/live_keys.py "tests/keys/$KEYS.keys" "$START") \
+    MOVES=
+    [ -f "tests/keys/$KEYS.moves" ] && MOVES=$(python3 tests/live_keys.py --moves "tests/keys/$KEYS.moves" "$START")
+    DK_KEYS=$(python3 tests/live_keys.py "tests/keys/$KEYS.keys" "$START") DK_MOUSEMOVE=$MOVES \
     DK_FRAMES=$(awk -v s="$START" -v u="$UNTIL" 'BEGIN { print int(38 + (u - s) / 0.014268) }') \
         build/history-line-headless $ARGS -inputs "$D/live_inputs.txt" $W
     n=$(wc -l < "$D/live_inputs.txt")
@@ -131,7 +141,7 @@ if [ "$2" = rounds ] || [ "$2" = seeds ]; then
     UNTIL=$(awk 'END { print $1 }' "$D/clock.txt")
     SEEDS=
     [ "$2" = rounds ] || SEEDS="-seeds $D/clock.txt"
-    RUN="build/history-line-headless -game $GAME -map $MAP -keys tests/keys/$KEYS.keys -start $START -seed 0x$SEED -until $UNTIL $NOPICS $SEEDS"
+    RUN="build/history-line-headless -game $GAME -map $MAP -keys tests/keys/$KEYS.keys -start $START -seed 0x$SEED -until $UNTIL $NOPICS $MICE $SEEDS"
     # shellcheck disable=SC2086
     $RUN -rounds "$D/own_rounds.txt"
     rm -f "$D"/r[0-9][0-9][0-9][0-9].ram "$D"/r[0-9][0-9][0-9][0-9].vram
@@ -173,6 +183,6 @@ for p in $(cat "$D/passes.txt"); do
     [ -f "$D/p$(printf %04d "$p").vram" ] && DUMPS="$DUMPS -dump $p $D/$Q$(printf %04d "$p").vram"
 done
 # shellcheck disable=SC2086
-build/history-line-headless -game "$GAME" -map $MAP -keys tests/keys/"$KEYS".keys $CLOCK $NOPICS \
+build/history-line-headless -game "$GAME" -map $MAP -keys tests/keys/"$KEYS".keys $CLOCK $NOPICS $MICE \
     -inputs "$IN" -ends "$D/${Q}_ends.txt" $DUMPS
 exec python3 tests/play_cmp.py "$TAG" $2

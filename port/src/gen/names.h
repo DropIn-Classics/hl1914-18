@@ -247,6 +247,9 @@
     X(S131D, info_rect, 0x0008) \
     X(S131D, unit_values, 0x0148) \
     X(S131D, unit_info, 0x0483) \
+    X(S131D, site_units, 0x087A) \
+    X(S131D, site_screen, 0x0A1C) \
+    X(S131D, build_rows, 0x0B07) \
     X(S131D, big_unit, 0x0C50) \
     X(S131D, battle_info, 0x0EE5) \
     X(S131D, view_dim, 0x13A6) \

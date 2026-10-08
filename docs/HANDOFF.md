@@ -3387,6 +3387,29 @@ emulation error (2026-10-02).
   Not done: the SDL window by hand; an attack by the second side, a
   site's menus and the battle's end in the window; replaying a
   `-keylog` that begins at the menu.
+- A site's screens and the mouse in the window (2026-10-08,
+  `debian/window4`, Linux, headless window; port/README.md has the
+  counts). Learned:
+  - State 2 draws through `site_screen` (`S131D:0A1C`), `site_units`
+    (`S131D:087A`) and `build_rows` (`S131D:0B07`), named in the hints,
+    and the blocks `S066A:296E` to `2DB8` (a place shown) and `3677` to
+    `382F` (a kind shown); the port had their state and none of their
+    drawing, which only the video memory showed (47,864 bytes).
+  - A `-map` battle of the port had no mouse: only the menu's return
+    opened it. The original's `S37FF:0114` chooses the record the mouse
+    plays (the first side's by default; F7 twice reopens it for that
+    byte, a way to give it the second side, not tried).
+  - The mouse gives a direction when the pointer is the step (28h) away
+    from the middle; with the button held `mouse_center` does not put it
+    back, so the direction lasts until the button is let go, and none
+    is held after it, unlike the keys' gestures (the left still held
+    0.2 s after the button steps a site's cursor back: why `m8_site`
+    needs its R steps and the mouse not).
+  - The window's motions go to the driver by the clock and `-micelog`
+    writes positions the runner's `-mice` replays: the original played
+    the window's mouse the same in every part.
+  Not done: the SDL window by hand, a damaged unit repaired and a
+  carrier's screen by the mouse, a scrolled build list.
 - The field menu's information (2026-10-08, Mac; `unit_info`,
   `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
   each does; `port/src/draw.c`). Learned:

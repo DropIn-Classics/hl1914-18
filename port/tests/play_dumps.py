@@ -90,6 +90,8 @@ run (a saved game) go to DIR instead of the runner's build/run/state.
 
 A file port/tests/keys/TAG.pokes changes memory when the first pass
 begins (port/tests/play_pokes.py), for a state no short script reaches.
+A file port/tests/keys/TAG.mice is the mouse's script for the runner's
+-mice ("T X,Y,B" a line, as the port's -micelog writes it).
 
 No game data is kept in this file.
 """
@@ -140,6 +142,10 @@ if walk:
     for t, k in menu_keys:
         pre += ['-key', str(t), k]
 pre += ['-keys', keypath, '-until', until]
+# the mouse's script beside the key script (the window's -micelog), if any
+micepath = os.path.splitext(keypath)[0] + '.mice'
+if os.path.exists(micepath):
+    pre += ['-mice', micepath]
 if os.environ.get('STATE'):
     # the folder the original's files written in the run go to (a saved
     # game), instead of the runner's build/run/state

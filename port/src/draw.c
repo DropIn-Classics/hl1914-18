@@ -1607,3 +1607,223 @@ void battle_info(uint16_t side)
     if (info_hook)
         info_hook(1, 1);
 }
+
+/* ---- a site's or carrier's screen (S131D:087A to S131D:0C4F and the
+ * parts of game_loop's state 2 that draw) ---- */
+
+/* the place p of a site's list of seven: x, y (place_xy's in loop.c) */
+static uint16_t place_x(uint16_t p, uint16_t side)
+{
+    return (uint16_t)(p * 0x11 + (side ? 0xA0 : 0) + 0x0D);
+}
+
+static uint16_t place_y(uint16_t p)
+{
+    return (uint16_t)(0x8B - (p % 2) * 0x0C);
+}
+
+/* S131D:087A (x, y, side, far site): the units of the side's row of the
+ * site (seven bytes at side * 7, above F0h none) by the kind's second
+ * picture of the units' table, in the side's colours (20h or 30h by the
+ * unit's bits 1 and 0); one that has moved this half (200h, of the side)
+ * or is the other's (2) in B0h or C0h, the darker set.  The original
+ * takes x and y as its first two arguments and does not use them. */
+static void site_units(uint16_t side, Far site)
+{
+    uint16_t p;
+
+    for (p = 0; p < 7; p++) {
+        uint8_t u = pb(site, (uint16_t)(side * 7 + p));
+        uint16_t f, base;
+        Far pic;
+
+        if (u > 0xF0)
+            continue;
+        f = NW(unit_flags, u * UNIT_SIZE);
+        pic = unit_pic((uint16_t)(NB(units, u * UNIT_SIZE + 8) * 6 + 1));
+        if ((f & 0x200 && same_side(side, f)) || f & 2) {
+            base = side ? 0xC0 : 0xB0;
+            if (f & 1)
+                base = 0xC0;
+            else if (!(f & 2))
+                base = 0xB0;
+        } else {
+            base = side ? 0x30 : 0x20;
+            if (f & 1)
+                base = 0x30;
+            else if (!(f & 2))
+                base = 0x20;
+        }
+        pic_draw(place_x(p, side), place_y(p), pic, (uint8_t)base);
+    }
+}
+
+/* S131D:0A1C (side, far site): the site's screen in the side's half: the
+ * third picture of the list at S331F:0207 (packed, through the free end),
+ * the units of its row (site_units), and the kind of site by word 19h: 4
+ * text 3, 8 text 5, 10h text 4, else text 6 (seven lines lower) at x 4Dh,
+ * y 16h, colours S331F:4C85 */
+void site_screen(uint16_t side, Far site)
+{
+    uint16_t x = side ? 0xA0 : 0, r = pw(site, 0x19), n, y = 0x16;
+
+    pic_unpack_draw(x, 0, list_pic(0x0207, 2), 0xF0, free_end());
+    site_units(side, site);
+    if (r & 4)
+        n = 3;
+    else if (r & 8)
+        n = 5;
+    else if (r & 0x10)
+        n = 4;
+    else {
+        n = 6;
+        y = (uint16_t)(y + 7);
+    }
+    game_text_at((uint16_t)(x + 0x4D), y, n, frb(S_GAME, 0x4C85));
+}
+
+/* S131D:0B07 (x, y, side, first): the build list's seven places from
+ * build_kinds[first] on: the cursors' picture 12 (colours F4h) under
+ * each, and on it the kind's second picture, colours 30h with bit 0 of
+ * S331F:4CB0 (presumably whose colours; not checked), else 20h; x and y
+ * are not used */
+void build_rows(uint16_t side, uint16_t first)
+{
+    uint16_t p;
+
+    for (p = 0; p < 7; p++) {
+        uint8_t k;
+
+        pic_draw(place_x(p, side), place_y(p), list_pic(0x0167, 0x0C), 0xF4);
+        k = NB(build_kinds, first + p);
+        if (k == 0xFF)
+            continue;
+        pic_draw(place_x(p, side), place_y(p), unit_pic((uint16_t)(k * 6 + 1)),
+                 frb(S_GAME, 0x4CB0) & 1 ? 0x30 : 0x20);
+    }
+}
+
+/* the screen's rectangle (DATA:0092's record) set and filled */
+static void rect_set(uint16_t c, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
+{
+    Far r = far_at(S_DATA, 0x0092);
+
+    fww(r.seg, (uint16_t)(r.off + 2), x0);
+    fww(r.seg, (uint16_t)(r.off + 4), y0);
+    fww(r.seg, (uint16_t)(r.off + 6), x1);
+    fww(r.seg, (uint16_t)(r.off + 8), y1);
+    fww(r.seg, r.off, c);
+}
+
+static void rect_colour(uint16_t c)
+{
+    Far r = far_at(S_DATA, 0x0092);
+
+    fww(r.seg, r.off, c);
+}
+
+/* S066A:296E to 2DB8: the place under the cursor of a site's screen
+ * (view word 0Eh) shown: the screen again, a box in S331F:4C8A at x 0Fh
+ * to 3Eh, y 12h to 39h, and for the place's unit (into word 1Eh of the
+ * view) texts 8 or 9 for one with 400h or 800h in unit_flags, else its
+ * values (unit_values at 12h, 4Bh) unless a text is shown (4, 8 for the
+ * second side, in game_state's word 0), then its large picture
+ * (big_unit, place 2); an empty place text 2.  Then for a site (word 22h
+ * 1) text 25h and its byte 16h + side and the points (none with 2 in
+ * word 19h, the second side's with 1, else the first's); for a carrier
+ * the weight of its row's units and the room of its own kind (bytes 41h
+ * and 40h of the kinds). */
+void site_info(Far view, uint16_t side)
+{
+    Far site = far_at(view.seg, (uint16_t)(view.off + 0x24));
+    uint16_t x0 = side & 1 ? 0xA0 : 0, x = 0x12, y = 0x4B, u, f, p;
+    uint8_t c7 = frb(S_GAME, 0x4C87);
+
+    site_screen(side, site);
+    rect_set(frb(S_GAME, 0x4C8A), (uint16_t)(x0 + 0x0F), 0x12, (uint16_t)(x0 + 0x3E), 0x39);
+    rect_fill();
+    u = pb(site, (uint16_t)(side * 7 + pw(view, 0x0E)));
+    pww(view, 0x1E, u);
+    if (u != 0xFF) {
+        f = NW(unit_flags, u * UNIT_SIZE);
+        rect_colour(c7);
+        if (f & 0x400 || f & 0x800) {
+            x = (uint16_t)(x + x0);
+            info_rect(x, y);
+            game_text_at((uint16_t)(x + 0x26), (uint16_t)(y + 0x12), f & 0x400 ? 8 : 9, c7);
+            show_message(0xFFFF, side);
+        } else if (!(NW(game_state, 0) & (side ? 8 : 4)))
+            unit_values(0x12, 0x4B, (uint8_t)u, side);
+        big_unit(2, NB(units, u * UNIT_SIZE + 8), (uint8_t)side);
+    } else {
+        x = (uint16_t)(x + x0);
+        info_rect(x, y);
+        game_text_at((uint16_t)(x + 0x18), (uint16_t)(y + 0x14), 2, c7);
+        show_message(0xFFFF, side);
+    }
+    if (pw(view, 0x22) == 1) {
+        uint16_t r = pw(site, 0x19), pts;
+
+        y = 0x1C;
+        x = side & 1 ? 0xED : 0x4D;
+        game_text_at(x, (uint16_t)(y + 6), 0x25, c7);
+        rect_colour(frb(S_GAME, 0x4C85));
+        num_draw(pb(site, (uint16_t)(0x16 + side)), (uint16_t)(x + 0x2D), (uint16_t)(y + 6));
+        if (r & 2)
+            pts = 0;
+        else if (r & 1)
+            pts = NW(side_points, 2);
+        else
+            pts = NW(side_points, 0);
+        num_draw((int16_t)pts, (uint16_t)(x + 0x2D), (uint16_t)(y + 0x0C));
+    } else {
+        uint8_t w = 0, k;
+
+        for (p = 0; p < 7; p++) {
+            uint8_t v = pb(site, (uint16_t)(side * 7 + p));
+
+            if (v <= 0xF0)
+                w = (uint8_t)(w + NB(unit_dat, NB(units, v * UNIT_SIZE + 8) * KIND_SIZE + 0x41));
+        }
+        y = 0x1D;
+        x = side & 1 ? 0x11A : 0x7A;
+        rect_colour(frb(S_GAME, 0x4C86));
+        num_draw(w, x, y);
+        k = NB(units, pb(site, 0x1B) * UNIT_SIZE + 8);
+        num_draw(NB(unit_dat, k * KIND_SIZE + 0x40), x, (uint16_t)(y + 6));
+    }
+}
+
+/* S066A:3677 to 382F: the build list's place under the cursor shown:
+ * the list again (build_rows from word 20h), a box in 42h at x 0Fh to
+ * 3Eh, y 12h to 3Ah, the kind (build_kinds at word 0Eh + 20h, into word
+ * 1Eh) and, for one, two boxes in FFh (x 12h to 84h, y 4Ch to 78h and 40h
+ * to 46h), text 7, its price (byte 3Fh) and its large picture */
+void build_info(Far view, uint16_t side)
+{
+    uint16_t x0 = side & 1 ? 0xA0 : 0, x = 0x12, y = 0x4C, k;
+
+    build_rows(side, pw(view, 0x20));
+    rect_set(0x42, (uint16_t)(x0 + 0x0F), 0x12, (uint16_t)(x0 + 0x3E), 0x3A);
+    rect_fill();
+    k = NB(build_kinds, pw(view, 0x0E) + pw(view, 0x20));
+    pww(view, 0x1E, k);
+    if (k == 0xFF)
+        return;
+    rect_set(0xFF, (uint16_t)(x + x0), y, (uint16_t)(x + x0 + 0x72), (uint16_t)(y + 0x2C));
+    rect_fill();
+    {
+        Far r = far_at(S_DATA, 0x0092);
+
+        fww(r.seg, (uint16_t)(r.off + 4), (uint16_t)(y - 0x0C));
+        fww(r.seg, (uint16_t)(r.off + 8), (uint16_t)(y - 6));
+        fww(r.seg, r.off, 0xFF);
+    }
+    rect_fill();
+    if (side & 1)
+        x = (uint16_t)(x + 0xA0);
+    game_text_at((uint16_t)(x + 0x12), (uint16_t)(y + 0x10), 7, frb(S_GAME, 0x4C87));
+    rect_colour(frb(S_GAME, 0x4C85));
+    num_draw(NB(unit_dat, k * KIND_SIZE + 0x3F), (uint16_t)(x + 0x34), (uint16_t)(y + 0x1E));
+    big_unit(2, (uint8_t)k, (uint8_t)side);
+}

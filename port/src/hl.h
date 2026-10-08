@@ -132,7 +132,7 @@ int32_t sfx_load(Far place, Far name, Far work);
 
 /* sound.c */
 extern void (*snd_opl)(uint8_t reg, uint8_t value);
-extern void (*snd_played)(uint16_t ch, uint16_t n, int16_t r);
+extern void (*snd_played)(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, int16_t r);
 uint16_t snd_init(uint16_t mask);
 int16_t sfx_play(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, uint16_t step);
 int16_t dig_play(uint16_t ch, Far p, uint16_t vol, uint16_t times, uint16_t step);
@@ -142,6 +142,8 @@ int16_t adl_start(uint16_t ch, uint16_t vol);
 void adl_stop(uint16_t ch);
 int16_t chan_stop(uint16_t ch);
 void snd_pass(void);
+void dsp_rate(uint16_t rate);
+void dig_irq(void);
 void adl_tick(void);
 int16_t music_start(Far tune, uint16_t fade, uint16_t vol);
 int16_t music_fade(uint16_t speed);
@@ -248,6 +250,7 @@ int fight_pictures(const FightPics *a);
 enum { EV_RELEASE, EV_FRAME, EV_RETRACES, EV_FADE, EV_LEVEL, EV_BUSY };
 enum { EV_LOAD_WON, EV_LOAD_WIPED, EV_LOAD_MEDAL, EV_LOAD_MEDAL2, EV_LOAD_MEDAL3 };
 extern int (*event_hook)(int at, int n);
+extern int event_frame;
 int16_t event_picture(Far place, Far work, uint16_t kind, uint16_t arg);
 
 /* mem.c */

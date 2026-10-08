@@ -7,10 +7,15 @@
  * No sound comes out.  What the original sends to the AdLib (ports 388h
  * and 389h) goes to snd_opl when it is set, a register and its value in
  * the original's order, without the waits between them.  The Sound
- * Blaster's part ends at the channel's record: dig_mix, dig_irq and
- * dig_kick, which make the bytes the card plays, are not translated, so a
- * digital channel stays as dig_play left it until chan_stop or the next
- * dig_play on it.
+ * Blaster's part is the driver's memory only: dig_mix makes the bytes the
+ * card would play in the driver's two buffers, moves the digital channels
+ * on, begins one again that is played more than once and takes one off at
+ * its end; dig_kick (from snd_pass) and dig_irq (the card's interrupt)
+ * call it as the original does.  Nothing is sent to a card: the bytes
+ * stay in the buffers, and the card's interrupt, which the original gets
+ * when a buffer has been played, is made by snd_clock that long after a
+ * buffer was started (its length at the rate dsp_rate set), on the port's
+ * own clock only.
  *
  * The music: music_start, music_fade, music_volume and the fade's timer
  * routine fade_tick, with the tune's events read by the timer's routine.
@@ -62,12 +67,19 @@
 #define MUSIC 0x0C          /* the music's channel */
 
 void (*snd_opl)(uint8_t reg, uint8_t value);
-void (*snd_played)(uint16_t ch, uint16_t n, int16_t r);   /* a test's: each sfx_play */
+/* a test's: each sfx_play, with its volume, how many times and its result */
+void (*snd_played)(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, int16_t r);
 /* a test's: each music_start (out 0; a the fade, b the volume) and
  * music_fade (out 1; a the speed) at its end */
 void (*snd_music)(int out, uint16_t a, uint16_t b, int16_t r);
 
 static double tick_at = -1;
+
+/* the card: the rate dsp_rate set (bytes a second), the clock's time
+ * snd_clock was last called with, and when the buffer started last has
+ * been played (below 0: none is being played) */
+static uint16_t dig_rate = 8000;
+static double clock_now = -1, dig_at = -1;
 
 /* the period the timer calls adl_tick with: pit_add's 1843h until a tune
  * or an effect sets its own (pit_period), which is kept at adl_period */
@@ -468,7 +480,7 @@ int16_t sfx_play(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, uint16_t
     int16_t r = sfx_play_(ch, n, vol, times, step);
 
     if (snd_played)
-        snd_played(ch, n, r);
+        snd_played(ch, n, vol, times, r);
     return r;
 }
 
@@ -541,11 +553,124 @@ int16_t adl_start(uint16_t ch, uint16_t vol)
     return 1;
 }
 
-/* S2F39:096A (snd_pass).  Left out: dig_kick when digital channels play */
+/* S30EF:1C2D (dsp_rate): the rate the card plays the buffers' bytes at
+ * (the original sends the DSP 256 - 1000000 / rate and keeps nothing) */
+void dsp_rate(uint16_t rate)
+{
+    if (NW(snd_devices, 0) & 2)
+        dig_rate = rate;
+}
+
+/* S30EF:1CED (dig_mix): `len` bytes at S30EF:`buf`, a pair of them a
+ * step.  For each pair every playing channel's two bytes at its count of
+ * steps times its step / 100h, signed, times half its volume, the upper
+ * byte of that summed; each sum divided by the count of channels, plus
+ * 7Fh.  A channel past its length gives nothing to that pair and begins
+ * again (endless, or times left) or is taken off; when the last one is
+ * taken off the routine ends at once, the pair not written.  Returns
+ * `len` less the pairs not made (as the original: bytes less pairs). */
+static uint16_t dig_mix(uint16_t buf, uint16_t len)
+{
+    uint16_t pairs = (uint16_t)(len >> 1), ch;
+
+    if (!NW(dig_count, 0))
+        return 0;
+    SETW(snd_busy, 0, 1);
+    DSET(0x10BB, pairs);
+    DSET(0x10C3, 0);
+    DSET(0x10C5, 0);
+    for (;;) {
+        for (ch = 0; ch < 8; ch++) {
+            uint16_t r = (uint16_t)REC(ch), at;
+            int8_t vol;
+            int16_t a, b;
+
+            if (!(DB(A_dig_mask) & 1u << ch))
+                continue;
+            at = (uint16_t)(((uint32_t)D(r + R_AT) * D(r + R_STEP)) >> 8);
+            if (at >= D(r + R_LEN)) {
+                if (!(D(r + R_FLAGS) & 2)) {
+                    int16_t left = (int16_t)(D(r + R_TIMES) - 1);
+
+                    DSET(r + R_TIMES, left);
+                    if (left <= 0) {
+                        int16_t n = (int16_t)(NW(dig_count, 0) - 1);
+
+                        DSETB(A_dig_mask, DB(A_dig_mask) ^ 1u << ch);
+                        SETW(dig_count, 0, n);
+                        if (n <= 0)
+                            goto done;
+                        continue;
+                    }
+                }
+                DSET(r + R_AT, 0);
+                continue;
+            }
+            at = (uint16_t)(at + D(r + R_START));
+            vol = (int8_t)(DB(r + R_VOL) >> 1);
+            a = (int8_t)((int16_t)((int8_t)frb(D(r + R_START + 2), at) * vol) >> 8);
+            b = (int8_t)((int16_t)((int8_t)frb(D(r + R_START + 2), (uint16_t)(at + 1)) * vol) >> 8);
+            DSET(0x10C3, D(0x10C3) + a);
+            DSET(0x10C5, D(0x10C5) + b);
+            DSET(r + R_AT, D(r + R_AT) + 1);
+        }
+        DSETB(buf, (int16_t)D(0x10C3) / (int16_t)NW(dig_count, 0) + 0x7F);
+        DSETB(buf + 1, (int16_t)D(0x10C5) / (int16_t)NW(dig_count, 0) + 0x7F);
+        buf = (uint16_t)(buf + 2);
+        pairs = (uint16_t)(D(0x10BB) - 1);
+        DSET(0x10BB, pairs);
+        if ((int16_t)pairs <= 0)
+            break;
+        DSET(0x10C3, 0);
+        DSET(0x10C5, 0);
+    }
+done:
+    SETW(snd_busy, 0, 0);
+    return (uint16_t)(len - D(0x10BB));
+}
+
+/* S30EF:1DF8 (dig_irq), the card's interrupt: the buffer that waits is
+ * started when it has 28h bytes or more (its header: the length at +0,
+ * the DMA's page and address at +2 and +4, its place at +6; the first at
+ * S30EF:049B, the second 40Ah further on; byte 0499h says which waits)
+ * and the other one is mixed anew; else the interrupt is masked.  The
+ * transfer itself (dma_start) is the time until the next interrupt. */
+void dig_irq(void)
+{
+    uint16_t h = DB(0x0499) & 1 ? 0x049B : 0x08A5, other = DB(0x0499) & 1 ? 0x08A5 : 0x049B, len;
+
+    if (DB(0x0496) & 1)
+        return;
+    DSETB(0x0496, 1);
+    len = D(h);
+    if (len >= 0x28) {
+        DSETB(0x0499, DB(0x0499) ^ 1);
+        dig_at = clock_now < 0 ? -1 : clock_now + (double)len / dig_rate;
+        DSET(h, 0);
+        DSET(other, dig_mix(D(other + 6), 0x400));
+    } else
+        dig_at = -1;
+    DSETB(0x0496, 0);
+}
+
+/* S30EF:1E8B (dig_kick): with digital channels playing the card halted,
+ * the first buffer mixed and made the one that waits, the interrupt */
+static void dig_kick(void)
+{
+    if (!(NW(snd_devices, 0) & 2) || (int16_t)NW(dig_count, 0) <= 0)
+        return;
+    DSET(0x049B, dig_mix(D(0x04A1), 0x400));
+    DSETB(0x0499, 1);
+    dig_irq();
+}
+
+/* S2F39:096A (snd_pass) */
 void snd_pass(void)
 {
     uint16_t ch;
 
+    if ((NW(snd_devices, 0) & 2) && NW(dig_count, 0))
+        dig_kick();
     if (NW(snd_devices, 0) & 1)
         for (ch = 8; ch < MUSIC; ch++)
             adl_start(ch, D(REC(ch) + R_VOL));
@@ -939,6 +1064,15 @@ static int16_t music_fade_(uint16_t speed)
  * it may be ahead by a fade's wait (music_fade) */
 void snd_clock(double t)
 {
+    /* the card's interrupts: each when the buffer started has been played */
+    if (clock_now > t + 4)
+        dig_at = -1;
+    clock_now = t;
+    while (dig_at >= 0 && dig_at <= t) {
+        clock_now = dig_at;
+        dig_irq();
+    }
+    clock_now = t;
     if (!(NW(snd_devices, 0) & 1))
         return;
     if (tick_at < 0 || tick_at > t + 4)
@@ -981,6 +1115,8 @@ uint16_t snd_init(uint16_t mask)
         SETW(dig_port, 0, 0x220);
         SETW(dig_int, 0, 0x0F);
         DSETB(0x0488, 0x80);
+        dig_rate = 8000;        /* snd_init's dsp_rate(1F40h) */
+        dig_at = clock_now = -1;
         found |= 2;
     }
     if (mask & 1) {

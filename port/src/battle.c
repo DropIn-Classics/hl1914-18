@@ -75,6 +75,7 @@ int start_setup(void)
     fww(p.seg, p.off, 1);
     fww(p.seg, (uint16_t)(p.off + 2), 0);
     fww(S_MAIN, 0x0022, snd_init(3) & 2 ? 0 : 1);
+    dsp_rate(10000);    /* S066A:00EB, whatever was found */
     game_mem.block = mem_alloc(0x445C0);
     if (!(game_mem.block.seg | game_mem.block.off))
         return 1;

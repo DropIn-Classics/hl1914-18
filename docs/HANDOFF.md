@@ -2780,10 +2780,52 @@ emulation error (2026-10-02).
       clock it leaves the original before the first round's end (the
       cursor's steps are sampled otherwise, cause 3 above) and no round
       ends.
+    - A battle's end with two human sides (2026-10-08, Mac;
+      `m54_end.keys`, map 54, 14 rounds, 320 s). Chosen because a unit
+      of the second side stands five fields from the first side's
+      headquarters there (`sites_40` record 0 on (14,16)); on no map
+      for two players is one nearer. The headquarters' field can be
+      entered from three fields only, (14,15), (13,15) and (15,15):
+      the other three around it and (14,18) are grounds of a class the
+      kind 12h cannot enter (bit 80h of the ground's byte 2, its cost
+      255), and on each of the three a unit of the first side stands at
+      the start. So the script walks the second side's unit 4Ch round
+      the building in its move halves, (14,21) to (14,20), (14,19),
+      (15,18), (16,18), (16,16), (15,15), a field or two a round (12 in
+      its byte 0 against costs of 5 to 9), while the first side moves
+      its unit 36h from (15,15) to (15,14) in round 9, and in round 14
+      onto (14,16). The kind 12h may enter the other side's grounds
+      because it has 1 in word 6 (`move_range`'s mask FFFFh).
+    - What the end does, in the original: `attacks_run` of pass 3853
+      (281.39 s) carries order 4 out (`event_picture`, the grey screen,
+      the site's picture), the unit is in the first place of both rows
+      of the record and has 4000h, the record's word 19h 4 to 5;
+      both views go to state 7 with 10h and 0Fh in word 22h, the texts
+      are "YOUR HQ HAS BEEN CAPTURED !!" and "VICTORY! HQ OCCUPIED",
+      4000h and 10h are set in `game_state`'s word 0 and 2 cleared.
+      The first side's part of that pass then waits for a press
+      (`S0CB6:0DA9`): nothing more ran for 19 s until the script's
+      button at 300 s, then the second side's part of the same pass
+      began and waited the same way for the next press (305 s), and the
+      loop was left at `S066A:45E8` (305.07 s). So each side's part
+      wants its own press at a battle's end.
+    - The port needed no change for the game's state: on the original's
+      clock the same at every pass compared, the last pass and the
+      memory at the loop's exit included (`play_dumps.py` now logs
+      `S066A:45E8` and dumps there as the pass after the last, which
+      the port's `-dump` writes after its last pass). Not the same as
+      the original and not changed here (loop.c is being worked on for
+      the drawing): the port's `state_end` shows text 42h to both sides
+      whatever word 22h holds, where the note on state 7 above says 3Ch
+      and 3Dh for 0Fh (the screen showed two different texts; the
+      numbers were not read again), and it waits for no press. Texts
+      are not in the memory compared. On its own clock `m54_end` is the
+      same to round 3 and then parts (a step's sampling).
     Not reached with two human sides: a carrier, the keys F2 to F9, a
-    unit destroyed, a site taken, moving out of a site, a repair or a
-    build refused, a fight where the attacked unit was ordered into a
-    site in the same half, a map from
+    unit destroyed, a site other than a headquarters taken, a battle
+    ended by a side with no unit left, what follows the loop (the
+    picture CDh or D0h, the menu), moving out of a site, a repair or a
+    build refused, a map from
     24 to 47 (where `rec_of` exchanges the two records; those maps
     have a computer's side), the joysticks and the mouse, and what
     `m48_steps` did beyond moving the cursor and opening what its

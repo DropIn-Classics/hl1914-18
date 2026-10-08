@@ -31,6 +31,7 @@ maps from 48 on are for two human sides) up to UNTIL emulated seconds
                the first input record's button and the key
     2532:0137  the fight's pictures have cleared the key
     02E6:000F  attacks_run
+    066A:45E8  the loop is left (the battle is over)
 
 and writes into build/play/TAG/ (ignored):
 
@@ -45,7 +46,10 @@ and writes into build/play/TAG/ (ignored):
     pNNNN.ram   memory at the beginning of chosen passes (the first, 50,
                 200, 400, those attacks_run ran in and the ones after
                 them, the last but one, and PASSES in the environment,
-                numbers apart by spaces); existing dumps are kept
+                numbers apart by spaces); existing dumps are kept.  When
+                the loop was left, one more with the number after the last
+                pass's: memory at S066A:45E8, which the port's program
+                has after its last pass
     passes.txt  their numbers
 
 With NOPICS=1 in the environment the fights are not shown as pictures
@@ -98,7 +102,7 @@ R5 = ('0CB6:084D', '0CB6:09C5', '0CB6:0BDA')
 WAITS = ('0CB6:0075', '0CB6:00C1', '0CB6:00E2')
 LOGS = ('27FE:008C', '066A:0EE9', '066A:0FC3', '066A:1003', '0CB6:05F1', '0CB6:0658', '0CB6:0750',
         '066A:10D6', '2C95:0024', '2C95:004A', '02E6:000F', '27FE:04F4', '2C9A:0008',
-        '2532:0137') + R8 + R5 + WAITS
+        '2532:0137', '066A:45E8') + R8 + R5 + WAITS
 
 
 def run(args):
@@ -119,6 +123,7 @@ rows = []           # [pass, side, key, word or None, byte 5, byte 8]
 row = None
 passes = 0
 rounds = []         # passes attacks_run ran in
+left = False        # the loop was left
 for line in open(log):
     m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=(\S+) hit=\d+ regs (.*)', line)
     if not m:
@@ -129,6 +134,8 @@ for line in open(log):
         clock.append('%s T' % t)
     elif at == '066A:0EE9':
         passes += 1
+    elif at == '066A:45E8':
+        left = True
     elif at == '2C95:0024':
         clock.append('%s S %X' % (t, reg('DX') << 16 | reg('AX')))
     elif at == '2C95:004A':
@@ -173,7 +180,7 @@ with open(os.path.join(out, 'inputs.txt'), 'w') as f:
 
 extra = [int(x) for x in os.environ.get('PASSES', '').split()]
 chosen = sorted(set([1, 50, 200, 400] + rounds + [p + 1 for p in rounds] + [passes - 1] + extra))
-chosen = [p for p in chosen if 1 <= p < passes]
+chosen = [p for p in chosen if 1 <= p < passes + left]
 
 
 def dump(p):
@@ -184,6 +191,8 @@ def dump(p):
 
 with ThreadPoolExecutor(8) as pool:
     list(pool.map(dump, chosen))
+if left and not os.path.exists(os.path.join(out, 'p%04d.ram' % (passes + 1))):
+    run(['-break', 'S066A:45E8', '-ram', os.path.join(out, 'p%04d.ram' % (passes + 1))])
 have = sorted(int(f[1:5]) for f in os.listdir(out) if re.match(r'p\d{4}\.ram$', f))
 with open(os.path.join(out, 'passes.txt'), 'w') as f:
     f.write(' '.join(str(p) for p in have) + '\n')

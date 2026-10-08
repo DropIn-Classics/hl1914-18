@@ -350,8 +350,37 @@ anything the game needs before the first release.
     the computer's the same at every pass compared". On the own clock
     no round ends (the cursor's steps are sampled otherwise from the
     first seconds on).
-  Not reached: a battle's end, a unit destroyed, a site taken, moving
-  out, a carrier, the function keys, other maps for two players.
+  - `m54_end` (map 54, 320 s, 14 rounds; `make_two.py` with
+    1E45 2E47 2f51 2f51.8 2R56 2R57 2R58 2R59 2R60 2R61 2L62 2u63
+    2u64 2u65 2u66 2m68 2d71 2a73 2a75 2E77 1E79 2f83 2f83.8 1E88
+    2E90 2f94 2f94.8 2m99 2u102 2a104 2a106 2E108 1E110 2f114 2f114.8
+    1E119 2E121 2f125 2f125.8 2m130 2R133 2a135 2a137 2E139 1E141
+    2f145 2f145.8 1E150 2E152 2f156 2f156.8 2m161 2R164 2d164.9 2a166
+    2a168 2E170 1E172 2f176 2f176.8 1R181 1u182 1u183 1m185 1a188
+    1a190 1E192 2E194 2f198 2f198.8 2m203 2u206 2a208 2a210 2E212
+    1E214 2f218 2f218.8 1E223 2E225 2f229 2f229.8 2m234 2L237 2a239
+    2a241 2E243 1E245 2f249 2f249.8 1E254 2E256 2f260 2f260.8 2m265
+    2d268 2L268.9 2u269.8 2a270 2a272 2E274 1E276 2f280 2f280.8 1a300
+    1a305
+    ): the second side walks a unit round the first side's
+    headquarters in its seven move halves, the first side moves the
+    unit that stands on the way, and in round 14 the headquarters is
+    taken: the battle's end. Two presses after it (300 s and 305 s) let
+    each side's part of the last pass go on, and the original leaves
+    its loop. On the original's clock 3,853 passes, 7,706 parts read
+    the same, 33 passes compared (the 14 rounds' ends and the passes
+    after them, the last pass, and the memory at the loop's exit
+    `S066A:45E8` against the port's after its last pass, when it says
+    "the battle is over"): the same at every one. On the own clock
+    (`rounds`) the same to round 3.
+  Not the original's at a battle's end, seen here and not changed
+  (`loop.c`): the texts `state_end` shows (42h for both sides; the
+  original showed the loser and the winner different ones) and the
+  press each side's part waits for.
+  Not reached: a unit destroyed, a site other than a headquarters
+  taken, an end by a side left without units, what follows the loop,
+  moving out, a carrier, the function keys, the other maps for two
+  players.
   Not checked: a battle played to its end; maps other than 0 and 8; a
   computer first side; a thinking loop ended
   by a key; a run with the fight pictures switched off; `move_test`'s,

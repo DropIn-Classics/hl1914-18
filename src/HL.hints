@@ -2591,6 +2591,17 @@ name S1A39:1906 site_picture
 ; runs), clears the key's word 4 (S2532:0131) and runs fight_frames;
 ; then pal_level from the level reached down to 0 in steps of 4 and
 ; S2F39:09C9 for eight channels (presumably the sound's; not read).
+; Its parts (2026-10-08, by their calls only; lines of the listing):
+; S2532:01C2 (54) and 0258 (58, once per side with its kind) set up
+; S3AEE without calls; 02D6 (42) clears the screen; 0357 (362) loads the
+; picture's files (file_load_size, lib_read, L2C39) and 0755 (112) more
+; pictures (lib_read, L03B8); 0877 (475) draws the start (lbm_show,
+; pic_draw, text_draw, the flags 1A8F/1BC3, S2532:1CF9, S29C1:001F,
+; pal_level); 1FD6 (133) and 1E66 (156) load further files (L2B66,
+; L2BAA); 1DD3 (58) is the error exit (input_remove, key_remove, L1851,
+; L2585, S2B7F:000E, S2CC9:0002); 211E (64) the sound (S2F39). Not read
+; are the blitters S2AF3:000A, S294A:000A, S29C1:001F, S292E:000A,
+; S2B76:0004. Nothing of S2532 is translated.
 name S2532:0008 fight_pictures
 ; fight_frames: the frames 1 to 2EDh (the count at S3AEE:0680). A frame
 ; below 40h first sets the colours (pal_level, level 4 * frame + 3: the
@@ -2602,3 +2613,6 @@ name S2532:0008 fight_pictures
 ; not counted). The calls of rand_next come from S2532:17D1 (not read
 ; further, see HANDOFF).
 name S2532:0CAA fight_frames
+; fight_frames' parts: S2532:17D1 (174) shares the losses out among the
+; volleys left and calls rand_next (see HANDOFF), 1970 (111) marks the
+; figures that fall, 072A (22) is called from the frames and from 0755.

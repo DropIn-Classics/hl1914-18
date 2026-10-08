@@ -1171,6 +1171,15 @@ emulation error (2026-10-02).
        pictures in the runs compared). `attacks_run` as a whole was not
        compared in video memory; its state through `orders_test`,
        `loop_test` and `play_test.sh m8_site` (the same).
+       Left for the next step: `S2532` whole (3,356 lines of the
+       listing; its parts by size and calls are in the hints at
+       `fight_pictures`), with its blitters not yet read (`S2AF3:000A`,
+       which `attacks_run` also calls, `S294A:000A`, `S29C1:001F`,
+       `S292E:000A`, `S2B76:0004`) and its calls of `rand_next` at
+       `S2532:17D1`, which need the frame loop and the figures' scripts;
+       the 'X' way of `pic_draw` (`S2957:0002`); `S02E6:225C`; the bar
+       (`S1571:01F2`) and `fade_grey`/`fade_back` (252 lines each; they
+       change the DAC and write a grey palette behind `S3303:0028`).
   - State, all translated: `field_bits_clear(FFh)` empties `field_bits`
     (`S331F:3B5A`); `view_tables` fills `row_y`, `row_y_odd` and `col_x` (a
     field is 10h wide and 18h high on the screen, odd columns 0Ch lower);

@@ -1047,7 +1047,11 @@ emulation error (2026-10-02).
        2026-10-08 with `ground_blit` (`S290A:0006`, write mode 1 from the
        grounds kept in video memory) and `unit_blit` (`S2931:000E`), in
        `port/src/draw.c`; compared on its first two calls on map 0 and
-       on map 8 (port/README.md). Not yet called by `battle_begin`.
+       on map 8 (port/README.md). `marks_draw` done too, with
+       `S0E56:24ED` and `mark_blit` (`S2A1C:0004`), compared on seven
+       calls. Neither is called by `battle_begin` yet. Seen: `mark_blit`
+       ends with `OUT DX,AX` while DX holds its hi:lo bytes, not 3C4h, so
+       the map mask stays on plane 3 after it.
     4. `S2974:0002`, `S28DC:000A`, `S28E0:0004` at the loop's beginning
        (not read; presumably showing the drawn screen or fading it in).
     5. In the loop: `field_draw` (`S0E56:145A`), `marks_erase` (`1217`),

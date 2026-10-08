@@ -371,6 +371,16 @@ anything the game needs before the first release.
   `build/n2/scr/regs.c`) the same as the runner's `-vgastate` at that
   break; the DAC black in both. Not covered: the other heights' modes,
   `S2B51:002A`, `page_flip` and `pages_set` called on their own.
+- A side's marks drawn (2026-10-08, Linux): `marks_draw` (`S0E56:0F36`)
+  with `S0E56:24ED` and `mark_blit` (`S2A1C:0004`) in `src/draw.c`, not
+  yet called by the port. `load_test.sh` takes `marks` (as `view`).
+  Dumps at its entry and RETF (`S0E56:1012`): calls 1 and 2 on map 0
+  and map 8 (the start: no bits in `field_bits`, nothing drawn), and
+  calls 20, 35, 49 of `m0_hq` (`-until 120`; call 20, side 1, changes
+  1,920 bytes of video memory) (`build/n2/marks/`, argument list
+  `marks_test.args`): all seven the same in memory and video memory.
+  Not covered: the entries of the table with the view's byte 1Bh not 0
+  or 4 were not told apart (which ones the calls met was not looked at).
 - A side's view drawn (2026-10-08, Linux): `view_draw` (`S0E56:0D44`)
   with `ground_blit` (`S290A:0006`) and `unit_blit` (`S2931:000E`) in
   `src/draw.c`, not yet called by the port. `load_test.sh` takes `view`

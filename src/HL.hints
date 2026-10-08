@@ -1561,8 +1561,13 @@ comment S290A:0006 ground_blit(x, y, far src): a field's ground, 16 by 24, copie
 comment S2931:000E unit_blit(x, y, colour base, far src): a unit's 24 by 24 picture, 4 bits a pixel from src+12h, plane by plane; byte 8 of src the transparent value; keeps the plane mask and that byte at S2931:00F8/00F9. Translated (port/src/draw.c).
 ; marks_draw(field, side): the view's fields' marks in field_bits (55h
 ; for the first side, AAh for the second) drawn through S0E56:24ED.
-; Presumably draws only; the name is a guess.
+; Presumably draws only; the name is a guess. Read whole: field_bits has
+; 40h fields a row; S0E56:24ED folds the side's bits to an index (8 more
+; with byte 1Bh of the view 0 or 4) into the table of lo, hi, add at
+; S330B:0008 (add FFh: nothing) and calls S2A1C:0004. Translated
+; (port/src/draw.c), compared on seven calls (port/README.md).
 name S0E56:0F36 marks_draw
+comment S2A1C:0004 mark_blit(x, y, lo, hi, add): for each plane the offsets listed in its segment from 008Eh (each plane's list ended by a negative word); a pixel between lo and hi gets add. Its last OUT goes to port hi:lo (DX), so the map mask stays at plane 3. Translated (port/src/draw.c).
 ; field_draw(side, field, ...): draws one field when it lies in the
 ; side's view and the view is in state 0, 1, 7 or 8. Presumably draws
 ; only; the name is a guess.

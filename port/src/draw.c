@@ -145,3 +145,77 @@ void view_draw(uint16_t field, uint16_t side)
         }
     }
 }
+
+/* S2A1C:0004: the pixels of a field's mark at x, y: for each plane a list
+ * of offsets from the field's place (words in its own segment from 008Eh
+ * on, each plane's ended by a negative word); a pixel between lo and hi
+ * is moved on by `add`.  Keeps the plane mask and the plane at 008Ch and
+ * 008Dh.  Its last OUT goes to the port DX holds then, hi and lo (as the
+ * original does; the runtime ignores that port), so the map mask stays
+ * at plane 3. */
+static void mark_blit(uint16_t x, uint16_t y, uint8_t lo, uint8_t hi, uint8_t add)
+{
+    uint16_t cs = HL_S2A1C + HL_BASE, es = NW(screen_seg, 0), di = screen_at(x, y), si = 0x8E;
+    uint8_t mask = 1, plane = 0;
+
+    do {
+        int16_t off;
+        vga_outw(0x3C4, (uint16_t)(mask << 8 | 2));
+        vga_outb(0x3CE, 4);
+        vga_outb(0x3CF, plane);
+        while ((off = (int16_t)frw(cs, si)) >= 0) {
+            uint16_t at = (uint16_t)(di + off);
+            uint8_t v = vrb(es, at);
+            si = (uint16_t)(si + 2);
+            if (v >= lo && v <= hi)
+                vwb(es, at, (uint8_t)(vrb(es, at) + add));
+        }
+        si = (uint16_t)(si + 2);
+        plane++;
+        mask = (uint8_t)(mask << 1);
+    } while (mask != 0x10);
+    fwb(cs, 0x008C, mask);
+    fwb(cs, 0x008D, plane);
+    vga_outw((uint16_t)(hi << 8 | lo), 0x0F02);
+}
+
+/* S0E56:24ED: a field's mark at x, y by its bits of field_bits (the
+ * side's: 55h or AAh) through the table of three bytes (lo, hi, add) at
+ * S330B:0008; the index is made of the bits as the original folds them
+ * (bits 0 and 2 to 0, 4 to 1, 6 to 2, after or-ing each pair), 8 more
+ * when byte 1Bh of the view is 0 or 4.  An entry with add FFh draws
+ * nothing. */
+static void field_mark(uint16_t x, uint16_t y, uint16_t bits, Far view)
+{
+    uint16_t s = (uint16_t)((bits | (int16_t)bits >> 1) & 0x55), i;
+    uint16_t t = HL_S330B + HL_BASE;
+
+    s = (uint16_t)((s & 1) | (s & 4) >> 2 | (s & 0x10) >> 3 | (s & 0x40) >> 4);
+    if (pb(view, 0x1B) == 4 || pb(view, 0x1B) == 0)
+        s |= 8;
+    i = (uint16_t)(s * 3);
+    if (frb(t, (uint16_t)(0x0A + i)) >= 0xFF)
+        return;
+    mark_blit(x, y, frb(t, (uint16_t)(0x08 + i)), frb(t, (uint16_t)(0x09 + i)), frb(t, (uint16_t)(0x0A + i)));
+}
+
+/* S0E56:0F36 (marks_draw): the marks of the 9 by 7 fields of a side's
+ * view from `field` (a byte offset in the map, as view_draw's) by
+ * field_bits, 40h fields a row there; the side's bits 55h for the first,
+ * AAh for the second, whose half lies A0h to the right. */
+void marks_draw(uint16_t field, uint16_t side)
+{
+    int16_t f = (int16_t)field >> 1, w = (int16_t)NW(map_width, 0);
+    uint16_t at0 = (uint16_t)(f % w + (f / w << 6)), x = side ? 0xA0 : 0, col, row;
+    uint8_t mine = side ? 0xAA : 0x55;
+    Far view;
+
+    view.seg = S_views;
+    view.off = (uint16_t)(A_views + side * 0x31);
+    for (col = 0; col < 9; col++, x = (uint16_t)(x + 0x10)) {
+        uint16_t y = col & 1 ? 0x0C : 0, at = (uint16_t)(at0 + col);
+
+        for (row = 0; row < 7; row++, y = (uint16_t)(y + 0x18), at = (uint16_t)(at + 0x40))
+            field_mark(x, y, NB(field_bits, at) & mine, view);
+    }
+}

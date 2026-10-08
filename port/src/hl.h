@@ -133,6 +133,7 @@ void page_flip(void);
 
 /* draw.c */
 void view_draw(uint16_t field, uint16_t side);
+void marks_draw(uint16_t field, uint16_t side);
 
 /* mem.c */
 Far mem_alloc(uint32_t size);

@@ -1,7 +1,7 @@
 /* load_test.c - file_load, map_load, shp_load, file_name, num_text,
  * mem_alloc, battle_setup and battle_begin against the original.
  *
- *     load_test GAMEDIR  (load|lib|pict|scr|view|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram [...]
+ *     load_test GAMEDIR  (load|lib|pict|scr|view|marks|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram [...]
  *
  * Each set of six is one call in HL.EXE: the routine, SS:SP (hex) at its
  * entry, AX and DX at its RETF, and dosrun's -ram dumps at both.  The
@@ -27,7 +27,8 @@
  * `pict` is one of pictures_load (S02E6:2B87); beside each dump the
  * video memory dosrun's -vram wrote (the same name ending .vram) is
  * loaded into the VGA (mode 13h made unchained) and compared at the end.
- * `view` is one of view_draw (S0E56:0D44), the video memory likewise,
+ * `view` is one of view_draw (S0E56:0D44), `marks` one of marks_draw
+ * (S0E56:0F36), the video memory likewise,
  * AX and DX not compared (it returns nothing); begin_apart's bytes are
  * counted beside (byte 8 of the input records changed while it ran).
  * `scr` is one of screen_open (S298E:000D), the video memory likewise;
@@ -175,7 +176,7 @@ int main(int argc, char **argv)
     int i, bad = 0, calls = 0, skipped = 0;
 
     if (argc < 8 || (argc - 2) % 6) {
-        fprintf(stderr, "usage: load_test GAMEDIR (load|lib|pict|scr|view|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: load_test GAMEDIR (load|lib|pict|scr|view|marks|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     hl_game_dir = argv[1];
@@ -264,10 +265,10 @@ int main(int argc, char **argv)
             got = place;
             name.seg = name.off = 0;
             snprintf(text, sizeof text, "%d", r_pict);
-        } else if (!strcmp(what, "view")) {
-            /* view_draw(field, side): video memory likewise */
+        } else if (!strcmp(what, "view") || !strcmp(what, "marks")) {
+            /* view_draw or marks_draw(field, side): video memory likewise */
             vram_in(argv[i + 3]);
-            view_draw(frw((uint16_t)ss, (uint16_t)(sp + 4)), frw((uint16_t)ss, (uint16_t)(sp + 6)));
+            (what[0] == 'v' ? view_draw : marks_draw)(frw((uint16_t)ss, (uint16_t)(sp + 4)), frw((uint16_t)ss, (uint16_t)(sp + 6)));
             r_pict = 0;
             got.off = (uint16_t)ax;
             got.seg = (uint16_t)dx;
@@ -324,7 +325,7 @@ int main(int argc, char **argv)
             if (a >= lo_stack && a < hi_stack)
                 d_stack++;
             else if (beside(a) || (!strcmp(what, "scr") && scr_apart(a))
-                     || (!strcmp(what, "view") && begin_apart(a)))
+                     || ((!strcmp(what, "view") || !strcmp(what, "marks")) && begin_apart(a)))
                 d_beside++;
             else if (left_out && (mem[a] == entry[a] || a == kept || a == kept + 1))
                 d_left++;

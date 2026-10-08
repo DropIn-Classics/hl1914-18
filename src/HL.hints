@@ -657,8 +657,15 @@ comment S2CBE:000E mem_alloc(dword size): INT 21h AH=48h for size/16+1 paragraph
 ; Shows a text of GAME.TXT by its number in one side's status line: its
 ; callers pass 3Eh, 52h and 64h where the screen shows the quit question,
 ; the F1 line and the thinking time (runs with screenshots).
+; With -1 it only fills the side's status line (x 5 to 94h, the second
+; side's A0h further, y BCh to C4h) with colour D7h through the record
+; DATA:0092 points to (DATA:00DA: colour, x0, y0, x1, y1) and S28E5:0004,
+; and returns at S10AF:009B; other texts are drawn after it (not read).
+; The -1 part translated (port/src/draw.c, message_clear) and compared.
 name S10AF:000F show_message
 comment S10AF:000F show_message(text number, side)
+comment S28E5:0004 rect_fill: lines y DATA:00DE to 00E2 by S28FA:0000, DATA:00DE counted past the last. Translated (port/src/draw.c).
+comment S28FA:0000 line_fill: one line from x DATA:00DC to 00E0 at y DATA:00DE in colour DATA:00DA on the page drawn, Mode X masks from its own segment (00A6, 00AA, words at 009E). Translated (port/src/draw.c).
 
 ; Instructions written as DB because the assembler would pick other bytes
 ; (build.py output; made anew after the segment bounds were set).

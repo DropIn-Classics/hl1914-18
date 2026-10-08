@@ -371,9 +371,27 @@ anything the game needs before the first release.
   `build/n2/scr/regs.c`) the same as the runner's `-vgastate` at that
   break; the DAC black in both. Not covered: the other heights' modes,
   `S2B51:002A`, `page_flip` and `pages_set` called on their own.
+- The views drawn at a battle's beginning (2026-10-08, Linux):
+  `message_clear` (`show_message(-1, side)`, `S10AF:000F` to its RETF at
+  `009B`, with `S28E5:0004` and `S28FA:0000`) in `src/draw.c`;
+  `battle_begin` calls `view_draw`, `marks_draw` for each side and
+  `message_clear` for both, as at `S066A:0DE8`. `load_test.sh` takes `msg`
+  (as `view`): its two calls there on map 0 and map 8 (`build/n2/msg/`,
+  `msg_test.args`) the same in memory and video memory. `begin` takes the
+  palette's buffer from the frame now (before, `pictures_load` failed in
+  it) and draws from the entry's video memory: new dumps of
+  `dumps.py ... game_begin 1` on map 0 and map 8 (`build/n2/st/`,
+  `begin_test.args`) are the same in memory; the port's video memory at
+  the end (`LOAD_TEST_VRAM`) is the same as the original's at the RETF
+  of the second `show_message` on both maps. The original's at
+  `S066A:0EE6` differs from that in 62,890 bytes of the drawn page,
+  changed by routines the port does not have yet (docs/HANDOFF.md). The
+  headless program (`-game game -map 0` and `-map 8`, each with `-ram`)
+  gets through its start; `move`, `side`, `income`, `orders`, `loop`,
+  `view` and `play_test.sh m8_site` give the same results as before.
 - A side's marks drawn (2026-10-08, Linux): `marks_draw` (`S0E56:0F36`)
-  with `S0E56:24ED` and `mark_blit` (`S2A1C:0004`) in `src/draw.c`, not
-  yet called by the port. `load_test.sh` takes `marks` (as `view`).
+  with `S0E56:24ED` and `mark_blit` (`S2A1C:0004`) in `src/draw.c`,
+  called by `battle_begin` since (above). `load_test.sh` takes `marks` (as `view`).
   Dumps at its entry and RETF (`S0E56:1012`): calls 1 and 2 on map 0
   and map 8 (the start: no bits in `field_bits`, nothing drawn), and
   calls 20, 35, 49 of `m0_hq` (`-until 120`; call 20, side 1, changes
@@ -383,7 +401,7 @@ anything the game needs before the first release.
   or 4 were not told apart (which ones the calls met was not looked at).
 - A side's view drawn (2026-10-08, Linux): `view_draw` (`S0E56:0D44`)
   with `ground_blit` (`S290A:0006`) and `unit_blit` (`S2931:000E`) in
-  `src/draw.c`, not yet called by the port. `load_test.sh` takes `view`
+  `src/draw.c`, called by `battle_begin` since (above). `load_test.sh` takes `view`
   (video memory as for `pict`; AX not compared; byte 8 of the two input
   records, `DATA:03D0` and `03FC`, counted beside, as for `begin`). Dumps
   at its entry and RETF (`S0E56:0F35`) of its first and second call on
@@ -411,7 +429,8 @@ anything the game needs before the first release.
   difference at C580h, the page at AC58h; not checked; 48,853 and
   47,704 bytes differ). `scr`, `pict` and the
   default arguments are the same as before; the headless program
-  (`history-line-headless -game game -map 0`) gets through its start.
+  (`history-line-headless -game game -map 0 -ram FILE`) gets through its
+  start.
 - The battle screen's pictures (2026-10-08, Linux): `pictures_load`
   (`S02E6:2B87`) in `src/pictures.c` with `lbm_show` (`S2B06:0000`, the
   IFF picture drawn into the runtime's VGA memory, `runtime/vga.h`),

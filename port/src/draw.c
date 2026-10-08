@@ -219,3 +219,77 @@ void marks_draw(uint16_t field, uint16_t side)
             field_mark(x, y, NB(field_bits, at) & mine, view);
     }
 }
+
+/* S28FA:0000: a line of the page drawn in the colour DATA:00DA from x
+ * DATA:00DC to DATA:00E0 (made the smaller first, kept so) at y DATA:00DE;
+ * the masks of a group's first and last pixels and the pixels left in the
+ * first group from its own segment (bytes at 00A6 and 00AA, words at
+ * 009E) */
+static void line_fill(void)
+{
+    uint16_t cs = HL_S28FA + HL_BASE, es = NW(screen_seg, 0), y = DW(0x00DE), x0 = DW(0x00DC), di;
+    uint8_t c = (uint8_t)DW(0x00DA), m;
+    int16_t n;
+
+    if ((int16_t)x0 > (int16_t)DW(0x00E0)) {
+        fww(S_DATA, 0x00DC, DW(0x00E0));
+        fww(S_DATA, 0x00E0, x0);
+        x0 = DW(0x00DC);
+    }
+    di = screen_at(x0, y);
+    n = (int16_t)(DW(0x00E0) - x0 + 1);
+    m = frb(cs, (uint16_t)(0xA6 + (x0 & 3)));
+    n = (int16_t)(n - (int16_t)frw(cs, (uint16_t)(0x9E + 2 * (x0 & 3))));
+    if (n <= 0) {
+        vga_outw(0x3C4, (uint16_t)((m & frb(cs, (uint16_t)(0xAA + (DW(0x00E0) & 3)))) << 8 | 2));
+        vwb(es, di, c);
+        return;
+    }
+    vga_outw(0x3C4, (uint16_t)(m << 8 | 2));
+    vwb(es, di++, c);
+    vga_outw(0x3C4, 0x0F02);
+    if (n >> 2) {
+        int16_t k;
+        for (k = 0; k < n >> 2; k++)
+            vwb(es, di++, c);
+        if (!(n & 3))
+            return;
+    }
+    vga_outw(0x3C4, (uint16_t)(frb(cs, (uint16_t)(0xAA + (DW(0x00E0) & 3))) << 8 | 2));
+    vwb(es, di, c);
+}
+
+/* S28E5:0004: the lines from y DATA:00DE to DATA:00E2 (made the smaller
+ * first), DATA:00DE counted on past the last */
+static void rect_fill(void)
+{
+    uint16_t n = (uint16_t)(DW(0x00E2) - DW(0x00DE));
+
+    if (DW(0x00E2) < DW(0x00DE)) {
+        uint16_t t = DW(0x00DE);
+        n = (uint16_t)-n;
+        fww(S_DATA, 0x00DE, DW(0x00E2));
+        fww(S_DATA, 0x00E2, t);
+    }
+    for (n++; n; n--) {
+        line_fill();
+        fww(S_DATA, 0x00DE, (uint16_t)(DW(0x00DE) + 1));
+    }
+}
+
+/* S10AF:000F (show_message) with the text -1: the side's status line
+ * (x 5 to 94h, y BCh to C4h, the second side's A0h to the right) filled
+ * with colour D7h through the record DATA:0092 points to (colour, x0, y0,
+ * x1, y1).  A text's drawing (other numbers) is not translated. */
+void message_clear(uint16_t side)
+{
+    Far r = far_at(S_DATA, 0x0092);
+    uint16_t x = side ? 0xA0 : 0;
+
+    fww(r.seg, (uint16_t)(r.off + 2), (uint16_t)(x + 5));
+    fww(r.seg, (uint16_t)(r.off + 4), 0xBC);
+    fww(r.seg, (uint16_t)(r.off + 6), (uint16_t)(x + 0x94));
+    fww(r.seg, (uint16_t)(r.off + 8), 0xC4);
+    fww(r.seg, r.off, 0xD7);
+    rect_fill();
+}

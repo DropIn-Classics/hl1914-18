@@ -1,7 +1,7 @@
 /* load_test.c - file_load, map_load, shp_load, file_name, num_text,
  * mem_alloc, battle_setup and battle_begin against the original.
  *
- *     load_test GAMEDIR  (load|lib|pict|scr|view|marks|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram [...]
+ *     load_test GAMEDIR  (load|lib|pict|scr|view|marks|msg|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram [...]
  *
  * Each set of six is one call in HL.EXE: the routine, SS:SP (hex) at its
  * entry, AX and DX at its RETF, and dosrun's -ram dumps at both.  The
@@ -22,13 +22,16 @@
  * (for `start` all that the loading routines keep for themselves: the
  * routines left out there load further files).  `begin` is the part from
  * S066A:0938 to S066A:0EE6 (battle_begin), SS:BP likewise, the work buffer
- * read from the frame; begin_apart says what else is counted apart there.
+ * and the palette's buffer read from the frame; begin_apart says what
+ * else is counted apart there.  LOAD_TEST_VRAM names a file for the
+ * port's video memory at the end (as -vram writes it).
  * `lib` is one call of lib_load (S0C66:0009) with its five arguments.
  * `pict` is one of pictures_load (S02E6:2B87); beside each dump the
  * video memory dosrun's -vram wrote (the same name ending .vram) is
  * loaded into the VGA (mode 13h made unchained) and compared at the end.
  * `view` is one of view_draw (S0E56:0D44), `marks` one of marks_draw
- * (S0E56:0F36), the video memory likewise,
+ * (S0E56:0F36), `msg` one of show_message(-1, side) (S10AF:000F, its
+ * RETF at 009B for -1), the video memory likewise,
  * AX and DX not compared (it returns nothing); begin_apart's bytes are
  * counted beside (byte 8 of the input records changed while it ran).
  * `scr` is one of screen_open (S298E:000D), the video memory likewise;
@@ -176,7 +179,7 @@ int main(int argc, char **argv)
     int i, bad = 0, calls = 0, skipped = 0;
 
     if (argc < 8 || (argc - 2) % 6) {
-        fprintf(stderr, "usage: load_test GAMEDIR (load|lib|pict|scr|view|marks|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: load_test GAMEDIR (load|lib|pict|scr|view|marks|msg|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     hl_game_dir = argv[1];
@@ -252,6 +255,11 @@ int main(int argc, char **argv)
             uint16_t bp = (uint16_t)sp;
             game_mem.work = far_at((uint16_t)ss, (uint16_t)(bp - 0x20));
             game_mem.p = far_at((uint16_t)ss, (uint16_t)(bp - 4));
+            game_mem.save_buf = far_at((uint16_t)ss, (uint16_t)(bp - 0x0C));
+            /* the video memory is drawn from the entry's, not compared:
+             * the original changes the page after the views with routines
+             * the port leaves out (LOAD_TEST_VRAM writes the port's) */
+            vram_in(argv[i + 3]);
             got.off = (uint16_t)battle_begin();
             got.seg = 0;
             wide = 0;
@@ -265,6 +273,14 @@ int main(int argc, char **argv)
             got = place;
             name.seg = name.off = 0;
             snprintf(text, sizeof text, "%d", r_pict);
+        } else if (!strcmp(what, "msg")) {
+            /* show_message(-1, side): video memory likewise */
+            vram_in(argv[i + 3]);
+            message_clear(frw((uint16_t)ss, (uint16_t)(sp + 6)));
+            r_pict = 0;
+            got.off = (uint16_t)ax;
+            got.seg = (uint16_t)dx;
+            name.seg = name.off = 0;
         } else if (!strcmp(what, "view") || !strcmp(what, "marks")) {
             /* view_draw or marks_draw(field, side): video memory likewise */
             vram_in(argv[i + 3]);
@@ -312,6 +328,8 @@ int main(int argc, char **argv)
         i--;
         if (getenv("LOAD_TEST_OUT"))    /* the port's memory, for memcmp.py */
             rm_write(getenv("LOAD_TEST_OUT"));
+        if (getenv("LOAD_TEST_VRAM"))   /* and its video memory */
+            vga_write_planes(getenv("LOAD_TEST_VRAM"));
         lo_stack = lin((uint16_t)ss, 0);
         /* with the routine's own arguments, which the original changes
          * (a pointer moved along, a width counted down): 12 bytes, 10 of
@@ -325,7 +343,7 @@ int main(int argc, char **argv)
             if (a >= lo_stack && a < hi_stack)
                 d_stack++;
             else if (beside(a) || (!strcmp(what, "scr") && scr_apart(a))
-                     || ((!strcmp(what, "view") || !strcmp(what, "marks")) && begin_apart(a)))
+                     || ((!strcmp(what, "view") || !strcmp(what, "marks") || !strcmp(what, "msg")) && begin_apart(a)))
                 d_beside++;
             else if (left_out && (mem[a] == entry[a] || a == kept || a == kept + 1))
                 d_left++;

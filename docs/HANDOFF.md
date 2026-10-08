@@ -1049,7 +1049,15 @@ emulation error (2026-10-02).
        `port/src/draw.c`; compared on its first two calls on map 0 and
        on map 8 (port/README.md). `marks_draw` done too, with
        `S0E56:24ED` and `mark_blit` (`S2A1C:0004`), compared on seven
-       calls. Neither is called by `battle_begin` yet. Seen: `mark_blit`
+       calls. `show_message(-1, side)` done as `message_clear` with
+       `S28E5:0004` and `S28FA:0000` (it fills the status line; texts
+       are not translated). `battle_begin` now calls the five as the
+       original does at `S066A:0DE8`; with that the begin part is the
+       same as the original's in memory on map 0 and map 8, and its video
+       memory at the end is the original's right after the second
+       `show_message` (port/README.md). After that the original changes
+       62,890 bytes of the drawn page (4000h-7E7Fh) in the routines of
+       step 4 (`S2974:0002`, `S28DC:000A`, `S28E0:0004`). Seen: `mark_blit`
        ends with `OUT DX,AX` while DX holds its hi:lo bytes, not 3C4h, so
        the map mask stays on plane 3 after it.
     4. `S2974:0002`, `S28DC:000A`, `S28E0:0004` at the loop's beginning

@@ -399,9 +399,8 @@ static int libs_start(void)
  * cannot be loaded.
  * Left out: S274D:0003 (not with a saved game; shows something before the
  * battle of a map up to 2Fh, not read to its end), the loading of a saved
- * game (200h in game_state), what draws the two views (S0E56:0D44,
- * S0E56:0F36, show_message, S2974:0002, S28DC:000A, S28E0:0004) and the
- * music's start (S2F39:0F87). */
+ * game (200h in game_state), what shows the drawn views (S2974:0002,
+ * S28DC:000A, S28E0:0004) and the music's start (S2F39:0F87). */
 int battle_begin(void)
 {
     Far st = game_text(A_game_state), rec, p;
@@ -510,6 +509,14 @@ int battle_begin(void)
     SETW(game_state, 0, NW(game_state, 0) | 0xC0);
     fww(S_GAME, 0x17F3, 0);
     SETB(free_depth, 0, 0);
+    /* S066A:0DE8: both views drawn from word 2 of each side's view, their
+     * marks, the status lines cleared */
+    for (i = 0; i < 2; i++) {
+        view_draw(NW(views, i * 0x31 + 2), i);
+        marks_draw(NW(views, i * 0x31 + 2), i);
+    }
+    message_clear(0);
+    message_clear(1);
     SETW(game_state, 0, NW(game_state, 0) & 0xFFF3);
     rec = far_at(S_DATA, 0xBE);
     fww(rec.seg, (uint16_t)(rec.off + 4), 0);

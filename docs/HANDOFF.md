@@ -3467,6 +3467,22 @@ emulation error (2026-10-02).
     the window's mouse the same in every part.
   Not done: the SDL window by hand, a damaged unit repaired and a
   carrier's screen by the mouse, a scrolled build list.
+- A carrier's screen by the mouse, a repair and a scrolled build list in
+  the window (2026-10-08, `debian/window7`, Linux, headless window;
+  port/README.md has the scripts and counts). Learned:
+  - The port needed no change: `m0_cmouse`, `m8_rmouse_nopics` (text
+    51h, the builder repaired in the depot) and `m8_scroll` are the same
+    as the original at every pass compared, both video pages included,
+    and the window the same as `-keys`.
+  - A scrolled list needs more than seven kinds: map 8's factory with 48
+    points has three, so `m8_scroll.pokes` gives the first side 2000
+    points (a poke, not play). The list scrolls when the cursor is on
+    row 6 and steps down (word 20h of the view up by one).
+  - The window's play of `m8_d5r`'s times with fight pictures did not
+    reach the repair; without pictures (`-nopics`, `NOPICS=1`) it did.
+    Why was not looked into. `DK_SHOTS` frame numbers computed from the
+    time are not the clock's time once a round's end has passed.
+  Not done: the SDL window by hand, `rounds` for the three scripts.
 - The second side's attack in the window (2026-10-08, `debian/window6`,
   Linux, headless window; port/README.md has the counts). Learned:
   - The port needed no change: a human second side attacks through the

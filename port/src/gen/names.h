@@ -165,6 +165,7 @@
     X(CODE, ptr_move, 0x04CB) \
     X(CODE, ptr_add, 0x0553) \
     X(CODE, rand_seed, 0x07AB) \
+    X(CODE, str_ncmp, 0x2BFE) \
     X(S02E6, attacks_run, 0x000F) \
     X(S02E6, unit_destroy, 0x208E) \
     X(S02E6, rows_sync, 0x23F0) \
@@ -175,6 +176,7 @@
     X(S02E6, defence_sum, 0x29D4) \
     X(S02E6, units_drop_empty, 0x2B28) \
     X(S02E6, pictures_load, 0x2B87) \
+    X(S02E6, libs_start, 0x3484) \
     X(S066A, game_loop, 0x000D) \
     X(S0AE0, attack_order, 0x0008) \
     X(S0AE0, attack_unmark, 0x02E3) \
@@ -186,6 +188,9 @@
     X(S0B15, move_costs, 0x0A01) \
     X(S0B15, path_find, 0x0E52) \
     X(S0B15, move_targets_list, 0x13EC) \
+    X(S0C66, lib_load, 0x0009) \
+    X(S0C66, lib_order, 0x024E) \
+    X(S0C66, lib_pick, 0x0414) \
     X(S0CB6, wait_frames, 0x0001) \
     X(S0CB6, wait_input, 0x0036) \
     X(S0CB6, view_cursor, 0x0154) \
@@ -198,6 +203,7 @@
     X(S0CB6, view_step, 0x0750) \
     X(S0CB6, view_reset, 0x0CDA) \
     X(S0CB6, field_menu, 0x0EAA) \
+    X(S0CB6, far_copy, 0x187F) \
     X(S0E56, view_tables, 0x000B) \
     X(S0E56, shp_load, 0x0079) \
     X(S0E56, map_load, 0x0329) \
@@ -326,6 +332,12 @@
     X(S331F, foot_steps, 0x0049) \
     X(S331F, aim_steps, 0x0059) \
     X(S331F, aim_grounds, 0x00C5) \
+    X(S331F, lib_pal, 0x0131) \
+    X(S331F, lib_parts, 0x0145) \
+    X(S331F, lib_rnd, 0x0159) \
+    X(S331F, lib_bum, 0x01A9) \
+    X(S331F, lib_exp, 0x01E5) \
+    X(S331F, lib_newshop, 0x01F9) \
     X(S331F, side_points, 0x02B5) \
     X(S331F, ww1gnds_dat, 0x05A3) \
     X(S331F, unit_dat, 0x09BD) \

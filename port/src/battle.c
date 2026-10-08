@@ -14,18 +14,6 @@
 
 GameMem game_mem;
 
-/* ptr_move, ptr_add (CODE:04CB, CODE:0553): a far pointer moved on by `n` bytes, its offset
- * below 10h afterwards */
-static Far far_add(Far p, uint32_t n)
-{
-    uint32_t off = (uint32_t)p.off + (uint16_t)n;
-    Far r;
-
-    r.seg = (uint16_t)(p.seg + (off >> 16 << 12) + (uint16_t)((n >> 16) << 12) + ((uint16_t)off >> 4));
-    r.off = (uint16_t)(off & 0x0F);
-    return r;
-}
-
 static void set_far(uint16_t seg, uint16_t off, Far p)
 {
     fww(seg, off, p.off);
@@ -378,15 +366,35 @@ static void set_code(Far rec, uint16_t o, uint16_t seg, uint16_t off)
     fww(rec.seg, (uint16_t)(rec.off + o + 2), (uint16_t)(seg + HL_BASE));
 }
 
+/* S02E6:3484 (libs_start): the libraries of the records at S331F:0131
+ * (sorted by its list) and S331F:0159 loaded one behind the other to the
+ * free end, which moves on by each file's length.  Returns 0, or 2 for a
+ * file that cannot be loaded (the original's error exit). */
+static int libs_start(void)
+{
+    static const uint16_t recs[2] = { A_lib_pal, A_lib_rnd };
+    int i;
+
+    for (i = 0; i < 2; i++) {
+        Far rec = game_text(recs[i]);
+
+        if (lib_load(file_name(1, 0, rec, 3), game_mem.p, game_mem.work, rec, (uint8_t)(i == 0)) == -1)
+            return 2;
+        game_mem.p = far_add(game_mem.p, pw(rec, 0x0A) | (uint32_t)pw(rec, 0x0C) << 16);
+    }
+    return 0;
+}
+
 /* game_loop from S066A:0938 to S066A:0EE6, where it goes into its loop:
  * the computer's file of a single player's map, the tables and counts of
  * a battle's beginning, each side's view put on the field of its record
  * of sites_40, fight_rec's routines.  Returns 0, or 2 for a file that
  * cannot be loaded.
  * Left out: S274D:0003 (not with a saved game; shows something before the
- * battle of a map up to 2Fh, not read to its end), S02E6:3484 and
- * S02E6:2B87 (libraries of pictures loaded to the block's free end, which
- * they move on; game_loop keeps it at S3303:0028), the loading of a saved
+ * battle of a map up to 2Fh, not read to its end), pictures_load
+ * (S02E6:2B87: the screen's picture, a palette and further libraries
+ * loaded to the free end behind libs_start's, which they move on;
+ * game_loop keeps it at S3303:0028), the loading of a saved
  * game (200h in game_state), what draws the two views (S0E56:0D44,
  * S0E56:0F36, show_message, S2974:0002, S28DC:000A, S28E0:0004) and the
  * music's start (S2F39:0F87). */
@@ -405,6 +413,8 @@ int battle_begin(void)
         if (!(p.seg | p.off))
             return 2;
     }
+    if (libs_start())
+        return 2;
     /* field_bits_clear(FFh) */
     for (i = 0; i < 0x1104; i++)
         SETB(field_bits, i, 0);

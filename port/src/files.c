@@ -72,6 +72,18 @@ Far ptr_norm(Far p)
     return r;
 }
 
+/* ptr_move, ptr_add (CODE:04CB, CODE:0553): a far pointer moved on by `n` bytes, its offset
+ * below 10h afterwards */
+Far far_add(Far p, uint32_t n)
+{
+    uint32_t off = (uint32_t)p.off + (uint16_t)n;
+    Far r;
+
+    r.seg = (uint16_t)(p.seg + (off >> 16 << 12) + (uint16_t)((n >> 16) << 12) + ((uint16_t)off >> 4));
+    r.off = (uint16_t)(off & 0x0F);
+    return r;
+}
+
 /* what file_load returns: the place, its offset never 0 */
 static Far load_result(Far at)
 {
@@ -204,4 +216,119 @@ int32_t file_load_size(Far to, Far name, Far work)
 {
     file_load(to, name, work);
     return file_size(name);
+}
+
+static uint32_t far_dword(Far p)
+{
+    return pw(p, 0) | (uint32_t)pw(p, 2) << 16;
+}
+
+/* S0CB6:187F: `n` bytes copied from `from` to `to`, one at a time and
+ * forwards */
+static void far_copy(Far from, Far to, uint32_t n)
+{
+    uint32_t a = lin(from.seg, from.off), b = lin(to.seg, to.off);
+
+    while (n--)
+        mem[b++] = mem[a++];
+}
+
+/* CODE:2BFE, the C library's strncmp as the program has it: whether `a`
+ * and `b` are the same over the first `n` bytes, or as far as b's end */
+static int same_name(Far a, Far b, uint16_t n)
+{
+    uint16_t i;
+
+    for (i = 0; i < n; i++) {
+        if (pb(a, i) != pb(b, i))
+            return 0;
+        if (!pb(b, i))
+            break;
+    }
+    return 1;
+}
+
+/* S0C66:024E (lib_order): loads the list of names (ending 5) of the
+ * record `rec` to `to`, behind the library, and puts the library's
+ * entries at `table` (12 bytes: a name of eight, an offset) in the list's
+ * order, each looked for among the first as many entries as the list
+ * has names.  A name not found is shown on the screen (S2A08:000A,
+ * S0CB6:0DA9; not translated, not met) and leaves its place out. */
+static void lib_order(Far to, Far table, Far rec, Far work)
+{
+    Far out;
+    int32_t size = file_load_size(to, file_name(1, 0, rec, 5), work);
+    int16_t n, di, si;
+
+    if (size == -1)
+        return;
+    out = far_add(to, (uint32_t)size);
+    n = (int16_t)((int16_t)(uint16_t)size / 8);
+    for (di = 0; di < n; di++)
+        for (si = 0; si < n; si++) {
+            Far ent, dat;
+
+            ent.seg = table.seg;
+            ent.off = (uint16_t)(table.off + si * 12);
+            dat.seg = to.seg;
+            dat.off = (uint16_t)(to.off + di * 8);
+            if (same_name(ent, dat, 8)) {
+                far_copy(far_add(table, (uint32_t)(int32_t)(int16_t)(si * 12)), out, 12);
+                out = far_add(out, 12);
+                break;
+            }
+        }
+    far_copy(far_add(to, (uint32_t)size), table, (uint32_t)((int32_t)n * 12));
+}
+
+/* S0C66:0009 (lib_load): loads a library of pictures, the file `name`, to
+ * `to`.  Its first dword is the offset of a table of 12-byte entries (a
+ * name of eight bytes, the offset of the picture in the file) ended by an
+ * entry with offset 0; with `order` they are first sorted by the list
+ * lib_order loads.  The table is made a list of far pointers in place
+ * (4 bytes each, the last the file's beginning), and the record `rec`
+ * (14h bytes: the name, at 0Ah the file's length, at 0Eh the list, at
+ * 12h the count of pictures) filled in.  Returns the length less what the
+ * list saved (4 bytes a picture), or -1 when the file cannot be loaded. */
+int32_t lib_load(Far name, Far to, Far work, Far rec, uint8_t order)
+{
+    int32_t size = file_load_size(to, name, work);
+    uint32_t hdr, e;
+    Far p, q;
+    int16_t count;
+    int i;
+
+    if (size == -1)
+        return -1;
+    hdr = far_dword(to);
+    if (order)
+        lib_order(far_add(to, (uint32_t)size), far_add(to, hdr), rec, work);
+    for (i = 0; i < 12; i++) {
+        Far z = far_add(far_add(to, (uint32_t)size), (uint32_t)i);
+
+        pwb(z, 0, 0);
+    }
+    p = far_add(to, hdr);
+    q = p;
+    fww(rec.seg, (uint16_t)(rec.off + 0x12), 0);
+    fww(rec.seg, (uint16_t)(rec.off + 0x0E), q.off);
+    fww(rec.seg, (uint16_t)(rec.off + 0x10), q.seg);
+    fww(rec.seg, (uint16_t)(rec.off + 0x0A), (uint16_t)size);
+    fww(rec.seg, (uint16_t)(rec.off + 0x0C), (uint16_t)((uint32_t)size >> 16));
+    p = far_add(p, 8);
+    do {
+        Far t;
+
+        e = far_dword(p);
+        p = far_add(p, 12);
+        t = far_add(to, e);
+        fww(q.seg, q.off, t.off);
+        q = far_add(q, 2);
+        fww(q.seg, q.off, t.seg);
+        q = far_add(q, 2);
+        fww(rec.seg, (uint16_t)(rec.off + 0x12), (uint16_t)(frw(rec.seg, (uint16_t)(rec.off + 0x12)) + 1));
+    } while (e);
+    count = (int16_t)(frw(rec.seg, (uint16_t)(rec.off + 0x12)) - 1);
+    fww(rec.seg, (uint16_t)(rec.off + 0x12), (uint16_t)count);
+    return size - (int32_t)count * 12 + (int32_t)count * 8;
 }

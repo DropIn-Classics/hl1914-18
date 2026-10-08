@@ -2029,6 +2029,37 @@ anything the game needs before the first release.
   that are only on the Linux worker's machine (not rerun here after the
   change to `move_step`); Windows and Linux builds of the new files
   (`build.bat` names them, not built).
+- A battle ended by fights alone (2026-10-09, Windows; docs/HANDOFF.md,
+  "A battle ended by fights alone"): `m60_fights.keys` (map 60, the two
+  sides' one cavalry each, 1,640 s, no pokes; played with the fights
+  not shown as pictures, `NOPICS=1`, as the tag `m60_fights_nopics`):
+  the cavalries walk together in 78 halves and fight in the last five
+  rounds; the first side's is destroyed in the fifth fight and
+  `attacks_run`'s count of units left (the end of `attacks_run` in
+  `src/orders.c`, `S02E6:1EFC`) ends the battle with 12h for the first
+  view and 11h for the second. The script was found on the port's own
+  clock (taps of 0.06 s, the gestures' direction let go 0.03 s after
+  the button; why in docs/HANDOFF.md) and then logged on the original
+  (`NOPICS=1 python3 port/tests/play_dumps.py m60_fights.keys 1640`,
+  the runner of doskit 22292c0, the same source as 9aa2c77's). On the
+  original's clock (`play_test.sh m60_fights_nopics`, merged to
+  aea5a2e): 22,903 passes, 45,806 parts read the same but one, the end
+  shown in both parts of pass 22903 with texts 42h and 41h by both,
+  behind the loop pictures CDh with 1 and CFh with 2 by both, 178
+  passes compared (1, 50, 200, 400, the 86 halves' ends and the
+  passes after them, the last, the loop's exit, `S066A:4728`) and the
+  end's waits and the pictures' frames: the game's state and the
+  computer's the same at every one. Different: pass 1's setup bytes
+  (41 in `S37FF:0012` to `012D`, as in `m0_s4`), and in pass 4748 the
+  second side's `view_step` finds byte 5 and 8 of its record -1 and 0
+  in the original, 0 and FFh in the port (the button tap at 329.90 s;
+  the same sort as `m0_s4`'s pass 1059, not followed).
+  `play_dumps.py` now lists dumps of passes from 10000 on in
+  `passes.txt` (before, they were made but not compared).
+  Not reached: 15h, both sides without units; a fight shown as
+  pictures that ends a battle. Not checked: the port's own clock
+  against the original beyond what the script needed (the steps were
+  the same at half 7 and at the end's texts).
 - The fight (2026-10-04, macOS): `sh port/tests/fight_test.sh` builds
   `tests/fight_test.c` and runs it on 39 fights of the original, each a
   pair of dosrun `-ram` dumps made at `-break fight_losses` and at the

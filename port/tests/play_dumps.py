@@ -363,7 +363,7 @@ def dump_at(a):
 
 with ThreadPoolExecutor(8) as pool:
     list(pool.map(dump_at, ends_at))
-have = sorted(int(f[1:5]) for f in os.listdir(out) if re.match(r'p\d{4}\.ram$', f))
+have = sorted(int(f[1:-4]) for f in os.listdir(out) if re.match(r'p\d{4,}\.ram$', f))
 with open(os.path.join(out, 'passes.txt'), 'w') as f:
     f.write(' '.join(str(p) for p in have) + '\n')
 print('%d passes logged, attacks_run in passes %s; dumps at %s' % (passes, rounds, have))

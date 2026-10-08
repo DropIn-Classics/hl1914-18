@@ -232,6 +232,26 @@ memory, the fades' pictures against the original's timing, the feel of
 the mickey ratio with a real mouse. Still not drawn: the small map
 itself (`S131D:007D`, `S0E56:09AD`).
 
+2026-10-08 (`debian/window2`): the small map. Entering state 3
+(`state_map` with 4 in byte 18h) now draws it as `S066A:2400` does:
+`small_map_back` (`S131D:007D`: the battle's second background picture
+in the side's half and a box in colour F6h) and `small_map_draw`
+(`S0E56:09AD`: four boxes `box_3d`, `S28E8:0000`, with lines
+`vline_fill`, `S2940:000C`; the map by `umap_draw`, `S151F:000D`, from
+UMAP's library and table with the screen's cut on; a line down its left
+edge; a dot of four pixels for each unit, `unit_dot`, `S0E56:08F5`).
+UMAP's pictures are of the 8-bit kind, so `pic_blit_u` now has its cut
+(`pic_cut_u`, `S2AAF:0107`/`0279`, written from what it does to the
+screen, not instruction by instruction; its own counts in `S2AAF` are
+not kept). Compared: the headless build with `DK_KEYS` (Space held,
+right, let go: the small map; down, right: the frame moved without
+leaving copies; Space: the view drawn at the corner) against the
+runner's `-shot` of map 8 with the same keys after the menu walk of
+`play_dumps.py`: the small map's half the same but for the frame, which
+stands 33 pixels further right in the original (its cursor was
+elsewhere; the port's run began with `-map 8`, not from the menu), 314
+of 64,000 pixels different, all of them the two frames.
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)

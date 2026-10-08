@@ -331,6 +331,8 @@ static void state_map(Far view, uint16_t side, uint16_t di, Far rec)
         pww(view, 0x0E, (uint16_t)((int8_t)pb(view, 0x15) * 2));
         pww(view, 0x10, (uint16_t)(pw(view, 0x10) + (pw(view, 0x0C) << sh)));
         pww(view, 0x12, (uint16_t)(pw(view, 0x12) + (pw(view, 0x0E) << sh)));
+        small_map_back(side);
+        small_map_draw(side, pw(view, 4), pw(view, 6));
         SETW(sides, side * SIDE_SIZE, side_word(side) | 4);
         gs_or(4, 0x100);
         SETW(site_taken, 0, 0);

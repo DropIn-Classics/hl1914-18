@@ -373,10 +373,22 @@ anything the game needs before the first release.
     `S066A:45E8` against the port's after its last pass, when it says
     "the battle is over"): the same at every one. On the own clock
     (`rounds`) the same to round 3.
-  Not the original's at a battle's end, seen here and not changed
-  (`loop.c`): the texts `state_end` shows (42h for both sides; the
-  original showed the loser and the winner different ones) and the
-  press each side's part waits for.
+  The battle's end (2026-10-08, macOS, later): `state_end` shows the
+  texts the original does (3Ch to the side that took the headquarters
+  and 3Dh to the other, 41h and 42h when a side has no unit left, else
+  42h to both), flips and copies the page and waits for a press in
+  each side's part (`wait_press`, `S0CB6:0DA9`: the first side's button
+  or a key). `play_dumps.py` logs the texts of each end (`ends.txt`)
+  and the wait's clearings of the button and the key (`E` lines of the
+  clock, `L` where the loop is left), the port's `-ends FILE` writes
+  its texts, `play_cmp.py` compares them. `m54_end` again, on the
+  original's clock: the end shown twice in pass 3853 with 3Dh and 3Ch
+  by both, 3,853 passes, 7,706 parts read the same, 33 passes compared
+  with the loop's exit, the same at every one, no place where the
+  clock's file did not fit. `m48_build` and `m8_site` (clocks without
+  the new lines) and `loop_test.sh` say the same as before. Not
+  checked: the wait on the port's own clock (it stops the play when
+  the key script has no key left), the texts 41h and 42h, the pixels.
   Not reached: a unit destroyed, a site other than a headquarters
   taken, an end by a side left without units, what follows the loop,
   moving out, a carrier, the function keys, the other maps for two

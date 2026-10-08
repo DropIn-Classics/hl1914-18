@@ -114,5 +114,5 @@ for p in $(cat "$D/passes.txt"); do
 done
 # shellcheck disable=SC2086
 build/history-line-headless -game "$GAME" -map $MAP -keys tests/keys/"$KEYS".keys $CLOCK $NOPICS \
-    -inputs "$IN" $DUMPS
+    -inputs "$IN" -ends "$D/${Q}_ends.txt" $DUMPS
 exec python3 tests/play_cmp.py "$TAG" $2

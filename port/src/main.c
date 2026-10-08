@@ -4,6 +4,7 @@
  *     history-line [-game DIR | -gog FILE|FOLDER|SETUP.exe] [-map N] [-ram FILE]
  *                  [-keys FILE] [-passes N] [-until T] [-start T] [-seed N]
  *                  [-clock FILE] [-seeds FILE] [-dump N FILE]... [-inputs FILE]
+ *                  [-ends FILE]
  *
  * DIR is the game's unpacked files: -game, else $HISTORY_LINE_GAME, else the first
  * folder `game` holding HL14-18.EXE beside the program, in the current
@@ -43,7 +44,8 @@
  * instead of the port's own clock; -seeds keeps the port's own clock and
  * takes from such a log only what the fights' pictures did to the random
  * numbers; -until ends the play at T seconds of the own clock; -dump writes the memory as -ram does at
- * the beginning of pass N, -inputs what each side's part read.  All of
+ * the beginning of pass N, -inputs what each side's part read, -ends the
+ * texts a battle's end showed each time it waited for a press.  All of
  * them are aids for this work, not for players.
  */
 #include <stdio.h>
@@ -319,6 +321,8 @@ int main(int argc, char **argv)
             play_inputs(argv[++i]);
         else if (!strcmp(argv[i], "-rounds") && i + 1 < argc)
             play_rounds(argv[++i]);
+        else if (!strcmp(argv[i], "-ends") && i + 1 < argc)
+            play_ends(argv[++i]);
         else if (!strcmp(argv[i], "-nopics"))
             nopics = 1;
         else if (!strcmp(argv[i], "-dump") && i + 2 < argc && dumps_n < DUMPS) {
@@ -327,7 +331,7 @@ int main(int argc, char **argv)
         } else {
             fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
-                            "       [-nopics] [-rounds FILE] [-inputs FILE] [-dump N FILE]...\n");
+                            "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-dump N FILE]...\n");
             return 2;
         }
     }

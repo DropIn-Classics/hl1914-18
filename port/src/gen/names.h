@@ -202,6 +202,7 @@
     X(S0CB6, rand_range, 0x0713) \
     X(S0CB6, view_step, 0x0750) \
     X(S0CB6, view_reset, 0x0CDA) \
+    X(S0CB6, wait_press, 0x0DA9) \
     X(S0CB6, field_menu, 0x0EAA) \
     X(S0CB6, far_copy, 0x187F) \
     X(S0E56, view_tables, 0x000B) \

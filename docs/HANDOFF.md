@@ -2813,14 +2813,33 @@ emulation error (2026-10-02).
       clock the same at every pass compared, the last pass and the
       memory at the loop's exit included (`play_dumps.py` now logs
       `S066A:45E8` and dumps there as the pass after the last, which
-      the port's `-dump` writes after its last pass). Not the same as
-      the original and not changed here (loop.c is being worked on for
-      the drawing): the port's `state_end` shows text 42h to both sides
-      whatever word 22h holds, where the note on state 7 above says 3Ch
-      and 3Dh for 0Fh (the screen showed two different texts; the
-      numbers were not read again), and it waits for no press. Texts
-      are not in the memory compared. On its own clock `m54_end` is the
-      same to round 3 and then parts (a step's sampling).
+      the port's `-dump` writes after its last pass). On its own clock
+      `m54_end` is the same to round 3 and then parts (a step's
+      sampling).
+    - The end's texts and its wait (2026-10-08, Mac, later; state 7
+      read again, `S066A:4198` to `4333`, and `S0CB6:0DA9`, now
+      `wait_press`). The numbers of the note on state 7 above are right:
+      the side whose view has 0Fh gets text 3Ch and the other 3Dh, 11h
+      gives 41h and the other 42h, anything else 42h for both; the
+      first view is tested first. Both texts are shown by every part
+      that finds its view in state 7 (so twice, the views being both in
+      it), then `page_flip`, `page_copy` and `wait_press`: while the
+      first side's button is held or the key's word is 1 both are
+      cleared and three frames waited, then both cleared again and
+      again every three frames until one comes. Only the first side's
+      button and the keyboard end it, not the second side's button as
+      such (on the keyboard that is a key; with a joystick it would not
+      be one; not tried). The port's `state_end` does the same now
+      (`loop_end_texts`, `LOOP_END`; `play.c` waits on its own clock
+      and takes the clearings from the original's log as `E` lines,
+      `S0CB6:0DE4`, `0E30`, `0E51`). `play_dumps.py` logs the texts
+      of each state 7 (`S066A:42FC`, then `show_message`'s number at
+      `S10AF:009F`) into `ends.txt`, the port's `-ends` writes the
+      same, `play_cmp.py` compares: in `m54_end` 3Dh for the first
+      side and 3Ch for the second, in both parts of pass 3853, the same
+      in the port; 214 clearings in the two waits. Not verified: the
+      wait on the port's own clock (no script reaches a battle's end
+      there), the texts 41h and 42h in a run, the texts as pixels.
     Not reached with two human sides: a carrier, the keys F2 to F9, a
     unit destroyed, a site other than a headquarters taken, a battle
     ended by a side with no unit left, what follows the loop (the

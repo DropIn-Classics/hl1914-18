@@ -180,6 +180,20 @@ for i in diff[:10]:
 if diff:
     bad = 1
 
+# the texts each battle's end showed (state 7): pass, side, the two texts
+epath = os.path.join(out, 'ends.txt')
+if os.path.exists(epath):
+    ea = [l.split()[:4] for l in open(epath).read().split('\n')[:-1]]
+    eb = [l.split()[:4] for l in open(os.path.join(out, '%s_ends.txt' % ('o' if own else 'q'))).read().split('\n')[:-1]]
+    if own:
+        ea, eb = [l[1:] for l in ea], [l[1:] for l in eb]
+    print('the battle\'s end: shown %d times by the original, %d by the port (pass, side, the first side\'s '
+          'text, the second\'s)%s' % (len(ea), len(eb), '' if ea == eb else ', DIFFERENT'))
+    for l in ea if ea == eb else ['original ' + ' '.join(x) for x in ea] + ['port ' + ' '.join(x) for x in eb]:
+        print('  ' + (l if isinstance(l, str) else ' '.join(l)))
+    if ea != eb and not own:
+        bad = 1
+
 passes = [int(x) for x in open(os.path.join(out, 'passes.txt')).read().split()]
 first = None
 agree = None        # the last pass compared before the first difference

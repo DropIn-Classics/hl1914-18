@@ -2480,6 +2480,17 @@ name S0CB6:0001 wait_frames
 ; script), and with 50h in attacks_run for a fight without pictures (not
 ; seen in a run).
 name S0CB6:0036 wait_input
+; wait_press(): waits for a press without a limit of time. As wait_input
+; it first clears the first side's button (byte 4 of the record behind
+; DATA:00A6) and the key's word 4 (behind DATA:00BE) and waits three
+; frames while the button is held or the word is 1, clears both once
+; more, and then clears and waits in steps of three frames until the
+; button or a key comes; neither is cleared after that. Returns 1 for the
+; key of entry 0 of the table of keys, else 0 (game_loop does not use
+; it). The second side's button is not looked at. Called by game_loop in
+; state 7 (S066A:4322, once in each side's part of the battle's last
+; pass; seen in m54_end) and by lib_order.
+name S0CB6:0DA9 wait_press
 ; start_setup(far pointer): called once at the program's start (from
 ; S066A:0294 on; when, against the menu, was not looked at). Sets the screen's record behind DATA:0092 to
 ; 320 by 200, makes two file names (file_name with 0Ah and with 5) and

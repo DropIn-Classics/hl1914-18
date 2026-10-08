@@ -736,9 +736,16 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
     }
 }
 
-/* state 7, the battle's end (S066A:418B to 4333); the original waits for
- * a key there (S0CB6:0DA9) */
-static void state_end(void)
+uint16_t loop_end_texts[2] = { 0xFFFF, 0xFFFF };
+
+/* state 7, the battle's end (S066A:418B to 4333), run in each side's part
+ * whose view is in it: word 22h of the two views chooses the texts (0Fh,
+ * the side has taken the other's headquarters: 3Ch for it and 3Dh for the
+ * other; 11h, the other side has no unit left: 41h for it and 42h for the
+ * other; else 42h for both), both are shown, the page is flipped and
+ * copied, and wait_press (S0CB6:0DA9) waits for the first side's button
+ * or a key (LOOP_END) */
+static void state_end(uint16_t side)
 {
     uint16_t t0 = NW(views, 0x22), t1 = NW(views, VIEW_SIZE + 0x22);
 
@@ -746,6 +753,16 @@ static void state_end(void)
         gs_or(0, 0x4000);
     else if (t0 == 0x11 || t1 == 0x11)
         gs_or(0, 0x2000);
+    if (t0 == 0x0F)
+        t0 = 0x3C, t1 = 0x3D;
+    else if (t1 == 0x0F)
+        t1 = 0x3C, t0 = 0x3D;
+    else if (t0 == 0x11)
+        t0 = 0x41, t1 = 0x42;
+    else if (t1 == 0x11)
+        t1 = 0x41, t0 = 0x42;
+    else
+        t0 = t1 = 0x42;
     if (gs(2) & 2)
         gs_or(0, 0x10);
     else if (gs(2) & 1) {
@@ -760,8 +777,14 @@ static void state_end(void)
     }
     if (!(gs(0) & 0x6000))
         gs_and(0, 0xFFEF);
-    show_message(0x42, 0);
-    show_message(0x42, 1);
+    show_message(t0, 0);
+    show_message(t1, 1);
+    loop_end_texts[0] = t0;
+    loop_end_texts[1] = t1;
+    page_flip();
+    page_copy();
+    if (loop_hook)
+        loop_hook(LOOP_END, side);
     gs_and(0, 0xFFFD);
 }
 
@@ -861,7 +884,7 @@ static void side_part(uint16_t side, const SideIn *in)
     if (missing)
         return;
     if (pb(view, 0x17) == 7)
-        state_end();
+        state_end(side);
     gs_and(4, 0xFEFF);
 }
 

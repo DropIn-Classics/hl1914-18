@@ -45,6 +45,10 @@
  *                       button and the key
  *       TIME X          S2532:0137: the fight's pictures have cleared the
  *                       key
+ *       TIME E          S0CB6:0DE4, 0E30, 0E51: wait_press (S0CB6:0DA9, the
+ *                       battle's end) has cleared the first record's
+ *                       button and the key
+ *       TIME L          S066A:45E8, the loop is left
  *   The port's own keys, timer routine and passes are run in that order.
  *   S, R, W and X count from attacks_run's call to its last such line in
  *   the side's part (the pictures and waits of a round's end, which the
@@ -95,7 +99,7 @@ static int by_k, in_battle;     /* the log has K lines; its first P is passed */
 static ClockLine *clk;
 static long clk_n, clk_at;
 static int have_clock;
-static FILE *inputs, *rounds;
+static FILE *inputs, *rounds, *ends;
 typedef struct { uint32_t v; int r; } Fight;
 static Fight *fights;           /* play_seeds: a fight's pictures' seed and calls of rand_next */
 static long fights_n, fights_at;
@@ -307,6 +311,15 @@ void play_rounds(const char *path)
     rounds = fopen(path, "w");
 }
 
+/* a file that gets a line for each time the battle's end shows its texts
+ * and waits (state 7): the pass, the side whose part it is, the first
+ * side's text and the second's (hex), and on the port's own clock when the
+ * wait began and ended */
+void play_ends(const char *path)
+{
+    ends = fopen(path, "w");
+}
+
 /* the BIOS's count of ticks (0040:006C), from which clock_seed(0) starts
  * the random numbers */
 void play_bios(uint32_t ticks)
@@ -429,6 +442,30 @@ static void own_wait_input(int n)
         n -= 3;
         if (n < 0)
             break;
+    }
+}
+
+/* wait_press, S0CB6:0DA9: as wait_input's beginning, then both cleared
+ * and three frames waited until the first side's button or a key comes.
+ * A key script that has no key left would wait for ever: the play stops */
+static void own_wait_press(void)
+{
+    Far k = far_at(S_DATA, 0x00BE);
+    int idle = 0;
+
+    while (pb(far_at(S_DATA, 0x00A6), 4) || pw(k, 4) == 1) {
+        press_clear();
+        own_retraces(4);
+    }
+    press_clear();
+    while (!pressed()) {
+        if (keys_at >= keys_n && ++idle > 16) {
+            if (!stopped)
+                stopped = "the battle's end waits for a press the key script does not have";
+            break;
+        }
+        press_clear();
+        own_retraces(4);
     }
 }
 
@@ -586,6 +623,12 @@ static void clock_run(long to, int round)
         case 'X':
             fww(k.seg, (uint16_t)(k.off + 4), 0);
             break;
+        case 'E':
+            pwb(far_at(S_DATA, 0x00A6), 4, 0);
+            fww(k.seg, (uint16_t)(k.off + 4), 0);
+            break;
+        case 'L':
+            break;
         default:
             play_misses++;
         }
@@ -723,6 +766,35 @@ static void hook(int at, uint16_t side)
         }
         break;
     }
+    case LOOP_END: {
+        double t = now;
+
+        if (have_clock) {
+            /* wait_press's clearings, in the order of the original's
+             * timer's routine and keys; the press that ends the wait
+             * comes after the last */
+            long i, last = -1;
+
+            for (i = clk_at; i < clk_n && clk[i].kind != 'P' && clk[i].kind != 'L'; i++)
+                if (clk[i].kind == 'E')
+                    last = i;
+            if (last >= 0) {
+                clock_run(last + 1, 0);
+                clk_at = last + 1;
+            } else
+                play_misses++;
+        } else
+            own_wait_press();
+        if (ends) {
+            fprintf(ends, "%lu %u %X %X", play_passes + 1, (unsigned)side, (unsigned)loop_end_texts[0],
+                    (unsigned)loop_end_texts[1]);
+            if (!have_clock)
+                fprintf(ends, " %.4f %.4f", t, now);
+            fputc('\n', ends);
+            fflush(ends);
+        }
+        break;
+    }
     default:
         break;
     }
@@ -761,16 +833,17 @@ double play_now(void)
     return now;
 }
 
-/* the original's clock brought up to the next pass's beginning (the
- * timer's routine and the keys since the last place of the pass before),
- * so that memory written now is that of the pass's beginning */
+/* the original's clock brought up to the next pass's beginning, or to
+ * where the loop is left (the timer's routine and the keys since the last
+ * place of the pass before), so that memory written now is that of the
+ * pass's beginning */
 void play_sync(void)
 {
     long i;
 
     if (!have_clock)
         return;
-    for (i = clk_at; i < clk_n && clk[i].kind != 'P'; i++)
+    for (i = clk_at; i < clk_n && clk[i].kind != 'P' && clk[i].kind != 'L'; i++)
         ;
     if (i < clk_n) {
         clock_run(i, 0);

@@ -499,9 +499,7 @@ int libs_start(Far *place)
  * a battle's beginning, each side's view put on the field of its record
  * of sites_40, fight_rec's routines.  Returns 0, or 2 for a file that
  * cannot be loaded.
- * Left out: S274D:0003 (not with a saved game; shows something before the
- * battle of a map up to 2Fh, not read to its end) and the music's start
- * (S2F39:0F87). */
+ * Left out: the music's start (S2F39:0F87). */
 int battle_begin(void)
 {
     Far st = game_text(A_game_state), rec, p;
@@ -517,6 +515,10 @@ int battle_begin(void)
         if (!(p.seg | p.off))
             return 2;
     }
+    /* S066A:0991: the new units' screens, not before a saved game; what
+     * the routine returns is not looked at */
+    if (!(NW(game_state, 0) & 0x200))
+        briefing(NW(map_number, 0), game_mem.p, game_mem.work);
     game_mem.libs = game_mem.p;
     if (libs_start(&game_mem.p))
         return 2;

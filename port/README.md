@@ -55,8 +55,9 @@ Then `battle_begin` (`src/battle.c`), the rest of the main routine's setup
 up to where its loop begins: the computer's file of a single player's map
 (`MAP\NN.COM`), the tables and counts of a battle's beginning, the reset
 of the computer's player, and each side's view put on its starting field.
-Left out are the screen shown before a battle, the libraries of pictures,
-the loading of a saved game, what draws the views and the music. The
+Left out were the screen shown before a battle (since translated: the
+new units' screens, below), the libraries of pictures, the loading of a
+saved game, what draws the views and the music. The
 menu is not translated: `menu_result` sets what it leaves when a map is
 chosen and nothing else is changed (from the map's record in `CODES.DAT`:
 a map for two players has two human sides, a map for one the computer as
@@ -288,6 +289,31 @@ the machine's part: the screen's old mode, the sound's end, interrupt
 24h and the timer. The window build does not get there yet (its menu is
 not in the window).
 
+2026-10-08, the new units' screens before a battle (`src/briefing.c`,
+the original's `S274D:0003`, `briefing` in the hints): `battle_begin`
+calls it where `game_loop` does, behind the computer's file and before
+the libraries, unless a saved game is to be loaded (200h in
+`game_state`). For a map up to 2Fh whose entry in `NEWUNIT.DAT` is not 0
+it shows, one after the other, a screen for a side (its flag between
+NEW UNITS and the month and year of the battle) and one for each new
+unit (its large and its small picture, its name, the numbers of its
+kind's record and some lines of text); each is lit in 33 steps, waits
+for a key or a button and goes dark again. Maps 0 to 2 and some others
+have none and the battle begins as before. Its files go into the
+program's memory where the original's go. In the window (from the menu
+or with `-map N`) the screens wait for the player until the window is
+closed; a key script
+that has no key left for a screen is waited for 400 calls of the
+timer's routine, then the screens go on and a line on stderr says so.
+`-briefdump DIR` writes the memory at the routine's entry and return and
+each screen's video memory into DIR (for the test). Left out: the music
+(the side's tune is loaded, not played). The time is the port's own
+clock: the files take none, and the 33 steps of a fade are given 19
+retraces (0.27 s, the original's 33 calls of `pal_level` in the runner).
+The test programs that link `battle.c` by themselves get the screens
+without their two texts in the menu's font and without the wait
+(`tests/standalone.c`).
+
 2026-10-08 (`debian/window2`): the range's marks drawn again where the
 original does, found by comparing each routine's calls of `view_draw`,
 `marks_draw`, `marks_erase` and `field_draw` with the port's:
@@ -330,6 +356,58 @@ anything the game needs before the first release.
 (which packages were started from a download, on which systems)
 
 ## Checked
+
+- The new units' screens (2026-10-08, macOS): `python3
+  port/tests/briefing_dumps.py` runs the original through its menu by
+  keys (a map's code typed, START, then a key every five seconds) and
+  keeps its memory at the entry of `S274D:0003` and at its return
+  (`S066A:09BD`) and the video memory of each screen lit, before it waits
+  (`S274D:0AC2`), and at the return; `sh port/tests/briefing_test.sh`
+  lets the port's program do the same on its own clock (`-briefdump`)
+  and compares (`tests/briefing_cmp.py`). Four walks: `m4` (map 4, both
+  sides have a new unit: four screens), `m12` (map 12, five screens, two
+  units one after the other), `m28` (map 28, which is map 4 for the
+  other country: the same four) and `m0` (map 0: none, the routine
+  returns at once). In all four no byte differs at the entry or at the
+  return in the game's state (S331F, but for the dword of a battle's
+  passes), the menu's segment (S37FF), the palette (`DATA:04E3`, 300h
+  bytes) and `game_loop`'s block from 40h behind its beginning for
+  40000h bytes (where the routine's files go), and none in the 200 lines
+  of either page of video memory at any of the 13 screens or at the four
+  returns (behind the pages the 810 bytes of the original's start, as in
+  the menu's test). Of the whole image, what differs at the return and
+  did not at the entry is told: the stack (66 to 72 bytes; 23 on map
+  0), 78 bytes of S30EF (`S30EF:0292` to `0397`; the original's code at
+  `S30EF:1514` writes there from the first screen on, presumably the
+  tune the port does not play) and `DATA:0B19` on maps 4 and 28 (which of
+  its four calls the timer's routine is at: the two clocks). After the
+  merge of origin/master be11493 (the menu and the player in the window)
+  the comparisons were run again with the same result; told besides on
+  map 12 then: 12 bytes of the input's records (`DATA:03CF` to `0410`)
+  and a byte of the BIOS's count of ticks (`0:046D`), presumably the two
+  clocks again (not looked at further). The port
+  showed as many screens as the original and left the last at 41.3 s
+  where the original returned at 41.9 s (map 4; the keys' times decide).
+  The window's way was tried headless with `DK_KEYS` and `DK_SHOTS`
+  (`-map 4`, a key every 300 pictures): the four screens, each until its
+  key, then the battle; and with `DK_FRAMES=300` and no key (the window
+  closed during the first screen): the program ends. Also run after the change:
+  `menu_test.sh` (all six walks the same as before), `save_test.sh`,
+  `fkeys_test.sh`, `play_test.sh`, `load_test.sh` (108 calls, 0
+  different), `computer_test.sh` and `loop_test.sh`. Not compared or
+  not done: the DAC's colours during the fades (the palette's memory is
+  compared, the levels are not), the times, the sound; a screen left by
+  a mouse's button or a joystick's (the same test of the input records,
+  not tried); a file that cannot be loaded; maps other than 0, 4, 12 and
+  28, so most kinds' numbers and texts (of the five kinds shown one has
+  a weight, byte 41h not 0: map 12's last; the others the text for
+  none); the window itself on a screen (only the headless build was
+  run); `-map N` with `-clock` on a map with screens (the original's log
+  has the screens' time before its first pass; not tried). `view_test`,
+  `side_test`, `move_test`, `income_test` and `orders_test` link again
+  (they had not since `battle_begin` calls `load_game`) but were not
+  run: their dumps of the original are scratch files that are no longer
+  there.
 
 - EXIT TO DOS and the program's end (2026-10-08, macOS): a sixth walk of
   `tests/menu_dumps.py` and `tests/menu_test.sh`, `exit` (Esc, the button

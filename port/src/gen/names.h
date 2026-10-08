@@ -164,8 +164,13 @@
     X(CODE, long_shl, 0x048A) \
     X(CODE, ptr_move, 0x04CB) \
     X(CODE, ptr_add, 0x0553) \
+    X(CODE, ptr_post, 0x05B3) \
     X(CODE, rand_seed, 0x07AB) \
+    X(CODE, itoa, 0x2488) \
+    X(CODE, sprintf, 0x2B15) \
+    X(CODE, strcpy, 0x2BAA) \
     X(CODE, str_ncmp, 0x2BFE) \
+    X(CODE, strncpy, 0x2C39) \
     X(S02E6, attacks_run, 0x000F) \
     X(S02E6, unit_destroy, 0x208E) \
     X(S02E6, rows_sync, 0x23F0) \
@@ -332,6 +337,7 @@
     X(S2532, pics_sound, 0x1E66) \
     X(S2532, pics_sounds, 0x1FD6) \
     X(S2532, pics_play, 0x211E) \
+    X(S274D, briefing, 0x0003) \
     X(S27FE, input_install, 0x0013) \
     X(S27FE, input_remove, 0x0060) \
     X(S27FE, input_tick, 0x008C) \

@@ -948,8 +948,8 @@ emulation error (2026-10-02).
     saved game holds (what it holds was not looked at).
   - `S274D:0003(map, free end, work buffer)` is called unless a saved game
     is to be loaded: nothing for a map above 2Fh, else it loads files and
-    shows texts and a picture (read to its first screen only; presumably
-    the briefing). Left out of the port.
+    shows texts and a picture (read to its first screen only then; read
+    whole and translated on 2026-10-08, "The new units' screens").
   - `S02E6:3484` and `S02E6:2B87` load libraries of pictures to the free
     end through `S0C66:0009` (records at `S331F:0131`, `0159`, `01A9`,
     `01E5`, `022D`; each record's dword at 0Ah is the length the free end
@@ -3231,7 +3231,8 @@ emulation error (2026-10-02).
     screen's edge (`S2AAF:0107`), the order of equal scores in
     `scores_show` where the original reads bytes of its stack not yet
     set, the briefing before a battle on a map for one player
-    (`S274D:0003`, left out before: the port's battle begins at once),
+    (`S274D:0003`, left out then; translated since, see "The new units'
+    screens" below),
     and the times: the port's menu takes the same passes but no time for
     drawing or loading, so a key comes up to 0.54 s apart in the two.
 - The program in the window (2026-10-08, branch `debian/window2`;
@@ -3336,9 +3337,10 @@ emulation error (2026-10-02).
     place the menu left. Seen as 3 bytes at the program's end and in
     every battle from its first pass (`DATA:0424` to `0426`). For
     whoever gives the port the player's mouse (`port/src/mouse.c`).
-  - The briefing (`S274D:0003`, called with the map's number and two far
-    pointers unless a saved game is loaded) is still not read to its end
-    and not translated. Its outline from the generated source: it loads
+  - The briefing (`S274D:0003`): read whole, named and translated since,
+    see "The new units' screens" below. What was known before: called
+    with the map's number and two far pointers unless a saved game is
+    loaded. Its outline from the generated source: it loads
     a file and a picture (`file_load_size`, `lbm_show`), libraries
     (`lib_load`, `lib_read`), starts and stops music (`S2F39:0F87`,
     `1058`), draws many texts (`text_draw`, with `L2488` and `L2B15`
@@ -3349,7 +3351,51 @@ emulation error (2026-10-02).
     entered at 16.66 s and the battle's first pass began at 18.42 s, and
     the screen at 19 s was the battle's. So on map 0 it did not wait for
     a key there; whether it showed anything, and on which maps it
-    waits, is not known.
+    waits, was not known then.
+- The new units' screens (2026-10-08, Mac; `briefing` in src/HL.hints
+  with all of it, `port/src/briefing.c`). What `S274D:0003` is: not a
+  briefing of the battle but the units that are new on this map.
+  - `NEWUNIT.DAT` (packed; `file_size` gives the unpacked length, which
+    is what the free end moves on by) has a word for each of the 24 maps
+    of a country, 0 or where the map's list is: a month, a year, and
+    words up to a 0, each a screen: 1 or 2 a side's (the flag, NEW UNITS,
+    the month and year), any other the place of a new unit's record
+    (kind, the colours' base of its side, lines of text). A map from 18h
+    on takes the entry of the map 18h below, so both countries see the
+    same screens; a map above 2Fh (two players) has none. In the
+    player's file maps 0 to 2, 7 to 9, 13, 18, 22 and 23 have none: that
+    is why the run on map 0 did not wait.
+  - Each screen waits in `inputs_release(1, 1)` for a key or a button,
+    with no time limit; between two screens the original takes about
+    1.6 s in the runner (the files and the two fades of 33 and 32 calls
+    of `pal_level`).
+  - The routine draws with the screen's cut off (`DATA:00E8` is 0 at
+    its entry), unlike the menu before it, and uses the menu's record of
+    MNUCHR14.LIB (`S37FF:001C`) and `lib_pal`'s record (`S331F:0131`)
+    for its own loads of those libraries; `libs_start` loads the second
+    again right after it.
+  - Its buffer of 40h bytes is on the stack (`3EA4:0F48` in the runs):
+    the names for `lib_read` are built there, so the port writes them to
+    the same place.
+  - The unit's screen prints bytes 1, 2, 3, 8 to 0Ch and 41h of the
+    kind's record in `unit_dat` beside the words SPEED, ARMOUR, MAX GROUP
+    SIZE, WEAPONS and SIZE/RADIUS (AIR, WATER, GROUND) and WEIGHT: names
+    for those bytes from the game itself. That the bytes are used so in
+    the fight's code was not looked at.
+  - The compiler's `sprintf`, `strcpy`, `strncpy`, `itoa` and the huge
+    pointer's post-increment (`ptr_post`) are named; of the first four
+    only the beginnings were read.
+  - Compared on maps 0, 4, 12 and 28 (`sh port/tests/briefing_test.sh`,
+    port/README.md "Checked"): memory at the entry and the return and
+    every screen's video memory the same. Not done or not known: listed
+    there; and the two routines of the sound it calls (`S2F39:1058`,
+    `S2F39:0F87`) are still not read.
+  - The standalone test programs of port/tests that link `battle.c`
+    had not linked since `battle_begin` calls `load_game` (and
+    `loop_test` since `loop.c` calls the mouse's routines); they link
+    again with `tests/standalone.c`. Five of them need dumps of the
+    original that were scratch files and are gone (`build/n2/o/`): they
+    were not run.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

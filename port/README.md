@@ -559,6 +559,32 @@ anything the game needs before the first release.
   Not compared: the routines that call them, as a whole with the
   drawing (the state tests run as before, below); a `field_draw` that
   returns early (state other than 0, 1, 7, 8, or outside the view).
+- A fight's panel (2026-10-08, Linux): `fight_panel` (`S131D:178D`)
+  with `big_unit`, `panel_whole`, `pic_draw`, `pic_half` and
+  `pic_unpack_draw` in `src/draw.c`, called by `attacks_run`
+  (`src/orders.c`) with the view, the units' panels and the pages as the
+  original draws them; after a fight's pictures and at `attacks_run`'s
+  end `pictures_load` (and `libs_start`) run whole (docs/HANDOFF.md).
+  `load_test.sh` takes `fpanel` (and links `fight.c`); `dumps.py` takes
+  `fight_panel`, `fight_panel0` (the RETF without pictures),
+  `attacks_run` and `NOPICS=1`. Dumps of m8_d5r's first fight with and
+  without pictures (`build/n2/fp/`, `fp_test.args`): both the same in
+  memory and video memory, counted apart the sound's segment `S30EF`,
+  `DATA:0309` and the key's record `DATA:045C`-`0461` (the panel's
+  sounds and waits, left out). `play_test.sh m8_site`, `orders_test.sh`,
+  `loop_test.sh` and `move_test.sh` the same as before. Not covered: a
+  kind with 40h in word 4, the first side's half, the blasts drawn, the
+  fight's pictures, the DAC after the fades.
+- The grounds in video memory (2026-10-08, Linux): `grounds_load`
+  (`S02E6:323E`) in `src/pictures.c` with `ground_store` (`S28F5:0006`),
+  and `lib_pick` (`S0C66:0414`) in `src/pictures.c` too (it was in `src/files.c` at first), called by
+  `battle_setup`. `load_test.sh`'s `setup` now compares the whole video
+  memory (before, AC58:0 on was counted apart). Dumps at `S066A:0417`
+  and `0938` on map 0 (`build/n2/st/st_test.args`) and on map 8 (new,
+  `dumps.py ... game_setup 1` with `MAP8` and `VRAM`,
+  `build/n2/st/setup8_test.args`): memory and video memory the same on
+  both, but for the stack and `beside`. Not covered: a winter map
+  (partW), a file missing, the call after `load_game`.
 - A text in a status line (2026-10-08, Linux): `show_message`
   (`S10AF:000F`) whole in `src/draw.c`, with `text_draw` (`S2B45:0006`),
   `pic_blit` (`S2A76:0002`, the 'P' way of `S2A6B:0008`) and `pic_clip`

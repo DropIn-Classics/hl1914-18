@@ -14,17 +14,14 @@
  * entry to S066A:0349 (start_setup), `setup` is the part of game_loop
  * from S066A:0417 to S066A:0938 (battle_setup): SS:BP instead of SS:SP,
  * the block's place read from game_loop's frame, the pointers it keeps
- * there written back to the frame before the comparison.  The original
- * calls routines there that the port leaves out (they load the map's
- * pictures into the block, with its beginning as their work buffer), so a
- * byte the port's routine left as it was is counted apart when it
- * differs, and so is the word file_load keeps of what lay behind a file
- * (for `start` all that the loading routines keep for themselves: the
- * routines left out there load further files).  `begin` is the part from
+ * there written back to the frame before the comparison.  A byte the
+ * port's routine left as it was is counted apart when it differs, and so
+ * is the word file_load keeps of what lay behind a file (for `start` all
+ * that the loading routines keep for themselves: the routines left out
+ * there load further files).  `begin` is the part from
  * S066A:0938 to S066A:0EE6 (battle_begin), SS:BP likewise, the work buffer
  * and the palette's buffer read from the frame, the video memory drawn
- * from the entry's and compared (for `setup` too, but for the grounds
- * S02E6:323E puts at AC58:0); begin_apart says what else is counted
+ * from the entry's and compared (for `setup` too, whole); begin_apart says what else is counted
  * apart there.  LOAD_TEST_VRAM names a file for the
  * port's video memory at the end (as -vram writes it).
  * `lib` is one call of lib_load (S0C66:0009) with its five arguments.
@@ -36,7 +33,9 @@
  * RETF at 009B for -1, at 0130 for a text), `fdraw` one of field_draw
  * (S0E56:145A, RETF at 1725), `merase` one of marks_erase (S0E56:1217,
  * RETF at 1459), `panel` one of unit_panel (S10AF:0131, RETF at
- * S10E1:000E), the video memory likewise,
+ * S10E1:000E), `fpanel` one of fight_panel (S131D:178D, RETF at 1CD7
+ * with pictures, 1F0C without; it returns 0, AX compared), the video
+ * memory likewise,
  * AX and DX not compared (it returns nothing); begin_apart's bytes are
  * counted beside (byte 8 of the input records changed while it ran).
  * `scr` is one of screen_open (S298E:000D), the video memory likewise;
@@ -115,6 +114,18 @@ static int load(const char *path, uint8_t *to)
  * not write itself (read in its code): the BIOS clock, two bytes of S30EF
  * and some of DATA; presumably the timer's and the sound's interrupt
  * handlers write them (not checked).  They are counted apart. */
+/* in `fpanel` what the panel's waits and sounds write, which the port
+ * leaves to its clock (play.c) or out: the sound's segment S30EF (the
+ * steps' sounds, S131D:1FF0), the timer count's high byte DATA:0309, and
+ * the key's record behind DATA:00BE (DATA:045C to 0461: wait_input
+ * clears its word 4, the keyboard's interrupt writes it) */
+static int sound_apart(uint32_t a)
+{
+    uint32_t snd = (uint32_t)(HL_S30EF + HL_BASE) << 4, data = (uint32_t)(HL_DATA + HL_BASE) << 4;
+
+    return (a >= snd && a < snd + 0x1400) || a == data + 0x0309 || (a >= data + 0x045C && a < data + 0x0462);
+}
+
 static int beside(uint32_t a)
 {
     uint32_t data = (uint32_t)(HL_DATA + HL_BASE) << 4, snd = (uint32_t)(HL_S30EF + HL_BASE) << 4;
@@ -305,6 +316,13 @@ int main(int argc, char **argv)
             got.off = (uint16_t)ax;
             got.seg = (uint16_t)dx;
             name.seg = name.off = 0;
+        } else if (!strcmp(what, "fpanel")) {
+            /* fight_panel(far record, pictures): video memory likewise */
+            vram_in(argv[i + 3]);
+            got.off = (uint16_t)fight_panel(far_at((uint16_t)ss, (uint16_t)(sp + 4)), frw((uint16_t)ss, (uint16_t)(sp + 8)));
+            got.seg = (uint16_t)dx;
+            r_pict = 0;
+            name.seg = name.off = 0;
         } else if (!strcmp(what, "merase")) {
             /* marks_erase(field, side, mask): video memory likewise */
             vram_in(argv[i + 3]);
@@ -376,8 +394,9 @@ int main(int argc, char **argv)
             if (a >= lo_stack && a < hi_stack)
                 d_stack++;
             else if (beside(a) || (!strcmp(what, "scr") && scr_apart(a))
+                     || (!strcmp(what, "fpanel") && sound_apart(a))
                      || ((!strcmp(what, "view") || !strcmp(what, "marks") || !strcmp(what, "msg")
-                          || !strcmp(what, "fdraw") || !strcmp(what, "merase") || !strcmp(what, "panel"))
+                          || !strcmp(what, "fdraw") || !strcmp(what, "merase") || !strcmp(what, "panel") || !strcmp(what, "fpanel"))
                          && begin_apart(a)))
                 d_beside++;
             else if (left_out && (mem[a] == entry[a] || a == kept || a == kept + 1))
@@ -398,8 +417,6 @@ int main(int argc, char **argv)
                 for (pl = 0; pl < 4; pl++)
                     if (vga_plane_byte((int)pl, (uint16_t)o2) == vleave[4 * o2 + pl])
                         continue;
-                    else if (left_out == 1 && o2 >= 0xC580 && o2 < 0xF4C0)
-                        va++;
                     else if (vd++ < 4)
                         printf(" vram %X.%u", o2, pl);
             if (va)

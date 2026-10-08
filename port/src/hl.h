@@ -117,6 +117,9 @@ int32_t file_load_size(Far to, Far name, Far work);
 int32_t lib_load(Far name, Far to, Far work, Far rec, uint8_t order);
 uint8_t *host_load(Far name, size_t *size);
 void far_copy(Far from, Far to, uint32_t n);
+int16_t lib_pick(Far list, int16_t count, Far table, int16_t words, Far to, Far buf);
+Far ground_store(Far pic);
+int grounds_load(Far place, Far work);
 
 /* pictures.c */
 int lbm_show(Far place, Far name, Far work);
@@ -124,6 +127,7 @@ int32_t tpwm_unpack(Far from, Far to);
 int lib_read(Far *place, Far file, Far names, Far ptrs, Far work);
 int32_t sfx_load(Far place, Far name, Far work);
 int pictures_load(Far *place, Far work, Far pal);
+int libs_start(Far *place);
 
 /* screen.c */
 void screen_open(uint16_t w, uint16_t h, uint32_t size, uint16_t pages);
@@ -148,7 +152,9 @@ Far mem_alloc(uint32_t size);
  * its beginning ([BP-0Ch]), where the map's pictures are loaded
  * ([BP-10h]), the end of the sides' two lists ([BP-18h]), the work buffer
  * of the loads ([BP-20h]) and the free end ([BP-4]) */
-typedef struct { Far block, save_buf, gfx, lists_end, work, p; } GameMem;
+/* libs and pics: the free end before libs_start and before pictures_load
+ * at the battle's beginning (game_loop's [BP-14h] and [BP-1Ch]) */
+typedef struct { Far block, save_buf, gfx, lists_end, work, p, libs, pics; } GameMem;
 extern GameMem game_mem;
 int start_setup(void);
 int menu_result(uint16_t map);
@@ -191,6 +197,7 @@ uint16_t side_input(Far rec, Far view);
 void show_message(uint16_t text, uint16_t side);
 void field_draw(uint16_t side, uint16_t field);
 void unit_panel(uint8_t no, uint16_t side);
+int fight_panel(Far rec, uint16_t pictures);
 void marks_redraw(uint16_t field, uint16_t side, uint8_t mask);
 void marks_erase(uint16_t field, uint16_t side, uint8_t mask);
 void field_menu(Far view, uint16_t side, uint16_t bits);

@@ -672,3 +672,285 @@ void unit_panel(uint8_t no, uint16_t side)
         text_draw((uint16_t)(x + 0x28), 0xBD, 0, 6, side ? 0x75 : 0x73, name, NULL);
     }
 }
+
+/* S2A95:000E, reached through S2A6B:0008 for a picture of kind 'P' and y
+ * negative (drawn at -y): the picture at half its size, uncut.  Four
+ * passes, one a plane from the plane of x on: the rows of every second
+ * source row of plane 0's pixels, then of plane 2's, each byte giving
+ * one screen byte, the high half in the first two passes and the low
+ * half in the last two; `base` added, byte 8 the transparent one.  Its
+ * variables in its own segment (184h-19Eh) as the original leaves them.
+ * S2AE4:000C's colour table is not translated (0 in all calls). */
+static void pic_half(uint16_t x, uint16_t y, Far src, uint8_t base)
+{
+    uint16_t cs = HL_S2A95 + HL_BASE, es = NW(screen_seg, 0), b, h, di, si0, si, plane_bytes;
+    uint8_t mask, skip = (uint8_t)(pb(src, 8) + base);
+    int pass;
+
+    fww(cs, 0x0198, 0);
+    fww(cs, 0x0196, 0);
+    x = (uint16_t)(x + pw(src, 0x0A));
+    y = (uint16_t)(y + pw(src, 0x0C));
+    fww(cs, 0x0194, NW(screen_pitch, 0));
+    b = (uint16_t)((pw(src, 0x0E) + 7) & 0xFFFC);
+    fww(cs, 0x0192, (uint16_t)(b >> 1));
+    b >>= 3;
+    fww(cs, 0x018E, b);
+    fww(cs, 0x0190, b);
+    h = pw(src, 0x10);
+    fww(cs, 0x0188, b);
+    fww(cs, 0x0186, h);
+    di = screen_at(x, y);
+    mask = (uint8_t)(0x11 << (x & 3));
+    fwb(cs, 0x019A, mask);
+    plane_bytes = (uint16_t)(b * h);
+    fww(cs, 0x019B, plane_bytes);
+    si0 = (uint16_t)(src.off + 0x12);
+    fww(cs, 0x0196, si0);
+    fww(cs, 0x019D, 0);
+    si = si0;
+    for (pass = 4; pass; pass--) {
+        uint16_t d = di, r, k;
+
+        vga_outw(0x3C4, (uint16_t)(frb(cs, 0x019A) << 8 | 2));
+        for (r = (uint16_t)(h >> 1); r; r--) {
+            uint16_t e = d;
+
+            fww(cs, 0x0184, r);
+            for (k = 0; k < b; k++, e++) {
+                uint8_t c = frb(src.seg, si++);
+
+                c = (uint8_t)((frw(cs, 0x019D) ? c & 0x0F : c >> 4) + base);
+                if (c != skip)
+                    vwb(es, e, c);
+            }
+            d = (uint16_t)(d + frw(cs, 0x0194));
+            si = (uint16_t)(si + b);
+        }
+        fww(cs, 0x0184, 0);
+        mask = frb(cs, 0x019A);
+        fwb(cs, 0x019A, (uint8_t)(mask << 1 | mask >> 7));
+        di = (uint16_t)(di + (mask >> 7));
+        si = si0;
+        if (pass == 4)
+            si = (uint16_t)(si + 2 * plane_bytes);
+        else if (pass == 3)
+            fww(cs, 0x019D, (uint16_t)~frw(cs, 0x019D));
+        else if (pass == 2)
+            si = (uint16_t)(si + 2 * plane_bytes);
+    }
+    vga_outw(0x3C4, 0x0F02);
+}
+
+/* S2A6B:0008 (pic_draw): a picture by its kind (byte 9): 'P' by
+ * pic_blit, or at half size by pic_half for y negative; 'X' (S2957:0002)
+ * is not translated and draws nothing here; any other by pic_blit_u */
+static void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base)
+{
+    if (pb(src, 9) == 'P') {
+        if ((int16_t)y >= 0)
+            pic_blit(x, y, src, base);
+        else
+            pic_half(x, (uint16_t)-(int16_t)y, src, base);
+    } else if (pb(src, 9) != 'X')
+        pic_blit_u(x, y, src, base);
+}
+
+/* S2A6F:0002: a packed picture unpacked to `work` (tpwm_unpack) and drawn
+ * from there; one without the packer's signature drawn as it is */
+static void pic_unpack_draw(uint16_t x, uint16_t y, Far src, uint8_t base, Far work)
+{
+    int32_t n = tpwm_unpack(src, work);
+
+    pic_draw(x, y, (uint32_t)n >> 16 == 0xFFFF ? src : work, base);
+}
+
+static Far free_end(void)
+{
+    Far p;
+
+    p.off = frw(HL_S3303 + HL_BASE, 0x0028);
+    p.seg = frw(HL_S3303 + HL_BASE, 0x002A);
+    return p;
+}
+
+/* S131D:0C50: a unit's large picture in place `slot` of the fight's
+ * panel (its table at S331F:020D, 8 bytes a place: x, y, the name's x
+ * and y; A0h further right for `right`): the kind's entry in BIGUNIT.LIB
+ * (its name the eight bytes of bigunit_dat at the kind's byte 09D7h
+ * times 8) read to bigunit_buf, then bigunit_pics (the ground under it)
+ * and the unit drawn at y, the unit byte 09D6h of the kind's record (45h
+ * bytes) lower (half that, both at half size, in the places other than
+ * 1), colours 40h on, by way of the free end; the kind's name below in
+ * colours 71h: at the name's x plus 1 in places 0 and 3, else centred on
+ * x + 37h.  Returns 2 where the original goes to its error exit. */
+static int big_unit(uint16_t slot, uint8_t kind, uint8_t right)
+{
+    Far name, buf = far_at(S_GAME, 0x02D7), pics = far_at(S_GAME, 0x02DB), ptrs = far_at(S_GAME, 0x02DF), kname;
+    Far names, gname, to;
+    int r;
+    uint16_t k = (uint16_t)(kind * 0x45), t = (uint16_t)(0x020D + slot * 8), x, y, yu, tx, ty, i, n = 0;
+    uint8_t list[0x10];
+
+    names = far_add(far_at(S_GAME, 0x02E3), (uint32_t)frb(S_GAME, (uint16_t)(0x09D7 + k)) * 8);
+    /* CODE:2C39 (strncpy): eight bytes of the name onto the original's
+     * stack, a 0 behind them (the list's end).  The port lends them 10h
+     * bytes at the free end for lib_read and gives them back. */
+    for (i = 0; i < 8 && (list[i] = pb(names, i)) != 0; i++)
+        ;
+    for (; i < 0x10; i++)
+        list[i] = 0;
+    names = free_end();
+    for (i = 0; i < 0x10; i++) {
+        uint8_t b = pb(names, i);
+
+        pwb(names, i, list[i]);
+        list[i] = b;
+    }
+    gname.seg = S_GAME;
+    gname.off = A_bigunit_name;
+    name = file_name(1, 0, gname, 3);
+    to = buf;
+    r = lib_read(&to, name, names, ptrs, far_add(ptrs, 0x10));
+    for (i = 0; i < 0x10; i++)
+        pwb(names, i, list[i]);
+    if (r == -1)
+        return 2;
+    x = frw(S_GAME, t);
+    y = frw(S_GAME, (uint16_t)(t + 2));
+    yu = y;
+    tx = frw(S_GAME, (uint16_t)(t + 4));
+    ty = frw(S_GAME, (uint16_t)(t + 6));
+    if (right) {
+        x = (uint16_t)(x + 0xA0);
+        tx = (uint16_t)(tx + 0xA0);
+    }
+    if (slot != 1) {
+        yu = (uint16_t)(yu + (frb(S_GAME, (uint16_t)(0x09D6 + k)) >> 1));
+        yu = (uint16_t)-(int16_t)yu;
+        y = (uint16_t)-(int16_t)y;
+    } else
+        yu = (uint16_t)(yu + frb(S_GAME, (uint16_t)(0x09D6 + k)));
+    pic_unpack_draw(x, y, pics, 0x40, free_end());
+    pic_unpack_draw(x, yu, buf, 0x40, free_end());
+    kname.seg = S_GAME;
+    kname.off = (uint16_t)(0x09E9 + k);
+    if (slot == 0 || slot == 3)
+        tx = (uint16_t)(tx + 1);
+    else {
+        tx = (uint16_t)(tx + 0x37);
+        text_draw(0, 0, 0, 0, 0, kname, &n);
+        tx = (uint16_t)(tx - ((int16_t)(n * 3) >> 1));
+    }
+    text_draw(tx, ty, 0, 6, 0x71, kname, NULL);
+    return 0;
+}
+
+/* the far pointer to unit picture n (the table S331F:013F points to) */
+static Far unit_pic(uint16_t n)
+{
+    return pfar(far_add(far_at(S_GAME, 0x013F), 4u * n), 0);
+}
+
+/* S131D:1F0D: a unit of a kind with 40h in word 4 in the fight's panel
+ * at x, y: the kind's picture 2 (8 for a unit without 80h in word 4: 6
+ * pictures earlier) of the field's pictures, 6 further on at x + 60h,
+ * y + 0Fh, then the picture itself at x + 70h, y + 1Bh, colours base on */
+static void panel_whole(Far unit, uint16_t x, uint16_t y, uint8_t base)
+{
+    uint16_t n = (uint16_t)(pb(unit, 8) * 6 + 2);
+
+    if (!(pw(unit, 4) & 0x80))
+        n = (uint16_t)(n - 6);
+    pic_draw((uint16_t)(x + 0x60), (uint16_t)(y + 0x0F), unit_pic((uint16_t)(n + 6)), base);
+    pic_draw((uint16_t)(x + 0x70), (uint16_t)(y + 0x1B), unit_pic(n), base);
+}
+
+/* S131D:178D (fight_panel): the fight of the record `rec` (fight_rec: the
+ * two units' far pointers at 0 and 4, their grounds' pictures at 1Eh and
+ * 22h) on the panel, the first unit's side's half (x A0h further right
+ * when bit 0 of its word 4 is set).  Without pictures it works the
+ * losses out itself (fight_losses).  The panel's picture (picture 0 of
+ * lib_newshop, unpacked at the free end), both sides' flags, two black
+ * boxes, the two units' large pictures (S131D:0C50, places 0 and 3), the
+ * two grounds (ground_blit at S331F:02C5/02C6, the second 4Dh lower);
+ * with pictures the page shown and fade_in; then six steps of the
+ * units' figures (picture byte 8 * 6 + step of S331F:013F's table at the
+ * step's place of S331F:02B9, the second 4Dh lower; units of a kind with
+ * 40h in word 4 whole at once, S131D:1F0D), in colours 20h or 30h by
+ * the side, a step a page shown.  With pictures then fade_out; without,
+ * the figures lost drawn again from the last step down in colours B0h
+ * and C0h.  Left out here: the sounds of a step (S131D:1FF0) and the
+ * waits (wait_frames, wait_input), which the port's clock counts
+ * (play.c), and wait_input's clearing of the button and the key.
+ * Returns 2 where the original goes to its error exit. */
+int fight_panel(Far rec, uint16_t pictures)
+{
+    Far u0 = pfar(rec, 0), u1 = pfar(rec, 4);
+    uint16_t f0 = pw(u0, 4), f1 = pw(u1, 4), gx = frb(S_GAME, 0x02C5), gy = frb(S_GAME, 0x02C6);
+    uint8_t right = f0 & 1, x = right ? 0xA0 : 0, n0, n1, l0 = 0, l1 = 0, c0, c1;
+    int i;
+
+    fww(S_fight_rec_ptr, A_fight_rec_ptr, rec.off);
+    fww(S_fight_rec_ptr, (uint16_t)(A_fight_rec_ptr + 2), rec.seg);
+    n0 = pb(u0, 2);
+    n1 = pb(u1, 2);
+    if (!pictures) {
+        fight_losses();
+        l0 = pb(u0, 2);
+        l1 = pb(u1, 2);
+    }
+    pic_unpack_draw(x, 0, pfar(far_at(S_GAME, 0x0207), 0), 0xF0, free_end());
+    flag_draw((uint16_t)(x + 0x41), right ? 0x9C : 0x4E, 0, 1, 0x11, 0);
+    flag_draw((uint16_t)(x + 0x41), right ? 0x4E : 0x9C, 0x3E, 1, 0x11, 1);
+    box_fill((uint16_t)(x + 0x15), 0x1B, (uint16_t)(x + 0x45), 0x43, 0xFF);
+    box_fill((uint16_t)(x + 0x15), 0x68, (uint16_t)(x + 0x45), 0x90, 0xFF);
+    if (big_unit(0, pb(u0, 8), right) || big_unit(3, pb(u1, 8), right))
+        return 2;
+    ground_blit((uint16_t)(gx + x), gy, pfar(rec, 0x1E));
+    ground_blit((uint16_t)(gx + x), (uint16_t)(gy + 0x4D), pfar(rec, 0x22));
+    c0 = right ? 0x30 : 0x20;
+    c1 = right ? 0x20 : 0x30;
+    if (pictures) {
+        page_flip();
+        page_copy();
+        fade_in();
+    }
+    if (f0 & 0x40)
+        panel_whole(u0, x, 0, c0);
+    if (f1 & 0x40)
+        panel_whole(u1, x, 0x4D, c1);
+    for (i = 0; i < 6; i++) {
+        uint16_t px = (uint16_t)(frb(S_GAME, (uint16_t)(0x02B9 + 2 * i)) + x), py = frb(S_GAME, (uint16_t)(0x02BA + 2 * i));
+
+        if (i < n0 && !(f0 & 0x40))
+            pic_draw(px, py, unit_pic((uint16_t)(pb(u0, 8) * 6 + i)), c0);
+        if (i < n1 && !(f1 & 0x40))
+            pic_draw(px, (uint16_t)(py + 0x4D), unit_pic((uint16_t)(pb(u1, 8) * 6 + i)), c1);
+        page_flip();
+        page_copy();
+    }
+    if (pictures) {
+        fade_out();
+        return 0;
+    }
+    c0 = right ? 0xC0 : 0xB0;
+    c1 = right ? 0xB0 : 0xC0;
+    for (i = 5; i >= 0; i--) {
+        uint16_t px = (uint16_t)(frb(S_GAME, (uint16_t)(0x02B9 + 2 * i)) + x), py = frb(S_GAME, (uint16_t)(0x02BA + 2 * i));
+
+        if (f0 & 0x40) {
+            if (i == 0 && !l0)
+                panel_whole(u0, x, 0, c0);
+        } else if (i >= l0 && i < n0)
+            pic_draw(px, py, unit_pic((uint16_t)(pb(u0, 8) * 6 + i)), c0);
+        if (f1 & 0x40) {
+            if (i == 0 && !l1)
+                panel_whole(u1, x, 0x4D, c1);
+        } else if (i >= l1 && i < n1)
+            pic_draw(px, (uint16_t)(py + 0x4D), unit_pic((uint16_t)(pb(u1, 8) * 6 + i)), c1);
+        page_flip();
+        page_copy();
+    }
+    return 0;
+}

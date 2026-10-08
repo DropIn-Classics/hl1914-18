@@ -176,6 +176,7 @@
     X(S02E6, defence_sum, 0x29D4) \
     X(S02E6, units_drop_empty, 0x2B28) \
     X(S02E6, pictures_load, 0x2B87) \
+    X(S02E6, grounds_load, 0x323E) \
     X(S02E6, libs_start, 0x3484) \
     X(S063F, battle_score, 0x0009) \
     X(S066A, game_loop, 0x000D) \
@@ -238,11 +239,14 @@
     X(S1273, save_game, 0x0005) \
     X(S1273, load_game, 0x0399) \
     X(S1273, save_blocks, 0x0662) \
+    X(S131D, big_unit, 0x0C50) \
     X(S131D, build_list, 0x14D4) \
     X(S131D, row_load, 0x15FB) \
     X(S131D, side_income, 0x1685) \
     X(S131D, income_add, 0x1745) \
     X(S131D, fight_panel, 0x178D) \
+    X(S131D, panel_whole, 0x1F0D) \
+    X(S131D, panel_sound, 0x1FF0) \
     X(S1571, file_name, 0x02CD) \
     X(S15C5, unit_add, 0x0005) \
     X(S15C5, unit_find, 0x01A7) \
@@ -320,6 +324,7 @@
     X(S28DC, page_copy, 0x000A) \
     X(S28E0, fade_in, 0x0004) \
     X(S28E0, fade_out, 0x002B) \
+    X(S28F5, ground_store, 0x0006) \
     X(S2945, retrace_wait, 0x000A) \
     X(S2947, display_wait, 0x0006) \
     X(S2974, page_flip, 0x0002) \

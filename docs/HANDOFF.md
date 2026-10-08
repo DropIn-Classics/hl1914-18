@@ -3500,6 +3500,37 @@ emulation error (2026-10-02).
   Not done: the fight's pictures frame by frame against the original,
   the computer as a second side attacking in the window, the SDL window
   by hand.
+- Menu, battle, menu through a battle's end, and a `-keylog` from the
+  menu replayed (2026-10-08, `debian/window8`, Linux, headless window;
+  port/README.md has the counts). Learned:
+  - The port needed no change. The walks `end57` and `live57` of
+    `menu_dumps.py` (map 57's code, START, `m57_win`'s battle 8 s
+    earlier with its pokes, the end) are the same as the original at
+    the menu's two returns, both end waits, the frames 1 to 121 of CDh
+    and the menu after the battle, both video pages included, and the
+    best scores' file both write (`MAP\04.HI`) is the same.
+  - After a battle won from the menu the original shows CDh, then
+    asks for the best score's name ("PLEASE ENTER YOUR NAME !", about
+    76 s in the walk), shows the best scores and waits for a key, and
+    is at the menu again (91.9 s); START then takes one press. With
+    `-map` this part was never reached (the play ends at `S066A:4728`).
+  - The runner's written files must be emptied before every run of a
+    walk: a best score left from an earlier run is read by the next and
+    adds a second entry. `menu_dumps.py` now gives each walk its own
+    `-state` folder, emptied before each run (the older walks rerun with
+    it, see port/README.md).
+  - In the window from the menu the pictures are N times 0.014268 s
+    from 0 on (`live_keys.py KEYS 0 0`), the menu's first among them.
+  - The port's battle on its own clock took one pass more than the
+    original's (348 against 347): game_state's count and the timer's
+    due pass at its byte 28h (`S331F:4CCC`) differ by it and are told
+    apart as `play_cmp.py` does.
+  - The committed `menu57_win.keys` has `code1` to `code5` for the
+    map's code (game data, from `CODES.DAT` at run time).
+  Not done: the name's and the best scores' screens as video memory
+  (they are not passes of the menu's loop), the battle on the
+  original's clock inside a menu walk, the SDL window by hand, the
+  sounds.
 - The field menu's information (2026-10-08, Mac; `unit_info`,
   `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
   each does; `port/src/draw.c`). Learned:
@@ -4317,7 +4348,8 @@ emulation error (2026-10-02).
      C9h, CCh, the newspapers of the maps 0 to 2Fh, `S1A39:059D`), a
      script that reaches D0h and CEh/CFh on the port's own clock (why
      `m54_end`'s passes run shorter in the port after the second side's
-     move order in round 4), and the end in the window from the menu;
+     move order in round 4) (the end in the window from the menu is
+     done, `debian/window8`);
    - the fight is confirmed (`build/n2/fights.sh`, `fightcalc.py`); left
      of it: a fight of a kind with 4 in word 0Fh, `S131D:178D` and the
      pictures in `S2532`. The per cent bytes are confirmed too

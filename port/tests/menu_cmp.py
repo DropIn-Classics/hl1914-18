@@ -28,6 +28,14 @@ Compared:
     each screen of the saved game's question (askN.vram, the port's
     -askvram).
 
+  * with a battle played to its end between (end57, live57): the memory
+    and video memory at the end's waits and the pictures' frames
+    (eN, fNNNN against the port's -evdump port_eN ...; the timers'
+    passes in game_state, bytes 19h to 63h, told apart with the count
+    of passes, since the port's battle on its own clock takes another
+    number of passes), and the files the original wrote (written/)
+    against the port's (port_saves/).
+
 Exit status 0 when the order is the same and no byte differs.
 """
 import os, sys
@@ -91,6 +99,13 @@ def memory(what, x, y):
                 if held:
                     print('  the views\' repeat counters, counted down by the pass, differ (%d bytes), told apart'
                           % len(held))
+                # and the timers' kinds and the passes they are due at
+                # (game_state, S331F:4CA4, its bytes 19h to 63h), as
+                # play_cmp.py counts them apart
+                due = [i for i in d if 0x4CA4 + 0x19 <= i - lo < 0x4CA4 + 0x64]
+                d = [i for i in d if i not in due]
+                if due:
+                    print('  the timers\' passes differ (%d bytes), told apart' % len(due))
         if name == 'the mouse' and what.endswith('end'):
             # the pointer's place (words 10h and 12h): game_loop opens the
             # mouse again behind the menu, the original's driver then has
@@ -117,6 +132,27 @@ if os.path.exists(os.path.join(out, 'end.ram')):
     else:
         print('  memory at the program\'s end: the port wrote none')
         bad += 1
+# a battle's end between (the walk end57): the memory at the end's waits
+# and frames (ends.txt, eN and fNNNN; the port's -evdump port_eN ...)
+ends = open(os.path.join(out, 'ends.txt')).read().split() if os.path.exists(os.path.join(out, 'ends.txt')) else []
+for e in ends:
+    if not os.path.exists(os.path.join(out, 'port_%s.ram' % e)):
+        print('  memory at %s: the port wrote none' % e)
+        bad += 1
+        continue
+    bad += memory('memory at %s' % e, open(os.path.join(out, e + '.ram'), 'rb').read(),
+                  open(os.path.join(out, 'port_%s.ram' % e), 'rb').read())
+# the files the original wrote (written/, kept from menu_dumps.py's first
+# run; a best score) against the port's (port_saves/, where a
+# folder's separator is _)
+state = os.path.join(out, 'written')
+for d, _, names in os.walk(state):
+    for name in sorted(names):
+        rel = os.path.relpath(os.path.join(d, name), state)
+        pf = os.path.join(out, 'port_saves', rel.replace(os.sep, '_'))
+        same = os.path.exists(pf) and open(pf, 'rb').read() == open(os.path.join(d, name), 'rb').read()
+        print('  the file %s written: %s' % (rel, 'the same' if same else 'DIFFERENT or not written by the port'))
+        bad += not same
 # video memory (byte 4 * offset + plane): the two pages' 200 lines of 80
 # bytes a plane at A000h and A400h; what lies behind them is told apart
 # (from A7E8:0004 on the original's start, whose part before the menu is
@@ -125,7 +161,8 @@ shots = open(os.path.join(out, 'shots.txt')).read().split() if os.path.exists(os
 asks = int(open(os.path.join(out, 'asks.txt')).read()) if os.path.exists(os.path.join(out, 'asks.txt')) else 0
 for what, vf, pf in [('at %5s s' % t, 'shot%s.vram' % t, 'port%s.vram' % t) for t in shots] + \
         [('at screen %d of the saved game\'s question' % k, 'ask%d.vram' % k, 'portask%d.vram' % k)
-         for k in range(1, asks + 1)]:
+         for k in range(1, asks + 1)] + \
+        [('at %s' % e, e + '.vram', 'port_%s.vram' % e) for e in ends]:
     v = open(os.path.join(out, vf), 'rb').read()
     pv = os.path.join(out, pf)
     if not os.path.exists(pv):

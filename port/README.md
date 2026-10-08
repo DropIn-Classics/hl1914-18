@@ -216,6 +216,14 @@ port in the port: the word is switched and no stick found), F7 the mouse
 off and on, F8 its speed in three steps, F9 the three settings of the
 fights' pictures. The play no longer stops at them.
 
+2026-10-08, the program's end: when the menu ends the program (EXIT TO
+DOS on the exit's page) `menu_game` in `src/main.c` does what
+`game_loop` does at `S066A:4739`: the mouse's pointer off, the
+keyboard's interrupt given back, `mem_alloc`'s blocks freed. Left out as
+the machine's part: the screen's old mode, the sound's end, interrupt
+24h and the timer. The window build does not get there yet (its menu is
+not in the window).
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -244,6 +252,22 @@ anything the game needs before the first release.
 (which packages were started from a download, on which systems)
 
 ## Checked
+
+- EXIT TO DOS and the program's end (2026-10-08, macOS): a sixth walk of
+  `tests/menu_dumps.py` and `tests/menu_test.sh`, `exit` (Esc, the button
+  on EXIT TO DOS). What came in is the same (3 things), no byte differs
+  at the menu's return, nor in video memory at the exit's page. A second
+  run of the original is stopped where the end calls its last routine
+  (`input_remove`, `S27FE:0060`) and compared with the port's memory at
+  its end (`-ram`): the game's state, the menu's segment, the count of
+  `mem_alloc`'s blocks (`DATA:0467`, 0 in both) and `game_loop`'s block
+  the same; in the mouse's record 3 bytes of the pointer's place (words
+  10h and 12h) differ and are told apart: `game_loop` opens the mouse
+  again behind the menu, the original's driver then has the pointer in
+  the middle, the port's where the menu left it (the same difference a
+  battle has from its first pass on; `src/mouse.c` was not changed).
+  Not compared: the screen's mode, the vectors and DOS's memory after
+  the end; what `main` does behind `game_loop`'s return.
 
 - The keys F2 to F9 (2026-10-08, macOS): `sh port/tests/fkeys_test.sh
   dumps` and `sh port/tests/fkeys_test.sh`, as the saving's test (both

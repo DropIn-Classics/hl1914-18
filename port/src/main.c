@@ -365,6 +365,19 @@ static int menu_game(unsigned long passes, double start, double until, int clock
         fww(ms.seg, (uint16_t)(ms.off + 0x46), 0xFFFF);
         fwb(opt, 0x0130, 0);
         if (NW(game_state, 0) & 0x100) {
+            /* S066A:4739, the program's end: the mouse's pointer taken
+             * off, the keyboard's interrupt given back, the blocks of
+             * mem_alloc freed (their count at DATA:0467).  Left out, the
+             * machine's part: the screen's mode from before the program
+             * (S2B7F:000E), the sound's end (S2F39:0092), interrupt 24h
+             * and the timer given back (input_remove) */
+            uint16_t k, blocks = frw(data, 0x0467);
+
+            mouse_hide();
+            key_remove();
+            for (k = 0; k < blocks; k++)
+                dos_free(frw(data, (uint16_t)(0x0469 + 2 * k)));
+            fww(data, 0x0467, 0);
             why = "the menu ended the program";
             break;
         }

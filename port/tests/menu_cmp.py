@@ -56,30 +56,56 @@ else:
     far = max([abs(x[0] - y[0]) for x, y in zip(a, b)] or [0])
     print('%s: %d things came in, the same in both; times at most %.2f s apart' % (walk, len(a), far))
 
-x = open(os.path.join(out, 'exit.ram'), 'rb').read()
-y = open(os.path.join(out, 'port.ram'), 'rb').read()
-# the hints' lines `segment NAME FRAME ...`
-segs = sorted((int(f[2], 16), f[1]) for f in (l.split() for l in open(os.path.join(ROOT, 'src', 'HL.hints')))
-              if len(f) > 2 and f[0] == 'segment')
-regions = []
-for i, (frame, name) in enumerate(segs):
-    if name in ('S331F', 'S37FF'):
-        regions.append((name, (frame + LOAD) * 16, (segs[i + 1][0] + LOAD) * 16))
-    if name == 'DATA':
-        regions.append(('the mouse', (frame + LOAD) * 16 + 0x414, (frame + LOAD) * 16 + 0x45C))
-regions.append(('the block', BLOCK + 0x40, BLOCK + 0x40000))
-for name, lo, hi in regions:
-    d = [i for i in range(lo, hi) if x[i] != y[i]]
-    if name == 'S331F':
-        count = [i for i in d if 0x4CB7 <= i - lo < 0x4CBB]
-        d = [i for i in d if i not in count]
-        if count:
-            at = lo + 0x4CB7
-            print('  the passes counted in the battle before: %d, port %d' %
-                  (int.from_bytes(x[at:at + 4], 'little'), int.from_bytes(y[at:at + 4], 'little')))
-    print('  %-10s %6d bytes, %d differ%s' % (name, hi - lo, len(d),
-          (': first at +%Xh (%02X, port %02X)' % (d[0] - lo, x[d[0]], y[d[0]])) if d else ''))
-    bad += bool(d)
+def memory(what, x, y):
+    """the regions of two dumps compared; how many of them differ"""
+    bad = 0
+    print('  %s:' % what)
+    # the hints' lines `segment NAME FRAME ...`
+    segs = sorted((int(f[2], 16), f[1]) for f in (l.split() for l in open(os.path.join(ROOT, 'src', 'HL.hints')))
+                  if len(f) > 2 and f[0] == 'segment')
+    regions = []
+    for i, (frame, name) in enumerate(segs):
+        if name in ('S331F', 'S37FF'):
+            regions.append((name, (frame + LOAD) * 16, (segs[i + 1][0] + LOAD) * 16))
+        if name == 'DATA':
+            regions.append(('the mouse', (frame + LOAD) * 16 + 0x414, (frame + LOAD) * 16 + 0x45C))
+            regions.append(('blocks', (frame + LOAD) * 16 + 0x467, (frame + LOAD) * 16 + 0x469))
+    regions.append(('the block', BLOCK + 0x40, BLOCK + 0x40000))
+    for name, lo, hi in regions:
+        d = [i for i in range(lo, hi) if x[i] != y[i]]
+        if name == 'S331F':
+            count = [i for i in d if 0x4CB7 <= i - lo < 0x4CBB]
+            d = [i for i in d if i not in count]
+            if count:
+                at = lo + 0x4CB7
+                print('  the passes counted in the battle before: %d, port %d' %
+                      (int.from_bytes(x[at:at + 4], 'little'), int.from_bytes(y[at:at + 4], 'little')))
+        if name == 'the mouse' and what.endswith('end'):
+            # the pointer's place (words 10h and 12h): game_loop opens the
+            # mouse again behind the menu, the original's driver then has
+            # the pointer in the middle, the port's where the menu left it
+            place = [i for i in d if 0x10 <= i - lo < 0x14]
+            d = [i for i in d if i not in place]
+            if place:
+                print('  the pointer\'s place after mouse_open differs (%d bytes), told apart' % len(place))
+        print('  %-10s %6d bytes, %d differ%s' % (name, hi - lo, len(d),
+              (': first at +%Xh (%02X, port %02X)' % (d[0] - lo, x[d[0]], y[d[0]])) if d else ''))
+        bad += bool(d)
+    return bad
+
+
+bad += memory('memory at the menu\'s last return', open(os.path.join(out, 'exit.ram'), 'rb').read(),
+              open(os.path.join(out, 'port.ram'), 'rb').read())
+# the program's end (the walk `exit`): the original's memory where it
+# calls input_remove, the port's at its end; with it the count of
+# mem_alloc's blocks (DATA:0467)
+if os.path.exists(os.path.join(out, 'end.ram')):
+    if os.path.exists(os.path.join(out, 'port_end.ram')):
+        bad += memory('memory at the program\'s end', open(os.path.join(out, 'end.ram'), 'rb').read(),
+                      open(os.path.join(out, 'port_end.ram'), 'rb').read())
+    else:
+        print('  memory at the program\'s end: the port wrote none')
+        bad += 1
 # video memory (byte 4 * offset + plane): the two pages' 200 lines of 80
 # bytes a plane at A000h and A400h; what lies behind them is told apart
 # (from A7E8:0004 on the original's start, whose part before the menu is

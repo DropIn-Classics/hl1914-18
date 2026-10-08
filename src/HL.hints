@@ -949,6 +949,13 @@ name S1571:00BE game_text_at
 ; pieces of at most 8000h bytes, as file_write; FFFFh:FFFFh when a piece
 ; comes short. Read from the code; load_game's only way of reading.
 name S2B87:000C file_read
+; The program's end, S066A:4739 (game_loop with 1 clear in game_state):
+; mouse_hide, key_remove, S2B7F:000E (INT 10h with bios_mode_old when it is
+; not 0), S2CC9:0002 (frees each block of mem_alloc's list at DATA:0469 by
+; INT 21h AH=49h and clears their count at DATA:0467), S2F39:0092 (the
+; sound's end, not read further), input_remove; returns [BP-26h]. Read;
+; the port's menu_game (port/src/main.c) does it but for the machine's
+; part; compared by port/tests/menu_test.sh exit.
 ; joy_setup(): clears the words that say which joysticks are there
 ; (DATA:0384, 0386), their bits (03B4) and ranges, writes the game port
 ; (201h), waits two retraces and reads it: a stick whose axes' bits (3,

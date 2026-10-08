@@ -3223,7 +3223,8 @@ emulation error (2026-10-02).
     translated, run in no walk: no script on the port's own clock wins
     a battle yet), a saved game's number (translated, not run then; since
     run and loading translated, see "Saving and loading" below), EXIT TO DOS
-    (translated, not run), the program's end behind it (`S066A:4739`),
+    (translated, not run), the program's end behind it (`S066A:4739`; both run and compared since,
+    see "The program's end and the briefing" below),
     the menu without a mouse (not translated), a click or a moved mouse
     (the port has no mouse of the player's yet), the country left by
     Esc, a code that is not one, the backspace, a picture cut by the
@@ -3287,6 +3288,36 @@ emulation error (2026-10-02).
   F7 gives the first side a direction once in the original (the driver's
   pointer after its reset against the middle, presumably; `input_mouse`,
   `S27FE:03D4`, is not translated).
+- The program's end and the briefing (2026-10-08, Mac).
+  - `S066A:4739`, reached when 1 is clear in `game_state` behind the
+    menu or a battle (EXIT TO DOS sets 100h and clears 1 and 2):
+    `mouse_hide`, `key_remove`, `S2B7F:000E` (the BIOS's mode of
+    `bios_mode_old` set again when it is not 0), `S2CC9:0002` (each
+    block of `mem_alloc`'s list at `DATA:0469` freed, INT 21h AH=49h, the
+    count at `DATA:0467` 0), `S2F39:0092` (the sound's end; not read
+    further), `input_remove`; `game_loop` returns its word [BP-26h] (7Bh
+    after the last battle won). Translated but for the machine's part
+    and compared (`menu_test.sh exit`, port/README.md).
+  - The mouse's pointer: `game_loop` calls `mouse_open` again each time
+    the menu returns; the runner's driver then has the pointer in the
+    middle (A0h in word 10h of the record), the port's driver keeps the
+    place the menu left. Seen as 3 bytes at the program's end and in
+    every battle from its first pass (`DATA:0424` to `0426`). For
+    whoever gives the port the player's mouse (`port/src/mouse.c`).
+  - The briefing (`S274D:0003`, called with the map's number and two far
+    pointers unless a saved game is loaded) is still not read to its end
+    and not translated. Its outline from the generated source: it loads
+    a file and a picture (`file_load_size`, `lbm_show`), libraries
+    (`lib_load`, `lib_read`), starts and stops music (`S2F39:0F87`,
+    `1058`), draws many texts (`text_draw`, with `L2488` and `L2B15`
+    before them, presumably a number put into a text and texts joined;
+    not read), steps the colours (`pal_level`) and calls
+    `inputs_release`. One run only timed it: START on map 0 with the
+    first country, no key after the country's (13 s): the routine was
+    entered at 16.66 s and the battle's first pass began at 18.42 s, and
+    the screen at 19 s was the battle's. So on map 0 it did not wait for
+    a key there; whether it showed anything, and on which maps it
+    waits, is not known.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

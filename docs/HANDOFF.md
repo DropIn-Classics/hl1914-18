@@ -3458,6 +3458,23 @@ emulation error (2026-10-02).
     the window's mouse the same in every part.
   Not done: the SDL window by hand, a damaged unit repaired and a
   carrier's screen by the mouse, a scrolled build list.
+- The second side's attack in the window (2026-10-08, `debian/window6`,
+  Linux, headless window; port/README.md has the counts). Learned:
+  - The port needed no change: a human second side attacks through the
+    same routines as the first; `m48_sattack` (its medium artillery
+    against the first side's cavalry two fields up, fought with
+    pictures at round 1's end) is the same as the original on its
+    clock, on the port's own (`rounds`) and between window and `-keys`.
+  - In the attack's choosing the cursor is the fist; the target is the
+    lit field. A gesture whose direction is held after the button
+    (`make_two.py`'s default 0.2 s) steps the aim once more in the
+    window but not in the original (sampled by other passes); let go
+    with the button (`/0`) both read it alike. Shots of a window play:
+    `DK_SHOTS` at picture 38 + (t - start) / 0.014268, which runs ahead
+    of the clock after a round's end.
+  Not done: the fight's pictures frame by frame against the original,
+  the computer as a second side attacking in the window, the SDL window
+  by hand.
 - The field menu's information (2026-10-08, Mac; `unit_info`,
   `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
   each does; `port/src/draw.c`). Learned:

@@ -154,10 +154,16 @@ static void cut_off(int on)
     }
 }
 
+static int uncut;       /* text_mid_uncut draws */
+
 static void menu_pic(int16_t x, int16_t y, Far pic, uint16_t base)
 {
     int16_t x0 = (int16_t)(x + pw(pic, 0x0A)), y0 = (int16_t)(y + pw(pic, 0x0C));
 
+    if (uncut) {
+        pic_draw((uint16_t)x, (uint16_t)y, pic, (uint8_t)base);
+        return;
+    }
     if (x0 < (int16_t)frw(S_DATA, 0x00EC) || y0 < (int16_t)frw(S_DATA, 0x00EE)
         || x0 + (int16_t)pw(pic, 0x0E) - 1 > (int16_t)frw(S_DATA, 0x00F0)
         || y0 + (int16_t)pw(pic, 0x10) - 1 > (int16_t)frw(S_DATA, 0x00F2)) {
@@ -255,6 +261,15 @@ static void text_at(int16_t x, int16_t y, Far text, Far font, uint32_t colours, 
 static void text_mid(int16_t y, Far text, Far font, uint32_t colours, uint16_t base, int16_t gap)
 {
     text_at((int16_t)(0xA0 - (text_width(text, font, gap) >> 1)), y, text, font, colours, base, gap);
+}
+
+/* text_mid for a caller that draws with the screen's cut off (the new
+ * units' screens, briefing.c): the pictures go to pic_draw as they are */
+void text_mid_uncut(int16_t y, Far text, Far font, uint16_t base, int16_t gap)
+{
+    uncut = 1;
+    text_mid(y, text, font, 0, base, gap);
+    uncut = 0;
 }
 
 /* a map's code in brackets in the middle of line 6 (the winner's name

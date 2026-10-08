@@ -4,7 +4,7 @@
  *     history-line [-game DIR | -gog FILE|FOLDER|SETUP.exe] [-map N] [-ram FILE]
  *                  [-keys FILE] [-passes N] [-until T] [-start T] [-seed N]
  *                  [-clock FILE] [-seeds FILE] [-dump N FILE]... [-inputs FILE]
- *                  [-ends FILE] [-poke ADDR HEX]...
+ *                  [-ends FILE] [-poke ADDR HEX]... [-briefdump DIR]
  *
  * DIR is the game's unpacked files: -game, else $HISTORY_LINE_GAME, else the first
  * folder `game` holding HL14-18.EXE beside the program, in the current
@@ -52,8 +52,10 @@
  * the beginning of pass N, -inputs what each side's part read, -ends the
  * texts a battle's end showed each time it waited for a press, -poke
  * writes the bytes HEX at the linear address ADDR (hex) of the memory
- * image before the first pass (port/tests/play_pokes.py).  All of
- * them are aids for this work, not for players.
+ * image before the first pass (port/tests/play_pokes.py), -briefdump
+ * the memory and video memory of the new units' screens into DIR
+ * (briefing.c, port/tests/briefing_test.sh).  All of them are aids for
+ * this work, not for players.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -67,6 +69,7 @@
 #include "sys.h"
 #include "textmode.h"
 #include "update.h"
+#include "vga.h"
 
 #ifndef PORT_VERSION
 #define PORT_VERSION ""
@@ -267,6 +270,29 @@ static struct { unsigned long pass; const char *file; } menu_dumps[8];
 static int menu_dumps_n;
 static int dumps_ok;    /* play_game wrote its dumps */
 
+/* -briefdump DIR: the memory at the entry of the new units' screens
+ * (briefing.c) and at their return, and the video memory of each screen
+ * lit and at the return, as files in DIR */
+static const char *brief_dir;
+
+static void brief_dump(int at, int n)
+{
+    char path[SYS_PATH], name[32];
+
+    if (at == 1) {
+        snprintf(name, sizeof name, "port_screen%d.vram", n);
+        sys_join(path, sizeof path, brief_dir, name);
+        vga_write_planes(path);
+        return;
+    }
+    sys_join(path, sizeof path, brief_dir, at ? "port_end.ram" : "port_entry.ram");
+    rm_write(path);
+    if (at) {
+        sys_join(path, sizeof path, brief_dir, "port_end.vram");
+        vga_write_planes(path);
+    }
+}
+
 /* the battle played from the setup on (play.c), at most `passes` passes
  * (0: no limit but a million); a line about how far it came in `line`.
  * 0 if a dump could not be written. */
@@ -452,6 +478,10 @@ int main(int argc, char **argv)
             nopics = 1;
         else if (!strcmp(argv[i], "-saves") && i + 1 < argc)
             hl_save_dir = argv[++i];
+        else if (!strcmp(argv[i], "-briefdump") && i + 1 < argc) {
+            brief_dir = argv[++i];
+            briefing_hook = brief_dump;
+        }
         else if (!strcmp(argv[i], "-menulog") && i + 1 < argc)
             menu_log_to(argv[++i]);
         else if (!strcmp(argv[i], "-menuvram") && i + 2 < argc) {
@@ -507,6 +537,7 @@ int main(int argc, char **argv)
      * headless too when DK_KEYS or DK_SHOTS script it (plat_null.c) */
     if (map >= 0 && !play && !ram && (plat_has_window() || getenv("DK_KEYS") || getenv("DK_SHOTS"))) {
         play_live();
+        briefing_player = 1;
         play = 1;
     }
     if (!play && map < 0)

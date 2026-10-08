@@ -330,7 +330,19 @@ extern const char *menu_stopped;
 void menu_log_to(const char *path);
 void menu_shot(double at, const char *file);
 void inputs_release(int wait);
+void text_mid_uncut(int16_t y, Far text, Far font, uint16_t base, int16_t gap);
 int menu_run(Far place);
+
+/* briefing.c */
+/* the new units' screens before a battle (S274D:0003); 0, or 1 when a
+ * file could not be loaded.  briefing_hook is called at its entry (0), for
+ * each screen when it is lit and about to wait (1, n from 1 on) and at its
+ * return (2) */
+extern void (*briefing_hook)(int at, int n);
+/* set when a player is there (the window): the screens wait for a key as
+ * long as it takes */
+extern int briefing_player;
+uint16_t briefing(uint16_t map, Far place, Far work);
 
 /* play.c */
 /* the port's program plays a battle by itself: the human's keys from a

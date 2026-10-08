@@ -2931,3 +2931,65 @@ name S2BB9:000A file_save
 ; plane's mask). The map mask stays on the last plane. Translated
 ; (port/src/menu.c).
 name S2A55:0006 pic_part
+; briefing(map, far place, far work): the new units' screens before a
+; battle, called by game_loop at S066A:09AB with map_number, its free end
+; and its work buffer unless 200h is set in game_state (a saved game to
+; load); what it returns is not looked at there. It is one routine to
+; S274D:0B11, its DS is S3B5D (its files' names and its texts). Read
+; whole. Returns 1 for a map above 2Fh; a map above 17h is the map 18h
+; below. Keeps 898h bytes at place (for a tune), loads the file named at
+; S3B5D:0006 behind them (file_load_size; 1 without it) and moves place on
+; by its length: a word for each of the 24 maps, 0 (the routine returns 0:
+; maps 0 to 2, 7 to 9, 13, 18, 22 and 23 in the player's file) or where
+; the map's list begins in the file: a month (1 to 12, the names ten
+; bytes apart from S3B5D:009D), a year, then words up to a 0. Each word
+; is a screen:
+;   1 or 2, a side's (S274D:0142): lbm_show of the name at S3B5D:001F;
+;   lib_load of 0012 with the menu's record S37FF:001C (the font the two
+;   texts take from its list, S37FF:002A); text_mid at line 0Ch with the
+;   text at 0115 and at line AEh with the month and the year (sprintf with
+;   the format at 0167); lib_read of one entry of the file at 002B (the
+;   name at 016F for 1, 0176 for 2, its pointer to work, unpacked through
+;   place + 4E20h), drawn by pic_draw at 58h, 37h; S2F39:1058(5); the file
+;   at 0083 (1) or 0090 (2) loaded to the 898h bytes and handed to
+;   S2F39:0F87 with 5 and FFh (the two not read; presumably the music's
+;   end and a tune's start: in the run code at S30EF:1514 writes
+;   S30EF:0320 from the first screen on, not looked at further).
+;   Any other, where a new unit's record is in the file (S274D:0333): the
+;   kind (DI), the colours' base of its side (0 and 10h in the file),
+;   then lines of text, each ended by 0, up to an empty one. lbm_show of
+;   003A; the file at 0046 loaded to where palette_ptr points; the kind's
+;   name (unit_dat + 2Ch) by text_draw at 15h, 75h; lib_read of the entry
+;   named at 007A of the file at 005D, drawn at 19h, 16h with base 40h;
+;   the file at 004D loaded and its name of 8 bytes at eight times the
+;   kind's byte 1Ah read by lib_read from 005D again, drawn at 19h and
+;   16h more the kind's byte 19h; lib_load of 006D with lib_pal's record
+;   (S331F:0131, sorted) and its picture six times the kind drawn at 97h,
+;   65h with the base more 20h; the texts at 0153, 015B, 011F, 0123, 0129,
+;   0130, 0137, 013D and 0144 in colour 6Fh and beside them in 71h the
+;   kind's bytes: 0Ah and 8 less 1, 0Ch and 9 less 1, 0Bh and 9 less 1
+;   (sprintf, the formats at 017D, 0183, 0189), 2, 1, 41h (the text at
+;   018F when it is 0) and 3 (itoa); the lines 6 apart from 14h, 8Fh on.
+; What the bytes mean is only what the texts beside them say.
+; Then for every screen (S274D:0A75): page_flip, pal_level with
+; palette_ptr at the levels 0, 8, ... F8h and FFh, inputs_release(1, 1)
+; (S274D:0AC2: it waits for a key or a button), pal_level from F8h down
+; to 0; the next word. At the end S2F39:1058(5); returns 0 (1 when a file
+; could not be loaded, FFFFh for the one at 006D).
+; In the runs (port/tests/briefing_dumps.py): none on map 0, four screens
+; on map 4 and on map 28, five on map 12, each until a key came; the cut
+; (DATA:00E8) is off there. Translated (port/src/briefing.c) but for the
+; music; memory at its entry and return and each screen's video memory
+; compared (port/README.md).
+name S274D:0003 briefing
+; The compiler's library as briefing uses it, each read at its beginning
+; only and named by what the screens show with it: sprintf(far buffer,
+; far format, ...), strcpy(far to, far from), strncpy(far to, far from,
+; n; filled up with 0), itoa(value, far buffer, radix). ptr_post: the far
+; pointer at ES:BX moved on by DX:AX bytes (offset below 10h), DX:AX the
+; pointer as it was (read whole).
+name CODE:2B15 sprintf
+name CODE:2BAA strcpy
+name CODE:2C39 strncpy
+name CODE:2488 itoa
+name CODE:05B3 ptr_post

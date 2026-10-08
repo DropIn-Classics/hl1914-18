@@ -47,6 +47,8 @@ esac
 KEYS=${TAG%_nopics}
 NOPICS=
 [ "$KEYS" = "$TAG" ] || NOPICS=-nopics
+# the script's pokes (tests/keys/TAG.pokes, play_pokes.py), if it has any
+NOPICS="$NOPICS $(python3 tests/play_pokes.py "$KEYS" port)"
 sh build.sh
 if [ "$2" = at ]; then
     START=$(awk '$2 == "P" { print $1; exit }' "$D/clock.txt")
@@ -114,5 +116,5 @@ for p in $(cat "$D/passes.txt"); do
 done
 # shellcheck disable=SC2086
 build/history-line-headless -game "$GAME" -map $MAP -keys tests/keys/"$KEYS".keys $CLOCK $NOPICS \
-    -inputs "$IN" $DUMPS
+    -inputs "$IN" -ends "$D/${Q}_ends.txt" $DUMPS
 exec python3 tests/play_cmp.py "$TAG" $2

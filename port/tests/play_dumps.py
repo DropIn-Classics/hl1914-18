@@ -31,7 +31,19 @@ maps from 48 on are for two human sides) up to UNTIL emulated seconds
                the first input record's button and the key
     2532:0137  the fight's pictures have cleared the key
     02E6:000F  attacks_run
+    167A:2FEF, 30B2  inputs_release (the beginning of event_picture) has
+               cleared the key and both input records' buttons
+    066A:42FC  the battle's end (state 7) is about to show its texts
+    10AF:009F  show_message has its text's number (AX; DI 0 for the
+               first side, A0h for the second)
+    0CB6:0DE4, 0E30, 0E51  wait_press (S0CB6:0DA9, the battle's end) has
+               cleared the first input record's button and the key
     066A:45E8  the loop is left (the battle is over)
+    1A39:0001  event_picture (behind the loop: DI the picture and SI the
+               side at game_loop's first call, SI the picture at its
+               second, DI the argument at battle_score's)
+    063F:0009  battle_score; 063F:0277, 027E  it chooses picture CEh, CFh
+    066A:4728  what follows the loop is done
 
 and writes into build/play/TAG/ (ignored):
 
@@ -49,12 +61,21 @@ and writes into build/play/TAG/ (ignored):
                 numbers apart by spaces); existing dumps are kept.  When
                 the loop was left, one more with the number after the last
                 pass's: memory at S066A:45E8, which the port's program
-                has after its last pass
+                has after its last pass; and when S066A:4728 was reached
+                one with the number after that: memory there, behind
+                what follows the loop
     passes.txt  their numbers
+    ends.txt    a line for each time the battle's end showed its texts
+                and waited: pass, side, the first side's text and the
+                second's (hex), as the port's -ends writes them; and
+                "after KIND ARG" for each picture shown behind the loop
 
 With NOPICS=1 in the environment the fights are not shown as pictures
 (no_fight_pics, S37FF:0115, set at the first pass as loop_dumps.py does)
 and the files go to build/play/TAG_nopics/.
+
+A file port/tests/keys/TAG.pokes changes memory when the first pass
+begins (port/tests/play_pokes.py), for a state no short script reaches.
 
 No game data is kept in this file.
 """
@@ -89,6 +110,8 @@ else:
            '-key', '25', 'enter', '-mouse', '27', '150,48,1', '-mouse', '27.2', '150,48,0']
 pre += ['-keys', keypath, '-until', until]
 tag = os.path.splitext(keys)[0]
+pre += subprocess.run(['python3', os.path.join(HERE, 'play_pokes.py'), tag],
+                      capture_output=True, text=True).stdout.split()
 if os.environ.get('NOPICS'):
     # the fights without pictures: no_fight_pics is set when the first pass
     # begins (a poke, not the game's own way of setting it)
@@ -100,9 +123,12 @@ os.makedirs(out, exist_ok=True)
 R8 = ('0CB6:0799', '0CB6:08DA', '0CB6:0AF5', '0CB6:0C7C')
 R5 = ('0CB6:084D', '0CB6:09C5', '0CB6:0BDA')
 WAITS = ('0CB6:0075', '0CB6:00C1', '0CB6:00E2')
+PRESS = ('0CB6:0DE4', '0CB6:0E30', '0CB6:0E51')
+RELEASE = ('167A:2FEF', '167A:30B2')
 LOGS = ('27FE:008C', '066A:0EE9', '066A:0FC3', '066A:1003', '0CB6:05F1', '0CB6:0658', '0CB6:0750',
         '066A:10D6', '2C95:0024', '2C95:004A', '02E6:000F', '27FE:04F4', '2C9A:0008',
-        '2532:0137', '066A:45E8') + R8 + R5 + WAITS
+        '2532:0137', '066A:45E8', '066A:42FC', '10AF:009F',
+        '1A39:0001', '063F:0009', '063F:0277', '063F:027E', '066A:4728') + R8 + R5 + WAITS + PRESS + RELEASE
 
 
 def run(args):
@@ -123,7 +149,12 @@ rows = []           # [pass, side, key, word or None, byte 5, byte 8]
 row = None
 passes = 0
 rounds = []         # passes attacks_run ran in
+ends = []           # [pass, side, the two sides' texts] of each state 7
+end = None
 left = False        # the loop was left
+after = False       # S066A:4728 was reached
+scored = False      # battle_score was called
+pic = None          # the picture battle_score chose
 for line in open(log):
     m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=(\S+) hit=\d+ regs (.*)', line)
     if not m:
@@ -136,6 +167,36 @@ for line in open(log):
         passes += 1
     elif at == '066A:45E8':
         left = True
+        clock.append('%s L' % t)
+    elif at == '066A:4728':
+        after = True
+        clock.append('%s M' % t)
+    elif at == '063F:0009':
+        scored = True
+        clock.append('%s B' % t)
+    elif at in ('063F:0277', '063F:027E'):
+        pic = 0xCE if at == '063F:0277' else 0xCF
+    elif at == '1A39:0001':
+        if left and not after:
+            if pic is not None:
+                ends.append(['after', '%X' % pic, '%X' % reg('DI')])
+                pic = None
+            elif scored:
+                ends.append(['after', '%X' % reg('SI'), '0'])
+            else:
+                ends.append(['after', '%X' % reg('DI'), '%X' % reg('SI')])
+    elif at == '066A:42FC':
+        end = [passes, row[1], None, None]
+        ends.append(end)
+    elif at == '10AF:009F':
+        if end is not None:
+            end[3 if reg('DI') else 2] = reg('AX')
+            if None not in end:
+                end = None
+    elif at in RELEASE:
+        clock.append('%s Y' % t)
+    elif at in PRESS:
+        clock.append('%s E' % t)
     elif at == '2C95:0024':
         clock.append('%s S %X' % (t, reg('DX') << 16 | reg('AX')))
     elif at == '2C95:004A':
@@ -178,6 +239,13 @@ with open(os.path.join(out, 'inputs.txt'), 'w') as f:
     for p, s, k, w, r5, r8 in rows:
         f.write('%d %d %X %s\n' % (p, s, k, '-' if w is None else '%X %d %d' % (w, r5, r8)))
 
+with open(os.path.join(out, 'ends.txt'), 'w') as f:
+    for e in ends:
+        if e[0] == 'after':
+            f.write(' '.join(e) + '\n')
+        else:
+            f.write('%d %d %s %s\n' % (e[0], e[1], *('-' if x is None else '%X' % x for x in e[2:])))
+
 extra = [int(x) for x in os.environ.get('PASSES', '').split()]
 chosen = sorted(set([1, 50, 200, 400] + rounds + [p + 1 for p in rounds] + [passes - 1] + extra))
 chosen = [p for p in chosen if 1 <= p < passes + left]
@@ -193,6 +261,8 @@ with ThreadPoolExecutor(8) as pool:
     list(pool.map(dump, chosen))
 if left and not os.path.exists(os.path.join(out, 'p%04d.ram' % (passes + 1))):
     run(['-break', 'S066A:45E8', '-ram', os.path.join(out, 'p%04d.ram' % (passes + 1))])
+if after and not os.path.exists(os.path.join(out, 'p%04d.ram' % (passes + 2))):
+    run(['-break', 'S066A:4728', '-ram', os.path.join(out, 'p%04d.ram' % (passes + 2))])
 have = sorted(int(f[1:5]) for f in os.listdir(out) if re.match(r'p\d{4}\.ram$', f))
 with open(os.path.join(out, 'passes.txt'), 'w') as f:
     f.write(' '.join(str(p) for p in have) + '\n')

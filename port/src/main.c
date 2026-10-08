@@ -4,6 +4,7 @@
  *     history-line [-game DIR | -gog FILE|FOLDER|SETUP.exe] [-map N] [-ram FILE]
  *                  [-keys FILE] [-passes N] [-until T] [-start T] [-seed N]
  *                  [-clock FILE] [-seeds FILE] [-dump N FILE]... [-inputs FILE]
+ *                  [-ends FILE] [-poke ADDR HEX]...
  *
  * DIR is the game's unpacked files: -game, else $HISTORY_LINE_GAME, else the first
  * folder `game` holding HL14-18.EXE beside the program, in the current
@@ -43,7 +44,10 @@
  * instead of the port's own clock; -seeds keeps the port's own clock and
  * takes from such a log only what the fights' pictures did to the random
  * numbers; -until ends the play at T seconds of the own clock; -dump writes the memory as -ram does at
- * the beginning of pass N, -inputs what each side's part read.  All of
+ * the beginning of pass N, -inputs what each side's part read, -ends the
+ * texts a battle's end showed each time it waited for a press, -poke
+ * writes the bytes HEX at the linear address ADDR (hex) of the memory
+ * image before the first pass (port/tests/play_pokes.py).  All of
  * them are aids for this work, not for players.
  */
 #include <stdio.h>
@@ -247,6 +251,8 @@ static uint32_t bios_now(void)
 static struct { unsigned long pass; const char *file; } dumps[DUMPS];
 static int dumps_n;
 static int nopics;      /* -nopics: the fights are not shown as pictures */
+static struct { unsigned long at; const char *hex; } pokes[16];
+static int pokes_n;
 
 /* the battle played from the setup on (play.c), at most `passes` passes
  * (0: no limit but a million); a line about how far it came in `line`.
@@ -261,6 +267,14 @@ static int play_game(unsigned long passes, double start, double until, int clock
     play_begin(start);
     if (nopics)
         SETB(no_fight_pics, 0, 1);
+    for (i = 0; i < pokes_n; i++) {
+        unsigned long a = pokes[i].at;
+        const char *h = pokes[i].hex;
+        unsigned v;
+
+        for (; h[0] && h[1] && sscanf(h, "%2x", &v) == 1; h += 2, a++)
+            fwb((uint16_t)(a >> 4), (uint16_t)(a & 15), (uint8_t)v);
+    }
     for (;;) {
         play_sync();
         for (i = 0; i < dumps_n; i++)
@@ -269,7 +283,14 @@ static int play_game(unsigned long passes, double start, double until, int clock
         if (play_passes >= passes || (until > 0 && play_now() >= until))
             break;
         if (!(NW(game_state, 0) & 2)) {
-            why = "the battle is over";
+            /* what follows the loop; a dump of the pass after the one
+             * after the last is the memory then (S066A:4728) */
+            uint16_t r = play_after();
+
+            for (i = 0; i < dumps_n; i++)
+                if (dumps[i].pass == play_passes + 2 && rm_write(dumps[i].file) != 0)
+                    ok = 0;
+            why = r ? "the battle is over, and it was the last (7Bh)" : "the battle is over";
             break;
         }
         why = play_pass();
@@ -319,15 +340,21 @@ int main(int argc, char **argv)
             play_inputs(argv[++i]);
         else if (!strcmp(argv[i], "-rounds") && i + 1 < argc)
             play_rounds(argv[++i]);
+        else if (!strcmp(argv[i], "-ends") && i + 1 < argc)
+            play_ends(argv[++i]);
         else if (!strcmp(argv[i], "-nopics"))
             nopics = 1;
+        else if (!strcmp(argv[i], "-poke") && i + 2 < argc && pokes_n < 16) {
+            pokes[pokes_n].at = strtoul(argv[++i], NULL, 16);
+            pokes[pokes_n++].hex = argv[++i];
+        }
         else if (!strcmp(argv[i], "-dump") && i + 2 < argc && dumps_n < DUMPS) {
             dumps[dumps_n].pass = strtoul(argv[++i], NULL, 0);
             dumps[dumps_n++].file = argv[++i];
         } else {
             fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
-                            "       [-nopics] [-rounds FILE] [-inputs FILE] [-dump N FILE]...\n");
+                            "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-poke ADDR HEX]... [-dump N FILE]...\n");
             return 2;
         }
     }

@@ -2869,18 +2869,145 @@ emulation error (2026-10-02).
       clock the same at every pass compared, the last pass and the
       memory at the loop's exit included (`play_dumps.py` now logs
       `S066A:45E8` and dumps there as the pass after the last, which
-      the port's `-dump` writes after its last pass). Not the same as
-      the original and not changed here (loop.c is being worked on for
-      the drawing): the port's `state_end` shows text 42h to both sides
-      whatever word 22h holds, where the note on state 7 above says 3Ch
-      and 3Dh for 0Fh (the screen showed two different texts; the
-      numbers were not read again), and it waits for no press. Texts
-      are not in the memory compared. On its own clock `m54_end` is the
-      same to round 3 and then parts (a step's sampling).
+      the port's `-dump` writes after its last pass). On its own clock
+      `m54_end` is the same to round 3 and then parts (a step's
+      sampling).
+    - The end's texts and its wait (2026-10-08, Mac, later; state 7
+      read again, `S066A:4198` to `4333`, and `S0CB6:0DA9`, now
+      `wait_press`). The numbers of the note on state 7 above are right:
+      the side whose view has 0Fh gets text 3Ch and the other 3Dh, 11h
+      gives 41h and the other 42h, anything else 42h for both; the
+      first view is tested first. Both texts are shown by every part
+      that finds its view in state 7 (so twice, the views being both in
+      it), then `page_flip`, `page_copy` and `wait_press`: while the
+      first side's button is held or the key's word is 1 both are
+      cleared and three frames waited, then both cleared again and
+      again every three frames until one comes. Only the first side's
+      button and the keyboard end it, not the second side's button as
+      such (on the keyboard that is a key; with a joystick it would not
+      be one; not tried). The port's `state_end` does the same now
+      (`loop_end_texts`, `LOOP_END`; `play.c` waits on its own clock
+      and takes the clearings from the original's log as `E` lines,
+      `S0CB6:0DE4`, `0E30`, `0E51`). `play_dumps.py` logs the texts
+      of each state 7 (`S066A:42FC`, then `show_message`'s number at
+      `S10AF:009F`) into `ends.txt`, the port's `-ends` writes the
+      same, `play_cmp.py` compares: in `m54_end` 3Dh for the first
+      side and 3Ch for the second, in both parts of pass 3853, the same
+      in the port; 214 clearings in the two waits. Not verified: the
+      wait on the port's own clock (no script reaches a battle's end
+      there), the texts 41h and 42h in a run, the texts as pixels.
+    - What follows the loop (2026-10-08, Mac; `S066A:45E8` to `4728`
+      and `S063F:0009`, now `battle_score`, with `S167A:3610`,
+      `scores_load`, read; `m54_end` run on to 350 s). All of the
+      program is `game_loop`: the menu is its call of `S167A:0005` at
+      `S066A:0349`, and behind the loop it goes back there unless the
+      last map was won. In order: with 40h in `game_state`
+      `S2F39:1058(4)` (presumably the music's end; not read),
+      `fade_out`, `S2AF3:000A`; with 10h (a human has won)
+      `event_picture` with D0h, or CDh when 2000h is set (a side left
+      without units), and the side whose view has 0Fh (the first, else
+      the second); `battle_score`; with one side the computer's and a
+      map below 30h `event_picture` with the map's number as its kind
+      (the number before `battle_score` moved it on when 6000h is set;
+      presumably the newspaper; not seen here); with 20h (the last map
+      won) the result 7Bh, 100h set and 1 and 2 cleared; 6030h
+      cleared; then with 1 still set back to `S066A:0349` (1 set
+      again, 10h cleared, `inputs_release`, the menu), else the
+      program's end with the result. `battle_score` does nothing in
+      round 0; it loads `CODES.DAT` again, keeps the map's number in
+      word 0Fh of `game_state` (the pass's least length, no longer
+      needed), adds 1F4h to `score` (`S331F:4D2F`, `defence_sum`'s
+      result of the last round's end) with 2000h, and with 10h moves
+      `map_number` on by byte 7 of the map's record and sets 20h when
+      the record's byte 8 has 1; without 10h the score becomes 0. A
+      score above 0 is compared with the lowest of the map's four best
+      (`scores_load`: the file of `file_name(2, 1, two digits, 0Bh)`,
+      zeros when it is not there, never above 7EF4h): when higher,
+      `rand_next`'s low three bits below 3 choose one of three
+      pictures of kind CEh (the first view has 0Fh or 11h) or CFh.
+      That the menu then asks for the name is the menu's doing (its
+      screen "PLEASE ENTER YOUR NAME !" at 350 s), not read.
+    - Seen in `m54_end`: the loop left at 305.07 s, picture D0h for
+      side 1 from 306.09 s to 321.63 s (men with raised arms before a
+      building), `battle_score` with the score 0AE3h, one `rand_next`,
+      picture CFh with 2 to 345.32 s, `S066A:4728`, `0349`, the menu
+      at 345.49 s. `map_number` was 36h and is 37h there (byte 7 of
+      the record is 1).
+    - The port: `battle_after` and `battle_score` (`port/src/battle.c`)
+      do this but for the pictures, the sound and the colours; each
+      picture is told to `battle_hook`. `play.c` calls it once the
+      battle is over (`play_after`; on the original's clock the log's
+      lines `B`, `battle_score`'s call, and `M`, `S066A:4728`, bound
+      it), `-ends` gets "after KIND ARGUMENT" a picture, and
+      `play_dumps.py` dumps the original's memory at `S066A:4728` as
+      the pass after the one after the last. `m54_end`: the pictures
+      D0h with 1 and CFh with 2 in both, the game's state and the
+      computer's (with `rand_words`) the same there. The files lie in
+      the sides' work buffers (`CODES.DAT` in the second side's, the
+      scores behind it, the first side's as `file_load`'s work), which
+      are compared. Not translated: the menu, so the port's play ends
+      here; the pictures and their time. Not seen in a run: CDh, CEh,
+      a map for one player's picture, the last map (7Bh), a score not
+      above the lowest, a file of scores that is there.
+    - The other ends, on map 57 (2026-10-08, Mac; `m57_site.keys`,
+      `m57_last.keys` with `m57_last.pokes`; found with probe runs of
+      the original as before). Map 57 is the smallest for two players:
+      16 by 16, four units a side (a kind 0Fh, a cavalry 15h, a bunker
+      0Dh of three, and a kind 00h or 2Eh), a headquarters and a
+      factory each (`sites_400` records 0 and 1). The second side's
+      cavalry (unit 6) walks north in its move halves, (6,11) to (5,7),
+      (5,5), then:
+      - `m57_site` (215 s, ten rounds' ends): on to (3,4) and onto the
+        first side's factory (2,3). `attacks_run` of pass 2102
+        (167.39 s) takes it: the unit in the first place of both rows
+        of record 0 with 4000h, the record's byte 18h 0 to 5 and 19h 8
+        to 9, no end of the battle, two more rounds played. The
+        script steps the second side's cursor off the factory before it
+        ends its next half (the button and left on the site would go
+        in).
+      - `m57_last` (270 s): the pokes leave the second side with that
+        cavalry alone and one figure of it (the counts of its units 4,
+        5 and 7 set to 0 and of 6 to 1 when the first pass begins;
+        `units_drop_empty` takes the three off at the first round's
+        end; `unit_total` and the side's count stay 8 and 4, since
+        nothing counted them down: the poke's doing). The cavalry goes
+        to (5,3) and attacks the first side's bunker on (5,2) in round
+        4: shown as pictures, the bunker loses nothing, the cavalry its
+        one figure (`unit_destroy` for the attacker, the bunker's byte 1
+        0 to 2, `unit_total` 8 to 7). `attacks_run` then finds the
+        second side without a unit: both views in state 7, word 22h 11h
+        for the first and 12h for the second, texts 41h and 42h shown
+        in both parts of pass 1935, 2000h and 10h in `game_state`. One
+        press of 0.15 s (195.00 s) ended both waits here, the loop was
+        left at 195.10 s: the button is still held when the second
+        `wait_press` has cleared it, and the timer's routine sets it
+        again (in `m54_end` the second wait took the second press; not
+        looked at what differed). Behind the loop picture CDh with
+        side 1 (the test there is for 0Fh in the first view, which has
+        11h, so the winner's side is not the one passed; the original's
+        doing), `battle_score` at 213.88 s: the score A0h and 1F4h,
+        294h, `map_number` 39h to 3Ah, one `rand_next`, picture CEh
+        with 1, `S066A:4728` at 237.53 s.
+      - The port on the original's clock: both the same at every pass
+        compared, the inputs included, the end's texts, the pictures
+        behind the loop and the memory at `S066A:4728` (port/README.md).
+        It needed one thing more of the clock: `inputs_release`, with
+        which `event_picture` begins, clears the key and both buttons
+        (the second F1 of the script's pair was still kept when the
+        factory's picture began; without the clearing the port's next
+        part read it). `play_dumps.py` logs that as `Y` lines
+        (`S167A:2FEF`, `30B2`). `inputs_release` is entered with its
+        first argument as the flag "one was set", so with 1 it clears
+        at least twice; this corrects the hints' comment only in how it
+        comes about.
+      - On the port's own clock both are the same to round 3 and then
+        part (the steps' sampling, as in the other scripts with cursor
+        steps); the battle's end is not reached there.
     Not reached with two human sides: a carrier, the keys F2 to F9, a
-    unit destroyed, a site other than a headquarters taken, a battle
-    ended by a side with no unit left, what follows the loop (the
-    picture CDh or D0h, the menu), moving out of a site, a repair or a
+    unit destroyed by play alone (the one destroyed had its count poked
+    to 1) or as a fight's target, a battle ended by fights alone, a
+    depot (`sites_100`) taken, a taken site with units inside, the
+    menu behind the loop, moving out of a site, a repair or a
     build refused, a map from
     24 to 47 (where `rec_of` exchanges the two records; those maps
     have a computer's side), the joysticks and the mouse, and what

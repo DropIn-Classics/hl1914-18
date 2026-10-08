@@ -178,6 +178,7 @@
     X(S02E6, pictures_load, 0x2B87) \
     X(S02E6, grounds_load, 0x323E) \
     X(S02E6, libs_start, 0x3484) \
+    X(S063F, battle_score, 0x0009) \
     X(S066A, game_loop, 0x000D) \
     X(S0AE0, attack_order, 0x0008) \
     X(S0AE0, attack_unmark, 0x02E3) \
@@ -203,6 +204,7 @@
     X(S0CB6, rand_range, 0x0713) \
     X(S0CB6, view_step, 0x0750) \
     X(S0CB6, view_reset, 0x0CDA) \
+    X(S0CB6, wait_press, 0x0DA9) \
     X(S0CB6, field_menu, 0x0EAA) \
     X(S0CB6, far_copy, 0x187F) \
     X(S0E56, view_tables, 0x000B) \
@@ -258,6 +260,7 @@
     X(S15C5, carrier_moved, 0x0804) \
     X(S1650, start_setup, 0x0003) \
     X(S167A, inputs_release, 0x2F83) \
+    X(S167A, scores_load, 0x3610) \
     X(S1A39, event_picture, 0x0001) \
     X(S1A39, site_picture, 0x1906) \
     X(S1C74, computer_turn, 0x000B) \
@@ -421,6 +424,7 @@
     X(S331F, depot_count, 0x4CAE) \
     X(S331F, round_count, 0x4CB5) \
     X(S331F, map_number, 0x4CBB) \
+    X(S331F, score, 0x4D2F) \
     X(S331F, sides, 0x4D33) \
     X(S331F, views, 0x4D92) \
     X(S331F, attack_pick, 0x4DA8) \

@@ -1512,6 +1512,32 @@ name S331F:3B5A field_bits
 ; game_state+8Bh. Presumably what a score is measured against (not
 ; checked).
 name S02E6:29D4 defence_sum
+; The battle's score, a dword: attacks_run keeps defence_sum's result here
+; at each round's end, the program's start sets it to 0. battle_score adds
+; to it or clears it.
+name S331F:4D2F score
+; battle_score(far work): called by game_loop behind its loop
+; (S066A:4668), after the picture of a victory. Nothing with round_count
+; 0. Loads CODES.DAT (file_name with S37FF:009E) to work + 2710h and
+; returns when that fails. Word 0Fh of game_state becomes the map's
+; number; with 2000h in game_state (a side left without units) the score
+; gets 1F4h more; with 10h (a human has won) map_number goes on by byte 7
+; of the map's ten-byte record and 20h is set in game_state when byte 8
+; of that record has 1 (game_loop then ends the program with 7Bh), without
+; 10h the score becomes 0. With a score above 0 scores_load reads the
+; map's four best to work + 2AF8h; when the score is above the lowest of
+; them (and of 7EF4h) rand_next's low three bits, if below 3, choose one
+; of three pictures of kind CEh (word 22h of the first view 0Fh or 11h)
+; or CFh for event_picture. Read; seen once (m54_end: the score 0AE3h,
+; picture CEh or CFh with 2; which of the two was not logged then).
+; Translated but for the picture (port/src/battle.c).
+name S063F:0009 battle_score
+; scores_load(far buf, far work, map, far name): four dwords 0 at buf,
+; the six bytes at name four times from buf + 10h on, then the file
+; file_name(2, 1, the map's number as two digits, 0Bh) loaded over them
+; with the word behind DATA:0096 0 meanwhile (presumably so that a file
+; that is not there is no error; not checked). Read.
+name S167A:3610 scores_load
 ; computer_reset(side): empties what the computer's player keeps for a
 ; side in S39B6 (its 0Ch-, 20h- and 49h-byte records and the two tables of
 ; 9 bytes a unit). Called in the setup for a side with 2 in word 0 of its
@@ -2526,6 +2552,17 @@ name S0CB6:0001 wait_frames
 ; script), and with 50h in attacks_run for a fight without pictures (not
 ; seen in a run).
 name S0CB6:0036 wait_input
+; wait_press(): waits for a press without a limit of time. As wait_input
+; it first clears the first side's button (byte 4 of the record behind
+; DATA:00A6) and the key's word 4 (behind DATA:00BE) and waits three
+; frames while the button is held or the word is 1, clears both once
+; more, and then clears and waits in steps of three frames until the
+; button or a key comes; neither is cleared after that. Returns 1 for the
+; key of entry 0 of the table of keys, else 0 (game_loop does not use
+; it). The second side's button is not looked at. Called by game_loop in
+; state 7 (S066A:4322, once in each side's part of the battle's last
+; pass; seen in m54_end) and by lib_order.
+name S0CB6:0DA9 wait_press
 ; start_setup(far pointer): called once at the program's start (from
 ; S066A:0294 on; when, against the menu, was not looked at). Sets the screen's record behind DATA:0092 to
 ; 320 by 200, makes two file names (file_name with 0Ah and with 5) and
@@ -2567,7 +2604,8 @@ name S28E0:002B fade_out
 ; byte 4 of both sides' input records (DATA:00A6, 00B6) and the words 30h
 ; and 34h behind DATA:00C2 (presumably the mouse's buttons) and waits
 ; wait_frames(5), again as long as one of them was set since: at least
-; twice. With `wait` not 0 it then waits until one is set (that part was
+; twice (it enters its loop with its first argument as the flag that one
+; was set; the clearings are done at S167A:2FEF and 30B2). With `wait` not 0 it then waits until one is set (that part was
 ; not read to its end). Called with 0 at the beginning of event_picture.
 name S167A:2F83 inputs_release
 ; event_picture(far, far, kind, ...): the picture shown for an event.

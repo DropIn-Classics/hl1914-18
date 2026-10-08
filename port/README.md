@@ -373,14 +373,78 @@ anything the game needs before the first release.
     `S066A:45E8` against the port's after its last pass, when it says
     "the battle is over"): the same at every one. On the own clock
     (`rounds`) the same to round 3.
-  Not the original's at a battle's end, seen here and not changed
-  (`loop.c`): the texts `state_end` shows (42h for both sides; the
-  original showed the loser and the winner different ones) and the
-  press each side's part waits for.
-  Not reached: a unit destroyed, a site other than a headquarters
-  taken, an end by a side left without units, what follows the loop,
-  moving out, a carrier, the function keys, the other maps for two
-  players.
+  The battle's end (2026-10-08, macOS, later): `state_end` shows the
+  texts the original does (3Ch to the side that took the headquarters
+  and 3Dh to the other, 41h and 42h when a side has no unit left, else
+  42h to both), flips and copies the page and waits for a press in
+  each side's part (`wait_press`, `S0CB6:0DA9`: the first side's button
+  or a key). `play_dumps.py` logs the texts of each end (`ends.txt`)
+  and the wait's clearings of the button and the key (`E` lines of the
+  clock, `L` where the loop is left), the port's `-ends FILE` writes
+  its texts, `play_cmp.py` compares them. `m54_end` again, on the
+  original's clock: the end shown twice in pass 3853 with 3Dh and 3Ch
+  by both, 3,853 passes, 7,706 parts read the same, 33 passes compared
+  with the loop's exit, the same at every one, no place where the
+  clock's file did not fit. `m48_build` and `m8_site` (clocks without
+  the new lines) and `loop_test.sh` say the same as before. Not
+  checked: the wait on the port's own clock (it stops the play when
+  the key script has no key left), the texts 41h and 42h, the pixels.
+  What follows the loop (2026-10-08, macOS): `battle_after` and
+  `battle_score` in `src/battle.c` (`S066A:45E8` to `4728`,
+  `S063F:0009`): the map's number kept, the score, the next map, the
+  last map's mark and result 7Bh, the map's four best scores loaded and
+  the random number that chooses a picture when the score is among
+  them; the pictures themselves, the sound and the colours are left
+  out (`battle_hook` is told each picture). The program's play calls it
+  when the battle is over and says so; the menu that follows in the
+  original is not translated. `play_dumps.py` logs the original's
+  pictures behind the loop into `ends.txt` and dumps its memory at
+  `S066A:4728` (the pass after the one after the last; a run has to
+  last long enough: `m54_end.keys 350`), the port's `-dump` of that
+  number is its memory after `battle_after`. `m54_end` on the
+  original's clock: pictures D0h with 1 and CFh with 2 by both, the
+  game's state and the computer's the same at all 34 passes compared,
+  that one included (elsewhere 123,149 bytes there: the pictures).
+  Not checked: any other way through it (a side left without units, a
+  computer's side, the last map, a score below the map's best).
+  The other ends (2026-10-08, macOS; docs/HANDOFF.md, "The other
+  ends, on map 57"). Two scripts on map 57 (16 by 16, four units a
+  side), compared on the original's clock from the port's own setup:
+  - `m57_site` (215 s; `make_two.py` with
+    1E45 2E46.5 2f50 2f50.8 2L54 2u55 2m57 2L59 2u60 2u61 2a63 2a65
+    2E68 1E70 2f74 2f74.8 1E79 2E80.5 2f84 2f84.8 2m90 2u92 2u93 2a95
+    2a97 2E99 1E101 2f105 2f105.8 1E110 2E111.5 2f115 2f115.8 2m121
+    2L123 2L124 2a126 2a128 2E130 1E132 2f136 2f136.8 1E141 2E142.5
+    2f146 2f146.8 2m152 2L154 2a156 2a158 2E160 1E162 2f166 2f166.8
+    2R182 1E185 2E186.5 2f190 2f190.8 1E200 2E201.5 2f205 2f205.8
+    ): the second side's cavalry walks to the first side's factory and
+    takes it in pass 2102, two more rounds follow. 2,660 passes, 5,320
+    parts read the same, 25 passes compared (ten rounds' ends and the
+    passes after them): the same at every one.
+  - `m57_last` (270 s; the same to 2f115.8, then 2m121 2u123 2a125
+    2a127 2E129 1E131 2f135 2f135.8 2m140 2a143 2a145 1E148 2E150 2f154
+    2f154.8 1a195 1a200; with `tests/keys/m57_last.pokes`, which
+    leaves the second side one unit of one figure when the first pass
+    begins: `tests/play_pokes.py` gives the runner and the port's new
+    `-poke ADDR HEX` the same bytes): that unit attacks a bunker and is
+    destroyed, the second side has no unit left, the battle ends.
+    1,935 passes, 3,870 parts read the same; the end shown in both
+    parts of pass 1935 with texts 41h and 42h by both programs; behind
+    the loop pictures CDh with 1 and CEh with 1 by both; 20 passes
+    compared (seven rounds' ends and the passes after them, the loop's
+    exit, `S066A:4728`): the same at every one.
+  The clock's file has `Y` lines now, `inputs_release`'s clearing of
+  the key and both buttons when a picture of an event begins
+  (`m57_site` read a kept F1 in the pass after the factory's picture
+  without it); `m54_end` logged again with them is as before (34 passes
+  compared). `play_test.sh TAG rounds` (the port's own clock): both
+  scripts the same to round 3, then the steps are sampled otherwise.
+  After the merge of origin/master (the fight's drawing) `m48_build`,
+  `m8_site` and `loop_test.sh` say the same as before.
+  Not reached: a unit destroyed without a poke or as a target, a
+  battle ended by fights alone, a depot taken, a site taken with units
+  inside, moving out, a carrier, the function keys, the other maps for
+  two players, the menu behind the loop.
   Not checked: a battle played to its end; maps other than 0 and 8; a
   computer first side; a thinking loop ended
   by a key; a run with the fight pictures switched off; `move_test`'s,

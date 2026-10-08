@@ -1,0 +1,9 @@
+# m57_last: the second side is left with one unit of one figure when the
+# first pass begins (unit_count is byte 2 of a unit's 1Ah-byte record;
+# units 4, 5 and 7 get 0 and are dropped at the first round's end, unit
+# 6, its cavalry, gets 1).  Not the game's own doing: a poke, so that one
+# fight ends the battle.  TARGET HEX a line, as the runner's -poke.
+unit_count+68 00
+unit_count+82 00
+unit_count+B6 00
+unit_count+9C 01

@@ -159,6 +159,10 @@ extern GameMem game_mem;
 int start_setup(void);
 int menu_result(uint16_t map);
 int battle_setup(void);
+/* called by battle_after for each picture the original shows there
+ * (event_picture's kind and its last argument) */
+extern void (*battle_hook)(uint16_t picture, uint16_t arg);
+uint16_t battle_after(void);
 int battle_begin(void);
 void view_to_field(uint16_t side, uint16_t field);
 void view_cursor(uint16_t side);
@@ -229,9 +233,12 @@ extern int loop_replay;
  * by side_input; view_step is about to be called; computer_turn has
  * returned in the loop that runs while the computer thinks (SideIn's
  * `turns` set to the calls so far ends it); attacks_run is about to be
- * called; it has returned (SideIn's `seeded` and `seed` are read next) */
-enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT };
+ * called; it has returned (SideIn's `seeded` and `seed` are read next);
+ * the battle's end has shown its texts (loop_end_texts, the first side's
+ * and the second's) and waits for a press (wait_press) */
+enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT, LOOP_END };
 extern void (*loop_hook)(int at, uint16_t side);
+extern uint16_t loop_end_texts[2];
 /* where orders_hook is called in attacks_run, for the time the original
  * spends there showing what the port does not draw: a fight is about to
  * be worked out (n: its pictures are on); a turn of the blasts' loop of a
@@ -257,9 +264,11 @@ const char *play_seeds(const char *path);
 double play_now(void);
 void play_inputs(const char *path);
 void play_rounds(const char *path);
+void play_ends(const char *path);
 void play_bios(uint32_t ticks);
 void play_begin(double start);
 void play_sync(void);
+uint16_t play_after(void);
 const char *play_pass(void);
 extern unsigned long play_passes, play_misses;
 

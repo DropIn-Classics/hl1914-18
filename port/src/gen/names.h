@@ -240,6 +240,7 @@
     X(S1273, load_game, 0x0399) \
     X(S1273, save_blocks, 0x0662) \
     X(S131D, big_unit, 0x0C50) \
+    X(S131D, view_dim, 0x13A6) \
     X(S131D, build_list, 0x14D4) \
     X(S131D, row_load, 0x15FB) \
     X(S131D, side_income, 0x1685) \
@@ -247,6 +248,7 @@
     X(S131D, fight_panel, 0x178D) \
     X(S131D, panel_whole, 0x1F0D) \
     X(S131D, panel_sound, 0x1FF0) \
+    X(S1571, game_text_at, 0x00BE) \
     X(S1571, file_name, 0x02CD) \
     X(S15C5, unit_add, 0x0005) \
     X(S15C5, unit_find, 0x01A7) \
@@ -376,6 +378,7 @@
     X(S2B76, screen_keep, 0x0004) \
     X(S2B81, file_load_size, 0x0004) \
     X(S2B85, file_close, 0x0002) \
+    X(S2B87, file_read, 0x000C) \
     X(S2B8F, file_size, 0x000C) \
     X(S2BB9, file_save, 0x000A) \
     X(S2BC5, file_write, 0x0008) \

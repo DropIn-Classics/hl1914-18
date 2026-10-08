@@ -3202,8 +3202,8 @@ emulation error (2026-10-02).
     country's with the flags, the best scores, the code while it is
     typed); a winner's name and the file of scores written (`file_save`;
     translated, run in no walk: no script on the port's own clock wins
-    a battle yet), a saved game's number (translated, not run; loading
-    is not translated, the program stops there), EXIT TO DOS
+    a battle yet), a saved game's number (translated, not run then; since
+    run and loading translated, see "Saving and loading" below), EXIT TO DOS
     (translated, not run), the program's end behind it (`S066A:4739`),
     the menu without a mouse (not translated), a click or a moved mouse
     (the port has no mouse of the player's yet), the country left by
@@ -3214,6 +3214,45 @@ emulation error (2026-10-02).
     (`S274D:0003`, left out before: the port's battle begins at once),
     and the times: the port's menu takes the same passes but no time for
     drawing or loading, so a key comes up to 0.54 s apart in the two.
+- Saving and loading, read whole and translated (2026-10-08, Mac;
+  `save_game`, `load_game`, `save_blocks` in src/HL.hints with what each
+  does; `port/src/save.c`). Learned:
+  - `save_game` asks for the number in a loop of its own that only reads
+    byte 0 of the key's record (scancodes 2 to 0Bh are 1 to 9 and 0; the
+    key of entry 0 leaves with text 5Ah and the view still dark), so the
+    timer's routine is all that runs meanwhile. The header is built in
+    the first side's work buffer (the far pointer at `sides` + 0Dh), and
+    `save_blocks` writes its list of 24 blocks over it there: after a
+    saving that buffer holds the list (C0h bytes).
+  - The seventh block (320h bytes) is the buffer `game_loop` hands to
+    `pictures_load` for the colours: the saved game holds the palette.
+    The list has `S331F:4C9E` (the map's three words, 6 bytes) between
+    the two views and `field_bits`; the list in the bullet "The saved
+    game's layout" above leaves it out, `tools/savfiles.py` has it.
+  - The two blocks of 1806h bytes are the maps with what lies behind
+    them in `game_loop`'s block: beyond `map_bytes` they hold what the
+    menu's files left there. So a saved game is only the same in two
+    programs that went through the same menu; the port started with
+    `-map` writes other bytes there (3,111 and 4,998 of them in the
+    first try) and no map's code in the header.
+  - `load_game` is called after the whole setup of the map the menu
+    stood at, reads the blocks over it, and `game_loop` then loads the
+    grounds and the pictures again. It clears the music's and effects'
+    bits (40h, 80h of `game_state`) when this machine has neither (10h,
+    20h of word 2 before the load). Its result is ignored: a number
+    without a file gives the menu's map from its beginning (the menu
+    looks for the file before it sets 200h, so that is not reached from
+    there).
+  - `S1571:0426`, called around the file's work, is empty.
+  - For the comparison the port's program had to go through its menu and
+    then play on the original's clock; the timer's routine fills the
+    sides' records on every fourth call, so which of the four it is at
+    (`DATA:0B19`) must be the original's at the battle's first pass
+    (`play_begin` sets it from the log's calls; the menu on the port's
+    own clock leaves another, seen as a button read three passes early).
+  - Compared (`sh port/tests/save_test.sh`, port/README.md "Checked"):
+    the file byte for byte, the passes around the saving and a loaded
+    battle through a round's end. Not compared or reached: listed there.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

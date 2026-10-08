@@ -320,10 +320,12 @@ static int play_game(unsigned long passes, double start, double until, int clock
  * (S066A:0390), the battle's setup and the battle (play_game), what
  * follows it, and the menu again; until the menu ends the program, the
  * key script has nothing left for it, `until` is reached or a battle
- * stops before its end.  A -menudump N FILE is the memory when the menu
+ * stops before its end.  With a clock's file (`clocked`) the battles are
+ * played on the original's clock, the menu still on the port's own.
+ * A -menudump N FILE is the memory when the menu
  * has returned the N-th time.  A line about how far it came in `line`;
  * 0 if something failed. */
-static int menu_game(unsigned long passes, double start, double until, char *line, size_t n)
+static int menu_game(unsigned long passes, double start, double until, int clocked, char *line, size_t n)
 {
     uint16_t data = (uint16_t)(HL_DATA + HL_BASE), opt = (uint16_t)(HL_S37FF + HL_BASE);
     int menus = 0, battles = 0, i, r, ok = 1;
@@ -361,10 +363,6 @@ static int menu_game(unsigned long passes, double start, double until, char *lin
             why = "the menu ended the program";
             break;
         }
-        if (NW(game_state, 0) & 0x200) {
-            why = "a saved game is to be loaded, which is not translated";
-            break;
-        }
         if (until > 0 && play_now() >= until) {
             why = "the time given is over";
             break;
@@ -378,7 +376,7 @@ static int menu_game(unsigned long passes, double start, double until, char *lin
         }
         battles++;
         fprintf(stderr, "Menu %d left at %.2f s for map %u.\n", menus, play_now(), NW(map_number, 0));
-        play_game(passes, -1, until, 0, sub, sizeof sub);
+        play_game(passes, -1, until, clocked, sub, sizeof sub);
         ok = ok && dumps_ok;
         if (NW(game_state, 0) & 2) {
             why = "the battle did not end";
@@ -491,7 +489,7 @@ int main(int argc, char **argv)
         map = 0;
     ok = start_game(game, map, seeded ? (uint32_t)seed : bios_now(), line, sizeof line);
     if (ok && play && map < 0)
-        ok = menu_game(passes, start, until, line, sizeof line);
+        ok = menu_game(passes, start, until, clock_file != NULL || seeds_file != NULL, line, sizeof line);
     else if (ok && play) {
         fprintf(stderr, "%s\n", line);
         ok = play_game(passes, start, until, clock_file != NULL || seeds_file != NULL, line, sizeof line);

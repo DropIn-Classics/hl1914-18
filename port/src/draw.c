@@ -610,7 +610,7 @@ void flag_draw(uint16_t x, uint16_t y, uint16_t c1, uint16_t c2, uint16_t c3, in
 
 /* S1571:0134: `value` in decimal at x, y in the colour the record of
  * DATA:0092 holds (its word 0, the last one filled) */
-static void num_draw(int16_t value, uint16_t x, uint16_t y)
+void num_draw(int16_t value, uint16_t x, uint16_t y)
 {
     uint8_t rev[12], txt[12];
     int n = 0, i;
@@ -953,4 +953,29 @@ int fight_panel(Far rec, uint16_t pictures)
         page_copy();
     }
     return 0;
+}
+
+/* S131D:13A6: the side's view made dark, field by field as view_draw
+ * places them: mark_blit adds 90h to each pixel of the colours 0 to 5Fh
+ * (save_game's, behind its texts) */
+void view_dim(uint16_t side)
+{
+    uint16_t x = side ? 0xA0 : 0, col, row;
+
+    for (col = 0; col < 9; col++, x = (uint16_t)(x + 0x10)) {
+        uint16_t y = col & 1 ? 0x0C : 0;
+
+        for (row = 0; row < 7; row++, y = (uint16_t)(y + 0x18))
+            mark_blit(x, y, 0, 0x5F, 0x90);
+    }
+}
+
+/* S1571:00BE: the text of number n (the table of word offsets S331F:17BA
+ * points to) at x, y in colours `base` on, a line 6 lower */
+void game_text_at(uint16_t x, uint16_t y, uint16_t n, uint8_t base)
+{
+    Far t = far_at(S_GAME, 0x17BA);
+
+    t.off = (uint16_t)(t.off + frw(t.seg, (uint16_t)(t.off + 2 * n)));
+    text_draw(x, y, 0, 6, base, t, NULL);
 }

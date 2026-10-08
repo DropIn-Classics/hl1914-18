@@ -74,6 +74,17 @@ With NOPICS=1 in the environment the fights are not shown as pictures
 (no_fight_pics, S37FF:0115, set at the first pass as loop_dumps.py does)
 and the files go to build/play/TAG_nopics/.
 
+With WALK=code or WALK=loadN in the environment the menu is walked by
+keys and not by the mouse: the map's code typed and START, or MISC, LOAD
+and the digit N (a saved game, which STATE's folder must hold).  keys.txt
+is then the walk's keys and the script's as one key script for the port's
+program, which begins at its menu, and start.txt when the menu's first
+pass began (its -start); S167A:130B, a pass of the menu's loop, is logged
+for it.
+
+With STATE=DIR in the environment the files the original writes in the
+run (a saved game) go to DIR instead of the runner's build/run/state.
+
 A file port/tests/keys/TAG.pokes changes memory when the first pass
 begins (port/tests/play_pokes.py), for a state no short script reaches.
 
@@ -108,7 +119,29 @@ else:
     pre = ['-mouse', '21', '150,73,1', '-mouse', '21.2', '150,73,0', '-key', '22', 'r',
            '-key', '22.5', 'a', '-key', '23', 't', '-key', '23.5', 'i', '-key', '24', 'o',
            '-key', '25', 'enter', '-mouse', '27', '150,48,1', '-mouse', '27.2', '150,48,0']
+walk = os.environ.get('WALK')
+menu_keys = None
+if walk:
+    # the menu walked by keys instead (the port's menu has no mouse of the
+    # player's), as port/tests/menu_dumps.py does: `code` the CODE row,
+    # the map's code typed, START (which takes the second press); `loadN`
+    # MISC, LOAD and the digit N
+    if walk == 'code':
+        menu_keys = [(10, 'down'), (11, 'space')]
+        menu_keys += [(12 + i * 0.5, chr(b - 0x11 + ord('a'))) for i, b in enumerate(rec)]
+        menu_keys += [(15, 'enter'), (16, 'up'), (17, 'space'), (19, 'space')]
+    else:
+        menu_keys = [(10, 'down'), (11, 'down'), (12, 'down'), (13, 'down'), (14, 'space'),
+                     (16, 'down'), (17, 'space'), (19, walk[4:])]
+    pre = ['-key', '3', 'enter', '-key', '6', 'enter']
+    for t, k in menu_keys:
+        pre += ['-key', str(t), k]
 pre += ['-keys', keypath, '-until', until]
+if os.environ.get('STATE'):
+    # the folder the original's files written in the run go to (a saved
+    # game), instead of the runner's build/run/state
+    os.makedirs(os.environ['STATE'], exist_ok=True)
+    pre += ['-state', os.path.abspath(os.environ['STATE'])]
 tag = os.path.splitext(keys)[0]
 pre += subprocess.run(['python3', os.path.join(HERE, 'play_pokes.py'), tag],
                       capture_output=True, text=True).stdout.split()
@@ -119,6 +152,11 @@ if os.environ.get('NOPICS'):
     tag += '_nopics'
 out = os.path.join(ROOT, 'build', 'play', tag)
 os.makedirs(out, exist_ok=True)
+if menu_keys:
+    with open(os.path.join(out, 'keys.txt'), 'w') as f:
+        for t, k in menu_keys:
+            f.write('%s %s\n' % (t, k))
+        f.write(open(keypath).read())
 
 R8 = ('0CB6:0799', '0CB6:08DA', '0CB6:0AF5', '0CB6:0C7C')
 R5 = ('0CB6:084D', '0CB6:09C5', '0CB6:0BDA')
@@ -129,6 +167,8 @@ LOGS = ('27FE:008C', '066A:0EE9', '066A:0FC3', '066A:1003', '0CB6:05F1', '0CB6:0
         '066A:10D6', '2C95:0024', '2C95:004A', '02E6:000F', '27FE:04F4', '2C9A:0008',
         '2532:0137', '066A:45E8', '066A:42FC', '10AF:009F',
         '1A39:0001', '063F:0009', '063F:0277', '063F:027E', '066A:4728') + R8 + R5 + WAITS + PRESS + RELEASE
+if menu_keys:
+    LOGS += ('167A:130B',)      # a pass of the menu's loop
 
 
 def run(args):
@@ -143,6 +183,13 @@ if not os.path.exists(log):
     for l in LOGS:
         a += ['-log', 'S' + l]
     open(log, 'w').write(run(a))
+
+if menu_keys:
+    for line in open(log):
+        m = re.match(r'log HL\.EXE\+167A:130B t=(\S+)', line)
+        if m:
+            open(os.path.join(out, 'start.txt'), 'w').write(m.group(1) + '\n')
+            break
 
 clock = []
 rows = []           # [pass, side, key, word or None, byte 5, byte 8]

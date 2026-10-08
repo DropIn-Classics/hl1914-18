@@ -708,8 +708,36 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
             fww(S_COMP, A_computer_phase, (uint16_t)(frw(S_COMP, A_computer_phase) | 4));
             fww(S_COMP, (uint16_t)(A_computer_phase + 0x0C), (uint16_t)(frw(S_COMP, (uint16_t)(A_computer_phase + 0x0C)) | 4));
             told = 0;
-        } else if (key && key == key_entry(0x1A))
-            missing = "saving (S066A:3FBD)";
+        } else if (key && key == key_entry(0x1A)) {
+            /* S066A:3FBD: the first side's view drawn, the battle saved
+             * (save_game, the 320h bytes of the colours with it), the
+             * text it returns shown for the first side; 200h in word 4
+             * keeps the key from being taken again for four passes; the view
+             * drawn once more, the pages flipped and the key cleared */
+            uint16_t text;
+            Far rec;
+
+            view_draw(NW(views, 2), 0);
+            marks_draw(NW(views, 2), 0);
+            text = save_game(game_mem.save_buf);
+            if (text == 0xFFFF)
+                missing = "the saved game's number: no key came";
+            else {
+                show_message(text, 0);
+                timer_set(1, 0x19, 0);
+                gs_or(4, 0x200);
+                timer_set(6, 4, 0);
+                view_draw(NW(views, 2), 0);
+                marks_draw(NW(views, 2), 0);
+                page_flip();
+                page_copy();
+                key = 0;
+                rec = far_at(S_DATA, 0x00BE);
+                pwb(rec, 2, 0);
+                pwb(rec, 0, 0);
+                pww(rec, 4, 0);
+            }
+        }
         else if (!told) {
             show_message(0x52, 0);
             show_message(0x3F, 1);

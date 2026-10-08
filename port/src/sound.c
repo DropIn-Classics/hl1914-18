@@ -6,7 +6,12 @@
  *
  * No sound comes out.  What the original sends to the AdLib (ports 388h
  * and 389h) goes to snd_opl when it is set, a register and its value in
- * the original's order, without the waits between them.  The Sound
+ * the original's order, without the waits between them: the probe's and
+ * the silencing at the start and the end (adl_detect, adl_remove), the
+ * voices' registers from the tune's and the effects' events at each tick
+ * of the timer, and what the routines the game calls write themselves.
+ * port/tests/opl_test.sh compares that stream with the original's, write
+ * for write.  The Sound
  * Blaster's part is the driver's memory only: dig_mix makes the bytes the
  * card would play in the driver's two buffers, moves the digital channels
  * on, begins one again that is played more than once and takes one off at
@@ -20,9 +25,10 @@
  * The music: music_start, music_fade, music_volume and the fade's timer
  * routine fade_tick, with the tune's events read by the timer's routine.
  * The timer itself (S27FE: pit_irq and its tables of routines) is not
- * translated: snd_irq is one interrupt of it as far as the sound goes,
- * the fade's routine when its period has run out and then adl_tick, and
- * snd_clock calls it at the period the tune set.  music_fade's wait for
+ * translated over the memory: snd_irq is one interrupt of it as far as
+ * the sound goes, with pit_irq's count for the sound's two routines kept
+ * here (the fade's routine when its count has run out, then adl_tick),
+ * and snd_clock calls it at the period the tune set.  music_fade's wait for
  * the fade's end runs those interrupts itself and tells snd_waited how
  * long that was.
  *
@@ -100,9 +106,48 @@ static uint16_t tick_period(void)
  * clock goes on by it); NULL: nobody counts it */
 void (*snd_waited)(double s);
 
-/* what is left of the fade's period, in the timer's counts (pit_add's
- * and pit_irq's count for the routine) */
-static int32_t fade_left;
+/* a test's: called where it matters on which side of an instruction the
+ * timer's interrupt came in the original: 2 before fade_start's pit_add
+ * has given the fade's routine to the timer (the instruction that makes
+ * it the table's last, S27FE:07DF; an interrupt up to there does not
+ * count for the fade), 3 before music_start copies the count of ticks */
+void (*snd_at)(int place);
+
+/* music_fade's wait when something else than this file makes the timer's
+ * interrupts (an audio clock; the test's replay of the original's): it
+ * comes back when one more has been run, or with 0 when it has none, and
+ * music_fade then runs them itself as without it */
+int (*snd_wait)(void);
+
+/* The timer's counts for the sound's two routines, as pit_irq keeps them
+ * for each routine it has (S27FE:06D2; the periods at DATA:0D1F, what is
+ * left at DATA:0D5F): at each interrupt it takes off what is left the
+ * period the timer was set to one interrupt before (DATA:0E3F, here
+ * pit_ran: the period is noted before the routines run, so one a routine
+ * changes is counted from the interrupt after the next), calls a routine
+ * whose count is at or below 0 and adds its period again.  adl_tick's
+ * count stays below 0 so (FFFFF087h after the start, FFFFDEEDh with the
+ * menu's tune, seen in the original's memory), and it is called at every
+ * interrupt.  The timer runs with the shortest period of its routines:
+ * the BIOS's own (10000h), input_tick's (3FFFh; input.c, on play.c's own
+ * clock in the port) and the sound's. */
+#define INPUT_PERIOD 0x3FFFu
+static int32_t adl_left, fade_left;
+static uint32_t pit_ran = INPUT_PERIOD;
+
+/* the period the timer is set to (DATA:0E47) */
+static uint32_t pit_least(void)
+{
+    return tick_period() < INPUT_PERIOD ? tick_period() : INPUT_PERIOD;
+}
+
+/* a test's: the three above */
+void snd_timer(int32_t *adl, int32_t *fade, uint32_t *ran)
+{
+    *adl = adl_left;
+    *fade = fade_left;
+    *ran = pit_ran;
+}
 
 static void adl_voices_free(uint16_t ch);
 
@@ -903,6 +948,8 @@ static void fade_start(void)
 {
     if (NW(fade_on, 0) & 1)
         return;
+    if (snd_at)
+        snd_at(2);
     fade_left = FADE_PERIOD;
     SETW(fade_on, 0, 1);
 }
@@ -985,25 +1032,42 @@ static int16_t music_start_(Far tune, uint16_t fade, uint16_t vol)
         fade_start();
     }
     SETW(music_volume_now, 0, vol);
+    if (snd_at)
+        snd_at(3);
     DSET(0x0234, NW(snd_ticks, 2));
     DSET(0x0232, NW(snd_ticks, 0));
     return 1;
 }
 
 /* one interrupt of the timer (S27FE:06D2, pit_irq) as far as the sound
- * goes: the fade's routine first when its period has run out (it was
- * given to the timer last and pit_irq calls from the last one down), then
- * adl_tick, whose period the timer runs at */
-void snd_irq(void)
+ * goes: the counts of the two routines, then the fade's routine first (it
+ * was given to the timer last and pit_irq calls from the last one down)
+ * and adl_tick, each when its count has run out.  Returns which ran: 1
+ * adl_tick, 2 fade_tick. */
+int snd_irq(void)
 {
+    int adl = 0, fade = 0;
+
+    if (!DB(0x111A))            /* adl_detect has not given adl_tick to the timer */
+        return 0;
+    adl_left -= (int32_t)pit_ran;
+    if (adl_left <= 0) {
+        adl = 1;
+        adl_left += tick_period();
+    }
     if (NW(fade_on, 0) & 1) {
-        fade_left -= tick_period();
+        fade_left -= (int32_t)pit_ran;
         if (fade_left <= 0) {
+            fade = 2;
             fade_left += FADE_PERIOD;
-            fade_tick();
         }
     }
-    adl_tick();
+    pit_ran = pit_least();
+    if (fade)
+        fade_tick();
+    if (adl)
+        adl_tick();
+    return adl | fade;
 }
 
 /* S2F39:1058 (music_fade): the effects stopped; the music off at once
@@ -1045,7 +1109,9 @@ static int16_t music_fade_(uint16_t speed)
     DSET(FADE_STEPS, speed);
     fade_start();
     while (NW(fade_on, 0)) {
-        s += tick_period() / 1193182.0;
+        if (snd_wait && snd_wait())
+            continue;
+        s += pit_least() / 1193182.0;
         snd_irq();
     }
     if (tick_at >= 0)
@@ -1079,21 +1145,81 @@ void snd_clock(double t)
         tick_at = t;
     while (tick_at <= t) {
         snd_irq();
-        tick_at += tick_period() / 1193182.0;
+        tick_at += pit_least() / 1193182.0;
     }
 }
 
-/* S2F39:000B (snd_init) with both devices found: drv_clear, what
+/* S30EF:1A7D (adl_detect): nothing when the AdLib is marked found
+ * already; else the chip's two timers tried (the registers 1 to 4; the
+ * original reads the status at port 388h before and behind timer 1's run
+ * and gives up when the flags are not clear and then set: here the chip
+ * is there), the voices silenced, the waveforms allowed, and adl_tick
+ * given to the timer with the period 1843h (pit_install, which does
+ * nothing when input_install has set the timer up before, and pit_add:
+ * here the routine's count and the sound's clock begun anew) */
+static int adl_detect(void)
+{
+    if (DB(0x111A))
+        return 1;
+    DSETB(0x111A, 1);
+    opl(0x01, 0x00);
+    opl(0x04, 0x60);
+    opl(0x04, 0x80);
+    opl(0x02, 0xFF);
+    opl(0x04, 0x21);
+    opl(0x04, 0x60);
+    opl(0x04, 0x80);
+    opl_silence();
+    opl(0x01, 0x20);
+    tick_at = -1;
+    adl_left = 0x1843;
+    fade_left = 0;
+    return 1;
+}
+
+/* S30EF:1A59 (adl_remove): adl_tick taken from the timer and the timer
+ * given back (pit_del, pit_remove: the machine's), the mark cleared, the
+ * voices silenced */
+static void adl_remove(void)
+{
+    DSETB(0x111A, 0);
+    opl_silence();
+}
+
+/* S2F39:0092 (snd_end): nothing when it ran before and no device is
+ * left; else the lock set (and left set), the fade's routine off the
+ * timer, the devices removed (dig_remove is the machine's only: the
+ * DSP's speaker off, its interrupt masked and its vector put back, the
+ * DSP reset), snd_devices 0.  The port's game_loop does not call it at
+ * its end yet (loop.c); snd_init does when it is called again. */
+void snd_end(void)
+{
+    if (NW(snd_ended, 0) && !NW(snd_devices, 0))
+        return;
+    SETW(snd_lock, 0, 1);
+    fade_stop();
+    if (NW(snd_devices, 0) & 2)
+        dig_at = -1;
+    if (NW(snd_devices, 0) & 1)
+        adl_remove();
+    SETW(snd_devices, 0, 0);
+    SETW(snd_ended, 0, 1);
+}
+
+/* S2F39:000B (snd_init) with both devices found: snd_end first when it
+ * ran before and devices are left, drv_clear, what
  * dig_buffers works out, the card where the runner has it (port 220h,
- * interrupt 0Fh, its bit 80h of the interrupts' mask), the AdLib marked
- * found.  Left out, the machine's: the interrupts' vectors and their old
- * values, delay_measure's counts, the timer's numbers (pit_add) and the
- * frames waited. */
+ * interrupt 0Fh, its bit 80h of the interrupts' mask), the AdLib
+ * (adl_detect).  Left out, the machine's: the interrupts' vectors and
+ * their old values, delay_measure's counts, the timer's numbers (pit_add)
+ * and the frames waited. */
 uint16_t snd_init(uint16_t mask)
 {
     uint16_t found = 0, i;
     uint32_t a;
 
+    if (NW(snd_started, 0) && NW(snd_devices, 0))
+        snd_end();
     for (i = 0; i < 0x488; i++)
         DSETB(i, 0);
     if (mask & 2) {
@@ -1115,16 +1241,13 @@ uint16_t snd_init(uint16_t mask)
         SETW(dig_port, 0, 0x220);
         SETW(dig_int, 0, 0x0F);
         DSETB(0x0488, 0x80);
+        DSETB(0x0495, 1);       /* dig_find's interrupt came */
         dig_rate = 8000;        /* snd_init's dsp_rate(1F40h) */
         dig_at = clock_now = -1;
         found |= 2;
     }
-    if (mask & 1) {
-        DSETB(0x111A, 1);
-        tick_at = -1;
-        fade_left = 0;
+    if ((mask & 1) && adl_detect())
         found |= 1;
-    }
     SETW(snd_devices, 0, found);
     SETW(snd_started, 0, 1);
     return found;

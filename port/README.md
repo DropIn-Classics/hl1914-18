@@ -452,6 +452,44 @@ and a carrier's screen by the mouse (`m0_s2c` keeps them by keys, its
 pages not compared), a scrolled build list, the mouse's mickeys left
 over below a pixel (`-micelog` does not keep them).
 
+2026-10-08 (`debian/window7`): a carrier's screen by the mouse, a real
+repair and a scrolled build list in the window. The port needed no
+change. Three scripts, each played in the headless window (the drafts
+from `make_m8.py` with `-moves`; `.keys` and `.mice` are what the window
+wrote by `-keylog` and `-micelog`), compared with the original's run of
+the same files (`play_dumps.py`, `VRAM=1`, `PASSES` around the gestures):
+- `m0_cmouse` (map 0, 120 s): `m0_s2.keys` and `make_m8.py -moves
+  m0_cmouse.moves d52 E55 f60 f65 E72 f80 f85 Mu98 Ms99 Mo104`: the
+  first side enters the loaded carrier by the mouse (its screen: loading
+  4, capacity 4) and moves the unit out. `PASSES="1182 1200 1216 1243
+  1289 1307 1352"`.
+- `m8_rmouse_nopics` (map 8, 350 s, fights without pictures):
+  `m8_d5.keys` and `D5R` of `side_dumps.sh` with `Md333 Ms335 Mr339`:
+  the builder (unit 0Ch) enters the depot and is repaired by the mouse;
+  the original shows text 51h at 339.73 s. With fight pictures the
+  window's play of `m8_d5r`'s times does not reach the repair (screens
+  at the frame of 340 s show round 2; not looked into, the frame numbers
+  of `DK_SHOTS` are not the clock's time across a round's end).
+  `PASSES="5765 5809 5854 5881 5915 5984"`.
+- `m8_scroll` (map 8, 240 s): `m8_scroll.pokes` sets the first side's
+  points to 2000 at the first pass (not the game's own doing), so the
+  factory's build list has more kinds than its seven places; `m8_site`'s
+  steps to `s189`, then `d191` to `d198` (eight taps: the cursor to row 6
+  and the list scrolled), `Md199 Md200`, `u201`, `s203` (infantry built
+  from the scrolled list, 2048 to 2013 points), `l206 d208 E209` and F1s.
+  `PASSES="2922 2940 3048 3084 3089 3113 3228 3328"`. Whether the second
+  mouse step scrolled once more was not checked (the pointer stayed at
+  160,164 in the `.mice`).
+For each, after the merge of origin/master a9ef47d: `play_test.sh TAG`
+the inputs, the game's state and the computer's the same at every pass
+compared, both pages of video memory the same at all of them (behind the
+pages 1,442 bytes differ, 11,544 to 12,841 in `m8_scroll` after its
+fights, not looked into); `live`: the window's play and the `-keys`/`-mice`
+play the same in all parts (3,328, 13,880, 10,068) and at every dump.
+Not done: `rounds` for the three, the SDL window by hand, a repair with
+fight pictures on, `m8_mouse` and the older scripts not rerun after the
+merge.
+
 2026-10-08 (`debian/window5`): a battle's end in the window. The
 pictures behind the loop are translated (`src/events.c`, HL.EXE's
 `event_picture`, `S1A39:0001`, for its kinds CDh to D0h): D0h a human

@@ -873,3 +873,33 @@ anything the game needs before the first release.
   reached on no map, docs/HANDOFF.md). Not verified: the bar the
   original draws while the computer thinks (`S1C74:0354`, read as
   counting only; not translated).
+- The fights' rarer paths (2026-10-08, Linux; key scripts
+  `tests/keys/m8_long.keys` and `m0_carry.keys`, made as
+  `tests/side_dumps.sh` checks): `m8_long` is `m8_site` up to 375 s, then
+  the first side only waits (the half ended every 10 s, F1 5 s later; the
+  step `xT:U` of `make_m8.py`) to 900 s; `m0_carry` is `m0_s2` (a unit
+  into the first side's carrier) and waiting to 700 s, while the
+  computer fights the carrier. `NOPICS=1 tests/loop_dumps.py` makes the
+  same run with fight pictures off: it writes 1 to `no_fight_pics`
+  (`S37FF:0115`) at the first pass with `-poke`, not the way the game
+  sets it (not looked for). `tests/loop_test.sh` (the computer's own
+  turn, not `-replay`) on the three runs, the game's state and the
+  computer's the same at every pass compared:
+  `m8_long` 12,715 passes, 29 compared (13 rounds with `attacks_run`);
+  `m8_long_nopics` 16,087 passes, 35 compared; `m0_carry` 8,653 passes,
+  all its round's ends and the passes after them. Reached (counted with
+  an instrumented build of the test, in the replay before the merge of
+  the computer's turn): units destroyed in fights and freed (5 in
+  `m8_long`, 12 in `m8_long_nopics`, 8 destroyed and 9 freed in
+  `m0_carry`), the blasts counted down without pictures (12),
+  `carrier_losses` (7, `m0_carry`). Two differences were found in
+  `m0_carry` and fixed: `pictures_load` writes a digit of a file name
+  (`S331F:0284`, by the ratio of the sides' unit counts; now
+  `pictures_digit` in `src/orders.c`, at `S02E6:19B8`), and `move_step`
+  shows the arrival's text (`show_message`, setting 4 in `game_state`'s
+  word 0, which keeps `hover` from setting a timer while it is shown);
+  the port had left that call out, so a free timer slot kept another due
+  pass. Still not reached: `order_undo`, order 1, and the units aboard a
+  freed carrier (in `m0_carry` no freed carrier had a unit in its row).
+  Not checked: which of the digit's values ('1', '2', '3') the runs had
+  besides the '2' and '3' of the difference.

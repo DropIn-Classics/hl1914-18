@@ -605,6 +605,26 @@ digital mixer and the card (`dig_mix`, `dig_irq`, `dig_kick`), `snd_end`,
 (`src/orders.c`, `src/fightpics.c`: still left out there).
 docs/HANDOFF.md ("The sound") says what sound output would need.
 
+2026-10-08 (macOS, branch `mac/fightsound`): the fight's sounds, in
+`src/sound.c`, still without any sound coming out. `pics_play` (the
+sound loaded for one of a fight's six slots, by `dig_play` or
+`adl_play`, then `snd_pass`) with the three places `fight_frames` calls
+it from as routines (`pics_volley_sound`, `pics_begin_sound`,
+`pics_side_sound`), `pics_sounds_stop` (the channels stopped at the
+pictures' end) and `fight_blast_sound` (`attacks_run`'s effect 5 when a
+fight without pictures destroyed a unit). The fight's panel already had
+its sounds (`panel_sound`, `src/draw.c`). `src/fightpics.c` and
+`src/orders.c` do not call them yet: `src/main.c` sets itself before
+`play.c`'s `pics_hook` and `orders_hook` (`fight_sounds_wire`) and
+`fight_pics_sounds` works a frame's sounds out behind the frame from
+the figures' records; docs/HANDOFF.md ("The fight's sounds") says what
+that assumes and which calls go inside once the two files' owners put
+them there. `-fxlog FILE` writes each trigger (for the test). Left for
+sound output, besides what is said there: the fight's pictures play
+digital sounds only, so they need the mixer (`dig_mix`), which also
+ends a channel; until then a sound played once stays marked as playing
+until the pictures' end stops all channels.
+
 2026-10-08 (macOS, branch `mac/music`): the music's control, in
 `src/sound.c` over the program's memory, still without any sound coming
 out. `music_start(tune, fade, volume)` (the tune loaded and started on
@@ -680,6 +700,52 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The fight's sound triggers (2026-10-08, macOS, branch
+  `mac/fightsound`; `src/sound.c`, called from `src/main.c`'s hooks):
+  `python3 port/tests/fsound_dumps.py` runs the original on map 8 with
+  `m8_site.keys`, `m8_d5r.keys` and `m8_wait.keys` with the fights not
+  shown as pictures, logs `pics_play` (its slot and volume), the frames
+  of `fight_frames`, the channels stopped and `attacks_run`'s effect,
+  and keeps memory at the entry and the end of a choice of the calls.
+  `sh port/tests/fsound_test.sh` then compares two things.
+  Memory: the port's routine gets the entry's memory and arguments
+  (`port/tests/sound_test.c`, `pics_play` a new kind) and the driver's
+  variables (`S30EF:0000` to `111E`) are compared with the end's: 142
+  calls, none different (m8_site 43 of `pics_play` and 14 of
+  `chan_stop` at the pictures' ends; m8_d5r 67 and 14; m8_wait without
+  pictures the effect's two `sfx_play`, effect 5 on channel 8, and the
+  `snd_pass` behind each). In the 32 calls that go on to `dig_play`
+  (4 and 28) the original's `snd_pass` runs the mixer, which the port
+  does not have: its buffers with their headers (`S30EF:0496` to
+  `10B6`), `dig_mix`'s sums (`10C3` to `10C6`) and of the digital
+  channels the count of steps (+10h) and how often they are still
+  played (+4) are counted there and not judged, about 2,000 bytes a
+  call; `sound_test.c` does this now wherever digital channels play at
+  the original's end, and `sound_test.sh` (304 calls) and
+  `music_test.sh` (297) are as before with it.
+  Which trigger comes when: the port's program plays the same key
+  script on the original's clock (`-fxlog`) and
+  `port/tests/fsound_cmp.py` compares fight by fight the frame, slot,
+  volume and count of times of every `pics_play` and the channels
+  stopped at the end. m8_site: seven fights, 112 triggers the same in
+  order (17 of slot 0, 8 of slot 1, 31 of slot 4, 56 stops). m8_d5r:
+  the port's clock file reaches the first two of the original's seven
+  fights, both with all 749 frames: 67 triggers the same (2 of slot 0,
+  12 of slot 1, 24 of slot 2, 13 of slot 4, 16 stops). m8_wait without
+  pictures: `attacks_run`'s effect twice in both. The count of times is
+  the original's where the call's entry was dumped (51 of 56 and 37 of
+  51).
+  Not compared: in m8_site a key ends the original's pictures after
+  149 to 272 frames while the port on the original's clock plays all
+  749, so 120 of the port's triggers lie behind the original's last
+  frame; m8_d5r's fights 3 to 7. Not reached by any run: a side without
+  figures (`pics_side_sound`'s 64h, `chan_stop` with the side's
+  number), the AdLib's way of `pics_play` (`S3303:0022` set), the slots
+  5 and 6. `play_test.sh` m8_site, m8_d5r and m8_wait_nopics were run
+  again with the triggers in: the inputs, the game's state and the
+  computer's the same at every pass compared, as before. Built and run
+  on macOS only; the Windows and Linux builds were not made (no new
+  source file). No sound comes out, nothing was listened to.
 - The music's control (2026-10-08, macOS, branch `mac/music`;
   `src/sound.c`): `python3 port/tests/music_dumps.py` stops the original
   at the entry and the end of calls and keeps its memory, in three

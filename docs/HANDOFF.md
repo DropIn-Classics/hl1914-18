@@ -50,6 +50,15 @@ sound output) and called where `game_loop`, `attacks_run`, the menu and
 the new units' screens call it; 297 calls compared with the original,
 none different (the bullet "The sound", "The music's control").
 
+On the branch `mac/fightsound` (2026-10-08) the fight's sound triggers
+are translated (`pics_play` and its three sites in `fight_frames`, the
+channels stopped at the pictures' end, `attacks_run`'s effect for a unit
+destroyed without pictures; `port/src/sound.c`, still no sound output)
+and compared with the original (the bullet "The sound", "The fight's
+sounds"). `fightpics.c` and `orders.c` were not to be touched, so the
+triggers are driven from their hooks by `main.c`; the lines their owners
+can put in instead are listed there.
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -3891,6 +3900,98 @@ emulation error (2026-10-02).
     - Not done: `snd_end` (read, the lock, `fade_stop`, the devices'
       removal; `game_loop`'s end calls it), `S1A39`'s calls, sound
       output.
+  - The fight's sounds (2026-10-08, Mac, branch `mac/fightsound`).
+    What was left of the sound's triggers in the fight: `panel_sound`
+    (`S131D:1FF0`) was already translated and called by `fight_panel`
+    (`port/src/draw.c`, since `mac/sound`); the notes that still listed
+    it as left out were older. New in `port/src/sound.c`:
+    - `pics_play(slot, volume, times)` (`S2532:211E`): the sound
+      `pics_sound` loaded for the slot (far at `S3AEE:04B4` + 4 * slot;
+      none: nothing happens), by `dig_play(slot, sound, volume, times,
+      step)` with the step at `S3AEE:04A4` + 2 * slot, or with
+      `S3303:0022` set by `adl_play` on the channel at `S3AEE:011F` + 2
+      * slot; then `snd_pass`. A slot is its digital channel: 0 to 2 the
+      first side's, 4 to 6 the second's.
+    - Its three sites in `fight_frames`, each a routine of its own in
+      the port: `pics_volley_sound(side)` behind `volley_end` (slot 4 *
+      side + 2, volume FFh, once), `pics_begin_sound(side)` at the first
+      frame of a figure with 20h in its record's flags (slot 4 * side +
+      1, FFh, once), `pics_side_sound(side, n)` when the byte at
+      `S3AEE:04D4` + 7 * side changes: n figures of the side stand, slot
+      4 * side, volume (28h * n + 0Fh) >> side, 3E8h times (so the
+      sound of a side grows fainter as its figures fall, and the second
+      side's has half the volume); with 64h (the side has no figures)
+      `chan_stop(side)` and `snd_pass` instead. That `chan_stop` gets
+      the side's number, not its slot: for the second side it stops
+      channel 1, the first side's slot 1, and leaves slot 4 playing
+      (read; no run met a side without figures, so not seen).
+    - `pics_sounds_stop` at `fight_pictures`' end: `chan_stop` for the
+      channels 0 to 7 (8 to 0Bh with `S3303:0022`).
+    - `fight_blast_sound` (`S02E6:0B2B`): in a fight without pictures
+      that destroyed a unit, behind the panels and `wait_frames(1Eh)`
+      and before the blasts' loop, with effects on `sfx_play(8, 5, DCh,
+      1, 200h)` and `snd_pass`. It is the only call of the sound's
+      routines in `attacks_run` besides the music's three.
+    - How they are called. `fightpics.c` and `orders.c` belong to other
+      branches and were not touched, so nothing calls the routines from
+      inside the frames yet. Instead `main.c` puts itself before
+      `play.c`'s `pics_hook` and `orders_hook` (behind `play_begin`,
+      which sets them) and calls `fight_pics_sounds(at)` and
+      `fight_orders_sounds(at, n)`. The second is exact: the blasts'
+      loop only runs when a unit was destroyed, and the effect comes at
+      its first turn's hook. The first finds a frame's sounds behind
+      the frame (`PICS_FRAME`) from what the frame left in memory,
+      going through the figures' records again with the marks of the
+      second side as they were at the frame's beginning and the bytes
+      at 04D4h as they were; it says in `sound.c` where that would not
+      be the original (a volley in the third list; a record whose last
+      frame was moved in the same frame with a negative offset at
+      006Dh: neither seen). The sounds of one frame come in the
+      original's order, but behind the frame's work instead of inside
+      it; they do not read what the frame writes besides the above.
+      **For the owners** of `fightpics.c` and `orders.c`, when they
+      want the calls inside: in `fight_frames` `pics_volley_sound(side)`
+      behind `volley_end()`, `pics_begin_sound(side)` where `fl & 0x20`
+      and `frame == start`, `pics_side_sound(side, 0x64)` and
+      `pics_side_sound(side, n)` where the byte at 04D4h + 7 * side is
+      set; `pics_sounds_stop()` where `fight_pictures` sets 0680h at
+      its end; `fight_blast_sound()` before `blasts_run` in
+      `fights_run`'s part without pictures. Then `fight_pics_sounds`,
+      `fight_orders_sounds` and `main.c`'s `fight_sounds_wire` go.
+    - Compared (`port/tests/fsound_dumps.py`, `fsound_test.sh`,
+      `fsound_cmp.py`; port/README.md "Checked" has the numbers): which
+      trigger comes in which frame with which slot and volume, fight by
+      fight, the same in all nine fights the port reached (m8_site's
+      seven, m8_d5r's first two, which run all 749 frames), and
+      `attacks_run`'s effect in m8_wait without pictures (twice); the
+      driver's variables after `pics_play`, the stops and the effect the
+      same in 142 calls but for what the mixer writes.
+    - What the mixer does there, seen in the dumps: behind a `dig_play`
+      `snd_pass` runs `dig_kick`, which fills both buffers at once
+      (`S30EF:04A3`, `08AD`, 400h bytes each), moves the channel's count
+      of steps on by 400h, leaves `dig_mix`'s sums at `S30EF:10C3` and
+      `10C5` and flips `dig_irq`'s flag at `0499`; a channel played
+      3E8h times has its count at +4 go down each time it begins again.
+      The port has none of that, so its digital channels keep the place
+      and the count `dig_play` gave them, and a sound played once stays
+      in `dig_mask` and `dig_count` after the original's has ended (not
+      seen to differ in the calls compared; at the pictures' end all
+      eight are stopped in both).
+    - Not verified: the 64h way and the AdLib's way of `pics_play`
+      (read only); `pics_play`'s count of times where the call's entry
+      was not dumped (known in 51 of m8_site's 56 calls and in 37 of
+      the 51 in m8_d5r's two fights, all as read: 3E8h for the slots 0
+      and 4, 1 for the others); the
+      port's triggers behind the frame a key ended the original's
+      pictures at (on the original's clock the port plays all frames);
+      m8_d5r's fights 3 to 7 (its clock's file ends before them); the
+      slots 5 and 6 (no trigger came for them: the second side's figures
+      neither began with 20h nor ended a volley in these fights).
+      Nothing was listened to. Built on macOS only (no new source file).
+    - Left for sound output: everything under "What sound output would
+      need" above; for the fight's pictures in particular `dig_mix`,
+      since all their sounds are digital and a channel's end comes from
+      the mixer.
 
 ## `HL14-18.EXE` stage 1
 
@@ -4179,8 +4280,10 @@ emulation error (2026-10-02).
    there are rerun; left of that are the comparisons with dumps in
    `build/n2` to `build/n6` and `build/computer`, which their owners
    rerun. The music's control is done (`mac/music`; the bullet
-   "The music's control"). Then the effects' calls left out in
-   `orders.c` and `fightpics.c`, the music's three calls of
+   "The music's control"), and so are the fight's sound triggers
+   (`mac/fightsound`; the bullet "The fight's sounds"), driven from the
+   hooks. Then their calls put inside `orders.c` and `fightpics.c` by
+   the owners (the list is in that bullet), the music's three calls of
    `attacks_run` moved from `loop.c` into `orders.c` by its owner,
    `S1A39`'s screens with their tunes, `snd_end`, `dig_mix`, and the
    output itself (an OPL2 from `snd_opl`, the mixer's bytes) with the

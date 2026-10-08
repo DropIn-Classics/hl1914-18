@@ -148,6 +148,20 @@ int16_t music_fade(uint16_t speed);
 int16_t music_volume(uint16_t vol);
 void fade_tick(void);
 void snd_irq(void);
+/* the fight's sounds: pics_play (S2532:211E) and its callers' sites in
+ * fight_frames, the channels stopped at fight_pictures' end,
+ * attacks_run's effect for a unit destroyed without pictures; and the
+ * two that do them from pics_hook's and orders_hook's places (below)
+ * while fightpics.c and orders.c do not call them (main.c sets them) */
+extern void (*snd_fight)(const char *what, uint16_t a, uint16_t b, uint16_t c, uint16_t d);
+void pics_play(uint16_t slot, uint16_t vol, uint16_t times);
+void pics_volley_sound(uint16_t side);
+void pics_begin_sound(uint16_t side);
+void pics_side_sound(uint16_t side, uint8_t n);
+void pics_sounds_stop(void);
+void fight_blast_sound(void);
+void fight_pics_sounds(int at);
+void fight_orders_sounds(int at, int n);
 extern void (*snd_waited)(double s);
 extern void (*snd_music)(int out, uint16_t a, uint16_t b, int16_t r);
 void snd_clock(double t);

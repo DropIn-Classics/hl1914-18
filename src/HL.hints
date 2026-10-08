@@ -228,6 +228,7 @@ code S0CB6:0422
 code S02E6:0ED9
 code S02E6:1071
 code S02E6:11B1
+comment S02E6:0B2B attacks_run, a fight without pictures that destroyed a unit ([BP-1Ch] not 0), behind the panels and wait_frames(1Eh), before the blasts' loop: with effects on (80h in game_state) sfx_play(8, 5, DCh, 1, 200h) and snd_pass. Met twice in m8_wait with the fights not shown as pictures; port/src/sound.c fight_blast_sound.
 comment S02E6:11B1 attacks_run's order 4, a site taken (port/src/orders.c order_take): with 40h in game_state music_fade(4) and [BP-0Dh] counted up (the music started again at attacks_run's end); 1000h in game_state, site_taken 1, view_to_field and view_draw for the other side, 30h in field_bits at the site while marks_draw draws, view_cover, page_flip, page_copy, wait_frames, the fades, take_picture 1; then the rows, the units inside, the counts and the ground as orders.c says. A depot (sites_100) taken compared on map 0 (m0_s4: record 1 by the computer in pass 1787, record 0 by the first side in 2875); both were nobody's (19h 12h), so the other side's count byte 4 going down was not run.
 code S02E6:17C3
 code S02E6:189E
@@ -3041,7 +3042,7 @@ name S2982:0002 vdif_frame
 ; and screen_keep's buffer, the files from 7D00h further on) and the work
 ; buffer (062Ah). Read whole and translated 2026-10-08 (port/src/
 ; fightpics.c), with the parts named below; compared on m8_d5r's fights
-; (port/README.md). The sounds (S2F39, S2532:211E) are left out.
+; (port/README.md). The sounds (S2F39, S2532:211E): port/src/sound.c.
 name S2532:0008 fight_pictures
 ; fight_frames: the frames 1 to 2EDh (the count at S3AEE:0680). A frame
 ; below 40h first sets the colours (pal_level, level 4 * frame + 3: the
@@ -3092,6 +3093,24 @@ name S2532:1CF9 pics_mark
 name S2532:1DD3 pics_error
 name S2532:1E66 pics_sound
 name S2532:1FD6 pics_sounds
+; pics_play(slot, volume, times): the sound pics_sound loaded for the
+; slot (far at S3AEE:04B4 + 4 * slot; none: nothing), by dig_play(slot,
+; sound, volume, times, the step at 04A4 + 2 * slot) or, with S3303:0022
+; set, adl_play(the word at 011F + 2 * slot, sound, volume, times); then
+; snd_pass. Slots 0 to 2 are the first side's, 4 to 6 the second's. Its
+; callers, all in fight_frames: behind volley_end (the code before
+; S2532:0F8D), slot 4 * side + 2, FFh, once; at the first frame of a
+; figure with 20h in its flags (S2532:0F8D to 0FB6), slot 4 * side + 1,
+; FFh, once; and (S2532:14E8 to 155F) when the count
+; of the side's figures with a byte set at 04D4 + 7 * side + 1 to 6 is
+; not the byte at 04D4 + 7 * side: the byte set, slot 4 * side, volume
+; (28h * count + 0Fh) >> side, 3E8h times. A side without figures
+; (S2532:14B5 to 14E6) gets 64h there instead and, when that is new,
+; chan_stop(side) and snd_pass: the side's number, not its slot, so for
+; the second side channel 1 (read; not met in a run). fight_pictures'
+; end (the loops at S2532:0187 and 01A8) stops the channels 0 to 7 (8 to 0Bh with S3303:0022).
+; Translated in port/src/sound.c; compared on m8_site's and m8_d5r's
+; fights (port/README.md): slots 0, 1, 2 and 4 seen, the AdLib's way not.
 name S2532:211E pics_play
 ; sprite_draw(x, y, pic, save, base, sx, sy): a picture centred on x, y
 ; scaled by 100h/sx and 100h/sy (negative sx mirrored), drawn by columns

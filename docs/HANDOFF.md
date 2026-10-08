@@ -3559,6 +3559,21 @@ emulation error (2026-10-02).
   (they are not passes of the menu's loop), the battle on the
   original's clock inside a menu walk, the SDL window by hand, the
   sounds.
+- The HISCORE screen and the name's and best scores' screens
+  (2026-10-08, `debian/window9`, Linux; port/README.md has the counts).
+  Learned:
+  - The port needed no change. The screens are caught where the
+    original calls something once per screen: text_input's key_remove
+    (S167A:334E) and key_install (3604), and behind scores_show (0AAE
+    after a battle, 1C7C for HISCORE). text_input also serves the map's
+    code, so every walk that types a code has two such screens; they
+    compare the same too (page parity included).
+  - Memory and video memory there are the same as the original's in all
+    six walks that have such screens, the window's (`live57`) too.
+  - `menu_test.sh live` is meaningful only for a walk whose key script a
+    `-keylog` wrote (`live57`); for the others the keylog differs.
+  Not done: HISCORE with scores present, the backspace in the name, the
+  SDL window by hand, the sounds.
 - The field menu's information (2026-10-08, Mac; `unit_info`,
   `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
   each does; `port/src/draw.c`). Learned:

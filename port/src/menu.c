@@ -13,7 +13,10 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "hl.h"
+#include "rmem.h"
+#include "sys.h"
 #include "vga.h"
 
 #define S_DATA (HL_DATA + HL_BASE)
@@ -56,10 +59,14 @@ void menu_shot(double at, const char *file)
     }
 }
 
-/* video memory written to a file at the n-th screen of the saved game's
- * question, counted from 1 as they come: the question drawn (where the
- * original calls key_remove, S167A:1929) and the text that the file was
- * not found (before its wait, S167A:1B5A) */
+/* video memory (and memory, see ask_screen) written to a file at the
+ * n-th screen outside the menu's loop, counted from 1 as they come: the saved game's question drawn
+ * (where the original calls key_remove, S167A:1929) and the text that
+ * the file was not found (before its wait, S167A:1B5A); text_input's
+ * beginning and end (its calls of key_remove, S167A:334E, and of
+ * key_install, 3604: the code typed, the winner's name); the best scores
+ * shown (behind scores_show, S167A:0AAE after a battle, 1C7C for the
+ * menu's item) */
 static struct { int n; const char *file; } asks[8];
 static int asks_n, asked;
 
@@ -77,8 +84,18 @@ static void ask_screen(void)
 
     asked++;
     for (i = 0; i < asks_n; i++)
-        if (asks[i].n == asked)
+        if (asks[i].n == asked) {
+            char ram[SYS_PATH];
+            size_t n = strlen(asks[i].file);
+
             vga_write_planes(asks[i].file);
+            /* and the memory, the file's .vram changed to .ram */
+            if (n > 5 && n < sizeof ram && !strcmp(asks[i].file + n - 5, ".vram")) {
+                memcpy(ram, asks[i].file, n - 5);
+                strcpy(ram + n - 5, ".ram");
+                rm_write(ram);
+            }
+        }
 }
 
 static Far opt(uint16_t off)
@@ -561,6 +578,7 @@ static void text_input(int16_t x, int16_t y, Far text, int16_t max, int16_t star
     pwb(text, (uint16_t)si, 0);
     pwb(text, (uint16_t)(si + 1), 0x5D);
     text_at(x, y, text, m.font18, 0, 0, 0);
+    ask_screen();
     key_remove();
     while (!menu_stopped) {
         if (pw(k, 4)) {
@@ -619,6 +637,7 @@ static void text_input(int16_t x, int16_t y, Far text, int16_t max, int16_t star
     }
     if (snd >= 0)
         sound(snd);
+    ask_screen();
     key_install();
 }
 
@@ -762,6 +781,7 @@ static void winner_name(void)
     }
     pic_whole(m.pic[1]);
     scores_show(m.scores, (int16_t)(int8_t)map);
+    ask_screen();
     inputs_release(1);
     mouse_hide();
     fade_out();
@@ -1072,6 +1092,7 @@ static void choose(void)
             page_copy();
             tune_start(m.music_hi);
             scores_show(m.scores, (int16_t)(int8_t)NW(map_number, 0));
+            ask_screen();
             pointer_aim(m.page, m.idx);
             pointer_to(0x9B, 0x5F);
             inputs_release(1);

@@ -48,11 +48,15 @@ Written into build/menu/WALK/ (ignored):
     exit.ram   memory at the menu's last return
     shotT.vram video memory at the beginning of the first pass of the
                menu's loop at or after second T (shots.txt: the T's)
-    askN.vram  video memory at the N-th screen of the saved game's
-               question, as they come: the question drawn (S167A:1929,
+    askN.vram  video memory at the N-th screen outside the menu's loop,
+               as they come: the saved game's question drawn (S167A:1929,
                where key_remove is called before its loop) or the text
                that the file was not found (S167A:1B5A, before its wait);
-               asks.txt: how many
+               text_input's beginning and end (S167A:334E, its call of
+               key_remove, and 3604, of key_install: the code typed, the
+               winner's name); the best scores shown (S167A:0AAE behind
+               a battle, 1C7C by the menu's item); askN.ram the memory
+               there; asks.txt: how many
     eN, fNNNN  (.ram, .vram) with a battle between: memory and video
                memory at the N-th entry of wait_press (the end's texts
                shown) and at the frames 1, 11, 21 ... of the pictures
@@ -123,6 +127,8 @@ BATTLES = {'end57': ('m57_win', -8, 'm57_win', 57), 'live57': ('menu57_win', 0, 
 # the end's waits (wait_press) and the frames of the pictures behind the
 # loop, as play_dumps.py has them
 PRESS = 'S0CB6:0DA9'
+# the screens outside the menu's loop (askN, see above)
+ASKS = ('S167A:1929', 'S167A:1B5A', 'S167A:334E', 'S167A:3604', 'S167A:0AAE', 'S167A:1C7C')
 FRAMES = ('S1A39:0BE6', 'S1A39:0EF6', 'S1A39:10AF', 'S1A39:1359')
 
 for walk in sys.argv[1:] or sorted(WALKS):
@@ -165,7 +171,9 @@ for walk in sys.argv[1:] or sorted(WALKS):
         a += ['-keys', os.path.join(out, 'battle.keys')]
     for t, k in keys:
         a += ['-key', str(t), k]
-    a += ['-log', 'S167A:130B', '-log', 'S066A:0390', '-log', 'S167A:1929', '-log', 'S167A:1B5A']
+    a += ['-log', 'S167A:130B', '-log', 'S066A:0390']
+    for l in ASKS:
+        a += ['-log', l]
     if battle:
         for l in (PRESS,) + FRAMES:
             a += ['-log', l]
@@ -202,7 +210,7 @@ for walk in sys.argv[1:] or sorted(WALKS):
         m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=(\S+) hit=(\d+) regs .*?AX=([0-9A-F]{4})', line)
         if not m:
             continue
-        if m.group(1) in ('167A:1929', '167A:1B5A'):
+        if 'S' + m.group(1) in ASKS:
             asks.append((m.group(1), int(m.group(3))))
             continue
         if m.group(1) == '167A:130B' and left and float(m.group(2)) >= left[0]:
@@ -225,6 +233,7 @@ for walk in sys.argv[1:] or sorted(WALKS):
                                    '-vram', os.path.join(out, 'shot%s.vram' % t)])
     for i, (ad, n) in enumerate(asks):
         run(a[:a.index('-log')] + ['-until', str(until), '-break', 'S%s#%d' % (ad, n),
+                                   '-ram', os.path.join(out, 'ask%d.ram' % (i + 1)),
                                    '-vram', os.path.join(out, 'ask%d.vram' % (i + 1))])
     open(os.path.join(out, 'asks.txt'), 'w').write('%d\n' % len(asks))
     # memory and video memory at the end's waits and frames (eN, fNNNN as

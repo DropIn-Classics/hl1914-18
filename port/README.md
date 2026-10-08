@@ -631,6 +631,35 @@ Not done or not checked: the name's and the best scores' screens as
 video memory, the battle on the original's clock inside a menu walk,
 the SDL window by hand, the sounds.
 
+2026-10-08 (`debian/window9`): the HISCORE screen, the winner's name and
+the best scores after a battle, compared as game state and video memory.
+Nothing the port does changed: `menu.c` only dumps at more screens
+outside the menu's loop (`ask_screen`, `-askvram N FILE`, which now also
+writes the memory as FILE with `.ram` for `.vram`). The screens, as they
+come, at the original's addresses: the saved game's question and its
+not-found text (S167A:1929, 1B5A, as before), text_input's beginning and
+end (its calls of key_remove, S167A:334E, and of key_install, 3604: the
+map's code typed and the winner's name), and the best scores drawn
+(behind scores_show: S167A:0AAE after a battle, 1C7C for the menu's
+HISCORE item). `menu_dumps.py` keeps the original's memory and video
+memory there (askN.ram, askN.vram), `menu_cmp.py` compares both. `sh
+port/tests/menu_test.sh back code57 end57 exit noload pages start0
+start24` and `sh port/tests/menu_test.sh live live57`: all 24 screens
+(back 2, code57 2, end57 5, live57 5, noload 7, pages 3, the HISCORE
+screen among `pages`' and the name's prompt, the name typed and the best
+scores among `end57`'s) no byte different in the regions compared and in
+both video pages; in `end57` and `live57` the battle's count of passes
+(348, port 349) and with it the timers' due passes told apart, as
+before. The window's five screens of `live57` are the same as the
+`-keys` play's, its `-keylog` the script again. The other walks' results
+as before.
+Not done or not checked: the HISCORE screen with a map that has scores
+(the walk's map 0 shows four `EMPTY`), a name typed with the backspace,
+the battle on the original's clock inside a menu walk, the SDL window by
+hand, the sounds. `menu_test.sh live` for walks whose scripts no
+`-keylog` wrote (all but `live57`) reports the keylog NOT the script and
+some memory DIFFERENT; that was not looked into (it was never claimed).
+
 2026-10-08, the field menu's information (`unit_info`, `unit_values`,
 `info_rect` and `battle_info` in `src/draw.c`, the original's
 `S131D:0483`, `0148`, `0008` and `0EE5`; `state_field` of `src/loop.c`

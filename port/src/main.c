@@ -74,6 +74,7 @@
 #include "hl.h"
 #include "inno.h"
 #include "launcher.h"
+#include "opl.h"
 #include "platform.h"
 #include "sys.h"
 #include "textmode.h"
@@ -312,6 +313,27 @@ static void snd_logged(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, in
     fflush(snd_log);
 }
 
+/* The AdLib: what sound.c hands to snd_opl, a register and its value in
+ * the original's order, goes to an OPL2 of the runtime (opl.h).  Nobody
+ * asks it for samples yet (opl_render): the timer's interrupts that make
+ * the writes run on the port's clock of passes (snd_clock), not on the
+ * audio's, so played like this a tune's speed would follow the drawing
+ * (docs/HANDOFF.md, "The AdLib's output", says what the audio's clock
+ * needs).  -opllog FILE: each write, the time on the port's clock, the
+ * driver's count of ticks, the register and the value (hex); and a line
+ * "start" or "fade" with the time and the count at the end of each
+ * music_start and music_fade (for port/tests/opl_cmp.py). */
+static OPL adlib;
+static FILE *opl_log;
+
+static void adlib_write(uint8_t reg, uint8_t value)
+{
+    opl_write(&adlib, reg, value);
+    if (opl_log)
+        fprintf(opl_log, "%.6f %lu %02X %02X\n", play_now(),
+                (unsigned long)((uint32_t)NW(snd_ticks, 2) << 16 | NW(snd_ticks, 0)), reg, value);
+}
+
 /* -muslog FILE: each call of music_start ("start", the fade's steps, the
  * volume) and music_fade ("fade", the speed) at its end: the time on the
  * port's clock, what it returned and the battle's count of passes (for
@@ -320,6 +342,11 @@ static FILE *mus_log;
 
 static void mus_logged(int out, uint16_t a, uint16_t b, int16_t r)
 {
+    if (opl_log)
+        fprintf(opl_log, "%s %.6f %lu\n", out ? "fade" : "start", play_now(),
+                (unsigned long)((uint32_t)NW(snd_ticks, 2) << 16 | NW(snd_ticks, 0)));
+    if (!mus_log)
+        return;
     fprintf(mus_log, "%.3f %s %u %u %d %lu\n", play_now(), out ? "fade" : "start", a, b, r,
             (unsigned long)((uint32_t)NW(game_state, 0x15) << 16 | NW(game_state, 0x13)));
     fflush(mus_log);
@@ -600,6 +627,8 @@ int main(int argc, char **argv)
     unsigned long passes = 0, seed = 0;
     double start = 0, until = 0;
 
+    opl_init(&adlib, 49716);    /* the chip's own rate until something plays it */
+    snd_opl = adlib_write;
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-game") && i + 1 < argc)
             given = argv[++i];
@@ -666,6 +695,11 @@ int main(int argc, char **argv)
             fx_log = fopen(argv[++i], "w");
             if (fx_log)
                 snd_fight = fx_logged;
+        }
+        else if (!strcmp(argv[i], "-opllog") && i + 1 < argc) {
+            opl_log = fopen(argv[++i], "w");
+            if (opl_log)
+                snd_music = mus_logged;
         }
         else if (!strcmp(argv[i], "-muslog") && i + 1 < argc) {
             mus_log = fopen(argv[++i], "w");

@@ -1460,7 +1460,14 @@ name S30EF:111F drv_clear
 ; a register's number and its value.
 name S30EF:1133 delay_measure
 name S30EF:11A9 delay
-; opl_write: BH the register (port 388h), BL the value (389h).
+; opl_write: BH the register (port 388h), BL the value (389h), delay(1)
+; between and delay(4) behind; interrupts stay on. voice_off and
+; voice_note write the two ports themselves (voice_note with the
+; interrupts off over its two pairs). No other code writes them. In the
+; runner 21 microseconds lie between a number and its value and 77 behind
+; it; a tune's first tick writes 120 registers and takes 11.9 ms, the
+; timer's periods in between lost. The stream is compared with the port's
+; write for write (port/tests/opl_test.sh, 2026-10-08).
 name S30EF:11E6 opl_write
 ; voice_level(voice, level): the channel's volume; the carrier's level
 ; (and the modulator's when the instrument's word 0Ah has 1) from the
@@ -1502,8 +1509,12 @@ name S30EF:175F effect_events
 name S30EF:192D adl_tick
 name S30EF:1A2B opl_silence
 name S30EF:1A59 adl_remove
-; adl_detect: delay_measure, the AdLib's timer test at port 388h, then
+; adl_detect: nothing when S30EF:111A says it ran; delay_measure, the
+; AdLib's timer test (registers 01=00, 04=60, 04=80, the status read,
+; 02=FF, 04=21, the status read, 04=60, 04=80), opl_silence, 01=20, then
 ; pit_install and adl_tick given to the timer (its number at S30EF:1116).
+; adl_remove: adl_tick off the timer, pit_remove, 111A cleared,
+; opl_silence (read; not run in the walks compared).
 name S30EF:1A7D adl_detect
 ; The Sound Blaster. dsp_write (AL to the DSP), dma_start (DMA channel 1,
 ; single cycle, DSP command 14h: BX bytes at page CH, address DX),
@@ -2839,7 +2850,15 @@ name S27FE:0699 pit_remove
 name S27FE:06D2 pit_irq
 ; pit_add (DX:AX the routine, CX:BX its period): returns its number in AX.
 ; pit_del (AX the number). pit_period (AX the number, CX:BX the new
-; period). Read; pit_del and pit_period's callers were not looked at.
+; period). Their callers besides input_install: adl_detect (pit_add),
+; fade_start (pit_add), fade_tick, fade_stop and adl_remove (pit_del),
+; the events 6 of a tune or effect (pit_period). pit_irq takes off each
+; count the period noted at the interrupt before (DATA:0E3F, set from
+; 0E47 before the routines run), so a period changed by a routine counts
+; from the interrupt after the next; and a routine pit_add is still
+; adding (before S27FE:07DF) is not counted. Both seen in the dumps'
+; table and in when fade_tick runs (docs/HANDOFF.md, "The AdLib's
+; output"); the port's snd_irq counts so.
 name S27FE:0783 pit_add
 name S27FE:07E8 pit_del
 name S27FE:0882 pit_period

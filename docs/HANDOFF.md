@@ -68,6 +68,15 @@ once) and the digital mixer's memory side is translated (`dig_mix`,
 channels end and repeat as the original's (the bullet "The sound", "The
 effects' ways and the mixer").
 
+On the branch `mac/opl` (2026-10-08) the AdLib's register stream is
+compared with the original's write for write (three walks, 16,705
+registers, none different), with what that needed translated: the
+probe's and the end's writes (`adl_detect`, `adl_remove`, `snd_end`)
+and the timer's count for the fade and `adl_tick` as `pit_irq` keeps
+it. The registers go to an OPL2 of the runtime that nobody plays yet;
+still no sound output, nothing listened to (the bullet "The sound",
+"The AdLib's output", which also says what the audio's clock needs).
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -4217,6 +4226,213 @@ emulation error (2026-10-02).
       none. Whether the skipping of `dig_kick` is audible, and
       whether a faster machine than the runner's would have sounded
       the same, was not looked into.
+  - The AdLib's output (2026-10-08, Mac, branch `mac/opl`). The
+    routines translated on `mac/sound` and `mac/music` already handed
+    every register to a hook in the original's order (`snd_opl`), but
+    that stream had only been counted in the tests, never compared, and
+    the start's and the end's writes were left out. Now it is compared
+    write for write, and what the comparison needed is translated.
+    - Where the original writes the chip (ports 388h and 389h): four
+      places of the driver and no other in the program. `opl_write`
+      (`S30EF:11E6`, BH the register, BL the value; `delay(1)` between
+      the two and `delay(4)` behind), `voice_off` (its own two OUTs,
+      `delay(2)` behind) and `voice_note`'s two pairs (A0h + voice,
+      `delay(3)`; B0h + voice, `delay(2)`), the last with the interrupts
+      off from the first OUT to the fourth. `opl_write` and `voice_off`
+      leave them on.
+    - New in `port/src/sound.c`:
+      - `adl_detect` (`S30EF:1A7D`), called by `snd_init`: nothing
+        when the AdLib is marked found (byte `S30EF:111A`); else the
+        chip's timer test, the registers 01=00, 04=60, 04=80, 02=FF,
+        04=21, 04=60, 04=80 (the original reads the status at 388h
+        after the third and the fifth and gives up unless its bits E0h
+        are clear and then set; the port takes the chip as there),
+        `opl_silence` (01=00, 01=20, then 3Fh to the registers 40h and
+        43h + operator of the nine voices: 22 writes), 01=20, and
+        `adl_tick` given to the timer with the period 1843h.
+      - `adl_remove` (`S30EF:1A59`: the mark cleared, `opl_silence`;
+        the timer's part is the machine's) and `snd_end`
+        (`S2F39:0092`: the lock set and left set, `fade_stop`, the
+        devices removed, `snd_devices` 0, `snd_ended` 1). `snd_init`
+        calls `snd_end` first when it ran before and devices are left,
+        as the original's code does (read). `game_loop`'s end calls `snd_end` too
+        (`S066A`, before `input_remove`); the port's `loop.c` does not
+        yet (not to be touched on this branch): its owner adds
+        `snd_end()` there.
+      - The timer's count for the sound's two routines, as `pit_irq`
+        keeps it (`snd_irq`; the next point), in place of the count
+        `mac/music` had made up for the fade.
+      - Two hooks for whoever makes the interrupts instead of
+        `snd_clock`: `snd_wait` (music_fade's wait asks it for the
+        next interrupt instead of running them itself) and, for the
+        test only, `snd_at` (the routine is at a place where the side
+        an interrupt comes on matters).
+      - `snd_init` sets byte `S30EF:0495` (the Sound Blaster's probe
+        interrupt came), which the comparison showed missing.
+    - `pit_irq`'s count, read and now seen in the timer's table in the
+      dumps (DATA:0D1D the last routine's index, 0D1F/0D3F the periods,
+      0D5F/0D7F what is left, 0DBF a routine's number to its place,
+      0E3F the period the timer ran with, 0E47 the shortest, 0E4B the
+      one the timer is set to). The table has the BIOS's routine
+      (10000h), `input_tick` (3FFFh), `adl_tick` and, while a fade
+      runs, `fade_tick` (1D1EBh). At each interrupt every routine's
+      count goes down by the period *noted at the interrupt before*
+      (0E3F is set from 0E47 before the routines are called), a
+      routine at or below 0 is called and gets its period added. So:
+      - `adl_tick`'s count never gets above 0 (FFFFF087h after the
+        start: 1843h less `input_tick`'s 3FFFh plus 1843h; FFFFDEEDh
+        once the menu's tune has set 06A9h) and it is called at every
+        interrupt, as long as its period is the table's shortest (a
+        tune's period above `input_tick`'s 3FFFh: read, not seen).
+      - A period a tune sets in its first tick (event 6) counts for the
+        fade only from the interrupt after the next. A fade begun with
+        the menu's first tune therefore has its first step at the 60th
+        interrupt behind `fade_start` (4 at 1843h, then 56 at 06A9h),
+        not at the 63rd as the port had it; the later steps are 70
+        apart in both.
+      - An interrupt that comes while `pit_add` is still at work for
+        `fade_start` (before `S27FE:07DF` makes the routine the
+        table's last) does not count for the fade. Seen once (the
+        menu's third tune): the fade's steps then come two ticks later
+        than with the interrupt a few instructions on.
+    - What the runs showed besides:
+      - The tune's first tick writes 120 registers (the voices'
+        instruments) and takes 11.9 ms in the runner,
+        with the interrupt's end (the EOI) behind it: the timer's
+        periods that run out meanwhile give no interrupt, at most one
+        is caught up (the next tick then follows 0.05 ms behind). In
+        the menu's walk 46 ticks took longer than a period, in the new
+        units' 16. A tick without events takes 5 microseconds.
+      - `delay`'s unit is about 20 microseconds in the runner
+        (`delay_measure` counts a loop over one BIOS tick): 21 from a
+        register's number to its value, 77 from a value to the next
+        number in `opl_write`, so about 0.1 ms a register and 2.1 ms
+        for `opl_silence`; that is why `music_fade` returns 1 to 3
+        ticks behind its wait ("presumably" above: now measured).
+      - An interrupt can come between a register's number and its
+        value in `opl_write` and `voice_off`. Seen three times (once
+        in the menu's walk, twice in the new units'), each with the
+        lock set, so the tick did nothing and the value went where it
+        belonged. Not seen, but possible by the code: `music_volume`
+        from the game's side (`voice_level`, no lock) cut by a tick
+        that writes, whose value would go to the register the tick
+        chose last. `opl_dumps.py` counts such writes: 0 in all walks.
+    - Compared (`port/tests/opl_dumps.py`, `opl_test.c`,
+      `opl_test.sh`; port/README.md "Checked" has the numbers). One
+      run of the original with a log of every OUT to the two ports,
+      every timer interrupt with the routines it ran, and the entry
+      and end of every call of the sound's routines by the game; a
+      dump at the entry of each call that has arguments and before
+      every 4000th tick. The test makes the same calls and interrupts
+      again in that order on one memory, from `snd_init`'s entry to
+      the walk's end, an interrupt by the port's `snd_irq`; every
+      register the port writes must be the original's next, the
+      interrupt must run the routines the original's ran, and at each
+      dump the driver's variables and the timer's counts must be the
+      original's. Three walks, none with a difference: the menu
+      (66 s: 3,303 registers, 41,570 ticks, 30 steps of a fade, 84
+      calls, 56 dumps), the new units' screens of map 4 and the
+      battle's beginning (60 s: 1,959 registers, 42,982 ticks, 326
+      calls, 30 dumps) and the first 180 s of map 8 with
+      `m8_site.keys` (11,443 registers, 115,956 ticks, 3,128 calls
+      with 323 effects, 16 `chan_stop`, 2 `dig_play`, three tunes
+      started and three faded out; 376 dumps). 958 to 1,446
+      interrupts a walk came while a routine of the game's side ran;
+      the test's header says how it places them. A copy of `sound.c`
+      with one bit of a note changed gave 564 different registers in
+      the menu's walk, so the test does see the stream. The earlier
+      tests are as before with the new `snd_init` and `snd_irq`
+      (`sound_test.sh` 304 calls, `music_test.sh`, `sfx_test.sh`,
+      `fsound_test.sh`: none different).
+    - In the port's program: `main.c` sets `snd_opl` to a routine
+      that feeds an OPL2 of the runtime (`doskit/runtime/opl.c`, now
+      in both build scripts) and with `-opllog FILE` writes each
+      register with the port's time and the count of ticks. Nobody
+      asks the chip for samples: **no sound comes out, and nothing was
+      listened to.** The music and the effects reach it through the
+      routines' own calls, which were wired before (`start_setup`,
+      `game_loop`, the menu, the panel, the pictures, `loop.c`'s
+      wrappers), so nothing else had to be wired. On its own clock the
+      program does not write the original's stream as a whole: its
+      calls fall on other ticks (`opl_cmp.py` tells how much agrees,
+      tune by tune; not judged).
+    - Not verified: nothing was listened to; `snd_end` at
+      `game_loop`'s end and inside a second `snd_init`, with
+      `adl_remove` (translated as read: no walk reaches either, the
+      original runs `snd_init` once in each); the
+      chip's status as `adl_detect` reads it (the port has no chip
+      to ask) and its way out when the test fails (`S30EF:1B28`, not
+      read to its end); `music_restore`'s path in `adl_tick` (left
+      out as before); an effect's event 6 (its own speed against the
+      tune's) and the 7xh events other than 77h, if the walks' files
+      have none (not looked for); a tune's period above 3FFFh;
+      `pit_least`'s assumption that `input_tick` is always in the
+      timer's table (after a second `snd_init` `adl_remove`'s
+      `pit_remove` and `adl_detect`'s `pit_install` may leave the
+      table without it: read, not looked at in a dump); the timing of
+      the port's own clock against the original's interrupts, as
+      before. Built and run on macOS only; `port/build.bat` got
+      `opl.c` added unbuilt.
+    - **What the audio's clock needs** (not done; in place of "AdLib"
+      and "The music" under "What sound output would need" above).
+      The runtime has what makes the sound: `opl.c` (`opl_write`,
+      `opl_render`, mono, any rate; it says itself that timers are the
+      port's business), an audio callback for a buffer of frames
+      (`platform.h`, `plat_audio_start`), a lock, a clock in
+      microseconds. It has nothing that says *when*, and that is the
+      whole of what is missing:
+      1. The timer's interrupts counted in samples played, not in
+         passes. An interrupt is due every N / 1193182 s, N the
+         period `pit_least` gives (set anew at each interrupt:
+         06A9h is 63.02 samples at 44.1 kHz, so the fraction has to
+         be carried). Either the audio callback cuts its buffer at
+         those moments and makes the interrupt there, or the game's
+         thread makes the interrupts and stamps what they write.
+      2. If the callback makes them (the original's shape: the audio
+         thread is the interrupt): `snd_irq` writes the program's
+         memory, which the game's thread reads and writes too, so
+         every routine of the sound called from the game's side must
+         hold `plat_audio_lock`; the driver's own lock (`snd_lock`)
+         stays what it is, the tick that finds it set only counts.
+         `music_fade` then waits through `snd_wait` (sleeping while
+         the callback runs the fade), and a call's effect is heard
+         from the next buffer on.
+      3. If the game's thread makes them (the memory stays on one
+         thread, and the headless comparisons stay as they are):
+         doskit needs a queue of register writes with the sample they
+         belong to, which the callback empties into `opl_write` as
+         its rendering gets there (not in the kit; generic, with a
+         test there), and the count of samples played so far to run
+         `snd_clock` by. The writes are stamped with the interrupt's
+         own time plus a lead, and the game's thread must call
+         `snd_clock` in every wait (`frame_set_tick` does once a
+         picture, 14 ms), or the tune stops while the program loads
+         a file; the lead (two pictures or so) is the delay of every
+         sound.
+      4. Headless there is no audio (`plat_null.c`'s
+         `plat_audio_start` returns 0), so the tests would go on with
+         the clock of passes while the window uses another one. A
+         virtual audio clock in `plat_null.c` (the callback asked for
+         the samples of the time that has passed, the samples
+         optionally written to a file) would let both run the same
+         way and make the output comparable with the runner's
+         `-oplwav`: also the kit's.
+      5. What to do about the time the original spends inside a tick
+         (0.1 ms a register, up to 11.9 ms, with timer periods lost):
+         a port on the sample clock writes a tick's registers at one
+         sample and loses none, so a tune runs ahead of the
+         original's by about 10 ms at each start. To keep it, the
+         clock would have to move the next interrupt by 98
+         microseconds a register written. A decision, not a need of
+         the chip's (`opl.c` takes writes at once).
+      6. The Sound Blaster's bytes on the same clock (the bullet
+         above): a source of unsigned 8 bit mono at `dsp_rate`'s
+         rate resampled into the callback, `dig_irq` when its buffer
+         has been played, the queue dropped at `dig_kick`. The kit
+         has no such source besides `modplay.c` and `cdaudio.c`.
+      Of the two ways the third point's is the one recommended here:
+      it needs two small generic pieces in doskit (the stamped
+      queue, the headless clock) and no lock in the game's code.
 
 ## `HL14-18.EXE` stage 1
 
@@ -4510,14 +4726,18 @@ emulation error (2026-10-02).
    hooks. Then their calls put inside `orders.c` and `fightpics.c` by
    the owners (the list is in that bullet), the music's three calls of
    `attacks_run` moved from `loop.c` into `orders.c` by its owner,
+   `snd_end()` at the end of `game_loop` in `loop.c` by its owner
+   (translated on `mac/opl`, not called),
    `S1A39`'s screens with their tunes (the pictures of `events.c`
    leave `music_start` and `music_fade` out; the pictures C8h, C9h and
    CCh with their effects are not translated, and no caller of them was
-   found), `snd_end`, and the output itself (an OPL2 from `snd_opl`,
+   found), and the output itself (the OPL2 is fed since `mac/opl` and
+   its stream compared; the bullet "The AdLib's output" lists what the
+   audio's clock needs, two small pieces of it in doskit; then
    the mixer's bytes, which `dig_mix` now makes in the driver's buffers
    (`mac/sfx`; the bullet "The effects' ways and the mixer" says what
    output still needs) with the timer's interrupts (`snd_irq`) and the
-   card's (`dig_irq`) on the audio's clock.
+   card's (`dig_irq`) on the audio's clock).
 1. For `HL14-18.EXE`, keep the remaining C0015 gaps and vector handlers
    unclassified until an incoming call or table target is evidenced. Do not
    repeat ordinary launcher runs for these gaps. The dispatcher and

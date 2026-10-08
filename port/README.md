@@ -778,6 +778,29 @@ hook for the buffers' bytes where `dig_irq` starts one, the queue
 dropped at `dig_kick`, the interrupt from the audio's clock), `snd_end`,
 the three pictures.
 
+2026-10-08 (macOS, branch `mac/opl`): the AdLib's output, in
+`src/sound.c`, still without any sound coming out. The routines already
+handed each register and its value to `snd_opl` in the original's
+order; added are the writes of the start and the end (`adl_detect` in
+`snd_init`: the chip's timer test, the voices silenced, the waveforms
+allowed; `adl_remove` and `snd_end`, which `snd_init` calls when it is
+called again; `game_loop`'s end in `src/loop.c` does not call
+`snd_end` yet) and the timer's count as `pit_irq` keeps it for
+`adl_tick` and the fade's routine (`snd_irq`, which now returns which
+of the two it ran): a period a tune sets counts from the interrupt
+after the next, so a fade begun with a tune steps three ticks earlier
+than the port had it. `music_fade`'s wait asks `snd_wait` for the next
+interrupt when that is set (for an audio clock, and the test).
+`src/main.c` sets `snd_opl` to a routine that feeds an OPL2 of the
+runtime (`doskit/runtime/opl.c`, added to both build scripts); nobody
+asks it for samples, because the interrupts still run on the port's
+clock of passes. `-opllog FILE` writes each register (the port's time,
+the driver's count of ticks, register, value) and a line at the end of
+each `music_start` and `music_fade`.
+Not done: the audio's clock and with it any sound (docs/HANDOFF.md,
+"The AdLib's output", lists what it needs, part of it in doskit);
+`snd_end` called by the loop's end. Not verified: see "Checked".
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -807,6 +830,38 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The AdLib's register stream (2026-10-08, macOS, branch `mac/opl`;
+  `src/sound.c`): `python3 port/tests/opl_dumps.py menu brief battle`
+  runs the original with a log of every OUT to the ports 388h and 389h,
+  every timer interrupt and the routines it ran, and the entry and end
+  of every call of the sound's routines, and keeps the memory at the
+  entry of each call with arguments and before every 4000th tick
+  (`build/opl/WALK.ev`; the battle's dumps take a quarter of an hour).
+  `sh port/tests/opl_test.sh` replays each list in the port
+  (`port/tests/opl_test.c`): the same calls and interrupts in the same
+  order on one memory from `snd_init`'s entry on, an interrupt by the
+  port's `snd_irq`. Result: menu 3,303 registers the same, 0 different,
+  0 missing, 0 too many, 84 calls, the driver's variables the same at 56
+  dumps and the timer's counts at 55; brief 1,959 registers, 326 calls,
+  30 dumps; battle (180 s of map 8 with `m8_site.keys`) 11,443
+  registers, 3,128 calls, 376 dumps; every interrupt ran the routines
+  the original's ran (30, 34 and 15 steps of a fade among them). Not
+  judged in the driver: the interrupts' old vectors, `delay_measure`'s
+  counts and the numbers `pit_add` gave (the machine's). In 1 and 17
+  cases (menu, battle) a tick that found the lock set in the original
+  came where the port's routine no longer held it and was made to count
+  only. The script then runs the port's program through the menu's and
+  the new units' walks with `-opllog` and tells how much of the
+  original's stream it writes at the same tick of each tune
+  (`port/tests/opl_cmp.py`; not judged, and far from all: the program's
+  calls fall on other ticks than the original's, see the numbers it
+  prints).
+  Not checked or not reached: no sound was made or listened to;
+  `snd_end`, `adl_remove` and `snd_init` called a second time (no walk
+  has them); the chip's status in `adl_detect`; the battle beyond 180 s;
+  the pictures of events; an interrupt that writes between a register's
+  number and its value (0 in the walks); Windows and Linux builds
+  (`build.bat` got `opl.c` unbuilt).
 - The effects' ways and the mixer (2026-10-08, macOS, branch `mac/sfx`;
   `src/sound.c`): `python3 port/tests/sfx_dumps.py` runs the original on
   map 57 with `m57_win.keys` (a battle that ends at the first round's

@@ -134,6 +134,7 @@ int32_t sfx_load(Far place, Far name, Far work);
 extern void (*snd_opl)(uint8_t reg, uint8_t value);
 extern void (*snd_played)(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, int16_t r);
 uint16_t snd_init(uint16_t mask);
+void snd_end(void);
 int16_t sfx_play(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, uint16_t step);
 int16_t dig_play(uint16_t ch, Far p, uint16_t vol, uint16_t times, uint16_t step);
 int16_t adl_play(uint16_t ch, Far p, uint16_t vol, uint16_t times);
@@ -149,7 +150,8 @@ int16_t music_start(Far tune, uint16_t fade, uint16_t vol);
 int16_t music_fade(uint16_t speed);
 int16_t music_volume(uint16_t vol);
 void fade_tick(void);
-void snd_irq(void);
+int snd_irq(void);
+void snd_timer(int32_t *adl, int32_t *fade, uint32_t *ran);
 /* the fight's sounds: pics_play (S2532:211E) and its callers' sites in
  * fight_frames, the channels stopped at fight_pictures' end,
  * attacks_run's effect for a unit destroyed without pictures; and the
@@ -165,6 +167,8 @@ void fight_blast_sound(void);
 void fight_pics_sounds(int at);
 void fight_orders_sounds(int at, int n);
 extern void (*snd_waited)(double s);
+extern int (*snd_wait)(void);
+extern void (*snd_at)(int place);
 extern void (*snd_music)(int out, uint16_t a, uint16_t b, int16_t r);
 void snd_clock(double t);
 int pictures_load(Far *place, Far work, Far pal);

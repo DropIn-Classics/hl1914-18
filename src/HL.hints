@@ -2711,3 +2711,123 @@ name S297D:000C latch_copy
 name S2B76:0004 screen_keep
 name S294A:000A screen_put
 name S292E:000A pixel_put
+; The menu (2026-10-08, Mac; read whole but for its drawing routines,
+; the state part translated in port/src/menu.c and compared).
+; menu_run(far place): game_loop's call at S066A:0349 before every battle.
+; From place on: 32h bytes for a map's best scores, 1064h of work buffer,
+; three pictures of FA00h bytes (the names at S37FF:0080, 008A, 0094, each
+; shown with lbm_show and fetched from the page drawn with screen_keep),
+; 3E8h for CODES.DAT (its length / 10 the number of maps); then at the
+; free end the six libraries (records S37FF:0008 large font, 001C middle
+; font, 0030 small font, 006C the flags, 0044 icons, 0058 the rest, whose
+; first picture becomes the mouse's pointer, word 288h of the screen's
+; record), two tunes, the sounds (sfx_load) and the menu's data
+; (S37FF:00A4): a word, 10h texts of 20h bytes, from 202h the items'
+; records of D8h bytes and from 120Ah the pages' of 34h. FFFFh when a file
+; fails. An item: words 0 to 6 its rectangle (page_rects), from byte 8 its
+; texts of 14h bytes, byte 72h its kind (1 does what byte 76h says: 1 the
+; best scores, 2 the program's end, 3 a saved game, 4 START; 2 a choice
+; of byte 73h values, kept in byte 74h; 4 the map's code typed; 5 goes to
+; the page of byte 76h). A page: words 0 and 2 where its items begin,
+; words 4, 6, 8 and 0Ah places of what is drawn, bytes 2Ch on its items'
+; numbers, byte 32h how many.
+; Its loop (S167A:0D3C, a pass until the timer's routine has counted 5 in
+; word 22Eh of the screen's record): the key of entry 0 of the table of
+; keys or the mouse's second button changes between pages 1 and 0; a
+; side's button or a click with the pointer on an item chooses; a side's
+; up and down go to the item before and after; with a mouse the item
+; under its pointer becomes the chosen one. Each counts once while held
+; (the words at [BP-46h], [BP-44h] and [BP-48h]). The record a choice is
+; read from ([BP-20h]) is set when the item changes, and it is also the
+; variable of the two loops over the page's items (the click's at
+; S167A:0F35, the pointer's at 114B), which leave it on the item under the
+; pointer or on the page's last; at the start the loop that puts the kept
+; choices (S37FF:0116, 13h bytes) back into the items leaves it on item
+; 12h (seen: a pass later it is the first item's).
+; START (S167A:1D43) with map_number 0 asks for the country (left and
+; right, a button, a click on a flag): the first means map 18h. The
+; saved game's digit (S167A:1780) goes to word 6 of game_state and sets
+; 200h when the file file_name(2, -1, two digits, 5) is there.
+; After a battle with a score (S167A:078E) above the lowest of the map's
+; four best the winner's name is typed (text_input into the text at 80h)
+; and file_save writes the 28h bytes; the map is word 0Fh of game_state.
+; What it leaves (S167A:23BA): the items' choices to S37FF:0116; items 7
+; and 8 make a side the computer's (2 in word 0 of its record in sides;
+; word 2 of game_state 1 for one, 4 both, 2 none); item 0Ah byte 16h of
+; both sides' records (4, 8, 10h, else FFh); item 9 is 8 in word 2 of
+; game_state; item 6 goes to S37FF:0112; item 0Bh to no_fight_pics;
+; pics_winter from byte 8 of the map's record; the highest of the four
+; scores to S331F:4D2B; item 0Eh to S37FF:0114, the side whose input
+; record the mouse plays (mouse_open's second argument; game_loop opens
+; it again at S066A:0390 by that byte). Which item is which on the screen
+; was not looked at but for 1 (the code) and 0 (START, by the run).
+name S167A:0005 menu_run
+; text_width(far text, far font, gap), text_at(x, y, far text, far font,
+; dword colours, base, gap), text_mid(y, ...) the same in the middle of
+; the 320: a character's picture is the font's entry 0 to 9 for a digit,
+; 0Ah to 23h for a letter (small as capital), 24h on for the eleven at
+; S37FF:00FC (each moved down by its signed byte at S37FF:0107 when
+; drawn); others are passed over; its width byte 0Eh of the picture;
+; drawn by pic_draw.
+name S167A:274C text_mid
+name S167A:27B4 text_at
+name S167A:28E0 text_width
+; page_draw(page, item, place, far frame): the page with the item shown as
+; chosen (S167A:2B63, 29E2, 2CAF: not read), page_flip, page_copy, then
+; the pointer onto the item of that place (pointer_aim, pointer_to).
+name S167A:2D37 page_draw
+; page_rects(far frame, page): the rectangles of the page's items but the
+; last: at the page's words 0 and 2, 18h lines apart, 15h high, the
+; widest of the item's texts in the large font and 27h wide.
+name S167A:2E30 page_rects
+; menu_code_set(map, far codes, far frame): the map's code (five bytes of
+; its record in CODES.DAT, 30h added) into item 1's text at 0Fh, closed
+; by 5Dh, and to S37FF:0129; byte 6 of the record 2: items 7 and 8 get
+; choice 0 and 400h is cleared in game_state; else 400h is set and item 8
+; gets 1 with map_number below 18h, else item 7.
+name S167A:3128 menu_code_set
+; text_input(x, y, far text, max, start, far frame, far picture): typing
+; with the BIOS's keys (key_remove; input_tick fetches them by interrupt
+; 16h): capitals from start on, at most max; the key of entry 2 of the
+; table of keys takes one off, Enter or the key of entry 0 ends. A 5Dh
+; as cursor comes and goes every 10h passes; a pass lasts as long as its
+; drawing, page_flip and page_copy.
+name S167A:325C text_input
+; scores_show(far scores, map, far codes, far frame): brings the four
+; scores into 0 to 7EF4h (in the buffer), then draws the map's code, the
+; names and scores, the highest first.
+name S167A:36F9 scores_show
+; pointer_to(none, x, y): with a mouse (none 0) mouse_show and mouse_to,
+; else the pointer's picture drawn there. pointer_off(none): mouse_hide,
+; else unders_restore. pointer_aim(far frame, page, place): the middle of
+; that item's rectangle to the frame's words 2Ah and 2Ch.
+name S167A:3A9C pointer_to
+name S167A:3B03 pointer_off
+name S167A:3B32 pointer_aim
+; The mouse, the record at DATA:0414 (behind DATA:00C2): word 0 FFFFh
+; open, 2 the mode (1: input_tick reads it on every call, else on every
+; fourth), 4 the offset of the side's input record it plays, 6 its
+; pointer is drawn, 8 a picture is on the screen, 10h and 12h its place,
+; 14h and 16h where it was drawn, 30h, 34h and 32h the buttons (FFFFh),
+; 3Ch to 40h the driver's speeds as mouse_open found them, 44h shown.
+; mouse_open(mode, record, draw) resets the driver (interrupt 33h);
+; mouse_close; mouse_range(x0, y0, x1, y1); mouse_speed (seven words to
+; the record, three of them to the driver); mouse_to(x, y); mouse_read
+; (draws the pointer on the page shown: S2904:000E, S2967:0004, not
+; read); mouse_hide; mouse_show. Translated but for the picture
+; (port/src/mouse.c).
+name S2BCD:0008 mouse_open
+name S2BD4:000A mouse_close
+name S2BDB:0006 mouse_range
+name S2BDF:000E mouse_speed
+name S2BE5:000C mouse_to
+name S2BE7:000A mouse_read
+name S2BF9:0008 mouse_hide
+name S2BFD:000A mouse_show
+; file_save(far name, far buffer, dword length): file_open with 1, the
+; bytes written 8000h at most a time, file_close.
+name S2BB9:000A file_save
+; pic_part(far picture, its width, its height, x, y, w, h, to x, to y):
+; a part of a picture kept by screen_keep to the page drawn (by its calls
+; in the menu; not read).
+name S2A55:0006 pic_part

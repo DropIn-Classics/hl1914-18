@@ -12,6 +12,7 @@
  */
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include "hl.h"
 #include "sys.h"
 
@@ -27,8 +28,45 @@ const char *hl_game_dir = ".";
 
 #define CHUNK 0x1000u
 
+/* where the port keeps the files the program writes (a map's best
+ * scores): the game's folder is not written to.  NULL: nothing is kept */
+const char *hl_save_dir;
+
+/* a DOS name's place there: the name from offset o on, its folders'
+ * separators made underscores */
+static int save_path(Far name, uint16_t o, char *path, size_t n)
+{
+    char flat[64];
+    size_t i = 0;
+    uint8_t c;
+
+    if (!hl_save_dir)
+        return 0;
+    while ((c = pb(name, o++)) != 0 && i + 1 < sizeof flat)
+        flat[i++] = c == '\\' || c == '/' || c == ':' ? '_' : (char)c;
+    flat[i] = 0;
+    if (!i)
+        return 0;
+    sys_join(path, n, hl_save_dir, flat);
+    return 1;
+}
+
+/* a file the program writes whole (S2BB9:000A); 0 if it could not be */
+int host_save(Far name, const uint8_t *data, size_t size)
+{
+    char path[1024];
+    FILE *f;
+    int ok;
+
+    if (!save_path(name, 0, path, sizeof path) || !(f = fopen(path, "wb")))
+        return 0;
+    ok = fwrite(data, 1, size, f) == size;
+    return fclose(f) == 0 && ok;
+}
+
 /* the file a DOS name in the program's memory means, looked up without
- * regard to case below the game's folder */
+ * regard to case below the game's folder; one the port has written
+ * itself (host_save) comes first */
 uint8_t *host_load(Far name, size_t *size)
 {
     char path[1024], next[1024], part[64];
@@ -40,6 +78,8 @@ uint8_t *host_load(Far name, size_t *size)
     if ((int16_t)frw(HL_DATA + HL_BASE, 0x0378) > 0)
         while (pb(name, o++))
             ;
+    if (save_path(name, o, path, sizeof path) && sys_is_file(path))
+        return sys_load(path, size);
     strncpy(path, hl_game_dir, sizeof path - 1);
     path[sizeof path - 1] = 0;
     for (;;) {

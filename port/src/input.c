@@ -16,14 +16,68 @@ static uint16_t dw(uint16_t o) { return frw(S_DATA, o); }
 static void sb(uint16_t o, uint8_t v) { fwb(S_DATA, o, v); }
 static void sw(uint16_t o, uint16_t v) { fww(S_DATA, o, v); }
 
+#define S_KEYS (HL_S27FE + HL_BASE)
+#define A_INSTALLED 0x0012u     /* FFh while interrupt 9 is the program's */
+
+/* The BIOS's keys while the program's keyboard interrupt is taken out
+ * (key_remove; the menu's typing): not the game's but the machine's part,
+ * so written here and not read from anything: a key pressed becomes a
+ * word, the scancode above its character (letters small, digits, Enter,
+ * Escape, the backspace and the space; 0 for any other), which the
+ * timer's routine fetches with interrupt 16h.  No shift, no repeat of a
+ * held key. */
+static uint16_t bios_keys[16];
+static int bios_n, bios_e0;
+
+static void bios_key(uint8_t code)
+{
+    static const char row[] = "\0\0331234567890\0\0\b\0qwertyuiop\0\0\r\0asdfghjkl\0\0\0\0\0zxcvbnm";
+    uint8_t ch = 0;
+
+    if (code == 0xE0) {
+        bios_e0 = 1;
+        return;
+    }
+    if (!(code & 0x80) && bios_n < 16) {
+        if (!bios_e0 && code < sizeof row - 1)
+            ch = (uint8_t)row[code];
+        if (!bios_e0 && code == 0x39)
+            ch = ' ';
+        bios_keys[bios_n++] = (uint16_t)(code << 8 | ch);
+    }
+    bios_e0 = 0;
+}
+
+/* S27FE:056C and 05AB (key_install, key_remove): interrupt 9 to the
+ * program's routine and back to the one before; the flag at S27FE:0012
+ * says which.  Left out: the vector kept at S27FE:000A.  key_remove also
+ * clears the byte the program's routine keeps (DATA:0B2B). */
+void key_install(void)
+{
+    fwb(S_KEYS, A_INSTALLED, 0xFF);
+}
+
+void key_remove(void)
+{
+    if (!frb(S_KEYS, A_INSTALLED))
+        return;
+    fwb(S_KEYS, A_INSTALLED, 0);
+    sb(0x0B2B, 0);
+}
+
 /* S27FE:04F4, the keyboard's interrupt: the byte read from the keyboard
  * is kept at DATA:0B2B, and the key's bit in the table at DATA:0B1B is
- * cleared for a key pressed and set for one let go (80h in the byte) */
+ * cleared for a key pressed and set for one let go (80h in the byte).
+ * While it is taken out the byte goes to the BIOS's keys instead. */
 void key_irq(uint8_t code)
 {
     uint16_t at = (uint16_t)(0x0B1B + ((code & 0x7F) >> 3));
     uint8_t bit = (uint8_t)(0x80 >> (code & 7));
 
+    if (!frb(S_KEYS, A_INSTALLED)) {
+        bios_key(code);
+        return;
+    }
     sb(0x0B2B, code);
     sb(at, (uint8_t)((db(at) & ~bit) | ((code & 0x80) >> (code & 7))));
 }
@@ -125,16 +179,32 @@ static const char *side_rec(uint16_t cur, uint16_t prev, uint16_t cnt, uint16_t 
  * pressed into the record behind DATA:00BE (DATA:045C: byte 0 the
  * scancode, word 4 FFFFh until game_loop has read it), and on every fourth
  * call the two sides' records.  Returns NULL, or what is not translated.
- * Left out: the BIOS's keys (INT 16h; the program's own keyboard
- * interrupt passes none on), S2D0D:0306 with the word at DATA:04B9, the
- * joysticks' and the mouse's reading (S2BAD:0006, S2BE7:000A). */
+ * A key the BIOS has (INT 16h; only while the program's own keyboard
+ * interrupt is taken out, which passes none on) comes first: its scancode
+ * to byte 0 and its character to byte 2 of that record.  The mouse is
+ * read (mouse_read, S2BE7:000A) on every call when its record's word 2 is
+ * 1 (the menu), else on every fourth.
+ * Left out: S2D0D:0306 with the word at DATA:04B9, the joysticks' reading
+ * (S2BAD:0006) and what the mouse gives a side's record (S27FE:03D4). */
 const char *input_tick(void)
 {
     const char *why;
     uint8_t code = db(0x0B2B);
 
     sw(0x0308, (uint16_t)(dw(0x0308) + 1));
-    if (code && !(code & 0x80)) {
+    if (bios_n) {
+        uint16_t k = bios_keys[0];
+        int i;
+
+        for (i = 1; i < bios_n; i++)
+            bios_keys[i - 1] = bios_keys[i];
+        bios_n--;
+        sb(0x045D, db(0x045C));
+        sb(0x045F, db(0x045E));
+        sb(0x045C, (uint8_t)(k >> 8));
+        sb(0x045E, (uint8_t)k);
+        sw(0x0460, 0xFFFF);
+    } else if (code && !(code & 0x80)) {
         sb(0x045D, db(0x045C));
         sb(0x045F, db(0x045E));
         sb(0x045C, code);
@@ -147,9 +217,13 @@ const char *input_tick(void)
         sw(0x0460, 0);
         sb(0x045C, 0);
     }
+    if (dw(0x0414) && dw(0x0416) == 1)
+        mouse_read();
     sw(0x0B19, (uint16_t)(dw(0x0B19) + 1));
     if ((int16_t)dw(0x0B19) < 4)
         return NULL;
+    if (!dw(0x0416))
+        mouse_read();
     why = side_rec(0x03BC, 0x03C2, 0x03D2, 0x03C8, 0x0B2C, 0x03B8, 0x0384);
     if (!why)
         why = side_rec(0x03E8, 0x03EE, 0x03FE, 0x03F4, 0x0B2E, 0x03BA, 0x0386);

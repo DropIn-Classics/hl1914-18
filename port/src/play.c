@@ -841,11 +841,14 @@ void play_begin(double start)
     orders_hook = round_hook;
     pics_hook = pics_clock;
     loop_reset();
+    play_passes = play_misses = 0;
+    clk_at = fights_at = 0;
+    key_byte = in_battle = 0;
+    if (start < 0)      /* the clock goes on (play_start, the menu before) */
+        return;
     now = began = start;
     tick_at = start + TICK;
-    play_passes = play_misses = 0;
-    keys_at = clk_at = fights_at = 0;
-    key_byte = in_battle = 0;
+    keys_at = 0;
     if (have_clock) {
         /* the number the original's setup started the random numbers with */
         long i;
@@ -864,6 +867,42 @@ void play_begin(double start)
 double play_now(void)
 {
     return now;
+}
+
+/* the port's own clock for what comes before a battle (the menu, menu.c):
+ * it begins at `start` seconds of the key script's time, the keys before
+ * that are passed over; play_begin with a start below 0 then goes on with
+ * it.  play_tick is one call of the timer's routine, play_retraces n
+ * waits for a retrace, play_fade a fade_in or fade_out, play_idle whether
+ * the key script has no key left */
+void play_start(double start)
+{
+    now = began = start;
+    tick_at = start + TICK;
+    keys_at = 0;
+    stopped = NULL;
+    while (keys_at < keys_n && keys[keys_at].t < start)
+        keys_at++;
+}
+
+void play_tick(void)
+{
+    own_tick();
+}
+
+void play_retraces(int n)
+{
+    own_retraces(n);
+}
+
+void play_fade(void)
+{
+    own_fade();
+}
+
+int play_idle(void)
+{
+    return keys_at >= keys_n;
 }
 
 /* the original's clock brought up to the next pass's beginning, or to

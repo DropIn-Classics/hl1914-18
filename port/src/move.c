@@ -464,6 +464,9 @@ uint16_t move_step(void)
         return 0;
     }
     text = move_arrive(side, map);
+    /* S10E1:0A68: the text is shown to the side, which game_state keeps
+     * (show_message) */
+    show_message(text, side);
     SETW(game_state, 4, (NW(game_state, 4) | (side ? 0x10 : 8)) & 0xFF7F);
     pww(unit, 4, pw(unit, 4) & 0xFEFF);
     if (pw(unit, 4) & 0x40) {

@@ -228,6 +228,7 @@ code S0CB6:0422
 code S02E6:0ED9
 code S02E6:1071
 code S02E6:11B1
+comment S02E6:11B1 attacks_run's order 4, a site taken (port/src/orders.c order_take): with 40h in game_state music_fade(4) and [BP-0Dh] counted up (the music started again at attacks_run's end); 1000h in game_state, site_taken 1, view_to_field and view_draw for the other side, 30h in field_bits at the site while marks_draw draws, view_cover, page_flip, page_copy, wait_frames, the fades, take_picture 1; then the rows, the units inside, the counts and the ground as orders.c says. A depot (sites_100) taken compared on map 0 (m0_s4: record 1 by the computer in pass 1787, record 0 by the first side in 2875); both were nobody's (19h 12h), so the other side's count byte 4 going down was not run.
 code S02E6:17C3
 code S02E6:189E
 code S02E6:1986
@@ -941,6 +942,14 @@ name S1273:0399 load_game
 ; dark behind save_game's texts. Read, translated (port/src/draw.c); the
 ; picture was not compared as video memory.
 name S131D:13A6 view_dim
+; view_cover(side): the 9 by 7 fields of the side's view as view_dim places
+; them (x 0 or A0h plus 10h a column, y 0Ch more in an odd column, 18h a
+; row), each drawn over with picture 30h of the library whose record is at
+; S331F:0167 (pic_draw, base DDh). attacks_run's order 4 calls it for the
+; side that loses the site, after view_to_field and view_draw, before
+; page_flip and wait_frames; presumably the view veiled before the site's
+; picture (not seen on the screen). Read; writes nothing but the screen.
+name S131D:1426 view_cover
 ; game_text_at(x, y, number, colour): the text of that number (the table of
 ; word offsets S331F:17BA points to) by text_draw with a line's height of
 ; 6. Translated (port/src/draw.c).
@@ -1299,6 +1308,16 @@ name S2CF7:0006 mem_same
 ; and returned; FFFF:FFFF when the file cannot be loaded. Read,
 ; translated as far as memory goes (port/src/pictures.c).
 name S2F39:00FD sfx_load
+; music_fade(speed): FFFFh at once when bit 0 of S30EF:025E is clear or
+; S30EF:024A is 0 (presumably no music playing); else stops channels 8 to
+; 0Bh (S2F39:1754), and with speed 0 clears 024A, otherwise starts a fade
+; (023C the speed, 023E from 024E) and waits until S30EF:024C is 0 (the
+; driver's interrupt counts it down, not read) before clearing 024A; 1.
+; Called with 4 by attacks_run's order 4 when 40h (music) is in game_state,
+; which also counts [BP-0Dh] up so that attacks_run starts the music again
+; at its end (S2F39:0F87 with music_data, 0, FFh). The name is a guess from
+; this reading; the port has no sound and leaves it out.
+name S2F39:1058 music_fade
 name S30EF:0242 sfx_data
 name S30EF:0246 sfx_size
 ; Names and places of pictures_load (seen at its return on map 0 and 8):

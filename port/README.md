@@ -780,6 +780,32 @@ anything the game needs before the first release.
     `order_undo` for the kinds 2, 4 and 5 and for the units aboard a
     freed carrier. Order 1 cannot come: nothing writes kind 1
     (`src/HL.hints` at `move_arrive`; docs/HANDOFF.md).
+- `m0_s4` (2026-10-08, Windows; map 0, the second side the computer's,
+  260 s, the existing key script; `play_dumps.py m0_s4.keys 260`): a
+  depot taken twice. The computer takes `sites_100` record 1 at the
+  round's end in pass 1787 (word 19h 12h to 11h) and the first side
+  record 0 in pass 2875 (12h to 10h). On the original's clock 3,796
+  passes, 18 compared (1, 50, 200, 400, the seven rounds' ends and the
+  passes after them, the last): the game's state and the computer's
+  the same at every one, both takings included; again the same after
+  the merge of 382a4bb. Two things make `play_cmp.py` say DIFFERENT
+  and were not resolved: pass 1's setup differs in 43 bytes of
+  `S37FF:0012` to `012D` and `S3CFE:0006` (the setup's known bytes,
+  docs/HANDOFF.md, "The setup's differences"; map 0 is chosen by the
+  mouse here), and one of 7,594 parts: in pass 1059 the first side's
+  button word is 10h in both, but the original's `view_step` finds the
+  record's byte 8 0 where the port's has FFh (Space let go at 92.450 s,
+  inside the first side's part of pass 1058; the port's `input.c` sets
+  byte 8 to FFh while the button is not down, so the release reaches
+  the two at different ticks; not followed). The music's fade
+  (`music_fade`) and `view_cover` of the taking are left out (sound,
+  drawing). Not reached: a depot of the other side taken (every depot
+  of the 24 maps for two players is closed in by its owner's units:
+  map 48's (7,8) behind a river and the second side's units, map 54's
+  (21,17) by three of the first side's, map 56's by the second side's;
+  scripted probes on 48 and 54 stopped there), so the other side's
+  count (byte 4 of `sides`) going down and a depot's stock changing
+  hands were not run.
   - `m54_end` (map 54, 320 s, 14 rounds; `make_two.py` with
     1E45 2E47 2f51 2f51.8 2R56 2R57 2R58 2R59 2R60 2R61 2L62 2u63
     2u64 2u65 2u66 2m68 2d71 2a73 2a75 2E77 1E79 2f83 2f83.8 1E88

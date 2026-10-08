@@ -3154,6 +3154,36 @@ emulation error (2026-10-02).
     - On Windows `play_test.sh` cannot run `sh build.sh` (no `cc`): the
       port was built with `build.bat` and the script run with that line
       and its `cd` taken out (a copy outside the repository).
+  - A depot taken (2026-10-08, Windows; port/README.md, `m0_s4`).
+    - Where one can be taken: `sites_100` records read from the first
+      pass of all 24 maps for two players (a dump each by a scratch
+      script, menu as `play_dumps.py` walks it). Every depot owned by
+      a side is closed in by its owner: on map 48 (7,8), the second
+      side's, lies in a pocket west of a river whose only open side is
+      the second side's ground and units (the first side's cavalry 0Dh
+      walked (14,8), (11,7), (10,7), (12,9) in probe runs and could go
+      no nearer); on map 54 (21,17), the first side's, has its three
+      open neighbours held by units 3Eh, 42h, 43h; map 56's (29,1) is
+      reached only through the second side's row of units. Only the
+      main field of a depot (the one whose ground has 100h) can be
+      entered; the other three are closed to the kinds tried. A
+      field_bits byte is at row * 40h + column, not by the map's width.
+    - So the taking was watched on map 0 with the existing `m0_s4`
+      script in the play harness: both depots there are nobody's (19h
+      12h); the computer takes record 1 (pass 1787), the first side
+      record 0 (pass 2875); the port is the same at every pass
+      compared. Order 4 was translated before (`order_take`); what it
+      calls besides was read now: `S131D:1426` is `view_cover` (draws
+      only), `S2F39:1058` `music_fade` (the sound driver; with music on
+      it also makes attacks_run start the music again at its end).
+      Both are left out of the port, being drawing and sound.
+    - Not reached: a depot of the other side taken (the count byte 4
+      of the loser's `sides` record going down, `!(19h & 2)`), a depot
+      taken with units inside. A poke of a depot's owner would need its
+      ground and the sides' counts too (not tried).
+    - Not resolved: one input part of `m0_s4` (pass 1059, byte 8 of the
+      first side's record after Space was let go inside the part
+      before) differs although the state stays the same; port/README.md.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

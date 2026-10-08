@@ -375,6 +375,7 @@ uint16_t move_arrive(uint16_t side, Far map)
         pww(unit, 4, (pw(unit, 4) & 0xFEFF) | 0x4200);
         if (pw(unit, 4) & 0x1000)
             row_move(side, carrier_of(unit), rec);
+        field_draw(side, (uint16_t)(pw(unit, pos) - 1));
         pwb(unit, 0x13, kind);
         pwb(unit, 0x19, place);
         pwb(unit, 0x15, NB(move_rec, MR_SITE_NO));
@@ -411,6 +412,7 @@ uint16_t move_arrive(uint16_t side, Far map)
         pwb(map, pw(unit, pos), 0xF4);
         pww(unit, pos, pw(rec, 0x0E));
         pww(unit, 4, (pw(unit, 4) & 0xFEFF) | 0x4200);
+        field_draw(side, pw(unit, pos));    /* the original passes the place, not less 1 */
         break;
     default:
         text = 0;
@@ -442,20 +444,25 @@ uint16_t move_step(void)
         uint16_t old = pw(unit, pos);
 
         pwb(map, pw(half, pos), NB(move_rec, MR_UNDER2));
+        field_draw(side, (uint16_t)(pw(half, pos) - 1));
         SETB(move_rec, MR_UNDER2, NB(move_rec, MR_UNDER));
         SETB(move_rec, MR_UNDER, pb(map, (uint16_t)(next + 1)));
         pwb(map, (uint16_t)(next + 1), no);
         pwb(unit, (uint16_t)(0x0F + side), field_dir((int16_t)(pw(unit, pos) - 1), (int16_t)next));
         pww(unit, pos, (uint16_t)(next + 1));
+        field_draw(side, next);
         pwb(map, old, (uint8_t)(no + 1));
         pwb(half, (uint16_t)(0x0F + side), pb(unit, (uint16_t)(0x0F + side)));
         pww(half, pos, old);
+        field_draw(side, (uint16_t)(old - 1));
     } else {
         pwb(map, pw(unit, pos), NB(move_rec, MR_UNDER));
+        field_draw(side, (uint16_t)(pw(unit, pos) - 1));
         SETB(move_rec, MR_UNDER, pb(map, (uint16_t)(next + 1)));
         pwb(map, (uint16_t)(next + 1), no);
         pwb(unit, (uint16_t)(0x0F + side), field_dir((int16_t)(pw(unit, pos) - 1), (int16_t)next));
         pww(unit, pos, (uint16_t)(next + 1));
+        field_draw(side, next);
     }
     if (pw(unit, 4) & 0x1000)
         carrier_moved(no, side);
@@ -593,6 +600,20 @@ uint16_t attack_order(Far view, Far map, uint16_t side)
     return given;
 }
 
+/* S10E1:0283, the end of move_done: the side's view drawn again with its
+ * marks, then the unit's field as it was at the entry and, for a unit of
+ * two, its other half's (field_draw) */
+static void move_done_draw(Far unit, uint16_t side, uint16_t at, uint16_t at2)
+{
+    uint16_t field = frw(S_views, (uint16_t)(A_views + side * 0x31 + 2));
+
+    view_draw(field, side);
+    marks_draw(field, side);
+    field_draw(side, at);
+    if (pw(unit, 4) & 0x40)
+        field_draw(side, at2);
+}
+
 /* S10E1:000F (move_done): the end of choosing a move for the view's unit
  * (word 1Eh) on map `map`: the side's marks 1 (2 for the second side) are
  * cleared in field_bits.  With 10h in `flags` the move is given up: 100h
@@ -603,14 +624,17 @@ uint16_t attack_order(Far view, Far map, uint16_t side)
  * carrier) is taken back from view_copy and goes to step 9 of state 2;
  * with 10h the unit goes back into its place, its place on the side's map
  * becomes the record's field again: F4h is written into the map at the
- * old place, and on a carrier the record's byte 1Bh at the new one.  The
- * drawing is left out. */
+ * old place, and on a carrier the record's byte 1Bh at the new one.  At
+ * the end the view is drawn again (move_done_draw). */
 void move_done(Far view, Far map, uint16_t side, uint16_t flags)
 {
     uint8_t no = (uint8_t)pw(view, 0x1E);
     Far unit = unit_at(no);
     uint16_t pos = (uint16_t)(0x0B + side * 2);
+    uint16_t at = (uint16_t)(pw(unit, pos) - 1), at2 = 0;
 
+    if (pw(unit, 4) & 0x40)
+        at2 = (uint16_t)(pw(unit_at((uint8_t)(pw(unit, 4) & 0x80 ? no + 1 : no - 1)), pos) - 1);
     field_bits_clear(side ? 2 : 1);
     if (flags & 0x10) {
         pww(unit, 4, pw(unit, 4) & 0xFEFF);
@@ -625,8 +649,10 @@ void move_done(Far view, Far map, uint16_t side, uint16_t flags)
         SETW(game_state, 4, NW(game_state, 4) | 0x100);
         SETW(site_taken, 0, 1);
     }
-    if (pb(view, 0x19) != 3)
+    if (pb(view, 0x19) != 3) {
+        move_done_draw(unit, side, at, at2);
         return;
+    }
     if (flags & 0x10) {
         Far rec = far_at(view.seg, (uint16_t)(view.off + 0x24));
         fwb(map.seg, (uint16_t)(map.off + pw(unit, pos)), 0xF4);
@@ -645,12 +671,15 @@ void move_done(Far view, Far map, uint16_t side, uint16_t flags)
     pwb(view, 0x1B, 5);
     pww(view, 0x0C, pw(view, 4));
     pww(view, 0x0E, pw(view, 6));
+    move_done_draw(unit, side, at, at2);
 }
 
-/* S0E56:1217 (marks_erase): the view's fields marked with `mask` drawn
- * without the marks (left out), then the mask cleared in field_bits */
-static void marks_erase(uint8_t mask)
+/* S0E56:1217 (marks_erase): the side's view's fields from `field` marked
+ * with `mask` drawn without the marks (marks_redraw), then the mask
+ * cleared in field_bits */
+void marks_erase(uint16_t field, uint16_t side, uint8_t mask)
 {
+    marks_redraw(field, side, mask);
     field_bits_clear(mask);
 }
 
@@ -701,7 +730,7 @@ uint16_t move_aim(Far view, Far map, uint16_t side)
     }
     {
         int16_t n = (int16_t)NW(path_len, 0);
-        marks_erase(mark);
+        marks_erase(pw(view, 2), side, mark);
         field_bits_clear(mark);
         while (n-- > 0) {
             int16_t q = (int16_t)frw(buf.seg, (uint16_t)(buf.off + 0x1F40 + 2 * n)) >> 1;

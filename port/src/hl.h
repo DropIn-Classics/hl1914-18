@@ -138,7 +138,6 @@ void fade_out(void);
 /* draw.c */
 void view_draw(uint16_t field, uint16_t side);
 void marks_draw(uint16_t field, uint16_t side);
-void message_clear(uint16_t side);
 
 /* mem.c */
 Far mem_alloc(uint32_t size);
@@ -186,6 +185,10 @@ void view_copy(Far view, int back);
 void move_out(Far view, uint16_t side);
 uint16_t side_input(Far rec, Far view);
 void show_message(uint16_t text, uint16_t side);
+void field_draw(uint16_t side, uint16_t field);
+void unit_panel(uint8_t no, uint16_t side);
+void marks_redraw(uint16_t field, uint16_t side, uint8_t mask);
+void marks_erase(uint16_t field, uint16_t side, uint8_t mask);
 void field_menu(Far view, uint16_t side, uint16_t bits);
 uint8_t view_step(Far view, Far rec, uint16_t bits, Far map, uint16_t side);
 

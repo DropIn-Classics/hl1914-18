@@ -108,11 +108,19 @@ and of the routine its timer calls, which fill the sides' input records
 (`key_irq`, `input_tick`; the joysticks and the mouse are left out). The
 port's own clock calls that routine 72.8 times a second, lets a pass
 last as many calls as the original waits for at its end and a round's
-end the 192 screen retraces of its two changes of colours (2.74 s;
-`fade_grey`, `fade_back`), everything else no time (a fight's show
-too), and starts the random numbers from the BIOS's count of
-ticks, which runs with it from the time of day or from `-seed N`, at
-the setup and after a round's end with fight pictures. `-clock FILE`
+end as long as the original's: the retraces and scan lines its waits
+and changes of colours count (`fade_grey`, `fade_back`, `fade_in`,
+`fade_out`, `fight_panel`'s marks, `wait_input`, the taken site's
+waits), and between them the times the runner took to compute, load
+and draw, measured in runs (the `T_` numbers of `src/play.c`; they are
+that machine's, not the game's, and stand in until the port draws).
+The waits clear the button and the key as the original's do, a key
+ends a fight's pictures, and the random numbers are started from the
+BIOS's count of ticks, which runs with the clock from the time of day
+or from `-seed N`, at the setup and when a fight's pictures begin.
+Everything else takes no time. `-nopics` plays with the fights not
+shown as pictures, `-rounds FILE` writes when each round's end began
+and ended. `-clock FILE`
 runs the same by the times of a log of the original instead
 (`tests/play_dumps.py`), for the comparison below. `-passes N` ends
 after N passes, `-start T` is the key script's time at the first pass,
@@ -202,8 +210,49 @@ anything the game needs before the first release.
   clock's file is still needed for and why). The test with the clock's
   file was run again after the change, all three scripts as above, and
   `loop_test.sh` (`m8_site`).
-  Not checked: a fight's time on the port's own clock (none is given);
-  a battle played to its end; maps other than 0 and 8; a
+  A round's end with fights or a site taken on the port's own clock
+  (2026-10-08, macOS). `play_test.sh TAG own` now also prints how long
+  each round's end lasted in the original and in the port, and
+  `play_test.sh TAG rounds` compares the two round by round: the port
+  at the pass of its n-th round's end and the one after against the
+  original at the passes of its n-th, because the port's passes are
+  shorter (the computer's turn takes it less time) and a round's end
+  comes in another pass, often at another second. What counts passes is
+  then counted apart ("the passes'": the count of passes and its copy in
+  `fight_rec`, the timers' kinds and due passes, byte 2Ch of the views,
+  `rand_words`; 3 to 19 bytes). New runs of the original
+  (`tests/play_dumps.py`, with `NOPICS=1` for fights without pictures):
+  `m8_wait.keys` (the half ended every 10 s and F1 5 s later, no taps),
+  `m8_wait_nopics`, `m8_d5r_nopics`. The lengths, seconds from
+  `attacks_run`'s call to the round's end, original and port:
+  two fights with pictures 43.25 and 43.21 (`m8_d5r`), one 22.10 and
+  22.06 (`m8_site`) and 22.07 and 22.06 (`m8_wait`), several 52.05 and
+  52.09 (`m8_site`; its port had left the original before) and 52.05 and
+  52.08 (`m8_wait`); without pictures 11.05 and 11.01 (`m8_d5r_nopics`,
+  two fights), 10.34 and 10.27, 25.34 and 25.31, 35.38 and 35.36
+  (`m8_wait_nopics`); a site taken 11.39 and 11.34 (`m0_hq`, where the
+  port's play had left the original long before, see below) and 11.42
+  and 11.34 (`m8_wait`, round 6; not looked at whether that is a site
+  taken too); a round's end without either 1.46 and 1.37. Round by round
+  the game's state and the computer's are the same but for the passes':
+  `m8_d5r` to round 3, the round of its two fights with pictures and the
+  last the port reaches in the original's number of passes (pass 2266
+  of the original, 175 s, and 2635 of the port); `m8_d5r_nopics` to
+  round 3 likewise; `m8_site` to round 3, its first fight (pass 2616,
+  173 s), 3 to 5 bytes different in round 4 and 14 in round 5;
+  `m8_wait` to round 4 (pass 3168, 183 s; a fight in round 3), ten bytes
+  different from round 5 on, a round of several fights (`side_points` of
+  the second side and unit records: presumably another kind built with
+  other random numbers, not followed); `m8_wait_nopics` to round 4, one
+  to five bytes different after; `m0_hq` in no round (its taps are read
+  otherwise from pass 101 on, as before). Pass by pass (`own`) the
+  results are as before the change: `m8_site` to pass 386 and 400 to
+  404. The test with the clock's file says the same as before for
+  `m8_site`, `m8_d5r` and `m0_hq`, and `loop_test.sh` and
+  `fight_test.sh` pass. `units_test.sh` does not link since the merge
+  of the libraries' loading (`lib_load` in `src/files.c` needs
+  `file_name`, which the test does not compile in); not changed here.
+  Not checked: a battle played to its end; maps other than 0 and 8; a
   second human side's keys; a computer first side; a thinking loop ended
   by a key; a run with the fight pictures switched off; `move_test`'s,
   `view_test`'s, `side_test`'s, `orders_test`'s and `income_test`'s dumps

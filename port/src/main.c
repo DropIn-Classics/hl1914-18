@@ -244,6 +244,7 @@ static uint32_t bios_now(void)
 #define DUMPS 64
 static struct { unsigned long pass; const char *file; } dumps[DUMPS];
 static int dumps_n;
+static int nopics;      /* -nopics: the fights are not shown as pictures */
 
 /* the battle played from the setup on (play.c), at most `passes` passes
  * (0: no limit but a million); a line about how far it came in `line`.
@@ -256,6 +257,8 @@ static int play_game(unsigned long passes, double start, int clocked, char *line
     if (!passes)
         passes = 1000000;
     play_begin(start);
+    if (nopics)
+        SETB(no_fight_pics, 0, 1);
     for (;;) {
         play_sync();
         for (i = 0; i < dumps_n; i++)
@@ -307,12 +310,16 @@ int main(int argc, char **argv)
             seed = strtoul(argv[++i], NULL, 0), seeded = 1;
         else if (!strcmp(argv[i], "-inputs") && i + 1 < argc)
             play_inputs(argv[++i]);
+        else if (!strcmp(argv[i], "-rounds") && i + 1 < argc)
+            play_rounds(argv[++i]);
+        else if (!strcmp(argv[i], "-nopics"))
+            nopics = 1;
         else if (!strcmp(argv[i], "-dump") && i + 2 < argc && dumps_n < DUMPS) {
             dumps[dumps_n].pass = strtoul(argv[++i], NULL, 0);
             dumps[dumps_n++].file = argv[++i];
         } else {
             fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
-                            "       [-keys FILE] [-passes N] [-start T] [-seed N] [-clock FILE] [-dump N FILE]...\n");
+                            "       [-keys FILE] [-passes N] [-start T] [-seed N] [-clock FILE] [-nopics] [-rounds FILE] [-dump N FILE]...\n");
             return 2;
         }
     }

@@ -15,12 +15,15 @@
  * - the port's own: the timer's routine (input_tick) is called every
  *   3FFFh of the timer's 1,193,182 counts a second, a pass lasts as many
  *   calls as game_loop waits for at its end (game_state's word 0Fh, at
- *   least one here), and a round's end as long as its two changes of
- *   the screen's colours count retraces (60h each, without a site taken);
- *   everything else takes no time, the fights' pictures and waits
- *   included.  The BIOS's count of ticks, from which the random numbers
- *   are started at the setup and where the fight's pictures would be,
- *   runs with it from a value given (play_bios).
+ *   least one here), and a round's end as long as the original's: the
+ *   retraces and scan lines its waits and changes of the screen's colours
+ *   count (read in HL.EXE), and for what it computes, loads and draws
+ *   between them the times measured in runs of it on the runner (the
+ *   T_ numbers below; they are that machine's, not the game's).  The
+ *   waits that clear the button and the key do so here too, and the
+ *   fight's pictures start the random numbers from the BIOS's count of
+ *   ticks, which runs with the clock from a value given (play_bios).
+ *   Everything else in a pass takes no time.
  * - the original's, from a log of a run of it (port/tests/play_dumps.py):
  *   a line for each call of the timer's routine and for each place where
  *   a pass reads what the interrupts left, with its time, and the numbers
@@ -58,6 +61,23 @@
 #define TICK (0x3FFF / 1193182.0)       /* the timer routine's period, s */
 #define BIOS_TICK (65536 / 1193182.0)   /* the BIOS's */
 #define RETRACE 0.014268                /* the screen's vertical retraces */
+#define PAL_LEVEL (RETRACE * 256 / 449) /* pal_level: 256 of a retrace's 449 scan lines */
+
+/* The runner's times for what the original computes, loads and draws in a
+ * round's end, seconds, measured in logged runs (docs/HANDOFF.md; m8_d5r
+ * with and without fight pictures, m0_hq): not counted by the game. */
+#define T_VIEW 0.59         /* the view drawn before the first fight's panel, a fight's after pictures, a taken site's wait */
+#define T_NEXT 0.10         /* a later fight without pictures: to its panel */
+#define T_PANEL 0.10        /* fight_panel before its first fade or mark */
+#define T_MARK 0.017        /* a mark of the panel drawn (it misses one retrace) */
+#define T_PIC_LOAD 0.533    /* fight_pictures up to the key's clearing */
+#define T_PIC_FRAME 0.0182  /* a frame of fight_frames (749 in 13.58 and 13.71 s) */
+#define T_PIC_LEVEL 0.0088  /* a step of the colours going down after them */
+#define T_PIC_BACK 0.69     /* pictures_load and the view after a fight's pictures */
+#define T_PICS_END 0.83     /* after the last fight with pictures, to game_loop's fade_in */
+#define T_ROUND_END 0.31    /* attacks_run's end to the round's, without pictures or with a site */
+#define T_SITE_FRAMES 1.84  /* site_picture's frames (their number is in its stream) */
+#define T_SITE_BACK 3.04    /* after it: S2F39:1058 and the battle's pictures loaded again */
 
 typedef struct { double t; uint8_t code[2]; int n; long order; } KeyEv;
 typedef struct { double t; char kind; int a, b; uint32_t v; } ClockLine;
@@ -69,13 +89,14 @@ static int by_k, in_battle;     /* the log has K lines; its first P is passed */
 static ClockLine *clk;
 static long clk_n, clk_at;
 static int have_clock;
-static FILE *inputs;
+static FILE *inputs, *rounds;
 
 static SideIn in[2];
 static int seen[2][4];          /* for -inputs: key, word, bytes 5 and 8 (-1 none) */
 static int thinks;              /* calls of computer_turn in the thinking loop */
 static uint16_t aim_kept;       /* fight_rec's word 1Ch over attacks_run */
 static double now, began;       /* the port's own clock, s */
+static double part_at, round_at; /* when the part began, attacks_run was called */
 static double tick_at;          /* when the timer's routine is called next */
 static uint32_t bios0;          /* the BIOS's count when it began */
 static const char *stopped;     /* what the timer's routine met */
@@ -226,6 +247,14 @@ void play_inputs(const char *path)
     inputs = fopen(path, "w");
 }
 
+/* a file that gets a line for each round's end on the port's own clock:
+ * the pass, when its part began, when attacks_run was called and when the
+ * round's end was over (seconds of the key script's time) */
+void play_rounds(const char *path)
+{
+    rounds = fopen(path, "w");
+}
+
 /* the BIOS's count of ticks (0040:006C), from which clock_seed(0) starts
  * the random numbers */
 void play_bios(uint32_t ticks)
@@ -303,6 +332,151 @@ static void own_retraces(int n)
 
     while (n-- > 0)
         own_to((double)++k * RETRACE);
+}
+
+/* what the original computes or draws meanwhile */
+static void own_busy(double s)
+{
+    own_to(now + s);
+}
+
+/* fade_in, fade_out (S28E0:0004, 002B): 64 calls of pal_level */
+static void own_fade(void)
+{
+    own_to(now + 64 * PAL_LEVEL);
+}
+
+static int pressed(void)
+{
+    return pb(far_at(S_DATA, 0x00A6), 4) || frw(S_DATA, (uint16_t)(frw(S_DATA, 0x00BE) + 4));
+}
+
+static void press_clear(void)
+{
+    Far k = far_at(S_DATA, 0x00BE);
+
+    pwb(far_at(S_DATA, 0x00A6), 4, 0);
+    fww(k.seg, (uint16_t)(k.off + 4), 0);
+}
+
+/* wait_input(n), S0CB6:0036: while the first side's button is held or the
+ * key's word is 1 both are cleared and three frames waited; then again,
+ * n counted down by 3 until it is below 0, as long as neither comes */
+static void own_wait_input(int n)
+{
+    Far k = far_at(S_DATA, 0x00BE);
+
+    while (pb(far_at(S_DATA, 0x00A6), 4) || pw(k, 4) == 1) {
+        press_clear();
+        own_retraces(4);
+    }
+    press_clear();
+    while (!pressed()) {
+        press_clear();
+        own_retraces(4);
+        n -= 3;
+        if (n < 0)
+            break;
+    }
+}
+
+static int seeded;          /* a fight's pictures started the random numbers */
+static uint32_t seed_last;
+
+/* attacks_run's waits and pictures (orders_hook), on the port's own clock */
+static void round_hook(int at, int n)
+{
+    Far k = far_at(S_DATA, 0x00BE);
+    static int first;
+    int i;
+
+    if (have_clock)
+        return;
+    switch (at) {
+    case ORDERS_FIGHT:
+        own_busy(first || n ? T_VIEW : T_NEXT);
+        first = 0;
+        /* fight_panel, S131D:178D */
+        own_busy(T_PANEL);
+        if (n)
+            own_fade();
+        for (i = 0; i < 6; i++) {
+            own_busy(T_MARK);
+            own_retraces(7);
+        }
+        own_retraces(13);
+        if (n) {
+            int level = 0;
+
+            own_wait_input(0x96);
+            own_fade();
+            /* fight_pictures, S2532:0008 */
+            seeded = 1;
+            seed_last = clock_seed0();
+            own_busy(T_PIC_LOAD);
+            fww(k.seg, (uint16_t)(k.off + 4), 0);
+            for (i = 1; i < 0x2EE; i++) {
+                if (i < 0x40)
+                    level = 4 * i + 3;
+                own_busy(T_PIC_FRAME);
+                if (pw(k, 4))
+                    break;
+            }
+            for (; level > 0; level -= 4)
+                own_busy(T_PIC_LEVEL);
+        } else {
+            for (i = 0; i < 6; i++) {
+                own_busy(T_MARK);
+                own_retraces(7);
+            }
+            own_wait_input(0x46);
+            own_retraces(31);       /* S02E6:0AE6, wait_frames(1Eh) */
+        }
+        break;
+    case ORDERS_BLAST:
+        own_retraces(3);            /* S02E6:0D24, wait_frames(2) */
+        break;
+    case ORDERS_FOUGHT:
+        if (n)
+            own_busy(T_PIC_BACK);
+        else
+            own_wait_input(0x50);   /* S02E6:0D3C */
+        break;
+    case ORDERS_TAKEN:
+        /* order 4, S02E6:1233 to 17C3 */
+        if (first)
+            own_busy(T_VIEW);
+        first = 0;
+        own_retraces(31);
+        if (!NB(no_fight_pics, 0)) {
+            if (n)
+                own_fade();
+            else
+                own_retraces(0x60);     /* fade_back */
+        } else if (!n)
+            own_retraces(0x60);
+        /* event_picture: inputs_release(1, 0), S167A:2F83 */
+        press_clear();
+        pwb(far_at(S_DATA, 0x00B6), 4, 0);
+        own_retraces(6);
+        do {
+            i = pressed() || pb(far_at(S_DATA, 0x00B6), 4);
+            press_clear();
+            pwb(far_at(S_DATA, 0x00B6), 4, 0);
+            own_retraces(6);
+        } while (i);
+        /* site_picture, S1A39:1906 */
+        own_busy(T_SITE_FRAMES);
+        own_retraces(201);
+        own_busy(T_SITE_BACK);
+        own_retraces(51);           /* S02E6:17B4, wait_frames(32h) */
+        break;
+    case -1:
+        first = 1;
+        break;
+    default:
+        break;
+    }
 }
 
 /* the input record of a side as game_loop chooses it (S066A:0F0C to 0FC3) */
@@ -399,6 +573,7 @@ static void hook(int at, uint16_t side)
         s->rec5 = s->rec8 = -1;
         s->turns = -1;
         thinks = 0;
+        part_at = now;
         if (have_clock)
             clock_to('P', (int)play_passes + 1, side);
         /* S066A:0FD0: the key the timer's routine kept */
@@ -434,12 +609,17 @@ static void hook(int at, uint16_t side)
             s->turns = thinks;
         break;
     case LOOP_ROUND:
+        seeded = 0;
+        round_hook(-1, 0);
         if (have_clock)
             clock_to('A', 0, 0);
         else if (!NW(site_taken, 0))
             /* S0E56:21D8, the screen fades to grey: 20h and 40h steps, a
              * retrace each */
             own_retraces(0x60);
+        else if (!NB(no_fight_pics, 0))
+            own_fade();     /* S066A:3D17, fade_out */
+        round_at = now;
         /* a fight writes its target's field here, never FFFFh */
         aim_kept = NW(fight_rec, 0x1C);
         SETW(fight_rec, 0x1C, 0xFFFF);
@@ -468,18 +648,23 @@ static void hook(int at, uint16_t side)
             if (seeds != pictures)
                 play_misses++;
         } else {
-            if (pictures) {
-                /* the fight's pictures (S2532:0008) start the random
-                 * numbers anew with clock_seed(0) and take the keys
-                 * pressed meanwhile */
-                s->seeded = 1;
-                s->seed = clock_seed0();
-                pwb(far_at(S_DATA, 0x00A6), 4, 0);
-                fww(k.seg, (uint16_t)(k.off + 4), 0);
-            }
-            /* S0E56:1F91, the colours come back: 40h and 20h steps */
+            /* the last fight's pictures (S2532:0008) started the random
+             * numbers anew with clock_seed(0) */
+            s->seeded = seeded;
+            s->seed = seed_last;
             if (!NW(site_taken, 0))
+                /* S0E56:1F91, the colours come back: 40h and 20h steps */
                 own_retraces(0x60);
+            else if (pictures) {
+                own_busy(T_PICS_END);
+                if (!NB(take_picture, 0))
+                    own_fade();     /* S066A:3EA9, fade_in */
+            } else
+                own_busy(T_ROUND_END);
+            if (rounds) {
+                fprintf(rounds, "%lu %.4f %.4f %.4f\n", play_passes + 1, part_at, round_at, now);
+                fflush(rounds);
+            }
         }
         break;
     }
@@ -494,6 +679,7 @@ static void hook(int at, uint16_t side)
 void play_begin(double start)
 {
     loop_hook = hook;
+    orders_hook = round_hook;
     loop_reset();
     now = began = start;
     tick_at = start + TICK;

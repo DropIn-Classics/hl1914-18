@@ -169,6 +169,22 @@ static void swap_dw(uint16_t a, uint16_t b)
     SET_DW(b, t);
 }
 
+/* S2952:0006: the drawing goes to the page shown (screen_seg made
+ * screen_shown), the two kept at DATA:0358 and 035A; S2953:000E puts
+ * them back */
+void draw_on_shown(void)
+{
+    SET_DW(0x0358, NW(screen_seg, 0));
+    SET_DW(0x035A, NW(screen_shown, 0));
+    SETW(screen_seg, 0, NW(screen_shown, 0));
+}
+
+void draw_on_drawn(void)
+{
+    SETW(screen_shown, 0, DW(0x035A));
+    SETW(screen_seg, 0, DW(0x0358));
+}
+
 /* S2974:0002 (page_flip): the page drawn is shown from the next retrace on
  * (the CRTC's start address) and the other one is drawn to.  With
  * DATA:0463 and 0465 both FFFFh it first calls S2B51:002A (it makes the
@@ -260,6 +276,16 @@ void pal_level(uint8_t level, Far pal)
     }
 }
 
+/* the palette at DATA:04E3 (300h bytes; not a pointer) */
+static Far game_pal(void)
+{
+    Far p;
+
+    p.seg = S_DATA;
+    p.off = 0x04E3;
+    return p;
+}
+
 /* S28E0:0004 (fade_in): pal_level at the levels 0, 4, ... FCh with the
  * palette at DATA:04E3 */
 void fade_in(void)
@@ -267,7 +293,7 @@ void fade_in(void)
     unsigned l;
 
     for (l = 0; l < 0x100; l += 4)
-        pal_level((uint8_t)l, far_at(S_DATA, 0x04E3));
+        pal_level((uint8_t)l, game_pal());
 }
 
 /* S28E0:002B (fade_out): the levels FFh, FBh, ... 3 */
@@ -276,5 +302,89 @@ void fade_out(void)
     int l;
 
     for (l = 0xFF; l >= 0; l -= 4)
-        pal_level((uint8_t)l, far_at(S_DATA, 0x04E3));
+        pal_level((uint8_t)l, game_pal());
+}
+
+/* S2A62:0008: the colours first to last - 1 to the DAC at step `step` of
+ * `steps` from the palette `from` to `to` (300h bytes each, 0 to 255):
+ * from + (to - from) * step / steps, a quarter of it */
+static void pal_blend(Far from, Far to, uint16_t first, uint16_t last, int16_t steps, int16_t step)
+{
+    uint16_t i;
+
+    vga_outb(0x3C8, (uint8_t)first);
+    for (i = (uint16_t)(first * 3); i < (uint16_t)(last * 3); i++) {
+        uint8_t f = frb(from.seg, (uint16_t)(from.off + i));
+        int16_t d = (int16_t)(frb(to.seg, (uint16_t)(to.off + i)) - f);
+
+        vga_outb(0x3C9, (uint8_t)((uint8_t)((int32_t)d * step / steps) + f) >> 2);
+    }
+}
+
+/* the free end (S3303:0028), where the fades keep their two palettes */
+static Far fade_buf(void)
+{
+    return far_at(HL_S3303 + HL_BASE, 0x0028);
+}
+
+/* the grey of each colour of pal ((2 * first + second + third) / 4, all
+ * three bytes) at the free end, black behind it */
+static void greys_make(Far pal, Far g)
+{
+    uint16_t i;
+
+    for (i = 0; i < 0x300; i += 3) {
+        uint8_t v = (uint8_t)((frb(pal.seg, (uint16_t)(pal.off + i)) * 2 + frb(pal.seg, (uint16_t)(pal.off + i + 1))
+                               + frb(pal.seg, (uint16_t)(pal.off + i + 2))) >> 2);
+
+        fwb(g.seg, (uint16_t)(g.off + i + 2), v);
+        fwb(g.seg, (uint16_t)(g.off + i + 1), v);
+        fwb(g.seg, (uint16_t)(g.off + i), v);
+    }
+}
+
+/* S0E56:21D8 (fade_grey): the colours 0 to 40h and 90h to CFh go from
+ * pal to their grey in 20h steps, then from the grey to black in 40h,
+ * a retrace_wait after each step */
+void fade_grey(Far pal)
+{
+    Far g = fade_buf(), b = far_add(g, 0x300);
+    int16_t i;
+
+    greys_make(pal, g);
+    for (i = 0; i < 0x20; i++) {
+        pal_blend(pal, g, 0, 0x41, 0x20, i);
+        pal_blend(pal, g, 0x90, 0xD0, 0x20, i);
+        retrace_wait();
+    }
+    for (i = 0; i < 0x300; i++)
+        fwb(b.seg, (uint16_t)(b.off + i), 0);
+    for (i = 0; i < 0x40; i++) {
+        pal_blend(g, b, 0, 0x41, 0x40, i);
+        pal_blend(g, b, 0x90, 0xD0, 0x40, i);
+        retrace_wait();
+    }
+}
+
+/* S0E56:1F91 (fade_back): the way back, from black to the grey in 40h
+ * steps (the colours 0 to 3Fh and 90h to CFh), then from the grey to pal
+ * in 20h (0 to 40h and 90h to CFh) */
+void fade_back(Far pal)
+{
+    Far g = fade_buf(), b = far_add(g, 0x300);
+    int16_t i;
+
+    for (i = 0; i < 0x300; i++)
+        fwb(b.seg, (uint16_t)(b.off + i), 0);
+    greys_make(pal, g);
+    for (i = 0; i < 0x40; i++) {
+        pal_blend(b, g, 0, 0x40, 0x40, i);
+        pal_blend(b, g, 0x90, 0xD0, 0x40, i);
+        retrace_wait();
+    }
+    for (i = 0; i < 0x20; i++) {
+        pal_blend(g, pal, 0, 0x41, 0x20, i);
+        pal_blend(g, pal, 0x90, 0xD0, 0x20, i);
+        retrace_wait();
+    }
 }

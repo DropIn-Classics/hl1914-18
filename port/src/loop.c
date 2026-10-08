@@ -61,6 +61,14 @@ int loop_replay;
 int loop_abort;
 void (*loop_hook)(int at, uint16_t side);
 
+/* a side's view, its marks and its cursor drawn */
+static void view_redraw(uint16_t side)
+{
+    view_draw(NW(views, side * VIEW_SIZE + 2), side);
+    marks_draw(NW(views, side * VIEW_SIZE + 2), side);
+    cursor_draw(side);
+}
+
 static uint16_t phase_word(uint16_t side)
 {
     return frw(S_COMP, (uint16_t)(A_computer_phase + side * 0x0C));
@@ -86,6 +94,7 @@ static uint16_t computer_part(uint16_t side, const SideIn *in)
 
             pww(k, 4, 0);
         }
+        draw_on_shown();
         show_message(0x64, side);
         for (;;) {
             computer_turn(side);
@@ -102,10 +111,15 @@ static uint16_t computer_part(uint16_t side, const SideIn *in)
         show_message(0xFFFF, 0);
         show_message(0xFFFF, 1);
         gs_and(0, 0xFFF3);
+        draw_on_drawn();
         gs_and(2, 0xFF7F);
     } else
         computer_turn(side);
     show_message(NW(computer_out, side * 4 + 2), side);
+    /* S066A:118E: while it still thinks, the bar of how far it got */
+    if ((phase_word(side) & 0x60) && NB(views, side * VIEW_SIZE + 0x16) == 1)
+        bar_draw((uint16_t)((side & 1 ? 0xA0 : 0) + 0x17), 0xC3, frb(HL_S331F + HL_BASE, 0x4C85), frb(HL_S331F + HL_BASE, 0x4C87),
+                 1, (int16_t)(computer_progress(side) << 1), 0xC8);
     return NW(computer_out, side * 4);
 }
 
@@ -251,7 +265,13 @@ static void cursor_move(Far view, uint16_t side, uint16_t di)
     }
     pww(view, 0x0C, (uint16_t)col);
     pww(view, 0x0E, (uint16_t)row);
+    cursor_field(view, side);       /* S066A:1EE2 */
     view_cursor(side);
+    /* the view scrolled: drawn again (S066A:1F02) */
+    if (gs(4) & 2) {
+        view_draw(pw(view, 2), side);
+        marks_draw(pw(view, 2), side);
+    }
     gs_and(4, 0xFFFD);
 }
 
@@ -680,7 +700,16 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
             uint8_t res;
 
             key = 0;
-            SETW(site_taken, 0, NB(sides, a * SIDE_SIZE + 0x15) ? 1 : 0);
+            /* S066A:3CC5: the screen goes grey, or with a fight's
+             * pictures dark */
+            if (!NB(sides, a * SIDE_SIZE + 0x15)) {
+                fade_grey(game_mem.save_buf);
+                SETW(site_taken, 0, 0);
+            } else {
+                SETW(site_taken, 0, 1);
+                if (!NB(no_fight_pics, 0))
+                    fade_out();
+            }
             SETB(take_picture, 0, 0);
             if (loop_hook)
                 loop_hook(LOOP_ROUND, side);
@@ -694,8 +723,19 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
                 SETW(rand_words, 0, in->seed);
                 SETW(rand_words, 2, in->seed >> 16);
             }
+            /* S066A:3D5E to 3EBE: both views, their marks and cursors
+             * drawn and shown, and the colours back */
             view_to_field(0, f0);
+            view_redraw(0);
             view_to_field(1, f1);
+            view_redraw(1);
+            page_flip();
+            page_copy();
+            if (NW(site_taken, 0)) {
+                if (!NB(no_fight_pics, 0) && !NB(take_picture, 0))
+                    fade_in();
+            } else
+                fade_back(game_mem.save_buf);
             if (!(res & 0x80)) {
                 Far won = view_of(res), lost = view_of(res & 1 ? 0 : 1);
 
@@ -959,7 +999,8 @@ void timer_fire(uint16_t kind, uint16_t timer)
 }
 
 /* the end of a pass (S066A:43A9 to 45D7): the texts' timers, a move's
- * step, the count of passes and the timers that are due */
+ * step, the cursors drawn and the page shown, the count of passes and the
+ * timers that are due */
 static void pass_end(void)
 {
     uint16_t i;
@@ -977,6 +1018,17 @@ static void pass_end(void)
         move_step();
         gs_and(4, 0xFFBF);
     }
+    /* S066A:441F to 4554: each side's cursor but in its view's state 4,
+     * shown.  Left out: with 4 in the side's word 0 of `sides` the far
+     * pointer at its byte 5 (a place in video memory) goes to pic_draw
+     * as its fourth argument, which the port's pic_draw does not take
+     * (presumably what lies under the cursor kept there; not read), and
+     * the sound (S2F39:096A) */
+    for (i = 0; i < 2; i++)
+        if (NB(views, i * VIEW_SIZE + 0x17) != 4)
+            cursor_draw(i);
+    page_flip();
+    page_copy();
     n = ((uint32_t)gs(0x15) << 16 | gs(0x13)) + 1;
     SETW(game_state, 0x13, n);
     SETW(game_state, 0x15, n >> 16);

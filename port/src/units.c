@@ -9,7 +9,6 @@
 
 #define SITE_SIZE 0x1Cu     /* a record of `carriers` and the like */
 #define SIDE_SIZE 0x17u     /* a record of `sides` */
-#define BLAST_SIZE 7u       /* a record of `blasts` */
 
 /* one half of unit_destroy: notes the unit's field in `blasts` at `at` and
  * writes `put` as the field's unit */

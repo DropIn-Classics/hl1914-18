@@ -288,6 +288,20 @@ the machine's part: the screen's old mode, the sound's end, interrupt
 24h and the timer. The window build does not get there yet (its menu is
 not in the window).
 
+2026-10-08 (`debian/window2`): the range's marks drawn again where the
+original does, found by comparing each routine's calls of `view_draw`,
+`marks_draw`, `marks_erase` and `field_draw` with the port's:
+`field_menu`'s move (pointer 4) draws the marks after `move_range`
+(`S0CB6:1101`); `view_step`'s step 18h draws the view and its marks after
+its `move_range` (`S0CB6:0A2B`); `move_aim` draws the marks at its end
+(`S10E1:05B4`, after the marks but the way's were taken off);
+`attack_unmark` draws the view and its marks (`S0AE0:02E3`). State
+unchanged: `play_test.sh m8_site` and `m8_d5r` and `loop_test.sh` the
+same as before. Seen in the headless window (`DK_KEYS`, map 8): the
+range marked on choosing a unit's move, the way left marked after the
+target. Not compared with the original's screen (the runner's key
+script did not bring its cursor to the same unit; not pursued).
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)

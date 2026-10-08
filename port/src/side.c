@@ -397,6 +397,7 @@ void field_menu(Far view, uint16_t side, uint16_t bits)
         mask = pw(unit, 6) & 1 ? 0xFFFF : pw(unit, 4) & 1 ? 6 : 3;
         if (move_range((int16_t)(pw(unit, (uint16_t)(0x0B + side * 2)) - 1), buf, mover, pb(unit, 0),
                        side, mask, map) > 1) {
+            marks_draw(pw(view, 2), side);
             unit_mark((uint8_t)no, 0x100, side, 1);
             taken = 0;
             pwb(view, 0x17, 0);
@@ -583,6 +584,8 @@ uint8_t view_step(Far view, Far rec, uint16_t bits, Far map, uint16_t side)
             move_range((int16_t)frw(S_move_args, a), buf, frw(S_move_args, (uint16_t)(a + 6)),
                        (int16_t)frw(S_move_args, (uint16_t)(a + 8)), frw(S_move_args, (uint16_t)(a + 0x0A)),
                        frw(S_move_args, (uint16_t)(a + 0x0C)), m);
+            view_draw(pw(view, 2), side);
+            marks_draw(pw(view, 2), side);
             SETW(game_state, 4, NW(game_state, 4) | 0x100);
             SETW(site_taken, 0, 0);
             pwb(view, 0x30, 0);

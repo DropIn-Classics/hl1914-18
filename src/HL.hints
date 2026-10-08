@@ -2933,11 +2933,19 @@ name S28E0:002B fade_out
 ; was set; the clearings are done at S167A:2FEF and 30B2). With `wait` not 0 it then waits until one is set (that part was
 ; not read to its end). Called with 0 at the beginning of event_picture.
 name S167A:2F83 inputs_release
-; event_picture(far, far, kind, ...): the picture shown for an event.
-; After inputs_release it goes by kind: C8h to D0h through the table at
-; S1A39:02B3, others to S1A39:059D twice (not read). CAh and CBh, the
-; site taken by the first or the second side (attacks_run's order 4),
-; both go to site_picture, with 0 or A0h as its first argument.
+; event_picture(far place, far work, kind, arg): the picture shown for
+; an event. But for CAh and CBh it keeps the screen's record's words 0Eh
+; to 1Ch, makes the record the whole screen (0Eh 1, the box 0,0 to
+; 13Fh,C7h, 1Ch 0), pages_set and page_flip, and puts them back after the
+; picture the same way. After inputs_release it goes by kind: C8h to D0h
+; through the table at S1A39:02B3, others to S1A39:059D twice (not read).
+; CAh and CBh, the site taken by the first or the second side
+; (attacks_run's order 4), both go to site_picture, with 0 or A0h as its
+; first argument; CDh to pic_wiped, CEh and CFh to pic_medal with 0 and 1,
+; D0h to pic_won (2026-10-08, read whole for those four and translated,
+; port/src/events.c). game_loop gives its [BP-10h] as the work buffer
+; and 2710h behind it as the place; battle_score its own, moved on by
+; 2710h, 3E8h and 32h by then.
 name S1A39:0001 event_picture
 ; site_picture: loads its files (S1A39:034C with 3 and the names at
 ; S3812:086C; not read), starts a sound (S2F39:0F87, not read), then
@@ -2948,6 +2956,58 @@ name S1A39:0001 event_picture
 ; the stream has was not read: the frames lasted 1.84 s in the one run
 ; with a site taken (m0_hq), some 22 of them. It reads no input.
 name S1A39:1906 site_picture
+; res_load(far place, far work, far table, n): the n entries of 24h
+; bytes of a table in S3812 (the file's name, its kind at 14h, flags at
+; 16h, the place it went to at 1Ch, a library's record at 20h) loaded one
+; behind the other: kind 1 lbm_show (at an even place), 2 file_load_size,
+; 3 file_load, 4 lib_load, 5 sfx_load. Flag 4 and 2 take the size from
+; S2C24:000C (the file's length or, with 0, a TPWM file's unpacked length;
+; it keeps the header it read in its own segment at 00C7h); flag 1 puts
+; the next behind it. The bytes loaded, or FFFF:FFFF to FFFF:FFFB for a
+; file that cannot be loaded. The tables of CDh to D0h use kinds 1, 2
+; and 4 and flag 1 only (translated without the flags 2 and 4).
+name S1A39:034C res_load
+; first_frame(far stream, far palette): the palette copied to the game's
+; (palette_ptr, 300h bytes), the screen cleared, the stream's first frame
+; drawn, page_flip, page_copy, fade_in; returns the next frame.
+name S1A39:02C5 first_frame
+; pic_won(place, work, side) (D0h): five files from S3812:0042 (two
+; streams, a palette, the side's stream, a tune); the palette made the
+; game's and the file's cleared, both streams' first frames, fade_in,
+; music_start; 46h frames of 0Ch timer counts (word 22Eh of the screen's
+; record, set to 0 at each frame's beginning, S1A39:0BE6), the side's
+; stream from its beginning again when it ends, the first from frame 15h
+; on, from frame 33h on the colours a step of 14h towards the cleared
+; palette (S2A62:0008); then pal_level(FFh) with it, music_fade(0Ah),
+; wait_frames(64h).
+name S1A39:0A7F pic_won
+; pic_medal(place, work, which, f) (CEh with f 0, CFh with 1): the side's
+; tune (S3812:00F6 or 0103h) loaded first, then as pic_won with the files
+; from S3812:0110 (4Bh frames of 6 counts, S1A39:0EF6, the first stream
+; from frame 25h on, the colours from 38h on); a third stream from the
+; table at S3812:01C4 (two entries a side) by first_frame and to its end
+; (6 counts a frame, S1A39:10AF), wait_frames(64h), fade_out; then three
+; files from S3812:0280 (a background by lbm_show, a palette, a library of
+; pictures): the picture `which` (0 to 2) of the library drawn at the
+; place of the tables S3812:0268 and 0274, fade_in, wait_frames(12Ch),
+; fade_out, music_fade(14h).
+name S1A39:0D1A pic_medal
+; pic_wiped(place, work) (CDh): a file of sounds (named in the table at
+; S3812:0002 by S3303:0022) by sfx_load, three files from S3812:0358, the
+; stream by first_frame, then 82h frames (S1A39:1359) of 6 counts, 9 from
+; frame 30h on, the stream from frame 15h on; at the frames of the table
+; at S3812:03C4 (7Eh bytes for each value of S3303:0022) a sound by
+; sfx_play (channels 0 to 6, or 8 to 10 with S3303:0022), snd_pass.
+; wait_frames(64h), fade_out.
+name S1A39:1262 pic_wiped
+; vdif_frame(x, y, far stream): a frame of a "VDIF" stream drawn into the
+; page drawn (screen_seg) at x (made a multiple of 4) and y: for each of
+; the four planes runs of bytes, a byte below 80h the count to copy, else
+; (byte - 80h + 2) times the next byte; FFh and a word an offset from the
+; place, 3E80h or more the plane's end. The place's offset is kept at
+; S2982:00A2. Returns the next frame (normalised), FFFF:FFFF when the
+; stream has no signature. Translated (port/src/events.c).
+name S2982:0002 vdif_frame
 ; fight_pictures: the fight shown as pictures (called by fight_show with
 ; the counts before and after). Keeps its arguments in S3AEE, calls
 ; clock_seed(0), loads its file (S2532:0357) and sets up (0.53 s in the

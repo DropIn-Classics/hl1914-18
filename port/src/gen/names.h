@@ -294,6 +294,11 @@
     X(S167A, pointer_off, 0x3B03) \
     X(S167A, pointer_aim, 0x3B32) \
     X(S1A39, event_picture, 0x0001) \
+    X(S1A39, first_frame, 0x02C5) \
+    X(S1A39, res_load, 0x034C) \
+    X(S1A39, pic_won, 0x0A7F) \
+    X(S1A39, pic_medal, 0x0D1A) \
+    X(S1A39, pic_wiped, 0x1262) \
     X(S1A39, site_picture, 0x1906) \
     X(S1C74, computer_turn, 0x000B) \
     X(S1C74, computer_reset, 0x01B4) \
@@ -380,6 +385,7 @@
     X(S2967, pointer_draw, 0x0004) \
     X(S2974, page_flip, 0x0002) \
     X(S297D, latch_copy, 0x000C) \
+    X(S2982, vdif_frame, 0x0002) \
     X(S298E, screen_open, 0x000D) \
     X(S29C1, sprite_draw, 0x001F) \
     X(S29C1, sprite_cut, 0x02D5) \

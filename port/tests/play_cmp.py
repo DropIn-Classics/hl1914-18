@@ -114,14 +114,14 @@ def regions(mem):
     return kind
 
 
-def video(po, port_path):
+def video(po, port_path, name=None):
     """the video memory of the original's pass po and of the port's dump
     beside port_path (pNNNN.vram, play_dumps.py with VRAM=1, and the
     port's -dump N FILE.vram; byte 4 * offset + plane): None when one is
     missing, else how many bytes differ in the two pages (200 lines of 80
     bytes a plane at A000h and A400h) and how many behind them (pictures
-    kept there, not shown)"""
-    a, b = os.path.join(out, 'p%04d.vram' % po), port_path[:-4] + '.vram'
+    kept there, not shown); `name` the original's file instead"""
+    a, b = os.path.join(out, name or 'p%04d.vram' % po), port_path[:-4] + '.vram'
     if not (os.path.exists(a) and os.path.exists(b)):
         return None
     x, y = open(a, 'rb').read(), open(b, 'rb').read()
@@ -139,6 +139,40 @@ def ranges(addrs):
         else:
             r.append([a, a, 1])
     return r
+
+
+def ends_cmp(prefix, first):
+    """the battle's end's screens (play_dumps.py, the port's -evdump): the
+    memory and video memory at each wait for a press with the end's texts
+    (eN) and at every tenth frame of the pictures behind the loop (fNNNN),
+    the port's with `prefix`; a byte that both had at the first dump is
+    the setup's.  1 if the game's state, the computer's or the two pages
+    differ somewhere"""
+    bad = 0
+    for e in sorted(f[:-4] for f in os.listdir(out) if re.match(r'(e\d+|f\d{4})\.ram$', f)):
+        qpath = os.path.join(out, '%s%s.ram' % (prefix, e))
+        what = 'the end\'s wait %s' % e[1:] if e[0] == 'e' else 'frame %d of the pictures' % int(e[1:])
+        if not os.path.exists(qpath):
+            print('%s: the port did not come so far' % what)
+            bad = 1
+            continue
+        o = open(os.path.join(out, e + '.ram'), 'rb').read()
+        q = open(qpath, 'rb').read()
+        kind = regions(q)
+        d = [i for i in range(RAM) if o[i] != q[i] and kind[i] != 3]
+        if first is not None:
+            d = [i for i in d if not (o[i] == first[0][i] and q[i] == first[1][i])]
+        c = [sum(kind[i] == k for i in d) for k in (0, 1, 2, 4)]
+        v = video(0, qpath, e + '.vram')
+        print('%s: the game\'s state %d different, the computer\'s %d%s, elsewhere %d%s' % (
+            what, c[0], c[1], ', the passes\' %d' % c[3] if by_rounds else '', c[2],
+            '' if v is None else '; video memory %d bytes different in the two pages, %d behind them' % v))
+        for lo, hi, cnt in ranges([i for i in d if kind[i] < 2])[:12]:
+            print('  %s to %s: %d (%s)' % (where(lo), where(hi).split(':')[1], cnt,
+                                           'the computer\'s' if kind[lo] == 1 else 'the game\'s state'))
+        if c[0] or c[1] or (v and v[0]):
+            bad = 1
+    return bad
 
 
 if by_rounds:
@@ -174,10 +208,11 @@ if by_rounds:
             differs = True
         elif not differs:
             agree = (n, po, pp)
+    ends_bad = not at and ends_cmp('r', first)
     print('%s on the port\'s own clock%s: the game\'s state and the computer\'s the same but for the '
           'passes\' up to %s' % ('time by time' if at else 'round by round', ' with the original\'s seeds' if seeds else '',
                                  ('time' if at else 'round') + ' %d (pass %d of the original, %d of the port)' % agree if agree else 'none'))
-    sys.exit(1 if at and differs else 0)
+    sys.exit(1 if (at and differs) or ends_bad else 0)
 
 bad = 0
 # what each side's part read
@@ -254,6 +289,8 @@ for p in passes:
         differs = True
     elif not differs:
         agree = p
+if ends_cmp('o' if own else 'q', first) and not own:
+    bad = 1
 if own and os.path.exists(os.path.join(out, 'own_rounds.txt')):
     # how long each round's end lasts: the original's from its clock (the
     # part's beginning, attacks_run's call, the next part's beginning)

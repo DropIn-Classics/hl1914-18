@@ -1,0 +1,10 @@
+# m57_win: the second side is left without units when the first pass
+# begins (unit_count is byte 2 of a unit's 1Ah-byte record; its units 4
+# to 7 get 0 and are dropped at the first round's end), so that the
+# battle ends at the first round's end without a fight or a cursor's
+# step.  Not the game's own doing: a poke, for the window's comparison
+# of a battle's end.  TARGET HEX a line, as the runner's -poke.
+unit_count+68 00
+unit_count+82 00
+unit_count+9C 00
+unit_count+B6 00

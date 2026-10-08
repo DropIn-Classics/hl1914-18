@@ -3054,6 +3054,48 @@ emulation error (2026-10-02).
       - On the port's own clock both are the same to round 3 and then
         part (the steps' sampling, as in the other scripts with cursor
         steps); the battle's end is not reached there.
+    - The pictures behind the loop and the end in the window
+      (2026-10-08, branch `debian/window5`; `event_picture`'s kinds CDh
+      to D0h read whole, hints `res_load`, `first_frame`, `pic_won`,
+      `pic_medal`, `pic_wiped`, `vdif_frame`; translated in
+      `port/src/events.c`). What was learned:
+      - game_loop gives the pictures behind the loop (and
+        `battle_score`) its `[BP-10h]` as the work buffer, which is
+        where the map's pictures were loaded (`game_mem.gfx`), 1E4h
+        before the end of the sides' lists the port had used; CODES.DAT
+        and the scores went there in the original too. `battle_score`
+        has moved its own on by 2710h, 3E8h and 32h (2B2Ah) when it
+        calls CEh or CFh. Found by the pictures' files lying 1E4h and
+        2B2Ah apart in the two memories; the screens were the same.
+      - The pictures are streams of "VDIF" frames drawn straight into
+        the VGA's planes, timed by word 22Eh of the screen's record
+        (the timer's routine counts it; set to 0 at each frame's
+        beginning): D0h 46h frames of 0Ch counts, CDh 82h of 6 (9 from
+        frame 30h on), CEh/CFh 4Bh of 6 and a second stream to its end,
+        then a still picture held 12Ch retraces. The last 20 frames of
+        D0h and of CEh/CFh's first part blend the colours to black
+        (`pal_blend` towards the stream's palette, which was cleared
+        when it became the game's). CDh plays its sounds at frames of
+        a table (`sfx_play`, `snd_pass`; S3303:0022 chooses the table
+        and the channels, not looked into what it is).
+      - The runner's times (from inputs_release's end to the first
+        frame): D0h 1.24 s, CDh 1.295 s, CEh 0.88 s, its second stream
+        2.44 s after the first's last frame, its still picture 9.96 s
+        from the last frame to `S066A:4728`; the loop's end to
+        inputs_release 1.125 s, of which the port counts 0.70 s
+        (`fade_out`, inputs_release; the 0.42 s more lie in music_fade(4)
+        and unders_restore, not checked which).
+      - The window reaches a battle's end only with a script that
+        survives the port's own clock: `m54_end` and `m57_last` part
+        after round 3 there (`m57_last` with its 0.08 s taps made
+        0.15 s keeps all seven rounds' ends, but the cavalry stands
+        elsewhere then, and its fight's outcome follows the clock when
+        its pictures begin; `m54_end`'s passes run shorter in the port
+        after the second side's move order in round 4, so an F1 is
+        read in the other side's part: not looked into further).
+        `m57_win` (a poke leaves the second side without units, so the
+        first round's end ends the battle) is the same on both clocks,
+        in the window and behind the loop (port/README.md).
     Not reached with two human sides: a carrier, the keys F2 to F9, a
     unit destroyed by play alone (the one destroyed had its count poked
     to 1) or as a fight's target, a battle ended by fights alone, a
@@ -4054,6 +4096,13 @@ emulation error (2026-10-02).
    status 007Bh remains unverified.
 2. `HL.EXE`: 71,755 instructions decode and play finds no more code. Go on
    with stage 2 where it stands (the bullets of 2026-10-04 above):
+   - a battle's end in the window (`debian/window5`): the pictures CDh
+     to D0h are translated and compared; next there the music they
+     start (the sound's owner), `event_picture`'s other kinds (C8h,
+     C9h, CCh, the newspapers of the maps 0 to 2Fh, `S1A39:059D`), a
+     script that reaches D0h and CEh/CFh on the port's own clock (why
+     `m54_end`'s passes run shorter in the port after the second side's
+     move order in round 4), and the end in the window from the menu;
    - the fight is confirmed (`build/n2/fights.sh`, `fightcalc.py`); left
      of it: a fight of a kind with 4 in word 0Fh, `S131D:178D` and the
      pictures in `S2532`. The per cent bytes are confirmed too

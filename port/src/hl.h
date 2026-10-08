@@ -159,6 +159,8 @@ void pal_level(uint8_t level, Far pal);
 void fade_in(void);
 void fade_out(void);
 void fade_grey(Far pal);
+void retrace_wait(void);
+void pal_blend(Far from, Far to, uint16_t first, uint16_t last, int16_t steps, int16_t step);
 void fade_back(Far pal);
 /* called at each wait of retrace_wait and at each pal_level's end (kind
  * SCREEN_RETRACE or SCREEN_PAL_LEVEL), for showing the picture then;
@@ -215,6 +217,18 @@ void unders_restore(void);
 void under_save(uint16_t w, uint16_t h, Far src, Far save);
 int fight_pictures(const FightPics *a);
 
+/* events.c: the pictures of events behind a battle (event_picture's
+ * kinds CDh to D0h); event_hook keeps their time (play.c): at
+ * inputs_release (EV_RELEASE), at a frame's beginning (EV_FRAME), for n
+ * retraces (EV_RETRACES; 0 returned on the original's clock, where a
+ * frame's wait ends with its log), after a fade_in or fade_out (EV_FADE)
+ * and a pal_level (EV_LEVEL), and for the loading of the files n
+ * (EV_BUSY with an EV_LOAD_) */
+enum { EV_RELEASE, EV_FRAME, EV_RETRACES, EV_FADE, EV_LEVEL, EV_BUSY };
+enum { EV_LOAD_WON, EV_LOAD_WIPED, EV_LOAD_MEDAL, EV_LOAD_MEDAL2, EV_LOAD_MEDAL3 };
+extern int (*event_hook)(int at, int n);
+int16_t event_picture(Far place, Far work, uint16_t kind, uint16_t arg);
+
 /* mem.c */
 Far mem_alloc(uint32_t size);
 
@@ -233,8 +247,11 @@ int menu_result(uint16_t map);
 void scores_load(Far buf, Far work, int16_t map, Far name);
 int battle_setup(void);
 /* called by battle_after for each picture the original shows there
- * (event_picture's kind and its last argument) */
-extern void (*battle_hook)(uint16_t picture, uint16_t arg);
+ * (event_picture's kind, its last argument and the work buffer its
+ * caller passes; the picture's place is 2710h bytes behind it) */
+extern void (*battle_hook)(uint16_t picture, uint16_t arg, Far work);
+#define AFTER_FADE 0xFFFF       /* battle_hook's picture: fade_out is done */
+#define AFTER_SCORE 0xFFFE      /* battle_score begins */
 uint16_t battle_after(void);
 int battle_begin(void);
 void view_to_field(uint16_t side, uint16_t field);
@@ -409,6 +426,7 @@ void play_micelog(const char *path);
 const char *play_mice(const char *path);
 void play_rounds(const char *path);
 void play_ends(const char *path);
+void play_evdump(const char *prefix);
 void play_bios(uint32_t ticks);
 void play_begin(double start);
 void play_live(void);

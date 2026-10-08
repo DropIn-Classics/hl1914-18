@@ -450,6 +450,75 @@ and a carrier's screen by the mouse (`m0_s2c` keeps them by keys, its
 pages not compared), a scrolled build list, the mouse's mickeys left
 over below a pixel (`-micelog` does not keep them).
 
+2026-10-08 (`debian/window5`): a battle's end in the window. The
+pictures behind the loop are translated (`src/events.c`, HL.EXE's
+`event_picture`, `S1A39:0001`, for its kinds CDh to D0h): D0h a human
+side has won (`pic_won`), CDh the other side was left without units
+(`pic_wiped`, with its sounds by `sfx_play`), CEh and CFh a new best
+score (`pic_medal`: two streams, a third, and a picture of a library on
+a background), with what they share: the loading of their files from
+the tables in S3812 (`res_load`, `S1A39:034C`), the frames of the
+streams drawn into the VGA's planes (`vdif_frame`, `S2982:0002`), a
+first frame faded in (`first_frame`, `S1A39:02C5`) and the colours
+going down at the end (`pal_blend`, now public in `src/screen.c`, as
+is `retrace_wait`). `battle_after` now does the `fade_out` and
+`unders_restore` before them and shows each picture (`battle_hook`
+calls `event_picture` in `play.c` with the work buffer its caller has:
+game_loop's `[BP-10h]`, which is `game_mem.gfx`, not `lists_end` as the
+port had it, and battle_score's own moved on by 2B2Ah for CEh and CFh;
+`battle_score` loads `CODES.DAT` there too). Left out: the music
+(`music_start`, `music_fade`), the other kinds (a site's, the
+newspapers of the maps for one player), the flags 2 and 4 of
+`res_load` (not in these tables). The time: on the original's clock
+`play_dumps.py` logs each frame's beginning (`F`: `S1A39:0BE6`, `0EF6`,
+`10AF`, `1359`) and wait_press's entry (`Q`, `S0CB6:0DA9`) and the port
+runs the log up to them; on its own clock the frames count the timer's
+calls as the original does, and the loading takes what the runner took
+(`t_ev_load` in `play.c`: D0h 0.70 s, CDh 0.76, CEh/CFh 0.34, 0.34 and
+2.53, and 0.42 s before inputs_release; measured in `m54_end`,
+`m57_last` and `m57_win`). `-evdump PREFIX` writes the memory and video
+memory at each end's wait (`PREFIXeN`) and at the frames 1, 11, 21 ...
+of the pictures (`PREFIXfNNNN`); `play_dumps.py` dumps the original's
+there (`eN`, `fNNNN`), `play_cmp.py` compares them in each mode, and
+`play_test.sh` gives `-evdump` to the port in all of them (`live`: the
+window's against the `-keys` play's). The port's `-dump` behind what
+follows the loop now writes video memory for a `.vram` name (it wrote
+memory there).
+`m57_win` (map 57, 84 s, with `tests/keys/m57_win.pokes`: the second
+side's four units get count 0 when the first pass begins, a poke, not
+the game's own doing) is what the headless window wrote (`-keylog`)
+playing both sides' ends of their first halves and two presses: the
+first round's end drops the second side's units, both views go to
+state 7 (texts 41h and 42h), each side's part waits for its press
+(52.7 to 60.0 s and to 65.1 s), the loop is left, picture CDh with 1,
+`battle_score` (no new best score here: no medal), as in the original
+with the same file:
+- `play_test.sh m57_win`: the inputs, the game's state and the
+  computer's the same at every pass compared, and at both end waits and
+  the frames 1 to 121 of CDh both pages of video memory the same;
+- `rounds` (the port's own clock, the window's): the same at both
+  rounds' dumps, both waits and all 13 frames compared, pages included;
+- `live`: the window's play and the `-keys` play the same in every part and
+  all 36 files (dumps, waits, frames).
+On the original's clock also (each rerun after the merge of origin/master
+64773b5): `m57_last` (CDh with 1 and CEh with 1: the same at all 26
+frames compared, both waits, the passes and `S066A:4728`, pages
+included; the pictures' files in memory the same too once the work
+buffers were right), `m54_end` (D0h with 1 and CFh with 2: the same at
+every pass, both waits and all 20 frames, pages included);
+`m48_attack`, `m8_site`, `m8_mouse`, `loop_test.sh` and
+`menu_test.sh` (all six walks) still the same. What still differs
+"elsewhere" at the waits and frames is the sound driver's segment
+(S30EF, the music not translated) and the interrupt vectors.
+Not done or not checked: the SDL window by hand; D0h, CEh and CFh on
+the port's own clock (no script reaches them there: `m54_end` and
+`m57_last` part from the original after round 3, the cursor's short
+taps sampled otherwise, and `m57_last`'s fight's outcome follows the
+clock; their loading times are taken from one run each); a battle's end
+in the window from the menu (with `-map` the play ends behind the
+pictures; from the menu the menu follows, not tried with this script);
+the sounds of CDh as sound; a medal with `which` 1 or 2.
+
 2026-10-08, the field menu's information (`unit_info`, `unit_values`,
 `info_rect` and `battle_info` in `src/draw.c`, the original's
 `S131D:0483`, `0148`, `0008` and `0EE5`; `state_field` of `src/loop.c`
@@ -1144,7 +1213,8 @@ anything the game needs before the first release.
   last map's mark and result 7Bh, the map's four best scores loaded and
   the random number that chooses a picture when the score is among
   them; the pictures themselves, the sound and the colours are left
-  out (`battle_hook` is told each picture). The program's play calls it
+  out (`battle_hook` is told each picture; since `debian/window5` the
+  pictures CDh to D0h are shown, `src/events.c`). The program's play calls it
   when the battle is over and says so; the menu that follows in the
   original is not translated. `play_dumps.py` logs the original's
   pictures behind the loop into `ends.txt` and dumps its memory at

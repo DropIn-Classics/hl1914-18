@@ -77,6 +77,16 @@ it. The registers go to an OPL2 of the runtime that nobody plays yet;
 still no sound output, nothing listened to (the bullet "The sound",
 "The AdLib's output", which also says what the audio's clock needs).
 
+On the branch `mac/soundout` (2026-10-08) the AdLib is played on the
+audio's clock: the writes go through doskit's queue with their samples
+(`oplq.c`), the timer's interrupts are counted by the samples played,
+and headless a tune is rendered to a WAVE file on the kit's virtual
+audio device (`DK_WAV`). Two runs give the same file byte for byte and
+every write is at its sample in it (`port/tests/soundout_test.sh`).
+**Nothing was listened to**, the window's program was not run, the
+Sound Blaster's bytes are still not played (the bullet "The sound",
+"The AdLib played").
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -4433,6 +4443,73 @@ emulation error (2026-10-02).
       Of the two ways the third point's is the one recommended here:
       it needs two small generic pieces in doskit (the stamped
       queue, the headless clock) and no lock in the game's code.
+  - The AdLib played (2026-10-08, Mac, branch `mac/soundout`). The
+    third point's way above, with the two pieces doskit has since
+    `9aa2c77` (`oplq.c`; `plat_null.c`'s virtual device, `DK_AUDIO`,
+    `DK_WAV`). port/README.md has what the program does and the
+    numbers ("State", "Checked"); here what was learned and decided.
+    - Where the pieces are. `sound.c` counts: `snd_samples` (a hook;
+      unset, everything is as before, which is how every earlier test
+      still runs) gives the samples played, `snd_clock` makes the
+      interrupts due by them (`irq_due`: the periods' sum in PIT
+      counts times the rate / 1193182, divided whole) and leaves the
+      sample of what is being written in `snd_stamp`. `main.c` plays:
+      the device, the queue, the lead (`AUDIO_LEAD`, 1234 samples),
+      the callback. `play.c` was not touched: it calls `snd_clock`
+      with the port's time as before, at every call of its timer
+      routine (13.7 ms) and at the end of each wait.
+    - The scripted headless play never sleeps, and the virtual device
+      only moves in `plat_sleep_ms`. So `main.c`'s `snd_samples` moves
+      the device to the port's clock (the time `snd_clock` was given)
+      before it answers, in whole milliseconds since that is what the
+      platform sleeps in; where the port's clock goes back (a new
+      clock begins) the device goes on from where it stands. In a
+      live play the pictures' waits move it and `main.c` does not.
+      Both ways were rendered twice with the same result.
+    - The lead is two pictures. In the scripted runs the interrupts
+      are made at most 14.5 ms behind their samples (one call of the
+      timer routine and the millisecond), so nothing was late with 28
+      ms; with a real device the callback's buffer adds to that and
+      the lead may have to grow (not tried: the count of late writes
+      at the program's end says).
+    - `music_fade` was left making its interrupts at once (no
+      `snd_wait`): each has its own sample ahead of the samples
+      played, the queue keeps the writes (the menu's walk has 223
+      such writes in all its fades, far below the queue's 4096 at a
+      time), and the caller's
+      clock goes on by the wait through `snd_waited` as before, after
+      which the samples have caught up. A caller without `snd_waited`
+      leaves the sound's clock ahead by the wait; the next tune's
+      first writes then come at the fade's end and its ticks follow
+      once the samples are there (by the code; no walk has it).
+    - A write of the game's side is stamped with the samples played
+      at that moment, or with the last interrupt's sample when a fade
+      ran ahead. The start's writes (`adl_detect` in `snd_init`,
+      before any clock) are at sample 0 plus the lead.
+    - With the device the interrupts fall at other moments between
+      the game's calls than on the clock of passes (the millisecond),
+      so the register stream of a battle is not write for write the
+      one without a device: in 120 s of map 8 the same 10,231
+      registers, 70 of them at another place. The menu's walk gave
+      the same order. Neither is the original's order of calls and
+      ticks anyway (`opl_cmp.py`); `opl_test.sh` is what compares the
+      routines with the original, and it does not use a device.
+    - Decided, as METHOD.md says for the kit: the time the original
+      spends inside a tick is not modelled, a tick's registers fall on
+      one sample (point 5 above).
+    - Not verified: **nothing was listened to**; the window's program
+      with a real audio device and its thread (built, not run); the
+      rendering against one of the original's stream (the runner's
+      `-oplwav` on the same walk would give a file to set beside it:
+      the tunes' starts differ in time, so tune by tune); the chip's
+      level against the digital effects', which are not played; a
+      queue overrun (`early`) and late writes, which no run had;
+      Windows and Linux builds.
+    - Left for output: the Sound Blaster's bytes (point 6 above and
+      the bullet "The effects' ways and the mixer"), mixed into
+      `main.c`'s callback beside the queue's samples, with `dig_irq`
+      on the samples played instead of `snd_clock`'s time; then
+      listening.
 
 ## `HL14-18.EXE` stage 1
 
@@ -4732,8 +4809,9 @@ emulation error (2026-10-02).
    leave `music_start` and `music_fade` out; the pictures C8h, C9h and
    CCh with their effects are not translated, and no caller of them was
    found), and the output itself (the OPL2 is fed since `mac/opl` and
-   its stream compared; the bullet "The AdLib's output" lists what the
-   audio's clock needs, two small pieces of it in doskit; then
+   its stream compared, and played on the audio's clock since
+   `mac/soundout`, rendered headless and not listened to: the bullet
+   "The AdLib played"; then
    the mixer's bytes, which `dig_mix` now makes in the driver's buffers
    (`mac/sfx`; the bullet "The effects' ways and the mixer" says what
    output still needs) with the timer's interrupts (`snd_irq`) and the

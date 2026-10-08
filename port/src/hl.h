@@ -171,6 +171,12 @@ extern int (*snd_wait)(void);
 extern void (*snd_at)(int place);
 extern void (*snd_music)(int out, uint16_t a, uint16_t b, int16_t r);
 void snd_clock(double t);
+/* the audio's clock (sound.c says how) */
+extern uint64_t (*snd_samples)(const double *t);
+extern void (*snd_irq_at)(uint64_t sample, uint32_t next);
+extern int snd_rate;
+extern uint64_t snd_stamp;
+extern int snd_stamp_irq;
 int pictures_load(Far *place, Far work, Far pal);
 int libs_start(Far *place);
 

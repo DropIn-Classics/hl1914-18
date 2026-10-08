@@ -75,6 +75,7 @@
 #include "inno.h"
 #include "launcher.h"
 #include "opl.h"
+#include "oplq.h"
 #include "platform.h"
 #include "sys.h"
 #include "textmode.h"
@@ -314,21 +315,143 @@ static void snd_logged(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, in
 }
 
 /* The AdLib: what sound.c hands to snd_opl, a register and its value in
- * the original's order, goes to an OPL2 of the runtime (opl.h).  Nobody
- * asks it for samples yet (opl_render): the timer's interrupts that make
- * the writes run on the port's clock of passes (snd_clock), not on the
- * audio's, so played like this a tune's speed would follow the drawing
- * (docs/HANDOFF.md, "The AdLib's output", says what the audio's clock
- * needs).  -opllog FILE: each write, the time on the port's clock, the
+ * the original's order, goes to an OPL2 of the runtime (opl.h).
+ *
+ * With an audio device (plat_audio_start: the window's, or plat_null.c's
+ * virtual one with DK_AUDIO=1 or DK_WAV=FILE) the chip is played: each
+ * write goes into the runtime's queue (oplq.h) with the sample sound.c
+ * says it belongs to (snd_stamp) plus AUDIO_LEAD, the device's callback
+ * renders through the queue (audio_fill), and sound.c makes the timer's
+ * interrupts by the samples played (snd_samples = audio_samples).  A
+ * write the game's side makes is stamped with the samples played at that
+ * moment when they are further.  The Sound Blaster's bytes are not
+ * played.  Without a device, as before: the chip gets the writes at
+ * once, nobody asks it for samples, and the interrupts run on the port's
+ * clock of passes (the tests' way).
+ *
+ * The virtual device has no clock of its own (plat_null.c: time passes
+ * in plat_sleep_ms only), and a scripted play (-keys and the like) does
+ * not sleep: audio_samples then moves it on to the port's clock, in
+ * whole milliseconds, each time snd_clock asks.  Where the port's clock
+ * begins anew or goes back, the device's goes on from where it was.  A
+ * live play (play_live) sleeps a picture at a time itself.
+ *
+ * -oplat FILE (with a device): a line "rate R lead L", then "w S REG
+ * VALUE I" for each write (S the sample it is queued for, the lead in it;
+ * hex; I 1 when an interrupt wrote it) and behind each interrupt "i S N"
+ * (its sample without the lead, the timer's period to the next) and
+ * "c T" where the virtual device's clock is set by the port's (T the
+ * port's time at the device's sample 0), for port/tests/soundout_test.sh.  At the end a line to stderr with the
+ * samples played and the queue's counts.
+ *
+ * -opllog FILE: each write, the time on the port's clock, the
  * driver's count of ticks, the register and the value (hex); and a line
  * "start" or "fade" with the time and the count at the end of each
  * music_start and music_fade (for port/tests/opl_cmp.py). */
 static OPL adlib;
 static FILE *opl_log;
 
+#define AUDIO_RATE 44100
+#define AUDIO_LEAD (2 * 14 * AUDIO_RATE / 1000)     /* two pictures */
+static OPLQ adlib_q;
+static int audio_on, audio_moved, audio_live;
+static FILE *opl_at;
+static long audio_writes;
+static uint64_t audio_ms;       /* the virtual device's time, moved on here */
+static double audio_off, audio_t;
+
+static void audio_fill(int16_t *out, int frames, void *user)
+{
+    static int16_t mono[1024];
+    int i, n;
+
+    (void)user;
+    for (; frames > 0; frames -= n, out += 2 * n) {
+        n = frames > 1024 ? 1024 : frames;
+        oplq_render(&adlib_q, mono, n);
+        for (i = 0; i < n; i++)
+            out[2 * i] = out[2 * i + 1] = mono[i];
+    }
+}
+
+/* sound.c's snd_samples */
+static uint64_t audio_samples(const double *t)
+{
+    uint64_t n;
+
+    if (t && !plat_has_window() && !audio_live) {
+        uint64_t to;
+
+        if (!audio_moved || *t < audio_t) {
+            audio_off = *t - (double)audio_ms / 1000;
+            if (opl_at)
+                fprintf(opl_at, "c %.6f\n", audio_off);
+        }
+        audio_moved = 1;
+        audio_t = *t;
+        to = (uint64_t)((*t - audio_off) * 1000);
+        if (to > audio_ms) {
+            plat_sleep_ms((int)(to - audio_ms));
+            audio_ms = to;
+        }
+    }
+    plat_audio_lock();
+    n = oplq_played(&adlib_q);
+    plat_audio_unlock();
+    return n;
+}
+
+static void audio_irq(uint64_t sample, uint32_t next)
+{
+    fprintf(opl_at, "i %llu %lu\n", (unsigned long long)sample, (unsigned long)next);
+}
+
+static void audio_start(void)
+{
+    if (!plat_audio_start(AUDIO_RATE, audio_fill, NULL))
+        return;
+    plat_audio_lock();
+    opl_init(&adlib, AUDIO_RATE);
+    oplq_init(&adlib_q, &adlib);
+    plat_audio_unlock();
+    audio_on = 1;
+    snd_rate = AUDIO_RATE;
+    snd_samples = audio_samples;
+    if (opl_at) {
+        fprintf(opl_at, "rate %d lead %d\n", AUDIO_RATE, AUDIO_LEAD);
+        snd_irq_at = audio_irq;
+    }
+}
+
+static void audio_end(void)
+{
+    if (!audio_on)
+        return;
+    plat_audio_lock();
+    fprintf(stderr, "Audio: %llu samples played, %ld registers, %ld late, %ld early, %d waiting.\n",
+            (unsigned long long)oplq_played(&adlib_q), audio_writes, adlib_q.late, adlib_q.early,
+            oplq_pending(&adlib_q));
+    plat_audio_unlock();
+    if (opl_at)
+        fclose(opl_at);
+}
+
 static void adlib_write(uint8_t reg, uint8_t value)
 {
-    opl_write(&adlib, reg, value);
+    if (audio_on) {
+        uint64_t at = snd_stamp;
+
+        plat_audio_lock();
+        if (!snd_stamp_irq && oplq_played(&adlib_q) > at)
+            at = oplq_played(&adlib_q);
+        at += AUDIO_LEAD;
+        oplq_write(&adlib_q, at, reg, value);
+        plat_audio_unlock();
+        audio_writes++;
+        if (opl_at)
+            fprintf(opl_at, "w %llu %02X %02X %d\n", (unsigned long long)at, reg, value, snd_stamp_irq);
+    } else
+        opl_write(&adlib, reg, value);
     if (opl_log)
         fprintf(opl_log, "%.6f %lu %02X %02X\n", play_now(),
                 (unsigned long)((uint32_t)NW(snd_ticks, 2) << 16 | NW(snd_ticks, 0)), reg, value);
@@ -701,6 +824,8 @@ int main(int argc, char **argv)
             if (opl_log)
                 snd_music = mus_logged;
         }
+        else if (!strcmp(argv[i], "-oplat") && i + 1 < argc)
+            opl_at = fopen(argv[++i], "w");
         else if (!strcmp(argv[i], "-muslog") && i + 1 < argc) {
             mus_log = fopen(argv[++i], "w");
             if (mus_log)
@@ -731,7 +856,7 @@ int main(int argc, char **argv)
             fprintf(stderr, "usage: history-line [-game DIR | -gog FILE|FOLDER] [-map N] [-ram FILE]\n"
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
                             "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-keylog FILE] [-poke ADDR HEX]... [-dump N FILE]...\n"
-                            "       [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]... [-askvram N FILE]...\n"
+                            "       [-oplat FILE] [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]... [-askvram N FILE]...\n"
                             "With -keys and no -map the program begins at the menu (at -start seconds).\n");
             return 2;
         }
@@ -754,6 +879,7 @@ int main(int argc, char **argv)
         plat_shutdown();
         return 1;
     }
+    audio_start();
     if (!hl_save_dir) {
         static char saves[SYS_PATH];
 
@@ -765,6 +891,7 @@ int main(int argc, char **argv)
      * alone; headless too when DK_KEYS or DK_SHOTS script it (plat_null.c) */
     if (!play && !ram && (plat_has_window() || getenv("DK_KEYS") || getenv("DK_SHOTS"))) {
         play_live();
+        audio_live = 1;
         briefing_player = 1;
         play = 1;
     }
@@ -781,6 +908,7 @@ int main(int argc, char **argv)
         if (ok && ram && rm_write(ram) != 0)
             ok = 0;
         fprintf(stderr, "%s\n", line);
+        audio_end();
         plat_shutdown();
         return !ok;
     }

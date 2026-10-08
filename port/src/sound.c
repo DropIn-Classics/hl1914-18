@@ -32,6 +32,12 @@
  * the fade's end runs those interrupts itself and tells snd_waited how
  * long that was.
  *
+ * The audio's clock: when snd_samples is set (main.c: an audio device is
+ * there), snd_clock makes the timer's interrupts by the samples played
+ * instead of by the port's clock, and every register handed to snd_opl
+ * has its sample in snd_stamp (below).  The card's interrupt stays on the
+ * port's clock.
+ *
  * The port is the game with both devices found (snd_devices 3).
  */
 #include <stdio.h>
@@ -80,6 +86,29 @@ void (*snd_played)(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, int16_
 void (*snd_music)(int out, uint16_t a, uint16_t b, int16_t r);
 
 static double tick_at = -1;
+
+/* The audio's clock.  snd_samples: the samples played so far at snd_rate
+ * a second; with the port's clock's time when snd_clock asks (a device
+ * without a clock of its own is moved on to it), NULL when only the count
+ * is wanted.  Unset, the interrupts run on the port's clock as before.
+ * An interrupt is due at the sample the timer's periods since the clock
+ * began come to (PIT counts * snd_rate / 1193182, counted whole so that
+ * the fraction is carried), and snd_clock runs those due by the samples
+ * played.  snd_stamp is the sample a register handed to snd_opl belongs
+ * to: the interrupt's own for what it writes (snd_stamp_irq 1), else the
+ * count of samples snd_clock saw last, or the last interrupt's when
+ * music_fade ran the interrupts ahead of it.  Whoever plays adds a lead.
+ * snd_irq_at (a test's): behind each interrupt made so, its sample and
+ * the timer's period to the next. */
+uint64_t (*snd_samples)(const double *t);
+void (*snd_irq_at)(uint64_t sample, uint32_t next);
+int snd_rate = 44100;
+uint64_t snd_stamp;
+int snd_stamp_irq;
+static int irq_begun;           /* irq_base and irq_pit count */
+static uint64_t irq_base;       /* the samples played when the clock began */
+static uint64_t irq_pit;        /* the timer's counts from there to the next interrupt */
+static uint64_t irq_last;       /* the last interrupt's sample */
 
 /* the card: the rate dsp_rate set (bytes a second), the clock's time
  * snd_clock was last called with, and when the buffer started last has
@@ -1070,12 +1099,42 @@ int snd_irq(void)
     return adl | fade;
 }
 
+/* the sample the next interrupt is due at */
+static uint64_t irq_due(void)
+{
+    if (!irq_begun) {
+        irq_begun = 1;
+        irq_base = snd_samples(NULL);
+        if (irq_base < irq_last)
+            irq_base = irq_last;
+        irq_pit = 0;
+    }
+    return irq_base + irq_pit * (uint64_t)snd_rate / 1193182u;
+}
+
+/* the next interrupt on the audio's clock, at its sample */
+static void irq_audio(void)
+{
+    uint64_t was = snd_stamp;
+
+    irq_last = snd_stamp = irq_due();
+    snd_stamp_irq = 1;
+    snd_irq();
+    snd_stamp_irq = 0;
+    irq_pit += pit_least();
+    if (snd_irq_at)
+        snd_irq_at(irq_last, pit_least());
+    snd_stamp = was > irq_last ? was : irq_last;
+}
+
 /* S2F39:1058 (music_fade): the effects stopped; the music off at once
  * with speed 0, else faded out in `speed` steps, waited for.  The
  * original waits in a loop while the timer's interrupts come; here they
  * are run one after the other, so the sound's clock is ahead of the
  * caller's by that time afterwards (snd_clock then calls nothing until
- * it has caught up) and snd_waited is told */
+ * it has caught up) and snd_waited is told.  On the audio's clock the
+ * same: the fade's interrupts are made at once, each with its sample,
+ * ahead of the samples played */
 static int16_t music_fade_(uint16_t speed);
 
 int16_t music_fade(uint16_t speed)
@@ -1112,7 +1171,10 @@ static int16_t music_fade_(uint16_t speed)
         if (snd_wait && snd_wait())
             continue;
         s += pit_least() / 1193182.0;
-        snd_irq();
+        if (snd_samples)
+            irq_audio();
+        else
+            snd_irq();
     }
     if (tick_at >= 0)
         tick_at += s;
@@ -1139,6 +1201,15 @@ void snd_clock(double t)
         dig_irq();
     }
     clock_now = t;
+    if (snd_samples) {
+        uint64_t played = snd_samples(&t);
+
+        if (NW(snd_devices, 0) & 1)
+            while (irq_due() <= played)
+                irq_audio();
+        snd_stamp = played > irq_last ? played : irq_last;
+        return;
+    }
     if (!(NW(snd_devices, 0) & 1))
         return;
     if (tick_at < 0 || tick_at > t + 4)
@@ -1172,6 +1243,7 @@ static int adl_detect(void)
     opl_silence();
     opl(0x01, 0x20);
     tick_at = -1;
+    irq_begun = 0;
     adl_left = 0x1843;
     fade_left = 0;
     return 1;

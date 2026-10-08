@@ -13,8 +13,10 @@
  * text up to an empty one.  Each screen is shown, lit in 33 steps, waits
  * for a key or a button (inputs_release) and goes dark again.
  *
- * Left out: the music (S2F39:0F87 and 1058; its file is loaded).  The
- * time is the port's own clock (play.c).  port/README.md says how this
+ * The music is sound.c's (no sound comes out): a side's screen fades the
+ * tune that plays out and starts its own, the routine's end fades that
+ * out; each fade out is waited for.  The time is the port's own clock
+ * (play.c).  port/README.md says how this
  * was compared with the original.
  */
 #include <stdio.h>
@@ -129,6 +131,25 @@ static void put(uint16_t x, uint16_t y, uint8_t colour, Far t)
     text_draw(x, y, 0, 6, colour, t, NULL);
 }
 
+/* S2F39:1058(5): the music faded out in 5 steps, which the original
+ * waits for: the port's clock goes on by that time */
+static void fade_waited(double s)
+{
+    double to = play_now() + s, was;
+
+    do {
+        was = play_now();
+        play_tick();
+    } while (play_now() < to && play_now() > was);
+}
+
+static void tune_stop(void)
+{
+    snd_waited = fade_waited;
+    music_fade(5);
+    snd_waited = NULL;
+}
+
 /* S274D:0142: a side's screen.  MNUFAHN.IFF shown, MNUCHR14.LIB loaded
  * with the menu's record of it (S37FF:001C), NEW UNITS and the month and
  * year in that font, the side's flag of LIB\FAHNEN.DAT, and the side's
@@ -154,12 +175,12 @@ static int side_screen(uint16_t side, uint16_t month, uint16_t year, Far base, F
     if (lib_read(&p, text(0x002B), buf(), work, far_add(place, 0x4E20)) == -1)
         return 1;
     pic_draw(0x58, 0x37, place, 0);
-    /* S2F39:1058(5): the music's end, left out */
+    tune_stop();
     buf_copy(text(side == 1 ? 0x0083 : 0x0090));
     p = file_load(base, buf(), work);
     if (!(p.seg | p.off))
         return 1;
-    /* S2F39:0F87(base, 5, FFh): the tune's start, left out */
+    music_start(base, 5, 0xFF);
     return 0;
 }
 
@@ -334,7 +355,7 @@ static uint16_t screens(uint16_t map, Far place, Far work)
         for (l = 0xF8, step = 0; l >= 0; l = (int16_t)(l - 8))
             level(l, step++);
     } while (pw(pc, 0));
-    /* S2F39:1058(5): the music's end, left out */
+    tune_stop();
     return 0;
 }
 

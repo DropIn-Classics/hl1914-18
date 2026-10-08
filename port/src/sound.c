@@ -10,9 +10,16 @@
  * Blaster's part ends at the channel's record: dig_mix, dig_irq and
  * dig_kick, which make the bytes the card plays, are not translated, so a
  * digital channel stays as dig_play left it until chan_stop or the next
- * dig_play on it.  The music's start and end (music_start, music_fade,
- * music_volume) are not translated; the events of a tune are, with the
- * timer's routine, and nothing in the port turns music_on on.
+ * dig_play on it.
+ *
+ * The music: music_start, music_fade, music_volume and the fade's timer
+ * routine fade_tick, with the tune's events read by the timer's routine.
+ * The timer itself (S27FE: pit_irq and its tables of routines) is not
+ * translated: snd_irq is one interrupt of it as far as the sound goes,
+ * the fade's routine when its period has run out and then adl_tick, and
+ * snd_clock calls it at the period the tune set.  music_fade's wait for
+ * the fade's end runs those interrupts itself and tells snd_waited how
+ * long that was.
  *
  * The port is the game with both devices found (snd_devices 3).
  */
@@ -55,10 +62,34 @@
 
 void (*snd_opl)(uint8_t reg, uint8_t value);
 void (*snd_played)(uint16_t ch, uint16_t n, int16_t r);   /* a test's: each sfx_play */
+/* a test's: each music_start (out 0; a the fade, b the volume) and
+ * music_fade (out 1; a the speed) at its end */
+void (*snd_music)(int out, uint16_t a, uint16_t b, int16_t r);
 
-/* the period the timer calls adl_tick with (pit_add's 1843h, pit_period) */
-static uint16_t tick_period = 0x1843;
 static double tick_at = -1;
+
+/* the period the timer calls adl_tick with: pit_add's 1843h until a tune
+ * or an effect sets its own (pit_period), which is kept at adl_period */
+static uint16_t tick_period(void)
+{
+    return NW(adl_period, 0) ? NW(adl_period, 0) : 0x1843;
+}
+
+/* the fade: its count of steps so far, how many it has, the volume it
+ * began with and the one it ends with; the period of its timer routine */
+#define FADE_COUNT 0x023A
+#define FADE_STEPS 0x023C
+#define FADE_FROM 0x023E
+#define FADE_TO 0x0240
+#define FADE_PERIOD 0x1D1EBL
+
+/* how long music_fade waited for its fade, in seconds (the caller's
+ * clock goes on by it); NULL: nobody counts it */
+void (*snd_waited)(double s);
+
+/* what is left of the fade's period, in the timer's counts (pit_add's
+ * and pit_irq's count for the routine) */
+static int32_t fade_left;
 
 static void adl_voices_free(uint16_t ch);
 
@@ -523,7 +554,6 @@ void snd_pass(void)
 static void period_set(uint16_t period)
 {
     SETW(adl_period, 0, period);
-    tick_period = period;
 }
 
 /* S30EF:15C7 (music_events): the music's events at `p` up to a wait */
@@ -733,16 +763,188 @@ void adl_tick(void)
     SETW(snd_lock, 0, 0);
 }
 
-/* the port's clock at t seconds: the calls of adl_tick due by then */
+/* S30EF:1325 (fade_stop) and S30EF:1342 (fade_start): the fade's routine
+ * taken from the timer and given to it (pit_del, pit_add with the period
+ * 1D1EBh; its number, which the original keeps at S30EF:1118, is not
+ * kept) */
+static void fade_stop(void)
+{
+    if (NW(fade_on, 0) & 1)
+        SETW(fade_on, 0, 0);
+}
+
+static void fade_start(void)
+{
+    if (NW(fade_on, 0) & 1)
+        return;
+    fade_left = FADE_PERIOD;
+    SETW(fade_on, 0, 1);
+}
+
+/* S2F39:1127 (music_volume) */
+int16_t music_volume(uint16_t vol)
+{
+    uint16_t ch = NW(snd_channel, 0), v;
+
+    if (!(NW(snd_devices, 0) & 1) || !NW(music_on, 0))
+        return -1;
+    SETW(music_volume_now, 0, vol);
+    SETW(snd_channel, 0, MUSIC);
+    for (v = 0; D(REC(MUSIC) + R_VOICES) > v; v++)
+        voice_level(v, vol);
+    SETW(snd_channel, 0, ch);
+    return 1;
+}
+
+/* S30EF:12D9 (fade_tick), the fade's timer routine: the volume of step
+ * `count` of `steps` between the two volumes; one call more ends it */
+void fade_tick(void)
+{
+    uint16_t n = (uint16_t)(D(FADE_COUNT) + 1), steps = D(FADE_STEPS), from = D(FADE_FROM);
+
+    DSET(FADE_COUNT, n);
+    if (n > steps) {
+        SETW(fade_on, 0, 0);
+        return;
+    }
+    music_volume((uint16_t)(from + (int16_t)((int32_t)(int16_t)(D(FADE_TO) - from) * (int16_t)n / (int16_t)steps)));
+}
+
+/* S30EF:1A2B (opl_silence) */
+static void opl_silence(void)
+{
+    uint16_t v;
+
+    opl(0x01, 0x00);
+    opl(0x01, 0x20);
+    for (v = 0; v < 9; v++) {
+        uint8_t op = DB(OPS + v);
+
+        opl((uint8_t)(op + 0x40), 0x3F);
+        opl((uint8_t)(op + 0x43), 0x3F);
+    }
+}
+
+/* S2F39:0F87 (music_start): the tune at `tune` from its beginning,
+ * endless, at volume `vol` at once or from 0 in `fade` steps of the
+ * fade's timer */
+static int16_t music_start_(Far tune, uint16_t fade, uint16_t vol);
+
+int16_t music_start(Far tune, uint16_t fade, uint16_t vol)
+{
+    int16_t r = music_start_(tune, fade, vol);
+
+    if (snd_music)
+        snd_music(0, fade, vol, r);
+    return r;
+}
+
+static int16_t music_start_(Far tune, uint16_t fade, uint16_t vol)
+{
+    if (!(NW(snd_devices, 0) & 1))
+        return -1;
+    fade_stop();
+    if (adl_load(MUSIC, tune, 0) < 0)
+        return -1;
+    SETW(music_on, 0, 1);
+    if (!fade) {
+        adl_start(MUSIC, vol);
+        music_volume(vol);
+    } else {
+        adl_start(MUSIC, 0);
+        DSET(FADE_FROM, 0);
+        DSET(FADE_TO, vol);
+        DSET(FADE_COUNT, 0);
+        DSET(FADE_STEPS, fade);
+        fade_start();
+    }
+    SETW(music_volume_now, 0, vol);
+    DSET(0x0234, NW(snd_ticks, 2));
+    DSET(0x0232, NW(snd_ticks, 0));
+    return 1;
+}
+
+/* one interrupt of the timer (S27FE:06D2, pit_irq) as far as the sound
+ * goes: the fade's routine first when its period has run out (it was
+ * given to the timer last and pit_irq calls from the last one down), then
+ * adl_tick, whose period the timer runs at */
+void snd_irq(void)
+{
+    if (NW(fade_on, 0) & 1) {
+        fade_left -= tick_period();
+        if (fade_left <= 0) {
+            fade_left += FADE_PERIOD;
+            fade_tick();
+        }
+    }
+    adl_tick();
+}
+
+/* S2F39:1058 (music_fade): the effects stopped; the music off at once
+ * with speed 0, else faded out in `speed` steps, waited for.  The
+ * original waits in a loop while the timer's interrupts come; here they
+ * are run one after the other, so the sound's clock is ahead of the
+ * caller's by that time afterwards (snd_clock then calls nothing until
+ * it has caught up) and snd_waited is told */
+static int16_t music_fade_(uint16_t speed);
+
+int16_t music_fade(uint16_t speed)
+{
+    int16_t r = music_fade_(speed);
+
+    if (snd_music)
+        snd_music(1, speed, 0, r);
+    return r;
+}
+
+static int16_t music_fade_(uint16_t speed)
+{
+    uint16_t ch;
+    double s = 0;
+
+    if (!(NW(snd_devices, 0) & 1))
+        return -1;
+    for (ch = 8; ch < MUSIC; ch++)
+        adl_stop(ch);
+    if (!NW(music_on, 0))
+        return -1;
+    fade_stop();
+    if (!speed) {
+        SETW(music_on, 0, 0);
+        return 1;
+    }
+    DSET(FADE_TO, 0);
+    DSET(FADE_FROM, NW(music_volume_now, 0));
+    DSET(FADE_COUNT, 0);
+    DSET(FADE_STEPS, speed);
+    fade_start();
+    while (NW(fade_on, 0)) {
+        s += tick_period() / 1193182.0;
+        snd_irq();
+    }
+    if (tick_at >= 0)
+        tick_at += s;
+    SETW(music_on, 0, 0);
+    fade_stop();
+    SETW(snd_channel, 0, 0);
+    opl_silence();
+    if (snd_waited)
+        snd_waited(s);
+    return 1;
+}
+
+/* the port's clock at t seconds: the timer's interrupts due by then.  The
+ * sound's clock begins anew when it is far from t (another clock began);
+ * it may be ahead by a fade's wait (music_fade) */
 void snd_clock(double t)
 {
     if (!(NW(snd_devices, 0) & 1))
         return;
-    if (tick_at < 0 || tick_at > t + 1)
+    if (tick_at < 0 || tick_at > t + 4)
         tick_at = t;
     while (tick_at <= t) {
-        adl_tick();
-        tick_at += tick_period / 1193182.0;
+        snd_irq();
+        tick_at += tick_period() / 1193182.0;
     }
 }
 
@@ -782,8 +984,8 @@ uint16_t snd_init(uint16_t mask)
     }
     if (mask & 1) {
         DSETB(0x111A, 1);
-        tick_period = 0x1843;
         tick_at = -1;
+        fade_left = 0;
         found |= 1;
     }
     SETW(snd_devices, 0, found);

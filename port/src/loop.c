@@ -722,6 +722,34 @@ static uint8_t key_entry(uint16_t n)
     return pb(t, n);
 }
 
+/* attacks_run's music, which orders.c leaves out (the calls before
+ * S02E6:0102, 1233 and 205B): with the music on (40h in game_state) it is faded out before the
+ * fights, when the side whose orders are carried out has any, and again
+ * at each site taken (order 4; nothing is on then if it was faded
+ * before), and started anew at attacks_run's end when one of these came.
+ * Done from here around the call: before it, at orders_hook's
+ * ORDERS_TAKEN (the hook that was set is called behind it) and after it;
+ * between these places and the original's nothing reads the sound's
+ * state. */
+static void (*round_kept)(int at, int n);
+static uint8_t round_faded;
+
+static void round_fade(void)
+{
+    if (gs(0) & 0x40) {
+        music_fade(4);
+        round_faded++;
+    }
+}
+
+static void round_music(int at, int n)
+{
+    if (at == ORDERS_TAKEN)
+        round_fade();
+    if (round_kept)
+        round_kept(at, n);
+}
+
 /* state 5, the side has ended its half (S066A:3BC9 to 418B) */
 static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
 {
@@ -757,7 +785,15 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
             SETB(take_picture, 0, 0);
             if (loop_hook)
                 loop_hook(LOOP_ROUND, side);
+            round_faded = 0;
+            if (NB(sides, (NB(attack_pick, 0) == 2 ? 0 : 1) * SIDE_SIZE + 0x15))
+                round_fade();
+            round_kept = orders_hook;
+            orders_hook = round_music;
             res = attacks_run();
+            orders_hook = round_kept;
+            if (gs(0) & 0x40 && round_faded)
+                music_start(far_at(S_music_data, A_music_data), 0, 0xFF);
             if (loop_hook)
                 loop_hook(LOOP_FOUGHT, side);
             /* the fight's pictures (S2532, not translated) start the
@@ -926,8 +962,8 @@ static void joy_setup(void)
  *   0Fh (F4)  text 59h and the two bytes at S331F:0007 and 0006 as
  *             numbers behind it
  *   0Dh (F2)  the music off (text 56h) or on (55h): 40h in game_state;
- *             only with 10h in its word 2 (there is music).  The port
- *             makes no sound yet: S2F39:1058 and 0F87 are left out
+ *             only with 10h in its word 2 (there is music): music_fade(4)
+ *             or music_start with the battle's tune (sound.c)
  *   0Eh (F3)  the effects off (58h) or on (57h): 80h; only with 20h in
  *             word 2
  *   10h, 11h (F5, F6)  the first and the second side's joystick off (65h,
@@ -957,9 +993,11 @@ static void setting_keys(void)
         if (!(gs(2) & 0x10) || gs(4) & 0x200)
             return;
         if (gs(0) & 0x40) {
+            music_fade(4);
             text = 0x56;
             gs_and(0, 0xFFBF);
         } else {
+            music_start(far_at(S_music_data, A_music_data), 0, 0xFF);
             text = 0x55;
             gs_or(0, 0x40);
         }

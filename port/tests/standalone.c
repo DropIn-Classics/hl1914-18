@@ -39,6 +39,7 @@ void text_mid_uncut(int16_t y, Far text, Far font, uint16_t base, int16_t gap)
 
 void inputs_release(int wait) { (void)wait; }
 void play_tick(void) { }
+double play_now(void) { return 0; }
 void play_retraces(int n) { (void)n; }
 int play_idle(void) { return 1; }
 int plat_pump(void) { return 1; }

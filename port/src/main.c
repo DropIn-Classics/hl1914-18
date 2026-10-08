@@ -307,6 +307,19 @@ static void snd_logged(uint16_t ch, uint16_t n, int16_t r)
             (unsigned long)((uint32_t)NW(game_state, 0x15) << 16 | NW(game_state, 0x13)));
     fflush(snd_log);
 }
+
+/* -muslog FILE: each call of music_start ("start", the fade's steps, the
+ * volume) and music_fade ("fade", the speed) at its end: the time on the
+ * port's clock, what it returned and the battle's count of passes (for
+ * the test) */
+static FILE *mus_log;
+
+static void mus_logged(int out, uint16_t a, uint16_t b, int16_t r)
+{
+    fprintf(mus_log, "%.3f %s %u %u %d %lu\n", play_now(), out ? "fade" : "start", a, b, r,
+            (unsigned long)((uint32_t)NW(game_state, 0x15) << 16 | NW(game_state, 0x13)));
+    fflush(mus_log);
+}
 static struct { unsigned long at; const char *hex; } pokes[16];
 static int pokes_n;
 static struct { unsigned long pass; const char *file; } menu_dumps[8];
@@ -585,6 +598,11 @@ int main(int argc, char **argv)
             snd_log = fopen(argv[++i], "w");
             if (snd_log)
                 snd_played = snd_logged;
+        }
+        else if (!strcmp(argv[i], "-muslog") && i + 1 < argc) {
+            mus_log = fopen(argv[++i], "w");
+            if (mus_log)
+                snd_music = mus_logged;
         }
         else if (!strcmp(argv[i], "-menuvram") && i + 2 < argc) {
             double at = atof(argv[++i]);

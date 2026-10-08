@@ -1327,8 +1327,17 @@ name S2F39:00FD sfx_load
 ; clears it), then music_on 0, snd_channel 0 and opl_silence; 1.
 ; Called with 4 by attacks_run's order 4 when 40h (music) is in game_state,
 ; which also counts [BP-0Dh] up so that attacks_run starts the music again
-; at its end (music_start with music_data, 0, FFh). Read whole; the port
-; leaves it out.
+; at its end (music_start with music_data, 0, FFh); attacks_run calls it
+; the same way before its fights when the side has orders (the call
+; before S02E6:0102). The fade: S30EF:023E the volume it begins with, 0240
+; the one it ends with, 023A the steps so far, 023C how many. Seen in the
+; runs (2026-10-08): with speed 4 and the menu's tune (period 06A9h) the
+; wait is 350 calls of adl_tick, 280 while its other tune played, with
+; speed 5 in the new units' screens 504 and 555: speed+1 calls of
+; fade_tick, each when 1D1EBh timer counts have run out. One or two more
+; ticks are counted before the routine's end (presumably while
+; opl_silence writes its 20 registers with opl_write's waits; not
+; measured). Translated (port/src/sound.c) and compared, port/README.md.
 name S2F39:1058 music_fade
 ; ---- The sound (S2F39 the routines the game calls, S30EF the driver),
 ; read whole 2026-10-08 from the generated source; what a run showed is
@@ -1412,6 +1421,10 @@ name S2F39:0CFB adl_start
 ; music_start(far ADLX, fade, volume): fade_stop, adl_load and adl_start
 ; for channel 0Ch, music_on 1; without a fade music_volume(volume), else
 ; from 0 to the volume in `fade` steps of the fade's timer (fade_start).
+; music_volume_now gets the volume in both cases, and the count of ticks
+; is copied to S30EF:0232 (low word) and 0234. Seen: the menu (fade 4,
+; volume FFh), the new units' screens (5, FFh), a battle (0, FFh).
+; Translated and compared (port/README.md).
 name S2F39:0F87 music_start
 ; music_volume(volume): music_volume_now set and voice_level for each of
 ; the tune's voices.
@@ -1450,7 +1463,11 @@ name S30EF:11E6 opl_write
 ; effect has the voice only the second copy is written.
 name S30EF:1205 voice_level
 ; fade_tick, the fade's timer (pit_add with the period 1D1EBh):
-; music_volume by the step; at the end the timer is taken away.
+; music_volume by the step (from + (to - from) * count / steps, signed);
+; the call after the last step takes the timer away (pit_del with the
+; number kept at S30EF:1118) and clears fade_on. pit_irq calls it before
+; adl_tick in the same interrupt (seen: 70 ticks between two calls with
+; the period 06A9h). Translated and compared (port/README.md).
 name S30EF:12D9 fade_tick
 name S30EF:1325 fade_stop
 name S30EF:1342 fade_start

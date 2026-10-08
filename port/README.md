@@ -276,9 +276,9 @@ elsewhere; the port's run began with `-map 8`, not from the menu), 314
 of 64,000 pixels different, all of them the two frames.
 2026-10-08, the keys F2 to F9 in a battle (`setting_keys` and
 `joy_setup` in `src/loop.c`, `num_draw` of `src/draw.c` for F4): F2 the
-music and F3 the effects off and on (the bits of `game_state`; the port
-makes no sound yet, so the calls that stop and start the music are left
-out), F4 a text with two numbers, F5 and F6 a side's joystick (no game
+music and F3 the effects off and on (the bits of `game_state`; F2 calls
+`music_fade(4)` or `music_start` since the branch `mac/music`, see the
+music's paragraph below; no sound comes out), F4 a text with two numbers, F5 and F6 a side's joystick (no game
 port in the port: the word is switched and no stick found), F7 the mouse
 off and on, F8 its speed in three steps, F9 the three settings of the
 fights' pictures. The play no longer stops at them.
@@ -308,8 +308,10 @@ closed; a key script
 that has no key left for a screen is waited for 400 calls of the
 timer's routine, then the screens go on and a line on stderr says so.
 `-briefdump DIR` writes the memory at the routine's entry and return and
-each screen's video memory into DIR (for the test). Left out: the music
-(the side's tune is loaded, not played). The time is the port's own
+each screen's video memory into DIR (for the test). The music's calls
+(a side's tune started with a fade of 5, the tune before and the last
+one faded out in 5) are made since the branch `mac/music`; no sound
+comes out. The time is the port's own
 clock: the files take none, and the 33 steps of a fade are given 19
 retraces (0.27 s, the original's 33 calls of `pal_level` in the runner).
 The test programs that link `battle.c` by themselves get the screens
@@ -487,13 +489,60 @@ with `-clock`) it is not called and an effect stays playing until the
 next one on its channel. What the original writes to the AdLib's
 registers goes to the hook `snd_opl` (unset). `-sndlog FILE` writes each
 call of `sfx_play` (time, channel, number, result).
-Not translated: the music's start, fade and volume (`music_start`,
-`music_fade`, `music_volume`, `fade_tick`: read, in the hints), the
+Not translated then: the music's start, fade and volume (`music_start`,
+`music_fade`, `music_volume`, `fade_tick`; done since, the next
+paragraph), the
 digital mixer and the card (`dig_mix`, `dig_irq`, `dig_kick`), `snd_end`,
 `dsp_rate`, and the calls of `sfx_play`, `dig_play` and `chan_stop` by
 `attacks_run`, `event_picture`, `site_picture` and the fight's pictures
 (`src/orders.c`, `src/fightpics.c`: still left out there).
 docs/HANDOFF.md ("The sound") says what sound output would need.
+
+2026-10-08 (macOS, branch `mac/music`): the music's control, in
+`src/sound.c` over the program's memory, still without any sound coming
+out. `music_start(tune, fade, volume)` (the tune loaded and started on
+channel 0Ch, at the volume at once or from 0 in `fade` steps),
+`music_fade(speed)` (the effects stopped; the music off at once with
+speed 0, else faded to 0 in `speed` steps, waited for, then the voices
+silenced, `opl_silence`), `music_volume` and `fade_tick`, the fade's
+timer routine (period 1D1EBh timer counts, a tenth of a second), with
+`fade_start` and `fade_stop`. The timer itself (`S27FE`: `pit_irq` and
+its tables) is not translated: `snd_irq` is one of its interrupts as far
+as the sound goes, `fade_tick` first when its period has run out, then
+`adl_tick`; `snd_clock` calls it at the period the tune set, which is now
+read from the driver's `adl_period` (`S30EF:0000`; 1843h while it is 0)
+and no longer kept beside the memory. `music_fade`'s wait runs the
+interrupts itself until the fade is over (speed + 1 calls of
+`fade_tick`: 350 interrupts for speed 4 with the menu's tune) and tells
+`snd_waited` how long that was; the sound's clock is ahead of the
+caller's by that time and `snd_clock` calls nothing until it has caught
+up.
+Called where the original calls them: `start_setup` (`music_fade(4)`
+before the keyboard's interrupt is set; nothing plays yet),
+`battle_begin`'s end (the battle's tune, no fade, volume FFh, with 40h
+in `game_state`), F2 in a battle (`setting_keys`, `src/loop.c`),
+`battle_after` (the fade at the loop's end), the menu's four starts
+(fade 4, volume FFh) and four fades (4) in `src/menu.c`, the new units'
+screens (`src/briefing.c`: fade 5), and `attacks_run`'s three places.
+Those are made from `src/loop.c` around its call of `attacks_run`,
+because `src/orders.c` leaves them out: the fade before the fights when
+the side has orders, the fade at a site taken through `orders_hook`'s
+`ORDERS_TAKEN` (the hook set before is called behind it), and the start
+at the end when one of them came; nothing between those places and the
+original's reads the sound's state. In the menu and the new units'
+screens the fade's wait moves the port's clock on (`snd_waited`); in a
+battle it does not (the times of `attacks_run` on the port's own clock
+are `src/play.c`'s and were measured with the fade in them, presumably;
+not checked), and F2's half second is not counted there either.
+`-muslog FILE` writes each call of `music_start` and `music_fade` at
+its end (time, which, the numbers, the result, the battle's pass).
+Not translated: `snd_end`, the calls of the music's routines by `S1A39`
+(a taken site's picture, the end's screens: fades of 10 and 20 steps
+and their own tunes), the timer's tables (so the number the timer gives
+the fade's routine, `S30EF:1118`, stays 0), and as before the digital
+mixer and `dsp_rate`. On the original's clock (a battle played with
+`-clock`) `snd_clock` is not called, so a tune started there does not go
+on but in a fade's wait.
 
 ## Build and run
 
@@ -524,6 +573,99 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The music's control (2026-10-08, macOS, branch `mac/music`;
+  `src/sound.c`): `python3 port/tests/music_dumps.py` stops the original
+  at the entry and the end of calls and keeps its memory, in three
+  walks: the menu (the keys of `menu_dumps.py`'s walk `pages`), the new
+  units' screens of map 4 up to the battle's beginning
+  (`briefing_dumps.py`'s `m4`) and the battle of map 8 with
+  `m8_site.keys`. Kept: every call of `music_start` (3, 4 and 6) and of
+  `music_fade` (4, 5 and 6), the calls of `fade_tick` (30, 34, and 40 of
+  the battle's 46) and of `music_volume` (24, 29, and 40 of 45), and the
+  first eight calls of `adl_tick` after each of the first three starts
+  (24 in each). `sh port/tests/music_test.sh` gives the port's routine
+  the entry's memory and arguments (`port/tests/sound_test.c`, which
+  has the four routines as new kinds) and compares the driver's
+  variables (`S30EF:0000` to `111E`) and the result with the end's: 297
+  calls (85, 96, 116), none different. Among them: starts with a fade of
+  4 (the menu), of 5 (the screens) and without one (the battle, from
+  `game_loop` and from `attacks_run`'s end); fades of 4 and 5 steps and
+  one of 20 (a taken site's picture, `S1A39`), each with the tune's
+  events read all through the wait (11 waits), and four fades with no
+  music on (FFFFh). The wait of a fade is the same count of the timer's
+  interrupts in both: 350 for 4 steps with the menu's tune and with the
+  battle's, 280 with the menu's other tune, 504 and 555 for 5 steps,
+  3,116 for 20; the original's count of ticks at the routine's end is 1
+  to 3 higher (those come in behind the wait, while it writes
+  `opl_silence`'s registers; the test runs that many interrupts behind
+  the port's call, after which all of the driver's variables agree).
+  In 24 calls the timer's interrupt came in while the original's routine
+  ran: there the test makes the call again with that many interrupts
+  before it or behind it and says which gave the original's memory (all
+  did one way or the other, or with the count of ticks alone set).
+  Not judged: `S30EF:1118` (the fade's number with the timer, taken from
+  the original), `music_start`'s copy of the count of ticks
+  (`S30EF:0232`) by the ticks that came in, and memory outside `S30EF`,
+  which is only counted (the stack and the timer's own tables in `DATA`,
+  which the port does not keep).
+  The calls the port's program makes (`-muslog`,
+  `port/tests/music_cmp.py`): in the menu's walk the original's seven
+  (fade 4 with nothing playing, then start 4 255 and fade 4 three times
+  over) in the same order with the same results, their ends at most
+  0.79 s apart (the first start, which the port makes 0.79 s after the
+  time its clock begins with, the original's first pass of the menu; the
+  others 0.04 s or less); through the new units' screens the original's
+  nine, ends at most 1.74 s apart (the battle's start behind the
+  screens, for which the port counts no time; the first screen's two
+  calls 1.06 s, not looked at; the others within 0.21 s); in the battle on the original's clock the seven from
+  `game_loop`'s start to the last `attacks_run`'s end (start 0 255, then
+  fade 4 and start 0 255 three times: twice the fade before the fights,
+  once the one at a site taken), in the passes 2614, 4542 and 6214 of
+  the port's count where the original's clock has 2615, 4543 and 6215
+  (one apart each time; not looked at). Two calls of the original there
+  come from `S1A39` (a taken site's picture: its own tune started, faded
+  out in 20 steps), which the port does not have; the test leaves them
+  out by their return address.
+  The other tests, each before the change (origin/master `64773b5` in a
+  second working tree) and after it, output against output:
+  `sound_test.sh` (304 calls), `fight_test.sh` and `units_test.sh` the
+  same line for line. `menu_test.sh`: what came in is the same; the
+  times, which were up to 0.54 s apart, are now at most 0.07 s apart in
+  all seven walks (the half second was `music_fade`'s wait, which the
+  port did not have); in the walk `back` the port now counts 131 passes
+  in the battle before where the original has 130 (before: 140), and
+  the two views' repeat counters (byte 2Ch of a view's record, counted
+  down by the pass in `side_input`) are 0 where the original's are 1:
+  `menu_cmp.py` now tells those two bytes apart when the counts of
+  passes differ, as it does the count itself (before the change the
+  bytes agreed by chance, ten passes apart). `briefing_test.sh`: the
+  same verdicts; of what differs at the routine's return and not at its
+  entry the driver's segment has 11 to 13 bytes instead of 78, `DATA` 0
+  instead of 12 on one map and 9 instead of 1 on two (not looked at).
+  `fkeys_test.sh`, `save_test.sh`, `info_test.sh`: "the setup's
+  differences" 1,148 instead of 1,396 at pass 1; "elsewhere" at the
+  later passes between 114 lower and 6 higher (the higher ones not
+  looked at; the tune's place and due tick are candidates, the port's
+  clock of ticks not being the original's). `loop_test.sh` (m8_site):
+  "elsewhere" the same or up to 110 lower. `play_test.sh m8_site`, with
+  `own` and with `rounds`: the game's and the computer's counts the same
+  at every pass, "elsewhere" up to 100 lower and once 1 higher on the
+  original's clock, 28 to 140 lower on the port's own. All with exit
+  status 0 before and after (`menu_test.sh` after the change to
+  `menu_cmp.py`; without it its walk `back` fails on the two counters).
+  Not checked or not reached: `music_fade` with speed 0, `music_start`
+  with a file that is not a tune (FFFFh) or while a fade runs, a fade
+  begun while effects have voices of the tune (the fades compared
+  stopped the effects first, as `music_fade` does), `music_volume`
+  called from outside `fade_tick` and `music_start`, F2's two calls and
+  `battle_after`'s in a run (the calls are made where the original's
+  are; no key script pressed F2 or ended a battle here), a fade of
+  `attacks_run` on the port's own clock against the original's times,
+  `snd_clock`'s timing against the original's interrupts as before, the
+  registers' values sent to `snd_opl` (only counted), `orders_test.sh`,
+  `move_test.sh`, `range_test.sh`, `load_test.sh` and the tests with
+  dumps in `build/n2` to `build/n6` and `build/computer` (not run), and
+  the Windows and Linux builds (no new source file; not built).
 - The sound's routines (2026-10-08, macOS; `src/sound.c`): `python3
   port/tests/sound_dumps.py` stops the original at the entry and the end
   of calls and keeps its memory: in the menu (the keys of

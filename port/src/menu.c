@@ -7,7 +7,7 @@
  * mouse.c), the time the port's own clock (play.c).
  *
  * Drawn as the original draws it, but for the mouse's pointer (mouse.c).
- * Left out: the sounds and the music (S2F39:06E3, 096A, 0F87, 1058), and
+ * The sounds and the music are sound.c's (no sound comes out).  Left out:
  * the branch for a machine without a mouse (the port's has one, mouse.c).
  * port/README.md says how this was compared with the original.
  */
@@ -126,14 +126,37 @@ static void flip(void)
 }
 
 /* a sound of the menu (S167A:20CF, 2372, 359B, 35D9): effect n on channel
- * 8, started at once (sound.c; no sound comes out).  The music: left out */
+ * 8, started at once (sound.c; no sound comes out) */
 static void sound(int16_t n)
 {
     sfx_play(8, (uint16_t)n, 0xFF, 1, 0x200);
     snd_pass();
 }
-static void music_start(Far tune) { (void)tune; }
-static void music_stop(void) { }
+
+/* the music: a tune started with a fade of 4 steps up to volume FFh
+ * (S2F39:0F87), and faded out in 4 (S2F39:1058), which the original
+ * waits for: the port's clock goes on by that time */
+static void fade_waited(double s)
+{
+    double to = play_now() + s, was;
+
+    do {
+        was = play_now();
+        play_tick();
+    } while (play_now() < to && play_now() > was);
+}
+
+static void tune_start(Far tune)
+{
+    music_start(tune, 4, 0xFF);
+}
+
+static void music_stop(void)
+{
+    snd_waited = fade_waited;
+    music_fade(4);
+    snd_waited = NULL;
+}
 
 /* ---- what draws ---- */
 
@@ -722,7 +745,7 @@ static void winner_name(void)
     page_copy();
     fade_in();
     play_fade();
-    music_start(m.music_hi);
+    tune_start(m.music_hi);
     text_input(0x64, 0xAE, far_add(m.texts, 0x80), 5, 1, m.pic[1]);
     for (i = 0; i < 5; i++)
         pwb(m.scores, (uint16_t)(0x10 + which * 6 + i), pb(m.texts, (uint16_t)(0x81 + i)));
@@ -1047,7 +1070,7 @@ static void choose(void)
             pic_whole(m.pic[1]);
             flip();
             page_copy();
-            music_start(m.music_hi);
+            tune_start(m.music_hi);
             scores_show(m.scores, (int16_t)(int8_t)NW(map_number, 0));
             pointer_aim(m.page, m.idx);
             pointer_to(0x9B, 0x5F);
@@ -1057,7 +1080,7 @@ static void choose(void)
             page_draw(m.page, m.item, m.idx);
             inputs_release(0);
             music_stop();
-            music_start(m.music);
+            tune_start(m.music);
             break;
         case 4:
             if (NW(map_number, 0) != 0 || country())
@@ -1401,7 +1424,7 @@ int menu_run(Far place)
     m.hl = 1;
     fade_in();
     play_fade();
-    music_start(m.music);
+    tune_start(m.music);
     wait_frames(5);
     pww(k, 4, 0);
     pwb(k, 0, 0);

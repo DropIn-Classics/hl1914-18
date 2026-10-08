@@ -44,6 +44,12 @@ test were rerun with the rebuilt runner: the same as before but for
 sound", "Rerun with the fixed runner"). The other comparisons' dumps
 are still the old runner's until their owners rerun them.
 
+On the branch `mac/music` (2026-10-08) the music's control is translated
+(`music_start`, `music_fade`, `music_volume`, `fade_tick`; still no
+sound output) and called where `game_loop`, `attacks_run`, the menu and
+the new units' screens call it; 297 calls compared with the original,
+none different (the bullet "The sound", "The music's control").
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -3752,10 +3758,80 @@ emulation error (2026-10-02).
       is needed. The channels' end (`dig_count`, `dig_mask`) comes from
       the mixer, so until it exists a digital channel in the port stays
       "playing" until `chan_stop` or the next `dig_play`.
-    - The music: `music_start`, `music_fade`, `music_volume` and
-      `fade_tick` translated (short; `music_fade`'s wait becomes time on
-      the port's clock) and called where battle.c, briefing.c, menu.c,
-      loop.c (F2) and orders.c leave them out today.
+    - The music: its control is translated (the next bullet). For
+      sound it needs the AdLib's part above and the timer's interrupts
+      (`snd_irq`) on the audio's clock; `music_fade`'s wait then has to
+      wait for that clock instead of running the interrupts itself, and
+      `opl_silence` at its end is what makes the tune stop sounding
+      (with speed 0 the original only clears `music_on` and leaves the
+      voices as they are).
+  - The music's control (2026-10-08, Mac, branch `mac/music`).
+    `music_start`, `music_fade`, `music_volume`, `fade_tick`,
+    `fade_start`, `fade_stop` and `opl_silence` are translated in
+    `port/src/sound.c` over the program's memory and compared
+    (`port/tests/music_dumps.py`, `music_test.sh`, `music_cmp.py`;
+    port/README.md "Checked" has the numbers). What the runs showed:
+    - The fade's words in the driver: `S30EF:023A` the steps so far,
+      `023C` how many, `023E` the volume it begins with, `0240` the one
+      it ends with; `1118` the number `pit_add` gave its routine.
+      `fade_tick` sets the volume from + (to - from) * count / steps and
+      at the call after the last step takes itself off the timer and
+      clears `fade_on`: a fade of n steps is n + 1 calls, a tenth of a
+      second apart (1D1EBh timer counts).
+    - `pit_irq` calls `fade_tick` before `adl_tick` in the same
+      interrupt (the routine given to the timer last is called first),
+      and each when its own count has run out: with the menu's tune
+      (period 06A9h) 70 calls of `adl_tick` lie between two of
+      `fade_tick`. The port has no timer tables; `snd_irq` in `sound.c`
+      is one interrupt for the two routines, and the count it gives for
+      a fade's wait is the original's in all 11 waits compared (350 for
+      4 steps with the menu's and the battle's tune, 280 with the menu's
+      other one, 504 and 555 for 5 steps, 3,116 for 20). It assumes
+      `adl_tick` has the shortest period of the timer's routines (it had
+      in every run) and takes a new period at once, where `pit_irq`
+      still counts the interrupt under way with the old one (not seen
+      to matter).
+    - `music_fade` returns 1 to 3 ticks after its wait is over
+      (presumably `opl_silence`'s 20 registers with `opl_write`'s
+      waits; not measured). `music_start` copies the count of ticks to
+      `S30EF:0232`/`0234` (what reads it was not looked for).
+    - Who calls them, by the return addresses in the runs:
+      `game_loop` `music_fade(4)` at its start (`S066A:0341` behind the
+      call; nothing plays then, FFFFh), `music_start(music_data, 0,
+      FFh)` before its loop (`S066A:0ECD`), F2 and the loop's end
+      (read, not run); `attacks_run` `music_fade(4)` before its fights
+      when the side has orders (`S02E6:00FC`) and at a site taken
+      (`S02E6:122D`), `music_start` at its end when one of them came
+      (`S02E6:2058`); the menu `music_start(tune, 4, FFh)` and
+      `music_fade(4)` (`S167A`); the new units' screens with 5
+      (`S274D`); a taken site's picture its own tune and a fade of 20
+      (`S1A39:1987`, `19FE`). `S1A39`'s other calls (fades of 10 and 20,
+      tunes with fades of 0 and 20) were not run; the port does not
+      have them.
+    - The port calls `attacks_run`'s three from `loop.c` around its
+      call of `attacks_run` (before it, at `orders_hook`'s
+      `ORDERS_TAKEN`, after it), because `orders.c` leaves them out and
+      was not to be touched on this branch. Whoever owns `orders.c` may
+      move them inside; then the wrapper in `loop.c` (`round_fade`,
+      `round_music`) goes.
+    - The time of a fade's wait: the menu and the new units' screens
+      move the port's clock on by it (`snd_waited`); with that the
+      menu's times are within 0.07 s of the original's in
+      `menu_test.sh`'s seven walks, where they were half a second
+      apart. In a battle the wait does not move the port's clock: what
+      `play.c` counts for `attacks_run` was measured on runs with the
+      music on, presumably with the fade's half second in it (not
+      checked), and F2's wait is not counted at all. On the original's
+      clock (`-clock`) `snd_clock` is not called in a battle, so a tune
+      there only goes on inside a fade's wait.
+    - `menu_cmp.py` tells the views' repeat counters (byte 2Ch of a
+      view's record) apart when the counts of passes differ: in the walk
+      `back` the port's battle before the menu now has 131 passes where
+      the original has 130 (140 before the fade's wait was counted), and
+      the counters, which go down by the pass, are one apart.
+    - Not done: `snd_end` (read, the lock, `fade_stop`, the devices'
+      removal; `game_loop`'s end calls it), `S1A39`'s calls, sound
+      output.
 
 ## `HL14-18.EXE` stage 1
 
@@ -4043,10 +4119,13 @@ emulation error (2026-10-02).
    fixed and the sound's, the menu's and the battle's comparisons named
    there are rerun; left of that are the comparisons with dumps in
    `build/n2` to `build/n6` and `build/computer`, which their owners
-   rerun. Then the music (`music_start`, `music_fade`,
-   `music_volume`, `fade_tick`), the calls left out in `orders.c` and
-   `fightpics.c`, `dig_mix`, and the output itself (an OPL2 from
-   `snd_opl`, the mixer's bytes) on the audio's clock.
+   rerun. The music's control is done (`mac/music`; the bullet
+   "The music's control"). Then the effects' calls left out in
+   `orders.c` and `fightpics.c`, the music's three calls of
+   `attacks_run` moved from `loop.c` into `orders.c` by its owner,
+   `S1A39`'s screens with their tunes, `snd_end`, `dig_mix`, and the
+   output itself (an OPL2 from `snd_opl`, the mixer's bytes) with the
+   timer's interrupts (`snd_irq`) on the audio's clock.
 1. For `HL14-18.EXE`, keep the remaining C0015 gaps and vector handlers
    unclassified until an incoming call or table target is evidenced. Do not
    repeat ordinary launcher runs for these gaps. The dispatcher and

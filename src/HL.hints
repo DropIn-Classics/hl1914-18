@@ -1149,8 +1149,12 @@ name S02E6:2556 carrier_losses
 ; again after a fight picture or a site taken (attacks_run): the file of
 ; S331F:024C, a palette named by the number at S37FF:0112 (to
 ; S0CB6:187F with 300h) and the libraries of S331F:0159 and 01E5 through
-; S0C66:0009; returns the new free end. Read; nothing the port keeps was
-; seen to change by it (presumably only pictures and name_buf).
+; S0C66:0009; returns the new free end. Read. It also writes S331F:0284,
+; a digit of the file name at S331F:027E, by the ratio of the sides' unit
+; counts (S02E6:3118 to 318B: '1' above 140h/100h, '3' below C0h/100h,
+; else '2'); found by the map-0 run m0_carry (port/README.md). The rest
+; was not seen to change what the port keeps (presumably pictures and
+; name_buf).
 name S02E6:2B87 pictures_load
 ; unit_panel(unit, side): draws a unit's panel for a fight (its count and
 ; experience) after show_message(-1, side). Read; only the drawing.

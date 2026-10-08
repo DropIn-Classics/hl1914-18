@@ -2134,6 +2134,38 @@ emulation error (2026-10-02).
     - `unit_panel` (`S10AF:0131`) and `pictures_load` change nothing the
       port keeps (read); the pictures' data in `S3AEE` and `S3812` does
       change and is counted apart in the comparison (port/README.md).
+  - The fights' rarer paths (2026-10-08, Linux; port/README.md): two
+    key scripts that play long: `m8_long` (map 8, the first side only
+    waits from 375 s to 900 s) and `m0_carry` (map 0, a unit in the first
+    side's carrier, waiting to 700 s), and `m8_long` again with fight
+    pictures off (a poke of `no_fight_pics`). Reached and compared: units
+    destroyed and freed, the blasts without pictures, `carrier_losses`.
+    Learned on the way:
+    - A long wait is scripted by ending the half every 10 s and F1 5 s
+      later (`make_m8.py`'s `xT:U`); gestures in the computer's half
+      changed nothing seen in these runs. It has to start with the cursor on a
+      plain field and no menu open: after `m8_site`'s move out at 398 s
+      the gestures did nothing and the game stood.
+    - `pictures_load` writes `S331F:0284`, a digit of the file name at
+      `S331F:027E` (presumably music or pictures by who leads; what it
+      loads was not read), from the sides' unit counts (byte 2 of
+      `sides`): (first+1)*100h/(second+1), the two swapped when only the
+      first side has 2 in its word 0; '1' above 140h, '3' below C0h, else
+      '2'.
+    - `move_step` (`S10E1:0A6A`) passes `move_arrive`'s text to
+      `show_message` for the moving side before it sets 8 or 10h in
+      `game_state`'s word 4. While 4 (8) is in word 0, `hover` sets no
+      timer, so the timers' slots differ without it (seen as a free
+      slot's due pass at the passes 400 and 428 of `m0_carry`).
+    - In `m0_carry` `carrier_losses` ran from 281 s on (seven times),
+      but no freed carrier had a unit in its row, so the freeing of the
+      units aboard did not run (whether the carrier itself was destroyed
+      was not looked at). `order_undo` (a unit
+      ordered to move and destroyed before its order) and order 1 came
+      in no run; the hints say no code read writes kind 1 to
+      `move_rec`.
+    - A waiting script must not be matched by its own `pgrep -f`
+      (a wait loop on `loop_dumps.py` stood for hours): wait on the job.
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

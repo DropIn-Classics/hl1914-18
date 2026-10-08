@@ -420,8 +420,9 @@ uint16_t move_arrive(uint16_t side, Far map)
 
 /* S10E1:072C: the unit of move_rec goes one field on along its way.
  * Returns 0 while the walk goes on (a timer of kind 4 is set for the next
- * step), else the text of its end, which the original shows to the side
- * (FFFFh for none, the value of a kind move_arrive does not know). */
+ * step), else the text of its end, shown to the side (show_message, which
+ * sets 4 or 8 in game_state's word 0); the return is for the tests (FFFFh
+ * for none, the value of a kind move_arrive does not know). */
 uint16_t move_step(void)
 {
     uint8_t no = NB(move_rec, MR_UNIT);
@@ -464,6 +465,7 @@ uint16_t move_step(void)
         return 0;
     }
     text = move_arrive(side, map);
+    show_message(text, side);
     SETW(game_state, 4, (NW(game_state, 4) | (side ? 0x10 : 8)) & 0xFF7F);
     pww(unit, 4, pw(unit, 4) & 0xFEFF);
     if (pw(unit, 4) & 0x40) {

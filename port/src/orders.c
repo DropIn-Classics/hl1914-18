@@ -515,7 +515,8 @@ static void exp_add(uint8_t u, uint8_t n)
  * waited for (unit_panel but their show_message, the
  * view drawn on the attacker's field with the maps and the units' bytes
  * 0Fh and 10h exchanged and given back, fight_panel's and fight_show's
- * pictures, pictures_load and S02E6:3484 after a fight picture). */
+ * pictures, pictures_load (but for the digit the one at S02E6:19B8
+ * writes last) and S02E6:3484 after a fight picture). */
 static void fights_run(uint16_t a, uint16_t m, Far map)
 {
     Far list = far_at(S_sides, (uint16_t)(A_sides + a * SIDE_SIZE + 0x11));
@@ -605,6 +606,27 @@ static void fights_run(uint16_t a, uint16_t m, Far map)
     }
 }
 
+/* the part of pictures_load (S02E6:3118 to 318B) that writes state the
+ * port keeps: a digit of the file name at S331F:027E (byte 0284h) by the
+ * ratio of the sides' unit counts (byte 2 of each `sides` record, plus
+ * one; the side with 2 in its word 0 counts first when only one has it):
+ * '1' above 140h/100h, '3' below C0h/100h, else '2'.  What the name loads
+ * is left out. */
+static void pictures_digit(void)
+{
+    uint16_t x = (uint16_t)(NB(sides, 2) + 1), y = (uint16_t)(NB(sides, SIDE_SIZE + 2) + 1), r;
+    uint8_t c = '2';
+
+    if ((NW(sides, 0) & 2) != (NW(sides, SIDE_SIZE) & 2) && NW(sides, 0) & 2)
+        r = x, x = y, y = r;
+    r = (uint16_t)(((uint32_t)x << 8) / y);
+    if (r > 0x140)
+        c = '1';
+    if (r < 0xC0)
+        c = '3';
+    fwb(S_sides, 0x0284, c);
+}
+
 /* S02E6:000F (attacks_run), the round's end after both sides ended their
  * half: the attacks of side a (the one with 2 in its view's byte 16h) are
  * carried out, then the orders of the side m that moved (orders_run),
@@ -671,7 +693,9 @@ uint8_t attacks_run(void)
     show_message(0xFFFF, 1);
     orders_run(m, a, map, &result);
     /* S02E6:19B8: after a fight or a site taken the pictures are loaded
-     * again (pictures_load, which changes nothing the port keeps) */
+     * again (pictures_load; of what it changes the port keeps one digit) */
+    if (NW(game_state, 0) & 0x1000)
+        pictures_digit();
     SETW(game_state, 0, NW(game_state, 0) & 0xEFFF);
     rows_sync(A_carriers, a, m, 0x46);
     rows_sync(A_sites_100, a, m, 0x0A);

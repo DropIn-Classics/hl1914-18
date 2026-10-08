@@ -1341,10 +1341,12 @@ name S2F39:1058 music_fade
 ; snd_init(mask): snd_end first when it ran before; drv_clear; with bit 1
 ; dig_detect, nine frames waited and dsp_rate(8000); with bit 0
 ; adl_detect; the devices found to snd_devices and returned. In the
-; runner both are found. The runner (doskit, tools/run/cpu.c) adds REP
-; STOS's count to SI as well, so drv_clear's 488h comes back in SI and
-; snd_devices is 048Bh there; with that corrected in a copy of the runner
-; it is 3. Every test of the word is of bit 0, bit 1 or against 0.
+; runner both are found: snd_devices is 3 and snd_init returns 3 (doskit
+; 22292c0, rerun 2026-10-08). The runner before that added REP STOS's
+; count to SI as well, so drv_clear's 488h came back in SI and the word
+; was 048Bh in its runs; the fix changed that word and game_loop's copy
+; of the result ([BP-2Ah]) and nothing else in the dumps compared. Every
+; test of the word is of bit 0, bit 1 or against 0.
 name S2F39:000B snd_init
 name S3CFE:0006 snd_started
 name S3CFE:0008 snd_ended

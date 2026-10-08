@@ -35,9 +35,14 @@ On the branch `mac/sound` (2026-10-08) the sound's routines are read whole
 and named, and the effects' part is translated without sound output
 (`port/src/sound.c`; the bullet "The sound" at the end of "`HL.EXE` stage
 1"). It also found a fault in the runner's REP STOS that every earlier
-comparison ran with (said there); it is fixed on doskit's branch
-`doskit/rep-stos`, not yet in doskit's master, and the comparisons are
-not yet rerun.
+comparison ran with (said there); it is fixed in doskit's master
+(`22292c0`, the submodule points at it). On the branch `mac/rerun`
+(2026-10-08) the sound's comparisons and the menu's, saving's, the F
+keys', the briefing's, the information's, the loop's and m8_site's play
+test were rerun with the rebuilt runner: the same as before but for
+`snd_devices`, now 3 in the runner as in the port (the bullet "The
+sound", "Rerun with the fixed runner"). The other comparisons' dumps
+are still the old runner's until their owners rerun them.
 
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
@@ -3606,9 +3611,9 @@ emulation error (2026-10-02).
     play (read, not listened to).
   - **A fault of the runner found** (doskit `tools/run/cpu.c`, `strop`,
     there since the kit's first commit): its fast path for REP MOVS/STOS
-    adds the count to SI for REP STOS too. `drv_clear` (REP STOSB of 488h
-    bytes) therefore hands `snd_init` SI = 0488h, and `snd_devices` is
-    048Bh in every run of the runner instead of 3. With the two lines
+    added the count to SI for REP STOS too. `drv_clear` (REP STOSB of 488h
+    bytes) therefore handed `snd_init` SI = 0488h, and `snd_devices` was
+    048Bh in every run of that runner instead of 3. With the two lines
     changed in a copy of the runner (SI only for MOVS) `snd_init` returns
     3 and the run's memory hash differs. The game only tests bits 0 and 1
     and against 0, so nothing else was seen to change; but any routine
@@ -3623,11 +3628,38 @@ emulation error (2026-10-02).
     that runner a fresh run (`run.py -until 8 -dump snd_devices 2
     HL.EXE`) has `snd_devices` 3, and `check.py` says `all ok` (the
     tools' output is the same; only what the runner computes changed).
-    Not done: the comparisons of the port against the runner were not
+    Not done then: the comparisons of the port against the runner were not
     rerun with it, so every memory hash and baseline kept under `build/`
     is still the old runner's, and the notes that give 048Bh as the
     runner's value (`src/HL.hints` at `snd_init`, port/README.md at the
     sound's comparison) describe the runner before this fix.
+    **Rerun with the fixed runner** (2026-10-08, branch `mac/rerun`,
+    macOS; doskit's master `22292c0` has the fix and the submodule points
+    at it, `dosrun` rebuilt; `run.py -until 8 -dump snd_devices 2 HL.EXE`
+    gives 3). The original's dumps of `sound_test.sh` (304 calls),
+    `menu_test.sh`, `save_test.sh`, `fkeys_test.sh`, `briefing_test.sh`,
+    `info_test.sh`, `loop_test.sh` and `play_test.sh m8_site` were made
+    anew and the tests run again; port/README.md ("Checked", the sound's
+    entry) has each result against the one before. In short: nothing
+    differs that did not before; `snd_init` returns 3 in both programs;
+    the tests that count the setup's differences count 2 fewer, the two
+    bytes of `snd_devices`. Dump against dump of the same place, the fix
+    changed in the original's whole memory only `snd_devices`, the word
+    of `game_loop`'s frame that keeps `snd_init`'s result (`[BP-2Ah]`,
+    tested for bit 1 right after the call) and at `snd_init`'s end two
+    words below the stack pointer; the inputs logged are the same. So in
+    these runs no routine was seen to have run differently for a register
+    kept in SI over a REP STOS; that says nothing of code these runs do
+    not reach. The notes that gave 048Bh as the runner's value are
+    corrected (`src/HL.hints` at `snd_init`, port/README.md), and the two
+    tests that allowed for it no longer do (`sound_test.c` judges
+    `snd_init`'s result, `load_test.c` compares `snd_devices` in
+    `start`). The old runner's dumps of these tests are kept in
+    `build/old-runner/` (ignored) and can go when no one needs them.
+    Not rerun here: every comparison whose dumps lie in `build/n2` to
+    `build/n6` and `build/computer` (but `load_test.sh`'s one `start`
+    call) and the play tests of other key scripts; their dumps are still
+    the old runner's.
   - The port (`port/src/sound.c`, port/README.md): `snd_init`,
     `sfx_play`, `dig_play`, `adl_play`, `adl_load`, `adl_start`,
     `adl_stop`, `adl_voices_free`, `chan_stop`, `snd_pass`, `adl_tick`
@@ -3949,11 +3981,11 @@ emulation error (2026-10-02).
 
 ## Next
 
-0. The sound (branch `mac/sound`, the bullet "The sound" above): the
-   runner's REP STOS is fixed on doskit's branch `doskit/rep-stos`; once
-   that is in doskit's master, move the submodule to it, run all the
-   port's comparisons again with the new runner and correct the notes
-   that still give 048Bh (`src/HL.hints`, port/README.md); then the music (`music_start`, `music_fade`,
+0. The sound (the bullet "The sound" above): the runner's REP STOS is
+   fixed and the sound's, the menu's and the battle's comparisons named
+   there are rerun; left of that are the comparisons with dumps in
+   `build/n2` to `build/n6` and `build/computer`, which their owners
+   rerun. Then the music (`music_start`, `music_fade`,
    `music_volume`, `fade_tick`), the calls left out in `orders.c` and
    `fightpics.c`, `dig_mix`, and the output itself (an OPL2 from
    `snd_opl`, the mixer's bytes) on the audio's clock.

@@ -1062,10 +1062,18 @@ static void panel_whole(Far unit, uint16_t x, uint16_t y, uint8_t base)
  * 40h in word 4 whole at once, S131D:1F0D), in colours 20h or 30h by
  * the side, a step a page shown.  With pictures then fade_out; without,
  * the figures lost drawn again from the last step down in colours B0h
- * and C0h.  Left out here: the sounds of a step (S131D:1FF0) and the
+ * and C0h.  Each figure drawn or taken off sounds (panel_sound 4 and 5;
+ * sound.c, no sound comes out).  Left out here: the
  * waits (wait_frames, wait_input), which the port's clock counts
  * (play.c), and wait_input's clearing of the button and the key.
  * Returns 2 where the original goes to its error exit. */
+/* S131D:1FF0 (panel_sound): effect n on channel 8, started at once */
+static void panel_sound(uint16_t n)
+{
+    sfx_play(8, n, 0xDC, 1, 0x200);
+    snd_pass();
+}
+
 int fight_panel(Far rec, uint16_t pictures)
 {
     Far u0 = pfar(rec, 0), u1 = pfar(rec, 4);
@@ -1105,10 +1113,14 @@ int fight_panel(Far rec, uint16_t pictures)
     for (i = 0; i < 6; i++) {
         uint16_t px = (uint16_t)(frb(S_GAME, (uint16_t)(0x02B9 + 2 * i)) + x), py = frb(S_GAME, (uint16_t)(0x02BA + 2 * i));
 
-        if (i < n0 && !(f0 & 0x40))
+        if (i < n0 && !(f0 & 0x40)) {
             pic_draw(px, py, unit_pic((uint16_t)(pb(u0, 8) * 6 + i)), c0);
-        if (i < n1 && !(f1 & 0x40))
+            panel_sound(4);
+        }
+        if (i < n1 && !(f1 & 0x40)) {
             pic_draw(px, (uint16_t)(py + 0x4D), unit_pic((uint16_t)(pb(u1, 8) * 6 + i)), c1);
+            panel_sound(4);
+        }
         page_flip();
         page_copy();
     }
@@ -1124,13 +1136,17 @@ int fight_panel(Far rec, uint16_t pictures)
         if (f0 & 0x40) {
             if (i == 0 && !l0)
                 panel_whole(u0, x, 0, c0);
-        } else if (i >= l0 && i < n0)
+        } else if (i >= l0 && i < n0) {
             pic_draw(px, py, unit_pic((uint16_t)(pb(u0, 8) * 6 + i)), c0);
+            panel_sound(5);
+        }
         if (f1 & 0x40) {
             if (i == 0 && !l1)
                 panel_whole(u1, x, 0x4D, c1);
-        } else if (i >= l1 && i < n1)
+        } else if (i >= l1 && i < n1) {
             pic_draw(px, (uint16_t)(py + 0x4D), unit_pic((uint16_t)(pb(u1, 8) * 6 + i)), c1);
+            panel_sound(5);
+        }
         page_flip();
         page_copy();
     }

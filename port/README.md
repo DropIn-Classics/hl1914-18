@@ -345,6 +345,34 @@ empty (the code is the menu's text). `-infodump DIR` writes each call's
 memory and video memory into DIR, and `-dump N FILE` writes the video
 memory when FILE ends in `.vram` (both for the test).
 
+2026-10-08 (macOS, branch `mac/sound`): the sound's routines, in
+`src/sound.c` over the program's memory, without any sound coming out.
+`snd_init` (both devices found, `snd_devices` 3), `sfx_play` and what it
+reaches (`dig_play` for an 8SVX effect: the channel's record filled;
+`adl_play`, `adl_load` for an ADLX one), `snd_pass` with `adl_start`
+(which takes OPL voices for an effect and keeps the tune's), `chan_stop`,
+`adl_stop` with `adl_voices_free`, and the timer's routine `adl_tick`
+with the events of a tune and of an effect (`music_events`,
+`effect_events`) and the driver's voice routines. Called where the
+original calls them: `start_setup` (`snd_init`), `game_loop` (the
+cursor's step, the end of a side's part with 100h in `game_state`'s word
+4, `snd_pass` at a pass's end; `src/loop.c`), the fight's panel
+(`panel_sound`, `src/draw.c`) and the menu's sounds (`src/menu.c`).
+`adl_tick` is called from the port's own clock (`snd_clock` in
+`src/play.c`'s `own_to`) at the period the tune or effect set, so an
+effect ends as in the original; on the original's clock (a battle played
+with `-clock`) it is not called and an effect stays playing until the
+next one on its channel. What the original writes to the AdLib's
+registers goes to the hook `snd_opl` (unset). `-sndlog FILE` writes each
+call of `sfx_play` (time, channel, number, result).
+Not translated: the music's start, fade and volume (`music_start`,
+`music_fade`, `music_volume`, `fade_tick`: read, in the hints), the
+digital mixer and the card (`dig_mix`, `dig_irq`, `dig_kick`), `snd_end`,
+`dsp_rate`, and the calls of `sfx_play`, `dig_play` and `chan_stop` by
+`attacks_run`, `event_picture`, `site_picture` and the fight's pictures
+(`src/orders.c`, `src/fightpics.c`: still left out there).
+docs/HANDOFF.md ("The sound") says what sound output would need.
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -374,6 +402,58 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The sound's routines (2026-10-08, macOS; `src/sound.c`): `python3
+  port/tests/sound_dumps.py` stops the original at the entry and the end
+  of calls and keeps its memory: in the menu (the keys of
+  `menu_dumps.py`'s walk `pages`) `snd_init`, all 38 calls of `sfx_play`,
+  the `snd_pass` behind each and 141 calls of the timer's routine
+  `adl_tick` (the first twelve after each of the first three effects
+  began, and those in which an effect ended); in a battle (map 8,
+  `m8_site.keys`) 35 of the 1,191 calls of `sfx_play` (the first six,
+  then every 40th), the `snd_pass` behind each, the four calls of
+  `dig_play` by the fight's pictures and twelve of `chan_stop`. `sh
+  port/tests/sound_test.sh` gives the port's routine the entry's memory
+  and arguments and compares the driver's variables (`S30EF:0000` to
+  `111E`) and the result with the end's: 304 calls, none different. In 41
+  the timer's interrupt came in while the original's routine ran; there
+  the count of ticks is taken from the original and a record's due tick
+  may be lower by the ticks that came in (none was). Memory outside
+  `S30EF` is only counted (the stack, and the timer's and keyboard's
+  counts when an interrupt came in). `snd_init`: the port leaves the
+  interrupts' old vectors (`S30EF:0489`, `10BF`), the probe's flag
+  (`0495`), `delay_measure`'s counts (`111B` to `111E`) and the timer's
+  number (`1116`) 0, and has 3 in `snd_devices` where the runner has
+  048Bh (its fault with REP STOS, docs/HANDOFF.md); nothing else of the
+  driver's variables differed.
+  Which effect plays: the port's program walked the same menu (`-sndlog`)
+  and played the same 38 effects (numbers 0, 1 and 2 on channel 8) in the
+  same order with the same results, at most 0.09 s apart; and the battle
+  of `play_test.sh m8_site` on the original's clock: the original's 1,185
+  calls from the first pass on against the port's 1,186 (one more at the
+  clock's end, after the original's run was cut off; not looked at
+  further), the results the same in order, channel and number the same in
+  the 29 of them whose entry was kept. Once, by a log of the three call
+  sites in the original (not in the test): 694 from the cursor's step,
+  415 from the end of a side's part and 76 from `panel_sound`, in the
+  order of the port's calls, the step's number and channel (4 on 0Bh, 5
+  on 9) right in all 694.
+  After the change the other comparisons were run again: `menu_test.sh`,
+  `play_test.sh m8_site`, `fkeys_test.sh`, `info_test.sh`,
+  `briefing_test.sh`, `loop_test.sh` (m8_site), `fight_test.sh`,
+  `units_test.sh` and `load_test.sh` as before (`load_test.c` now sets
+  `snd_devices` beside in `start`).
+  Not checked or not reached: a failing call (an effect's number beyond
+  the file, more voices needed than free), an effect played more than
+  once or endless, an 8SVX effect through `sfx_play` (the four `dig_play`
+  calls came from the fight's pictures), `chan_stop` of an AdLib channel,
+  an effect taking voices the tune uses in a battle (in the menu the tune
+  played during every call compared), `music_events`' end of a tune,
+  `snd_clock`'s timing against the original's interrupts (the port's
+  ticks are counted on its own clock, the due ticks therefore not the
+  original's), the registers' values sent to `snd_opl` (only counted),
+  the Windows and Linux builds (`build.bat` has the new file; not built),
+  and `orders_test.sh` and `move_test.sh`, whose dumps in `build/n2` were
+  not all there.
 - The field menu's information (2026-10-08, macOS): `python3
   port/tests/info_dumps.py` runs the original through its menu by keys to
   map 48 (two human sides) with `tests/keys/m48_info.keys`: the first

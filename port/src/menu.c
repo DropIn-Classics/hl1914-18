@@ -100,8 +100,13 @@ static void flip(void)
     play_retraces(1);
 }
 
-/* the sounds and the music: left out */
-static void sound(int16_t n) { (void)n; }
+/* a sound of the menu (S167A:20CF, 2372, 359B, 35D9): effect n on channel
+ * 8, started at once (sound.c; no sound comes out).  The music: left out */
+static void sound(int16_t n)
+{
+    sfx_play(8, (uint16_t)n, 0xFF, 1, 0x200);
+    snd_pass();
+}
 static void music_start(Far tune) { (void)tune; }
 static void music_stop(void) { }
 

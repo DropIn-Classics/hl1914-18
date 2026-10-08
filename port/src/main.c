@@ -269,6 +269,18 @@ static uint32_t bios_now(void)
 static struct { unsigned long pass; const char *file; } dumps[DUMPS];
 static int dumps_n;
 static int nopics;      /* -nopics: the fights are not shown as pictures */
+
+/* -sndlog FILE: each call of sfx_play, its time on the port's clock, the
+ * channel, the effect's number, what it returned and the battle's count
+ * of passes (for the test) */
+static FILE *snd_log;
+
+static void snd_logged(uint16_t ch, uint16_t n, int16_t r)
+{
+    fprintf(snd_log, "%.3f %u %u %d %lu\n", play_now(), ch, n, r,
+            (unsigned long)((uint32_t)NW(game_state, 0x15) << 16 | NW(game_state, 0x13)));
+    fflush(snd_log);
+}
 static struct { unsigned long at; const char *hex; } pokes[16];
 static int pokes_n;
 static struct { unsigned long pass; const char *file; } menu_dumps[8];
@@ -538,6 +550,11 @@ int main(int argc, char **argv)
         }
         else if (!strcmp(argv[i], "-menulog") && i + 1 < argc)
             menu_log_to(argv[++i]);
+        else if (!strcmp(argv[i], "-sndlog") && i + 1 < argc) {
+            snd_log = fopen(argv[++i], "w");
+            if (snd_log)
+                snd_played = snd_logged;
+        }
         else if (!strcmp(argv[i], "-menuvram") && i + 2 < argc) {
             double at = atof(argv[++i]);
 

@@ -224,25 +224,28 @@ static void cursor_move(Far view, uint16_t side, uint16_t di)
 {
     int16_t w4 = (int16_t)(NW(map_width, 0) << 2);
     int16_t col = (int16_t)pw(view, 0x0C), row = (int16_t)pw(view, 0x0E);
+    uint8_t moved = 0;      /* [BP-41h]: 1 up, 2 down, 4 left, 8 right */
 
     if (di & 4) {
         if (col & 1) {
             if (di & 2)
-                row++;
+                moved |= 2, row++;
         } else if (di & 1)
-            row--;
+            moved |= 1, row--;
+        moved |= 4;
         col--;
     } else if (di & 8) {
         if (col & 1) {
             if (di & 2)
-                row++;
+                moved |= 2, row++;
         } else if (di & 1)
-            row--;
+            moved |= 1, row--;
+        moved |= 8;
         col++;
     } else if (di & 1)
-        row--;
+        moved |= 1, row--;
     else if (di & 2)
-        row++;
+        moved |= 2, row++;
     if (row < 1) {
         if ((int8_t)pb(view, 0x15) > 0) {
             gs_or(4, 2);
@@ -250,8 +253,10 @@ static void cursor_move(Far view, uint16_t side, uint16_t di)
             pwb(view, 0x15, (uint8_t)(pb(view, 0x15) - 1));
             row++;
         }
-        if (row < 0)
+        if (row < 0) {
+            moved &= 0xFE;
             row = 0;
+        }
     } else if (row >= 6) {
         if (pb(view, 0x15) < NB(game_state, 0x0E)) {
             gs_or(4, 2);
@@ -259,8 +264,10 @@ static void cursor_move(Far view, uint16_t side, uint16_t di)
             pwb(view, 0x15, (uint8_t)(pb(view, 0x15) + 1));
             row--;
         }
-        if (row > 6)
+        if (row > 6) {
+            moved &= 0xFD;
             row = 6;
+        }
     }
     if (col < 1) {
         if ((int8_t)pb(view, 0x14) > 0) {
@@ -269,8 +276,10 @@ static void cursor_move(Far view, uint16_t side, uint16_t di)
             pwb(view, 0x14, (uint8_t)(pb(view, 0x14) - 1));
             col++;
         }
-        if (col < 0)
+        if (col < 0) {
+            moved &= 0xFB;
             col = 0;
+        }
     } else if (col >= 8) {
         if (pb(view, 0x14) < NB(game_state, 0x0D)) {
             gs_or(4, 2);
@@ -278,11 +287,16 @@ static void cursor_move(Far view, uint16_t side, uint16_t di)
             pwb(view, 0x14, (uint8_t)(pb(view, 0x14) + 1));
             col--;
         }
-        if (col > 8)
+        if (col > 8) {
+            moved &= 0xF7;
             col = 8;
+        }
     }
     pww(view, 0x0C, (uint16_t)col);
     pww(view, 0x0E, (uint16_t)row);
+    /* S066A:1E97: the cursor's step sounds, with the effects on */
+    if (moved && gs(0) & 0x80)
+        sfx_play(side ? 9 : 0x0B, side ? 5 : 4, 0xDC, 1, 0x200);
     cursor_field(view, side);       /* S066A:1EE2 */
     view_cursor(side);
     /* the view scrolled: drawn again (S066A:1F02) */
@@ -1155,6 +1169,10 @@ static void side_part(uint16_t side, const SideIn *in)
         return;
     if (pb(view, 0x17) == 7)
         state_end(side);
+    /* S066A:4338: 100h in word 4 sounds, with the effects on: the effect
+     * whose number is site_taken */
+    if (gs(4) & 0x100 && gs(0) & 0x80)
+        sfx_play(side ? 9 : 0x0B, NW(site_taken, 0), 0xDC, 1, 0x200);
     gs_and(4, 0xFEFF);
 }
 
@@ -1216,10 +1234,11 @@ static void pass_end(void)
     /* S066A:441F to 4554: each side's cursor but in its view's state 4,
      * shown; with 4 in the side's word 0 of `sides` (the small map) what
      * it covers kept at side_save, which state_map puts back
-     * (pointer_erase).  Left out: the sound (S2F39:096A) */
+     * (pointer_erase); then snd_pass */
     for (i = 0; i < 2; i++)
         if (NB(views, i * VIEW_SIZE + 0x17) != 4)
             cursor_draw(i, side_word(i) & 4 ? side_save(i) : no_save());
+    snd_pass();
     page_flip();
     page_copy();
     n = ((uint32_t)gs(0x15) << 16 | gs(0x13)) + 1;

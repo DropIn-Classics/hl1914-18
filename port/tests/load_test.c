@@ -240,12 +240,15 @@ static int begin_apart(uint32_t a)
  * 0357), which page_flip swaps: the original flips 73 times before
  * S066A:0349 on map 0, the port twice (screen_open's and game_loop's);
  * the other 71 are in routines the port leaves out there.  battle_setup's
- * pages_set sets them anew. */
+ * pages_set sets them anew.  And snd_devices (S30EF:025E): 3 in the port,
+ * 048Bh in the runner, whose REP STOS adds its count to SI as well
+ * (docs/HANDOFF.md, "The sound"). */
 static int start_apart(uint32_t a)
 {
-    uint32_t data = (uint32_t)(HL_DATA + HL_BASE) << 4;
+    uint32_t data = (uint32_t)(HL_DATA + HL_BASE) << 4, dev = ((uint32_t)S_snd_devices << 4) + A_snd_devices;
 
-    return (a >= data + 0x322 && a < data + 0x332) || (a >= data + 0x354 && a < data + 0x358);
+    return (a >= data + 0x322 && a < data + 0x332) || (a >= data + 0x354 && a < data + 0x358)
+        || a == dev || a == dev + 1;
 }
 
 /* In `scr`, besides: bytes of the timer's tables (what is left of a

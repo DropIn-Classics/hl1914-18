@@ -122,8 +122,11 @@ Everything else takes no time. `-nopics` plays with the fights not
 shown as pictures, `-rounds FILE` writes when each round's end began
 and ended. `-clock FILE`
 runs the same by the times of a log of the original instead
-(`tests/play_dumps.py`), for the comparison below. `-passes N` ends
-after N passes, `-start T` is the key script's time at the first pass,
+(`tests/play_dumps.py`), for the comparison below; `-seeds FILE` keeps
+the port's own clock and takes from such a log only what the fights'
+pictures did to the random numbers (the number each started them with
+and its calls of `rand_next`). `-passes N` ends
+after N passes, `-until T` at T seconds of the own clock, `-start T` is the key script's time at the first pass,
 `-dump N FILE` writes the memory at the beginning of pass N. The play
 stops with a line saying why at the battle's end and at what is not
 translated (the keys F2 to F9, Esc, saving). The start now also sets the
@@ -252,8 +255,71 @@ anything the game needs before the first release.
   `fight_test.sh` pass. `units_test.sh` does not link since the merge
   of the libraries' loading (`lib_load` in `src/files.c` needs
   `file_name`, which the test does not compile in); not changed here.
+  Where the rounds part, and why (2026-10-08, macOS; docs/HANDOFF.md,
+  "Where the rounds part"). `play_test.sh TAG rounds` now lets the port
+  play to the second the original's log ends at (`-until`; before, to
+  its number of passes, which the port's shorter passes are through
+  sooner) and finds the passes of the port's rounds itself (two plays);
+  the bits 4 and 8 of `game_state`'s word 0 (a side's text shown, taken
+  off by a timer) are counted with the passes'. `play_test.sh TAG seeds`
+  is the same with `-seeds`, and compares `rand_words` too. Results,
+  the game's state and the computer's but for the passes':
+  - `m8_wait`: `rounds` the same to round 4, `seeds` in all six rounds
+    of the log (12 dumps). The first byte that differs without the
+    seeds is in `rand_words` after round 3's two fights (the original's
+    last seed 08E2h ticks, the port's 0774h: its round 3 ends at 90 s,
+    the original's at 110 s); the computer draws from it in pass 3277
+    of the original (three calls of `rand_next`) and builds other kinds.
+  - `m8_d5r`: both the same in all four rounds dumped (the port now
+    reaches round 4); `rand_words` the same only with `seeds`, which
+    also makes the four calls of `rand_next` the two fights' pictures
+    made.
+  - `m8_site`: both the same to round 3; from round 4 five bytes differ
+    with `seeds` too (two places of `sites_400` record 0 exchanged and
+    the first view's word 0Ah): the up of 182.00 s is read in two
+    passes by the original and in one by the port (the tap's sampling,
+    as above). Without the seeds 14 to 15 bytes from round 5 on, with
+    them the five only, to round 6.
+  - `m8_d5r_nopics` the same in its four rounds and `m8_wait_nopics` to
+    round 5 either way (no seeds without pictures); from round 6 to 8
+    four bytes of the first view differ, its column: a left of the
+    script that the original's view does not read comes in the port
+    when the computer is already done.
+  The port cannot find the seeds or the pictures' calls itself (why, in
+  docs/HANDOFF.md); with them given, nothing else parts the plays in
+  these runs but the taps and that left. The test with the clock's file says the same
+  as before for `m8_site`, `m8_d5r` and `m0_hq`.
+  A human second side (2026-10-08, macOS; docs/HANDOFF.md, "A human
+  second side"). Map 48 is for two players; `tests/keys/make_two.py`
+  writes scripts with keys for both sides (the second's: X, V, D, C and
+  the left Alt), and `play_dumps.py` and `play_test.sh` take the map
+  from a script's name (`mNN_`). Three runs of the original, compared
+  with the port from its own setup:
+  - `m48_two` (`make_two.py 45:400`: both sides end their halves every
+    15 s, F1 twice; 400 s): on the original's clock 5,493 passes, 10,986
+    parts read the same, 53 passes compared (24 rounds' ends), "the
+    inputs, the game's state and the computer's the same at every pass
+    compared"; on the port's own clock (`rounds`) the same in all 24
+    rounds.
+  - `m48_steps` (`45:400 seed=7`: the second side's cursor steps and
+    button with each direction, eight a round from a fixed sequence, and
+    steps of the first side; 400 s): on the original's clock 5,847
+    passes, 11,694 parts, 37 passes compared (16 rounds' ends), the
+    same at every one. On the own clock the same to round 1's end only
+    (its steps are sampled otherwise).
+  - `m48_move` (`2R45 2R46 2u47 2m48.5 2R52 2a54 2a56 1E58 2E60 2f64
+    2f64.8 2m70 2R73 2a75 2a77 1E79 2E81 2f85 2f85.8 95:200`; 200 s):
+    the second side moves a unit in its second round. On the original's
+    clock 2,615 passes, 5,230 parts, 23 passes compared (9 rounds' ends,
+    the order given by pass 930 and carried out by 931), the same at
+    every one. On the own clock the same to round 1 (pass 601); the
+    move's gesture is then read by other numbers of passes and the
+    port's round 2 never ends.
+  Not reached: a fight between two human sides, a site, building,
+  repairing, the function keys, a battle's end, other maps for two
+  players.
   Not checked: a battle played to its end; maps other than 0 and 8; a
-  second human side's keys; a computer first side; a thinking loop ended
+  computer first side; a thinking loop ended
   by a key; a run with the fight pictures switched off; `move_test`'s,
   `view_test`'s, `side_test`'s, `orders_test`'s and `income_test`'s dumps
   that are only on the Linux worker's machine (not rerun here after the

@@ -51,6 +51,12 @@
  *   port leaves out; rand_next elsewhere is the port's own computer's).
  *   A place the port comes to that the log does not have in the side's
  *   part, or the other way round, is counted in play_misses.
+ *
+ * Between the two (play_seeds): the port's own clock, and of such a log
+ * only what the fights' pictures did to the random numbers, fight by
+ * fight in their order: the number clock_seed set (S) and the calls of
+ * rand_next after it (R).  It shows what of a difference between the two
+ * plays comes from the random numbers alone.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,6 +96,9 @@ static ClockLine *clk;
 static long clk_n, clk_at;
 static int have_clock;
 static FILE *inputs, *rounds;
+typedef struct { uint32_t v; int r; } Fight;
+static Fight *fights;           /* play_seeds: a fight's pictures' seed and calls of rand_next */
+static long fights_n, fights_at;
 
 static SideIn in[2];
 static int seen[2][4];          /* for -inputs: key, word, bytes 5 and 8 (-1 none) */
@@ -238,6 +247,49 @@ const char *play_clock(const char *path)
     return NULL;
 }
 
+/* the fights' pictures of a log of the original (the clock's file), for a
+ * play on the port's own clock: the S lines after the first pass began,
+ * each with the number of R lines up to the next S or the next side's
+ * part */
+const char *play_seeds(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    char line[100];
+    int battle = 0, open = 0;
+
+    if (!f)
+        return "the seeds' file cannot be opened";
+    while (fgets(line, sizeof line, f)) {
+        unsigned long v = 0;
+        double t;
+        char kind;
+
+        if (sscanf(line, "%lf %c", &t, &kind) != 2)
+            continue;
+        if (kind == 'P') {
+            battle = 1;
+            open = 0;
+        } else if (kind == 'S' && battle && sscanf(line, "%*f %*c %lx", &v) == 1) {
+            Fight *p;
+
+            if (!(fights_n & 255)) {
+                p = realloc(fights, (size_t)(fights_n + 256) * sizeof *fights);
+                if (!p) {
+                    fclose(f);
+                    return "no memory for the seeds' file";
+                }
+                fights = p;
+            }
+            fights[fights_n].v = (uint32_t)v;
+            fights[fights_n++].r = 0;
+            open = 1;
+        } else if (kind == 'R' && open)
+            fights[fights_n - 1].r++;
+    }
+    fclose(f);
+    return NULL;
+}
+
 /* a file that gets a line for each side's part: pass, side, the key taken
  * and for a human the input record's bits as side_input finds them (hex)
  * and its bytes 5 and 8 when view_step is called (-1 when not), to compare
@@ -380,9 +432,6 @@ static void own_wait_input(int n)
     }
 }
 
-static int seeded;          /* a fight's pictures started the random numbers */
-static uint32_t seed_last;
-
 /* attacks_run's waits and pictures (orders_hook), on the port's own clock */
 static void round_hook(int at, int n)
 {
@@ -410,9 +459,20 @@ static void round_hook(int at, int n)
 
             own_wait_input(0x96);
             own_fade();
-            /* fight_pictures, S2532:0008 */
-            seeded = 1;
-            seed_last = clock_seed0();
+            /* fight_pictures, S2532:0008: clock_seed(0); with play_seeds
+             * the original's number instead and the calls of rand_next
+             * its pictures made (S2532:17D1, not translated) */
+            if (fights_at < fights_n) {
+                int r = fights[fights_at].r;
+
+                seed_set(fights[fights_at++].v);
+                while (r-- > 0)
+                    rand_next();
+            } else {
+                if (fights_n)
+                    play_misses++;
+                seed_set(clock_seed0());
+            }
             own_busy(T_PIC_LOAD);
             fww(k.seg, (uint16_t)(k.off + 4), 0);
             for (i = 1; i < 0x2EE; i++) {
@@ -609,7 +669,6 @@ static void hook(int at, uint16_t side)
             s->turns = thinks;
         break;
     case LOOP_ROUND:
-        seeded = 0;
         round_hook(-1, 0);
         if (have_clock)
             clock_to('A', 0, 0);
@@ -648,10 +707,6 @@ static void hook(int at, uint16_t side)
             if (seeds != pictures)
                 play_misses++;
         } else {
-            /* the last fight's pictures (S2532:0008) started the random
-             * numbers anew with clock_seed(0) */
-            s->seeded = seeded;
-            s->seed = seed_last;
             if (!NW(site_taken, 0))
                 /* S0E56:1F91, the colours come back: 40h and 20h steps */
                 own_retraces(0x60);
@@ -684,7 +739,7 @@ void play_begin(double start)
     now = began = start;
     tick_at = start + TICK;
     play_passes = play_misses = 0;
-    keys_at = clk_at = 0;
+    keys_at = clk_at = fights_at = 0;
     key_byte = in_battle = 0;
     if (have_clock) {
         /* the number the original's setup started the random numbers with */
@@ -698,6 +753,12 @@ void play_begin(double start)
     /* the keys before the battle are the menu's */
     while (!have_clock && keys_at < keys_n && keys[keys_at].t < start)
         keys_at++;
+}
+
+/* the port's own clock, seconds of the key script's time */
+double play_now(void)
+{
+    return now;
 }
 
 /* the original's clock brought up to the next pass's beginning (the

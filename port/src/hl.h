@@ -234,6 +234,8 @@ const char *input_tick(void);
  * (port/tests/play_dumps.py).  Each returns NULL or what went wrong. */
 const char *play_keys(const char *path);
 const char *play_clock(const char *path);
+const char *play_seeds(const char *path);
+double play_now(void);
 void play_inputs(const char *path);
 void play_rounds(const char *path);
 void play_bios(uint32_t ticks);

@@ -801,6 +801,46 @@ Not done: the audio's clock and with it any sound (docs/HANDOFF.md,
 "The AdLib's output", lists what it needs, part of it in doskit);
 `snd_end` called by the loop's end. Not verified: see "Checked".
 
+2026-10-08 (macOS, branch `mac/soundout`): the AdLib is played, on the
+audio's clock. **Nothing was listened to**: what is known of the sound
+is that it is rendered, the same in every run, with each write at its
+sample ("Checked").
+- `src/main.c` asks the platform for an audio device after the game's
+  files are found (`plat_audio_start`, 44100 Hz). With one, what
+  `snd_opl` gets goes into the runtime's queue (`doskit/runtime/oplq.c`,
+  added to both build scripts) with its sample plus a lead of 1234
+  samples (28 ms, two pictures), and the device's callback renders the
+  chip through the queue, the same on both channels. Without one (the
+  headless program unless `DK_AUDIO=1` or `DK_WAV=FILE` is set, so every
+  earlier test) everything is as before: the chip gets the writes at
+  once, nobody asks it for samples, the interrupts run on the port's
+  clock of passes.
+- `src/sound.c`: with a device (`snd_samples` set) `snd_clock` makes the
+  timer's interrupts by the samples played, not by the time it is
+  given. An interrupt is due at the sample the timer's periods since
+  the start come to (`pit_least` at each interrupt, PIT counts times
+  44100 / 1193182 with the sum divided whole, so 06A9h's 63.02 samples
+  carry their fraction), and what it writes has that sample
+  (`snd_stamp`); a write the game's side makes has the samples played
+  at that moment. `music_fade` still makes its fade's interrupts at
+  once, each at its own sample ahead of the samples played, and the
+  caller's clock goes on by the wait as before (`snd_waited`); the
+  clock makes none until the samples have caught up.
+- The headless device has no clock of its own (`plat_null.c`: time
+  passes in `plat_sleep_ms`), and a scripted play does not sleep, so
+  `main.c` moves it on to the port's clock whenever `snd_clock` asks,
+  in whole milliseconds. A live play (the window; headless with
+  `DK_KEYS`) sleeps a picture at a time itself and is left alone.
+- `-oplat FILE` lists what was queued (each write with its sample, each
+  interrupt with its sample and the period to the next); the program's
+  last line to stderr says the samples played and how many writes the
+  queue had late, early and still waiting.
+Not done: the Sound Blaster's bytes are not played (the digital
+effects stay silent, their interrupt on the port's clock); the time the
+original spends inside a tick is not modelled (a tick's registers fall
+on one sample); the tune is not compared with a rendering of the
+original's stream (the runner's `-oplwav`). Not verified: see "Checked".
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -810,6 +850,7 @@ Not done: the audio's clock and with it any sound (docs/HANDOFF.md,
     port/build/history-line-headless -game game -map 8 -keys port/tests/keys/m8_site.keys -start 31.1 -seed 563 -passes 2000 -ram build/played.ram
     port/build/history-line-headless -game game -keys build/menu/back/keys.txt -start 8.05 -until 54 -menulog build/menu.log
     port/build/history-line-headless -game game -keys build/play/m48_save/keys.txt -start 8.05 -clock build/play/m48_save/clock.txt -saves build/saves
+    DK_WAV=build/m8.wav port/build/history-line-headless -game game -map 8 -keys port/tests/keys/m8_site.keys -seed 0 -until 120 -oplat build/m8.at
 
 Both scripts define `PORT_VERSION` (a string) for the compiler when
 there is a version: the environment's `PORT_VERSION`, else the tag of the
@@ -830,6 +871,54 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The AdLib rendered headless (2026-10-08, macOS, branch
+  `mac/soundout`; `src/sound.c`, `src/main.c`): `sh
+  port/tests/soundout_test.sh` runs the headless program twice with
+  `DK_WAV` (doskit's virtual audio device) and `-oplat` over two walks,
+  the first 120 s of map 8 with `m8_site.keys` (`-seed 0`) and the
+  menu's walk of `menu_dumps.py pages` (59.9 s), and for each
+  - compares the two runs' WAVE files and lists byte for byte: the
+    same (map 8: 5,293,411 frames, 21,173,688 bytes; the menu:
+    2,640,002 frames, 10,560,052 bytes);
+  - reads the queue's counts: 0 writes late, 0 early in both (the menu
+    ends with 27 writes still waiting, queued for samples behind the
+    run's end);
+  - `port/tests/soundout_ref.c`: every interrupt's sample is the
+    timer's periods summed (map 8: 83,995 interrupts, 2 at 1843h and
+    83,993 at 06A9h; the menu: 41,077, 135 at 1843h, 39,102 at 06A9h
+    and 1,840 at 0854h), every write an interrupt made is queued for
+    that sample plus the lead (9,041 of 10,231 writes; 3,075 of 3,320),
+    no stamp goes back, and every frame of the file, on both channels,
+    is the frame of a second chip that got each write exactly at its
+    sample, rendered from write to write. The file is silent up to the
+    sample of the first write that sets a key on and sounds from the
+    next (1693 and 1694; 32224 and 32225);
+  - `port/tests/soundout_cmp.py`: each write's sample beside the port's
+    own clock at the write (`-opllog`): never more than 14.5 ms behind
+    it (the interrupts are made in one go for the samples since the
+    clock was last asked); 223 of the menu's are ahead, by 499 ms at
+    most (the fades', made at once), none of map 8's;
+  - tells whether a run without a device writes the same registers:
+    the menu's 3,320 the same in the same order; map 8's 10,231 the
+    same registers, 10,161 of them at the same place (the device's
+    clock goes in milliseconds, so an interrupt can fall on the other
+    side of a call of the game's; not judged).
+  A list with one write's sample or one interrupt's sample changed by
+  1 fails `soundout_ref` (tried by hand, three kinds), so it does see
+  a sample. A live headless play (`DK_KEYS`, 2,500 pictures of the
+  menu, 35.7 s) was rendered twice by hand: the same file, 0 late, 0
+  early, `soundout_ref` ok. The earlier tests, which run without a
+  device, are as before (`opl_test.sh`, `sound_test.sh` 304 calls,
+  `music_test.sh`, `sfx_test.sh`, `fsound_test.sh`: none different;
+  `fight_test.sh` 39 fights, `units_test.sh` 139 calls; doskit's
+  `selftest.py` ok, `check.py` all ok).
+  Not checked: **nothing was listened to**, so not whether it sounds
+  like the game (levels, the chip's rendering, the lead); the window's
+  program was built but not run, so the real device with its own
+  thread (the lock, late writes, the pace) is untried; the tune
+  against the original's (the writes are the original's by
+  `opl_test.sh`, their times are the port's); the Sound Blaster's
+  part; Windows and Linux builds (`build.bat` got `oplq.c` unbuilt).
 - The AdLib's register stream (2026-10-08, macOS, branch `mac/opl`;
   `src/sound.c`): `python3 port/tests/opl_dumps.py menu brief battle`
   runs the original with a log of every OUT to the ports 388h and 389h,

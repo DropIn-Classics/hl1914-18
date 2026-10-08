@@ -147,9 +147,7 @@ int menu_result(uint16_t map)
  * texts, AMOK.DAT, UNIT.DAT, WW1GNDS.DAT, then the map whose number is at
  * map_number and its .SHP file.  Returns 0, or 2 for a file that cannot
  * be loaded (the original's error exit).
- * Left out: S27FE:056C (key_install) and S02E6:323E, which
- * loads the map's pictures to the block's free end (the lists then lie
- * over them). */
+ * Left out: S27FE:056C (key_install). */
 int battle_setup(void)
 {
     Far scr = far_at(S_DATA, 0x0092), p = game_mem.block, name, num;
@@ -179,6 +177,9 @@ int battle_setup(void)
     fww(scr.seg, (uint16_t)(scr.off + 0x1C), 0xFFFF);
     pages_set();
     page_flip();
+    /* the grounds into video memory; the lists below lie over its files */
+    if (grounds_load(p, game_mem.block))
+        return 2;
     /* each side's record: the list of its attackers (11h), two blocks of
      * 2710h (0Dh; the first is the work buffer of the loads below) and
      * 3E8h bytes (9; side 0's takes the .SHP file) */

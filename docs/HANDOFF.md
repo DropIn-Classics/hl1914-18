@@ -1082,9 +1082,8 @@ emulation error (2026-10-02).
        map 0 and map 8 (`begin` compares it now, port/README.md). The
        three were compared together at that one point, not each at its
        own call; the DAC's colours after `fade_in` were not compared (the
-       dumps hold no DAC). `battle_setup`'s video memory is compared too
-       but for AC58:0 on (offsets C580h-F4BFh), where `S02E6:323E`, left
-       out, puts the grounds. `start_setup`'s is not: the routines it
+       dumps hold no DAC). `battle_setup`'s video memory is compared
+       whole since `grounds_load` (step 6). `start_setup`'s is not: the routines it
        leaves out draw over both pages (about 48,850 bytes differ).
     5. In the loop: `field_draw` (`S0E56:145A`), `marks_erase` (`1217`),
        the sides' pointers (`S2A6B:0008`, `S2A6F:0002`), the bar of
@@ -1124,6 +1123,22 @@ emulation error (2026-10-02).
        (so the 'U' blitter and the standing flag are not checked).
     6. Last the fight: `fight_panel` (`S131D:178D`), the fight's pictures
        (`S2532`), and `S02E6:323E` with `lib_pick` for the parts' list.
+       `S02E6:323E` done 2026-10-08 as `grounds_load` with `lib_pick` and
+       `ground_store` (`S28F5:0006`), in `port/src/pictures.c` and
+       `files.c`, called by `battle_setup` after `page_flip` as the
+       original does. It loads partS/partW (sorted) to the free end, the
+       map's file and the file named at `S331F:0264` behind it, and
+       stores in video memory from AC58:0 on, 90h bytes each, every
+       ground whose number is the low byte of a word of those two files
+       (presumably the grounds the map uses). Learned: `lib_pick` writes
+       the places into its last argument (the block's beginning, the
+       work buffer) and then copies the whole list to `S331F:02E7`, so
+       the entries of grounds not stored keep what the work buffer held
+       from the loading; the free end does not move on, the side lists
+       come over the files. With it `battle_setup` is the same as the
+       original's in memory and in its whole video memory on map 0 and
+       map 8 (port/README.md). Not met: a file that cannot be loaded, the
+       call after `load_game`, a winter map (partW).
   - State, all translated: `field_bits_clear(FFh)` empties `field_bits`
     (`S331F:3B5A`); `view_tables` fills `row_y`, `row_y_odd` and `col_x` (a
     field is 10h wide and 18h high on the screen, odd columns 0Ch lower);

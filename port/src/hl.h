@@ -117,6 +117,9 @@ int32_t file_load_size(Far to, Far name, Far work);
 int32_t lib_load(Far name, Far to, Far work, Far rec, uint8_t order);
 uint8_t *host_load(Far name, size_t *size);
 void far_copy(Far from, Far to, uint32_t n);
+int16_t lib_pick(Far list, int16_t count, Far table, int16_t words, Far to, Far buf);
+Far ground_store(Far pic);
+int grounds_load(Far place, Far work);
 
 /* pictures.c */
 int lbm_show(Far place, Far name, Far work);

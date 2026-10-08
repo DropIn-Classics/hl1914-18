@@ -14,17 +14,14 @@
  * entry to S066A:0349 (start_setup), `setup` is the part of game_loop
  * from S066A:0417 to S066A:0938 (battle_setup): SS:BP instead of SS:SP,
  * the block's place read from game_loop's frame, the pointers it keeps
- * there written back to the frame before the comparison.  The original
- * calls routines there that the port leaves out (they load the map's
- * pictures into the block, with its beginning as their work buffer), so a
- * byte the port's routine left as it was is counted apart when it
- * differs, and so is the word file_load keeps of what lay behind a file
- * (for `start` all that the loading routines keep for themselves: the
- * routines left out there load further files).  `begin` is the part from
+ * there written back to the frame before the comparison.  A byte the
+ * port's routine left as it was is counted apart when it differs, and so
+ * is the word file_load keeps of what lay behind a file (for `start` all
+ * that the loading routines keep for themselves: the routines left out
+ * there load further files).  `begin` is the part from
  * S066A:0938 to S066A:0EE6 (battle_begin), SS:BP likewise, the work buffer
  * and the palette's buffer read from the frame, the video memory drawn
- * from the entry's and compared (for `setup` too, but for the grounds
- * S02E6:323E puts at AC58:0); begin_apart says what else is counted
+ * from the entry's and compared (for `setup` too, whole); begin_apart says what else is counted
  * apart there.  LOAD_TEST_VRAM names a file for the
  * port's video memory at the end (as -vram writes it).
  * `lib` is one call of lib_load (S0C66:0009) with its five arguments.
@@ -398,8 +395,6 @@ int main(int argc, char **argv)
                 for (pl = 0; pl < 4; pl++)
                     if (vga_plane_byte((int)pl, (uint16_t)o2) == vleave[4 * o2 + pl])
                         continue;
-                    else if (left_out == 1 && o2 >= 0xC580 && o2 < 0xF4C0)
-                        va++;
                     else if (vd++ < 4)
                         printf(" vram %X.%u", o2, pl);
             if (va)

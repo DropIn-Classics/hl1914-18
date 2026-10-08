@@ -466,6 +466,16 @@ anything the game needs before the first release.
   Not compared: the routines that call them, as a whole with the
   drawing (the state tests run as before, below); a `field_draw` that
   returns early (state other than 0, 1, 7, 8, or outside the view).
+- The grounds in video memory (2026-10-08, Linux): `grounds_load`
+  (`S02E6:323E`) in `src/pictures.c` with `ground_store` (`S28F5:0006`),
+  and `lib_pick` (`S0C66:0414`) in `src/files.c`, called by
+  `battle_setup`. `load_test.sh`'s `setup` now compares the whole video
+  memory (before, AC58:0 on was counted apart). Dumps at `S066A:0417`
+  and `0938` on map 0 (`build/n2/st/st_test.args`) and on map 8 (new,
+  `dumps.py ... game_setup 1` with `MAP8` and `VRAM`,
+  `build/n2/st/setup8_test.args`): memory and video memory the same on
+  both, but for the stack and `beside`. Not covered: a winter map
+  (partW), a file missing, the call after `load_game`.
 - A text in a status line (2026-10-08, Linux): `show_message`
   (`S10AF:000F`) whole in `src/draw.c`, with `text_draw` (`S2B45:0006`),
   `pic_blit` (`S2A76:0002`, the 'P' way of `S2A6B:0008`) and `pic_clip`

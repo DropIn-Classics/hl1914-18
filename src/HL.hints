@@ -1278,10 +1278,31 @@ name S0C66:0009 lib_load
 ; screen (S2A08:000A) before S0CB6:0DA9 (not read; not met). Read,
 ; translated, compared through lib_load.
 name S0C66:024E lib_order
-; S0C66:0414: picks far pointers of a library's list by a table of bytes
-; (S02E6:323E uses it with the record at S331F:0145). Read only roughly;
-; the name is a guess.
+; lib_pick(far list, count, far table, words, far to, far buf): for each
+; picture n of the list whose number is the low byte of one of the table's
+; words, ground_store puts it into video memory and its place goes to
+; entry n of buf (the other entries are not written); then count entries
+; of buf are copied to `to` (far_copy). Returns how many were stored.
+; grounds_load calls it with the record at S331F:0145. Read, translated
+; (port/src/files.c), compared through grounds_load.
 name S0C66:0414 lib_pick
+; ground_store(far picture): four planes of 90h bytes from byte 12h of the
+; picture copied into video memory at the far pointer DATA:035C (pages_set
+; sets AC58:0000), which moves on by 90h; returns where they went. Read,
+; translated (port/src/pictures.c).
+name S28F5:0006 ground_store
+; grounds_load(far place, far work): the map's grounds into video memory:
+; lib_load of partS/partW (S331F:0145, sorted; the letter at S331F:0149 by
+; pics_winter) to place, behind it the map's file (num_text of map_number,
+; ending 0) and the file named at S331F:0264 (ending 0), then lib_pick of
+; the library's list by the words of both files with buf the work buffer
+; and `to` S331F:02E7, which then becomes the list at S331F:0153 (what
+; ground_blit draws from). The word at 282h of the screen's record behind
+; DATA:0092 gets offset 0. place does not move on. The error exit
+; (S0CB6:1842 with 2) for a file that cannot be loaded. Called by
+; game_loop's setup and after load_game. Read, translated
+; (port/src/pictures.c), compared on maps 0 and 8 (port/README.md).
+name S02E6:323E grounds_load
 ; far_copy(far from, far to, dword n): n bytes, one at a time, forwards.
 name S0CB6:187F far_copy
 ; str_ncmp: the C library's strncmp (as far as the second's end).

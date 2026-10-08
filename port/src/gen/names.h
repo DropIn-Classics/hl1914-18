@@ -176,6 +176,7 @@
     X(S02E6, defence_sum, 0x29D4) \
     X(S02E6, units_drop_empty, 0x2B28) \
     X(S02E6, pictures_load, 0x2B87) \
+    X(S02E6, grounds_load, 0x323E) \
     X(S02E6, libs_start, 0x3484) \
     X(S066A, game_loop, 0x000D) \
     X(S0AE0, attack_order, 0x0008) \
@@ -317,6 +318,7 @@
     X(S28DC, page_copy, 0x000A) \
     X(S28E0, fade_in, 0x0004) \
     X(S28E0, fade_out, 0x002B) \
+    X(S28F5, ground_store, 0x0006) \
     X(S2945, retrace_wait, 0x000A) \
     X(S2947, display_wait, 0x0006) \
     X(S2974, page_flip, 0x0002) \

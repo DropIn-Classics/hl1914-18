@@ -1,9 +1,10 @@
 /* loop.c - a pass of HL.EXE's game_loop (S066A:0EE9 to 45D7): both sides'
  * parts by the state of their views, the round's end and the timers,
  * translated over the program's memory without what draws, sounds and
- * waits.  What the original reads from the keyboard handler and from the
- * computer's player (not translated beyond computer_input) comes in as a
- * PassIn, which port/tests/loop_dumps.py logs from the original.
+ * waits.  What the original reads from the keyboard handler comes in as a
+ * SideIn, which port/tests/loop_dumps.py logs from the original; the
+ * computer's side is played by computer_turn (port/src/plan.c), or with
+ * loop_replay set by what the original's was logged to give.
  * port/README.md says how this was compared with the original.
  */
 #include "hl.h"
@@ -43,6 +44,52 @@ static void gs_or(uint16_t o, uint16_t v) { SETW(game_state, o, gs(o) | v); }
 static void gs_and(uint16_t o, uint16_t v) { SETW(game_state, o, gs(o) & v); }
 
 static uint16_t side_word(uint16_t side) { return NW(sides, side * SIDE_SIZE); }
+
+/* a test's option: the computer's side not played by computer_turn but
+ * replayed from SideIn (word, text, set80, set8), as before computer_turn
+ * was translated */
+int loop_replay;
+
+static uint16_t phase_word(uint16_t side)
+{
+    return frw(S_COMP, (uint16_t)(A_computer_phase + side * 0x0C));
+}
+
+/* the computer's turn in a pass (S066A:1020 to 1190): once, or with 80h
+ * in game_state's word 2 again and again while it thinks (the phases 20h
+ * and 40h) until a human's button or a key stops it; that comes in as the
+ * number of calls the original made (in->turns, below 0 not known: until
+ * the thinking is through).  Returns the side's input word; the text is
+ * shown. */
+static uint16_t computer_part(uint16_t side, const SideIn *in)
+{
+    if (gs(2) & 0x80) {
+        Far r0 = far_at(S_DATA, 0x00A6), r1 = far_at(S_DATA, 0x00B6);
+        int n = 0;
+
+        /* the original also clears word 4 behind DATA:00BE (the keys) */
+        pwb(r0, 4, 0);
+        pwb(r1, 4, 0);
+        show_message(0x64, side);
+        for (;;) {
+            computer_turn(side);
+            n++;
+            if (!(phase_word(side) & 0x60))
+                break;
+            if (in->turns >= 0 && n >= in->turns)
+                break;
+        }
+        if (in->turns >= 0 && n != in->turns)
+            missing = "the computer's thinking through after another number of calls than the original's";
+        show_message(0xFFFF, 0);
+        show_message(0xFFFF, 1);
+        gs_and(0, 0xFFF3);
+        gs_and(2, 0xFF7F);
+    } else
+        computer_turn(side);
+    show_message(NW(computer_out, side * 4 + 2), side);
+    return NW(computer_out, side * 4);
+}
 
 /* the human side's input record (S066A:0F0C to 0FC3): DATA:00A6 or 00B6
  * by the side, exchanged with 2 clear in game_state's word 2 for the maps
@@ -608,6 +655,13 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
             SETW(site_taken, 0, NB(sides, a * SIDE_SIZE + 0x15) ? 1 : 0);
             SETB(take_picture, 0, 0);
             res = attacks_run();
+            /* the fight's pictures (S2532, not translated) start the
+             * random numbers anew from the BIOS's count of ticks, once a
+             * fight; the last of them comes in */
+            if (in->seeded) {
+                SETW(rand_words, 0, in->seed);
+                SETW(rand_words, 2, in->seed >> 16);
+            }
             view_to_field(0, f0);
             view_to_field(1, f1);
             if (!(res & 0x80)) {
@@ -634,10 +688,12 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
 
         show_message(pb(view, 0x16) == 2 ? 0x33 : 0x32, side);
         /* 80h in game_state's word 2 when the computer's player of the
-         * other side is in its phase 20h or 40h: that phase is the
-         * computer's state, not kept by the port, so the original's
-         * decision comes in with the input */
-        if (in->set80) {
+         * other side is in its phase 20h or 40h (S066A:40EA to 414E);
+         * replayed, the original's decision comes in with the input */
+        if (!loop_replay) {
+            if (!(side_word(side) & 2) && side_word(o) & 2 && phase_word(o) & 0x60)
+                gs_or(2, 0x80);
+        } else if (in->set80) {
             if (side_word(side) & 2 || !(side_word(o) & 2))
                 missing = "80h in game_state's word 2 where the port finds no reason";
             gs_or(2, 0x80);
@@ -682,7 +738,7 @@ static void state_end(void)
 static void side_part(uint16_t side, const SideIn *in)
 {
     Far view = view_of(side), rec;
-    uint16_t di;
+    uint16_t di = 0;
 
     if (in->key)
         key = in->key;
@@ -694,7 +750,9 @@ static void side_part(uint16_t side, const SideIn *in)
         for (i = 0; i < 8; i++)
             pwb(rec, i, 0);
         pwb(rec, 8, 1);
-        if (gs(2) & 0x80) {
+        if (!loop_replay)
+            di = computer_part(side, in);
+        else if (gs(2) & 0x80) {
             /* the computer's turn run until it is done, the texts and
              * the keys cleared (S066A:108D to 1161) */
             Far r0 = far_at(S_DATA, 0x00A6), r1 = far_at(S_DATA, 0x00B6);
@@ -707,10 +765,12 @@ static void side_part(uint16_t side, const SideIn *in)
             gs_and(0, 0xFFF3);
             gs_and(2, 0xFF7F);
         }
-        if (in->set8)
-            SETW(sides, side * SIDE_SIZE, side_word(side) | 8);
-        di = in->word;
-        show_message(in->text, side);
+        if (loop_replay) {
+            if (in->set8)
+                SETW(sides, side * SIDE_SIZE, side_word(side) | 8);
+            di = in->word;
+            show_message(in->text, side);
+        }
         gs_or(4, side ? 0x10 : 8);
     } else {
         rec = input_rec(side);

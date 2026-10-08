@@ -1352,8 +1352,12 @@ name S0B15:13EC move_targets_list
 name S3AE8:001D holder_ptr
 name S3AE8:0021 step_target_field
 ; clock_seed(far value): keeps the value at DATA:0AF1, or for 0 one made of
-; the BIOS's count of timer ticks. Presumably the start of a random
-; sequence (who reads it was not looked at).
+; the BIOS's count of timer ticks: the start of the random numbers
+; rand_next gives. Called with 0 by the battle's setup in game_loop and by
+; S2532:0008, the fight's pictures (seen in a run: once a fight shown,
+; see docs/HANDOFF.md "The pass with the computer's own turn"); rand_range, which computer_queue draws what to
+; build with, was the only caller of rand_next seen in that run (S2532 has
+; calls of its own from S2532:183B on, not reached there).
 name S2C95:000E clock_seed
 
 ; game_loop's loop from S066A:1F39 to its end (read 2026-10-04, nothing

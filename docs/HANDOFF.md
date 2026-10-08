@@ -3122,6 +3122,38 @@ emulation error (2026-10-02).
       `move_rec`.
     - A waiting script must not be matched by its own `pgrep -f`
       (a wait loop on `loop_dumps.py` stood for hours): wait on the job.
+  - `order_undo` reached, order 1 unreachable (2026-10-08, Windows;
+    `port/tests/keys/m48_undo.keys` and `.pokes`, port/README.md).
+    - A unit is freed with `order_undo` when the other side's fight
+      destroys it in the half it was ordered to move: the walk ends
+      within the half (`move_arrive` sets 1 in `unit_marks`), the fight
+      at the round's end hits it on its old field on the attacker's map
+      (`unit_destroy` sets 4), and the freeing loop sees both. With two
+      human sides that is scriptable: `m48_build`'s round 4 already has
+      the first side attacking unit 14h while the second orders it to
+      move; a poke of its `unit_count` to 1 makes the fight destroy it.
+      Seen in the original with a breakpoint at `S10E1:1514` (one hit,
+      196.7 s, AX the unit); the port is the same at every pass compared.
+    - A breakpoint log stopped at 190 s missed the call although
+      `attacks_run` began at 181.6 s: the fight's pictures take seconds
+      before the freeing loop runs. Let such a run go on well past the
+      round's end.
+    - Order 1: nothing can write it. `move_rec`'s address (180Fh) is
+      taken only in `move_target` and `move_arrive`, and `move_target`
+      stores only 3, 2, 4 and 5 in its byte 0Ch; no instruction names
+      its bytes directly. Byte 13h of a unit is otherwise written from a
+      variable only by `S0AE0` (values 9, 0Bh, 0Dh, 11h, of its own) and
+      a saved game's load, and the map's units are made by `unit_add`.
+      Not followed: the word writes at offset 12h of records (ten sites,
+      presumably other records; the ones looked at are views and the
+      like) and block copies into `S331F`. So `order_capture` and
+      `move_arrive`'s kind 1 stay translated from reading only.
+    - Not reached: `order_undo` for kinds 2, 4, 5 (`m48_build` round 6
+      gives unit 14h kind 5, a fight on it there would reach it) and for
+      a freed carrier's units.
+    - On Windows `play_test.sh` cannot run `sh build.sh` (no `cc`): the
+      port was built with `build.bat` and the script run with that line
+      and its `cd` taken out (a copy outside the repository).
   - Next there: the rest of the computer's turn (`computer_step` and its
     handlers first, then `computer_assess`, `computer_plan`,
     `computer_queue`); a scripted run of the first side that moves into a

@@ -700,6 +700,25 @@ anything the game needs before the first release.
     the computer's the same at every pass compared". On the own clock
     no round ends (the cursor's steps are sampled otherwise from the
     first seconds on).
+  - `m48_undo` (2026-10-08, Windows; 240 s, seven rounds; `make_two.py`
+    with `m48_build`'s keys to its round 4's end, 2f181.8, then
+    `195:240`, and `m48_undo.pokes`: the second side's unit 14h left
+    with one figure when the first pass begins): in round 4 the first
+    side's attack destroys unit 14h, which the second side has ordered
+    to a free field in the same half, so `attacks_run` frees it with
+    `order_undo` (kind 3). A breakpoint at `S10E1:1514` in the original
+    was hit once, at 196.7 s with AX 1A14h (unit 14h), and the port calls
+    it for the same unit (marks 05h, byte 13h 3, seen with a print not
+    kept). On the original's clock (after the merge of be11493) 2,860
+    passes, 19 compared: the game's state and the computer's the same at
+    every one, 2254 and 2255 around the call included. Three of 5,720
+    parts differ in the key the part took (passes 1801, 1874, 1892, while
+    both sides' keys overlap; the game's state the same); the original's
+    `m48_build` run on the same Windows machine has one such part too,
+    so it is not the poke's doing (not looked into). Not reached:
+    `order_undo` for the kinds 2, 4 and 5 and for the units aboard a
+    freed carrier. Order 1 cannot come: nothing writes kind 1
+    (`src/HL.hints` at `move_arrive`; docs/HANDOFF.md).
   - `m54_end` (map 54, 320 s, 14 rounds; `make_two.py` with
     1E45 2E47 2f51 2f51.8 2R56 2R57 2R58 2R59 2R60 2R61 2L62 2u63
     2u64 2u65 2u66 2m68 2d71 2a73 2a75 2E77 1E79 2f83 2f83.8 1E88
@@ -1844,7 +1863,8 @@ anything the game needs before the first release.
   shows the arrival's text (`show_message`, setting 4 in `game_state`'s
   word 0, which keeps `hover` from setting a timer while it is shown);
   the port had left that call out, so a free timer slot kept another due
-  pass. Still not reached: `order_undo`, order 1, and the units aboard a
+  pass. Still not reached: `order_undo` (reached later, `m48_undo`),
+  order 1 (unreachable), and the units aboard a
   freed carrier (in `m0_carry` no freed carrier had a unit in its row).
   Not checked: which of the digit's values ('1', '2', '3') the runs had
   besides the '2' and '3' of the difference.

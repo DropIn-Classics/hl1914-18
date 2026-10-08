@@ -2344,6 +2344,66 @@ emulation error (2026-10-02).
     for the game's screen mode, not read from the game; `pit_del` and
     `pit_period`'s callers; `input_mouse` and `crit_error` were read
     only.
+  - What a round's end with fights or a site taken lasts (2026-10-08,
+    Mac; read in `HL.EXE` and counted in three logged runs of the
+    original: `m8_d5r` with and without fight pictures, `m0_hq`). Named
+    in `src/HL.hints`: `pal_level`, `fade_in`, `fade_out`,
+    `inputs_release`, `event_picture`, `site_picture`, `fight_pictures`,
+    `fight_frames`; `site_taken`, `take_picture` and `fight_panel` have
+    what was read added.
+    - `S28E0:0004` and `002B` are the screen coming up from dark and
+      going dark: 64 calls of `pal_level` (`S2AFE:000C`), which sets the
+      256 colours at a level and waits a scan line a colour with
+      interrupts off; 0.52 s each in the runner. They read and write
+      nothing of the game's state.
+    - `site_taken` at a round's end does not say that a site was taken:
+      game_loop sets it to whether the side whose attacks are run has
+      attackers. Without them the screen goes grey and back
+      (`fade_grey`, `fade_back`, 96 retraces each); with them and fight
+      pictures on it goes dark before `attacks_run` (`fade_out`) and
+      comes back after it (`fade_in`, unless `take_picture` is set);
+      with pictures off nothing is faded.
+    - A fight with pictures, in order (retraces counted; the times
+      between are the runner's for computing and drawing, measured):
+      0.59 s after `attacks_run` begins (the view drawn on the
+      attacker's field; 0.10 s only for the second fight of the run
+      without pictures) `fight_panel`: 0.10 s, `fade_in`, six marks on
+      the map with `wait_frames(6)` each (8 retraces a step with the
+      drawing), `wait_frames(0Ch)`, `wait_input(96h)` (51 waits of 4
+      retraces, 2.91 s, when nothing is pressed; it clears the first
+      side's button and the key at each), `fade_out`; then
+      `fight_pictures`: `clock_seed(0)` at once, 0.53 s of loading, the
+      key cleared, 749 frames (13.6 to 13.7 s; a key ends them at once,
+      a side's button does not), the colours down (0.56 s);
+      `pictures_load` and the view again (0.69 s). After the last fight
+      1.52 s to game_loop's `fade_in`. Two fights: 43.75 s from the
+      part's beginning to the next (`m8_d5r`, pass 2265).
+    - A fight without pictures: the same panel without the fades, the
+      six marks forward, `wait_frames(0Ch)`, six back, `wait_input(46h)`
+      (24 waits of 4 retraces), the two units' panels and
+      `wait_frames(1Eh)`; with a unit destroyed the blasts' turns
+      (`S02E6:0B61`: `wait_frames(2)` a turn; its wait on the pass's
+      count of ticks never waits, the count is not set back there;
+      not seen in a run), then `wait_input(50h)` (27 waits). Two
+      fights: 11.04 s (`m8_d5r` with `no_fight_pics` poked, pass 2265).
+    - A site taken (order 4, `S02E6:11B1` to `17C3`): the view on the
+      site and its mark (0.59 s), `wait_frames(1Eh)`, then `fade_in`
+      when a fight came before in this `attacks_run`, else `fade_back`
+      (with pictures off `fade_back` only without a fight before);
+      `take_picture` 1; `event_picture` with CAh or CBh:
+      `inputs_release` (the key and both sides' buttons cleared, 6
+      retraces at least twice, longer while something is held), then
+      `site_picture`: its frames (1.84 s in the run; the number is in
+      the picture's stream, not read), `wait_frames(C8h)`; then 3.04 s
+      (`S2F39:1058(14h)` and the battle's pictures loaded again,
+      `S02E6:3484`; not read which of the two takes it), the site's
+      records changed, `wait_frames(32h)`. 11.37 s from `attacks_run` to
+      game_loop's end of the round in `m0_hq`, pass 2431.
+    Not read: `S2AF3:000A`, `S2F39`'s routines called here, the stream of
+    the site's picture, `S2532` beyond its frame loop's frame count and
+    end, `inputs_release` with its second argument set. Not seen in a
+    run: a site taken after a fight, the blasts' turns, a fight's
+    pictures ended by a key.
   - The fights of `attacks_run` (2026-10-07, Linux; `S02E6:0122` to
     `0D48`, `0D63` to `0E9C`, order 1 at `0ED9`, `order_undo`, read and
     translated, `port/src/orders.c` and `move.c`). Learned on the way:

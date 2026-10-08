@@ -253,6 +253,9 @@
     X(S15C5, site_free, 0x06EA) \
     X(S15C5, carrier_moved, 0x0804) \
     X(S1650, start_setup, 0x0003) \
+    X(S167A, inputs_release, 0x2F83) \
+    X(S1A39, event_picture, 0x0001) \
+    X(S1A39, site_picture, 0x1906) \
     X(S1C74, computer_turn, 0x000B) \
     X(S1C74, computer_reset, 0x01B4) \
     X(S1CC6, computer_queue, 0x0000) \
@@ -287,6 +290,8 @@
     X(S2407, plan_ride, 0x0007) \
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
+    X(S2532, fight_pictures, 0x0008) \
+    X(S2532, fight_frames, 0x0CAA) \
     X(S27FE, input_install, 0x0013) \
     X(S27FE, input_remove, 0x0060) \
     X(S27FE, input_tick, 0x008C) \
@@ -308,8 +313,11 @@
     X(S27FE, pit_del, 0x07E8) \
     X(S27FE, pit_period, 0x0882) \
     X(S2892, num_text, 0x0001) \
+    X(S28E0, fade_in, 0x0004) \
+    X(S28E0, fade_out, 0x002B) \
     X(S2945, retrace_wait, 0x000A) \
     X(S2947, display_wait, 0x0006) \
+    X(S2AFE, pal_level, 0x000C) \
     X(S2B81, file_load_size, 0x0004) \
     X(S2B85, file_close, 0x0002) \
     X(S2B8F, file_size, 0x000C) \

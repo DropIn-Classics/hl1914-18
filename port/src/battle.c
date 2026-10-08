@@ -391,10 +391,7 @@ static int libs_start(void)
  * of sites_40, fight_rec's routines.  Returns 0, or 2 for a file that
  * cannot be loaded.
  * Left out: S274D:0003 (not with a saved game; shows something before the
- * battle of a map up to 2Fh, not read to its end), pictures_load
- * (S02E6:2B87: the screen's picture, a palette and further libraries
- * loaded to the free end behind libs_start's, which they move on;
- * game_loop keeps it at S3303:0028), the loading of a saved
+ * battle of a map up to 2Fh, not read to its end), the loading of a saved
  * game (200h in game_state), what draws the two views (S0E56:0D44,
  * S0E56:0F36, show_message, S2974:0002, S28DC:000A, S28E0:0004) and the
  * music's start (S2F39:0F87). */
@@ -415,6 +412,13 @@ int battle_begin(void)
     }
     if (libs_start())
         return 2;
+    /* pictures_load(free end, work buffer, the 320h bytes' buffer for the
+     * palette); game_loop keeps the free end it returns at S3303:0028,
+     * FFFF:FFFF too */
+    if (pictures_load(&game_mem.p, game_mem.work, game_mem.save_buf) == 2)
+        return 2;
+    fww(S_MAIN, 0x0028, game_mem.p.off);
+    fww(S_MAIN, 0x002A, game_mem.p.seg);
     /* field_bits_clear(FFh) */
     for (i = 0; i < 0x1104; i++)
         SETB(field_bits, i, 0);

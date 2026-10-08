@@ -115,6 +115,15 @@ Far file_load(Far to, Far name, Far work);
 int32_t file_size(Far name);
 int32_t file_load_size(Far to, Far name, Far work);
 int32_t lib_load(Far name, Far to, Far work, Far rec, uint8_t order);
+uint8_t *host_load(Far name, size_t *size);
+void far_copy(Far from, Far to, uint32_t n);
+
+/* pictures.c */
+int lbm_show(Far place, Far name, Far work);
+int32_t tpwm_unpack(Far from, Far to);
+int lib_read(Far *place, Far file, Far names, Far ptrs, Far work);
+int32_t sfx_load(Far place, Far name, Far work);
+int pictures_load(Far *place, Far work, Far pal);
 
 /* mem.c */
 Far mem_alloc(uint32_t size);

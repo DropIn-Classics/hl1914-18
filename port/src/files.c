@@ -29,7 +29,7 @@ const char *hl_game_dir = ".";
 
 /* the file a DOS name in the program's memory means, looked up without
  * regard to case below the game's folder */
-static uint8_t *host_load(Far name, size_t *size)
+uint8_t *host_load(Far name, size_t *size)
 {
     char path[1024], next[1024], part[64];
     uint16_t o = 0;
@@ -225,7 +225,7 @@ static uint32_t far_dword(Far p)
 
 /* S0CB6:187F: `n` bytes copied from `from` to `to`, one at a time and
  * forwards */
-static void far_copy(Far from, Far to, uint32_t n)
+void far_copy(Far from, Far to, uint32_t n)
 {
     uint32_t a = lin(from.seg, from.off), b = lin(to.seg, to.off);
 

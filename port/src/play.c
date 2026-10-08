@@ -73,6 +73,7 @@
 #include <string.h>
 #include "hl.h"
 #include "frame.h"
+#include "platform.h"
 
 #define S_DATA (HL_DATA + HL_BASE)
 #define TICK (0x3FFF / 1193182.0)       /* the timer routine's period, s */
@@ -95,6 +96,7 @@
 #define T_ROUND_END 0.31    /* attacks_run's end to the round's, without pictures or with a site */
 #define T_SITE_FRAMES 1.84  /* site_picture's frames (their number is in its stream) */
 #define T_SITE_BACK 3.04    /* after it: S2F39:1058 and the battle's pictures loaded again */
+#define T_SETUP 2.75        /* the menu's return (S066A:0390) to the loop's first pass (back walk: 20.18 to 22.93 s) */
 
 typedef struct { double t; uint8_t code[2]; int n; long order; } KeyEv;
 typedef struct { double t; char kind; int a, b; uint32_t v; } ClockLine;
@@ -122,6 +124,7 @@ static uint32_t bios0;          /* the BIOS's count when it began */
 static const char *stopped;     /* what the timer's routine met */
 static int live;                /* play_live: the window's time, keys and pictures */
 static double pic_at;           /* live: when the next picture is shown, s */
+static double shown_to;         /* live: the time screen_wait's waits came to, s */
 
 unsigned long play_passes, play_misses;
 
@@ -374,6 +377,33 @@ static void tick(double t)
         stopped = why;
 }
 
+/* live: one picture shown at the window's pace (frame_wait, which hands
+ * the player's keys to the keyboard's interrupt), and what the mouse did
+ * meanwhile given to its driver, as the driver's interrupt would */
+static void live_picture(void)
+{
+    int dx, dy, b;
+
+    if (!frame_wait() && !stopped)
+        stopped = "the window was closed";
+    if (plat_mouse_motion(&dx, &dy, &b))
+        mouse_motion(dx, dy, b);
+}
+
+/* live: a wait of the screen's routines (screen_hook): a retrace_wait or
+ * a pal_level.  The pictures due within it are shown now, so that a
+ * fade's steps and what is drawn between retraces are seen; the clock's
+ * own account of the wait (own_fade, own_retraces) then finds them shown
+ * and does not wait again */
+static void screen_wait(int kind)
+{
+    if (shown_to < now)
+        shown_to = now;
+    shown_to += kind == SCREEN_PAL_LEVEL ? PAL_LEVEL : RETRACE;
+    for (; pic_at <= shown_to; pic_at += RETRACE)
+        live_picture();
+}
+
 /* the port's own clock moved on to time t: the calls of the timer's
  * routine that are due by then, and the BIOS's count with them */
 static void own_to(double t)
@@ -385,8 +415,7 @@ static void own_to(double t)
          * the window's clock (frame_wait: the player's keys go to the
          * keyboard's interrupt meanwhile) */
         for (; live && pic_at <= tick_at; pic_at += RETRACE)
-            if (!frame_wait() && !stopped)
-                stopped = "the window was closed";
+            live_picture();
 
         now = tick_at;
         tick_at += TICK;
@@ -857,11 +886,16 @@ static void hook(int at, uint16_t side)
 /* the play in the window, at the original's pace (the own clock's time
  * is the window's: frame.h), with the player's keys as the keyboard's
  * interrupt gets them (key_irq) instead of a key script, the picture the
- * port's video memory and DAC hold shown at the screen's refresh rate */
+ * port's video memory and DAC hold shown at the screen's refresh rate,
+ * also at the waits of the screen's routines (screen_hook), and the
+ * player's mouse to the mouse's driver (mouse_motion; the window keeps
+ * the mouse, plat_mouse_grab) */
 void play_live(void)
 {
     live = 1;
     frame_set_keyboard(key_irq);
+    screen_hook = screen_wait;
+    plat_mouse_grab(1);
 }
 
 /* after the port's setup (battle_begin): the first pass begins at `start`
@@ -932,9 +966,24 @@ void play_fade(void)
     own_fade();
 }
 
+/* the time the original's battle setup takes after the menu (the timer's
+ * routine goes on meanwhile; the mouse put to the middle by it is gone
+ * when the setup clears the sides' records) */
+void play_setup(void)
+{
+    own_busy(T_SETUP);
+}
+
 int play_idle(void)
 {
-    return keys_at >= keys_n;
+    return live ? stopped != NULL : keys_at >= keys_n;
+}
+
+/* why the play cannot go on (the window was closed, the timer's routine
+ * met what is not translated), or NULL */
+const char *play_stopped(void)
+{
+    return stopped;
 }
 
 /* the original's clock brought up to the next pass's beginning, or to

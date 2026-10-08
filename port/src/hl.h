@@ -145,6 +145,11 @@ void fade_in(void);
 void fade_out(void);
 void fade_grey(Far pal);
 void fade_back(Far pal);
+/* called at each wait of retrace_wait and at each pal_level's end (kind
+ * SCREEN_RETRACE or SCREEN_PAL_LEVEL), for showing the picture then;
+ * NULL for none */
+enum { SCREEN_RETRACE, SCREEN_PAL_LEVEL };
+extern void (*screen_hook)(int kind);
 
 /* draw.c */
 void view_draw(uint16_t field, uint16_t side);
@@ -155,6 +160,7 @@ void rect_fill(void);
 void text_draw(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_t base, Far text, uint16_t *len);
 void flag_draw(uint16_t x, uint16_t y, uint16_t c1, uint16_t c2, uint16_t c3, int standing);
 void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base);
+void pic_draw_save(uint16_t x, uint16_t y, Far src, Far save, uint8_t base);
 void pic_unpack_draw(uint16_t x, uint16_t y, Far src, uint8_t base, Far work);
 
 /* fightpics.c: fight_pictures' arguments in the order of its stack
@@ -232,7 +238,7 @@ void move_out(Far view, uint16_t side);
 uint16_t side_input(Far rec, Far view);
 void show_message(uint16_t text, uint16_t side);
 void field_draw(uint16_t side, uint16_t field);
-void cursor_draw(uint16_t side);
+void cursor_draw(uint16_t side, Far save);
 void cursor_field(Far view, uint16_t side);
 void bar_draw(uint16_t x, uint16_t y, uint16_t colour, uint16_t back, uint16_t h, int16_t value, int16_t width);
 void blast_draw(uint16_t n, Far map, uint16_t view, uint16_t side);
@@ -309,6 +315,9 @@ uint16_t mouse_speed(uint16_t a, uint16_t b, uint16_t c, uint16_t d, uint16_t e,
 void mouse_to(uint16_t x, uint16_t y);
 uint16_t mouse_hide(void);
 uint16_t mouse_show(void);
+void mouse_motion(int dx, int dy, int buttons);
+void mouse_ratio(uint16_t x, uint16_t y);
+void pointer_erase(Far save);
 
 /* menu.c */
 /* the menu before a battle (S167A:0005), played on the port's own clock
@@ -335,7 +344,9 @@ void play_start(double start);
 void play_tick(void);
 void play_retraces(int n);
 void play_fade(void);
+void play_setup(void);
 int play_idle(void);
+const char *play_stopped(void);
 void play_inputs(const char *path);
 void play_rounds(const char *path);
 void play_ends(const char *path);

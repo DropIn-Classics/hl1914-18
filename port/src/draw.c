@@ -10,6 +10,8 @@
 #define S_GAME (HL_S331F + HL_BASE)
 #define DW(o) frw(S_DATA, (o))
 
+static const Far nowhere;       /* pic_draw_save without a save place */
+
 /* a byte at seg:off, from the VGA's window at A000h or from memory, as
  * the CPU reads and writes it */
 uint8_t vrb(uint16_t seg, uint16_t off)
@@ -415,7 +417,7 @@ static int pic_clip(uint16_t *x, uint16_t *y, uint16_t bytes, uint16_t *h)
  * when DATA:00E8 is not 0.  Its variables in its own segment (E6h-FCh)
  * as the original leaves them.  The colour table of S2AE4:000C (the two
  * words 0 in all calls translated) is not. */
-static void pic_blit(uint16_t x, uint16_t y, Far src, uint8_t base)
+static void pic_blit(uint16_t x, uint16_t y, Far src, Far save, uint8_t base)
 {
     uint16_t cs = HL_S2A76 + HL_BASE, es = NW(screen_seg, 0), bytes, w, h, di, si;
     uint8_t mask, skip = (uint8_t)(pb(src, 8) + base);
@@ -441,6 +443,13 @@ static void pic_blit(uint16_t x, uint16_t y, Far src, uint8_t base)
     di = screen_at(x, y);
     mask = (uint8_t)(0x11 << (x & 3));
     fwb(cs, 0x01FC, mask);
+    if (save.seg | save.off) {
+        Far scr;
+
+        scr.seg = es;
+        scr.off = di;
+        under_save((uint16_t)((pw(src, 0x0E) + 7) & 0xFFFC), h, scr, save);
+    }
     si = (uint16_t)(src.off + 0x12 + frw(cs, 0x01F8));
     for (plane = 0; plane < 4; plane++) {
         uint16_t d = di;
@@ -499,7 +508,7 @@ static void text_put(uint16_t x, uint16_t y, uint16_t gap, uint16_t line, uint8_
         g.seg = font.seg;
         g.off = (uint16_t)(font.off + o);
         if (pb(g, 9) == 'P' && (int16_t)y >= 0)
-            pic_blit(x, y, g, base);
+            pic_blit(x, y, g, nowhere, base);
         last = pw(g, 0x0E);
         x = (uint16_t)(x + last + gap);
     }
@@ -680,7 +689,7 @@ void unit_panel(uint8_t no, uint16_t side)
 
         fww(r.seg, (uint16_t)(r.off + 0x18), 0xC8);
         if (pb(pic, 9) == 'P')
-            pic_blit((uint16_t)(x + 0x0E), 0xBC, pic, 0);
+            pic_blit((uint16_t)(x + 0x0E), 0xBC, pic, nowhere, 0);
         else if (pb(pic, 9) != 'X')
             pic_blit_u((uint16_t)(x + 0x0E), 0xBC, pic, 0);
         fww(r.seg, (uint16_t)(r.off + 0x18), keep);
@@ -821,13 +830,14 @@ void cursor_field(Far view, uint16_t side)
 
 /* the side's cursor (as game_loop draws it, e.g. at S066A:3D9A): the
  * picture of the view's byte 1Bh in the table S331F:0167 points to, at
- * the view's words 10h and 12h, colours D0h on */
-void cursor_draw(uint16_t side)
+ * the view's words 10h and 12h, colours D0h on; what it covers kept at
+ * `save` (none: 0) */
+void cursor_draw(uint16_t side, Far save)
 {
     uint16_t v = (uint16_t)(A_views + side * 0x31);
 
-    pic_draw(frw(S_views, (uint16_t)(v + 0x10)), frw(S_views, (uint16_t)(v + 0x12)),
-             pfar(far_add(far_at(S_GAME, 0x0167), 4u * frb(S_views, (uint16_t)(v + 0x1B))), 0), 0xD0);
+    pic_draw_save(frw(S_views, (uint16_t)(v + 0x10)), frw(S_views, (uint16_t)(v + 0x12)),
+                  pfar(far_add(far_at(S_GAME, 0x0167), 4u * frb(S_views, (uint16_t)(v + 0x1B))), 0), save, 0xD0);
 }
 
 /* S1571:01F2: a bar at x, y, h high: with `back` not 0 width / 2 long
@@ -851,18 +861,25 @@ void bar_draw(uint16_t x, uint16_t y, uint16_t colour, uint16_t back, uint16_t h
 
 /* S2A6B:0008 (pic_draw): a picture by its kind (byte 9): 'P' by
  * pic_blit, or at half size by pic_half for y negative; 'X' by pic_x;
- * any other by pic_blit_u */
-void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base)
+ * any other by pic_blit_u.  pic_draw_save is it with its fourth argument,
+ * a save place: not 0, pic_blit keeps what lies under the picture there
+ * first (under_save; the other ways do not take it) */
+void pic_draw_save(uint16_t x, uint16_t y, Far src, Far save, uint8_t base)
 {
     if (pb(src, 9) == 'P') {
         if ((int16_t)y >= 0)
-            pic_blit(x, y, src, base);
+            pic_blit(x, y, src, save, base);
         else
             pic_half(x, (uint16_t)-(int16_t)y, src, base);
     } else if (pb(src, 9) == 'X')
         pic_x(x, y, src, base);
     else
         pic_blit_u(x, y, src, base);
+}
+
+void pic_draw(uint16_t x, uint16_t y, Far src, uint8_t base)
+{
+    pic_draw_save(x, y, src, nowhere, base);
 }
 
 /* S2A6F:0002: a packed picture unpacked to `work` (tpwm_unpack) and drawn

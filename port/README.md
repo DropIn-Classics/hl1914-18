@@ -187,6 +187,51 @@ which lies there itself: the screen stayed black (fixed). Not done: the
 mouse, the sounds, the menu in the window (without `-map` the window
 still shows the text screen), the pictures of events, saving.
 
+2026-10-08 (branch `debian/window2`): the program in the window. Without
+`-map` the window build (and the headless one under `DK_KEYS`/`DK_SHOTS`)
+begins at the menu and goes round as `game_loop` does (menu, battle,
+menu), on the window's time (`play_live`). The original's setup between
+the menu's return and the loop's first pass takes 2.75 s in the runner
+(walk `back`: `S066A:0390` at 20.18 s, `S066A:0EE9` at 22.93 s); the
+port's clock now lets that time pass before `battle_setup`
+(`play_setup`), with the timer's routine going on, as in the original.
+The player's mouse: in the window the platform's mouse (held by the
+window, `plat_mouse_grab`) moves the driver of `src/mouse.c` as a
+driver's interrupt would (`mouse_motion`: the system's counts as
+mickeys, 8 pixels per the ratio's mickeys, interrupt 33h function 0Fh,
+which `mouse_speed` now sets; within the range), its buttons held as
+they are. In a battle the mouse adds to a side's record as the original
+does (`input_mouse`, `S27FE:03D4`, and `mouse_center`, `S27FE:04D0`,
+translated in `src/input.c`): a pointer the step (record word 20h or
+22h) or more from the middle (A0h, 64h) is a direction and goes back to
+the middle, the left button is the side's button, its letting go with
+the right one held gives ten calls without the mouse. The pictures of
+the fades: at each wait of `retrace_wait` and at the end of each
+`pal_level` (`screen_hook`, `src/screen.c`) the pictures due by then
+are shown, so a fade's steps are seen; the clock's own account of those
+waits then finds them shown. The small map's cursor: `pic_draw_save`
+(`S2A6B:0008` with its save place; `pic_blit` keeps what lies under
+the picture by `under_save`), the pass's end passes the side's place
+(byte 5 of `sides`) with 4 in the side's word, and `state_map` puts it
+back (`pointer_erase`, `S2904:000E`, now in `src/screen.c`, for the
+mouse's pointer too) after a move and before leaving, where it also
+draws the view and its marks again as the original does (`S066A:2118`).
+
+Compared: `sh port/tests/menu_test.sh` (all five walks: no byte
+different at the menu's return; the walk `back` has a battle with the
+mouse open between, and its first `input_mouse` gives a direction in
+both, cleared by the setup: before `play_setup` the port's cursor went
+one field right and 4 bytes differed), `loop_test.sh` (the same at
+every pass compared), `check.py`. In the headless build scripted by
+`DK_KEYS` (Space twice): the menu, then map 0's battle on screen; by
+`DK_MOUSEMOVE` (200 counts down, the left button): the pointer to GAME
+SETUP and that page shown. Not compared: a scripted mouse walk against
+the original (the runner takes `-mouse T X,Y,B` and `-mice FILE`, at
+places, not motion: not done yet), the small map's cursor in video
+memory, the fades' pictures against the original's timing, the feel of
+the mickey ratio with a real mouse. Still not drawn: the small map
+itself (`S131D:007D`, `S0E56:09AD`).
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)

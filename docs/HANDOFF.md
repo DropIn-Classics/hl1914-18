@@ -3233,6 +3233,18 @@ emulation error (2026-10-02).
     (`S274D:0003`, left out before: the port's battle begins at once),
     and the times: the port's menu takes the same passes but no time for
     drawing or loading, so a key comes up to 0.54 s apart in the two.
+- The program in the window (2026-10-08, branch `debian/window2`;
+  port/README.md "the program in the window"). Learned: after the menu
+  the original's first `input_mouse` (`S27FE:03D4`, the mouse given to a
+  side's record) sees the pointer the driver's reset put at 319 and
+  gives "right" with `mouse_center` (`S27FE:04D0`, at 20.19 s in the
+  walk `back`); the setup that follows takes 2.75 s and clears the
+  sides' records, so the battle never sees it. The mouse's speeds in a
+  battle are `mouse_speed(0Ah, 0Ah, 0Ah, 0Ah, FA0h, 28h, 28h)` at
+  `S066A:03B1` (and by the options' item `S37FF:0113`, 32h, 0Ah or 3,
+  at `S066A:197A`); the menu's are 10h/20h with steps of 1F4h
+  (`S167A:067E`). The small map is drawn by `S131D:007D` and
+  `S0E56:09AD` (not translated).
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

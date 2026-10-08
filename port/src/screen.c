@@ -17,10 +17,37 @@ static void bios_mode(uint8_t mode)
     mem[0x449] = mode;
 }
 
+void (*screen_hook)(int kind);
+
+/* S2904:000E (pointer_erase(far save)): what under_save kept at `save`
+ * (the screen's offset, the rows, the bytes a row, then the rows) put
+ * back through the latches: the mouse's pointer (DATA:0366) and a side's
+ * cursor on the small map (game_loop) */
+void pointer_erase(Far save)
+{
+    uint16_t es = NW(screen_seg, 0), pitch = NW(screen_pitch, 0), si = save.off, di, rows, n, k;
+
+    di = (uint16_t)(vrb(save.seg, si) | vrb(save.seg, (uint16_t)(si + 1)) << 8);
+    rows = (uint16_t)(vrb(save.seg, (uint16_t)(si + 2)) | vrb(save.seg, (uint16_t)(si + 3)) << 8);
+    n = (uint16_t)(vrb(save.seg, (uint16_t)(si + 4)) | vrb(save.seg, (uint16_t)(si + 5)) << 8);
+    si = (uint16_t)(si + 6);
+    vga_outw(0x3C4, 0x0F02);
+    vga_outw(0x3CE, 0x4105);
+    do {
+        for (k = 0; k < n; k++)
+            vwb(es, di++, vrb(save.seg, si++));
+        di = (uint16_t)(di + pitch - n);
+    } while (--rows);
+    vga_outw(0x3CE, 0x4005);
+}
+
 /* S2945:000A (retrace_wait): until the next vertical retrace begins */
 static void retrace_wait(void)
 {
     uint16_t port = DW(0x0AFD);
+
+    if (screen_hook)
+        screen_hook(SCREEN_RETRACE);
 
     if (vga_inb(port) & 8)
         while (vga_inb(port) & 8)
@@ -274,6 +301,8 @@ void pal_level(uint8_t level, Far pal)
             vga_outb(0x3C9, (uint8_t)((frb(pal.seg, si++) * level >> 8) >> 2));
         }
     }
+    if (screen_hook)
+        screen_hook(SCREEN_PAL_LEVEL);
 }
 
 /* the palette at DATA:04E3 (300h bytes; not a pointer) */

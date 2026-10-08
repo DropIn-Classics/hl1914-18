@@ -148,6 +148,9 @@ void fade_back(Far pal);
 
 /* draw.c */
 void view_draw(uint16_t field, uint16_t side);
+void view_dim(uint16_t side);
+void game_text_at(uint16_t x, uint16_t y, uint16_t n, uint8_t base);
+void num_draw(int16_t value, uint16_t x, uint16_t y);
 void marks_draw(uint16_t field, uint16_t side);
 uint8_t vrb(uint16_t seg, uint16_t off);
 void vwb(uint16_t seg, uint16_t off, uint8_t v);
@@ -202,6 +205,10 @@ int battle_begin(void);
 void view_to_field(uint16_t side, uint16_t field);
 void view_cursor(uint16_t side);
 uint32_t defence_sum(void);
+
+/* save.c */
+uint16_t save_game(Far buf);
+int16_t load_game(Far buf);
 
 /* orders.c */
 void orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result);
@@ -276,10 +283,12 @@ extern int loop_replay;
  * called; it has returned (SideIn's `seeded` and `seed` are read next);
  * the battle's end has shown its texts (loop_end_texts, the first side's
  * and the second's) and waits for a press (wait_press) */
-enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT, LOOP_END, LOOP_QUIT };
+enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT, LOOP_END, LOOP_QUIT, LOOP_SAVE };
 /* LOOP_QUIT: the pass waits for the answer to the question whether to
  * leave the battle; the hook lets the timer's routine run on and sets
  * loop_abort when no answer can come */
+/* LOOP_SAVE: save_game waits for the number's key or the key of entry 0,
+ * the timer's routine going on; loop_abort when none can come */
 extern int loop_abort;
 extern void (*loop_hook)(int at, uint16_t side);
 extern uint16_t loop_end_texts[2];

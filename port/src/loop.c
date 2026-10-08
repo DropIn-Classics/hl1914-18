@@ -748,8 +748,36 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
             fww(S_COMP, A_computer_phase, (uint16_t)(frw(S_COMP, A_computer_phase) | 4));
             fww(S_COMP, (uint16_t)(A_computer_phase + 0x0C), (uint16_t)(frw(S_COMP, (uint16_t)(A_computer_phase + 0x0C)) | 4));
             told = 0;
-        } else if (key && key == key_entry(0x1A))
-            missing = "saving (S066A:3FBD)";
+        } else if (key && key == key_entry(0x1A)) {
+            /* S066A:3FBD: the first side's view drawn, the battle saved
+             * (save_game, the 320h bytes of the colours with it), the
+             * text it returns shown for the first side; 200h in word 4
+             * keeps the key from being taken again for four passes; the view
+             * drawn once more, the pages flipped and the key cleared */
+            uint16_t text;
+            Far rec;
+
+            view_draw(NW(views, 2), 0);
+            marks_draw(NW(views, 2), 0);
+            text = save_game(game_mem.save_buf);
+            if (text == 0xFFFF)
+                missing = "the saved game's number: no key came";
+            else {
+                show_message(text, 0);
+                timer_set(1, 0x19, 0);
+                gs_or(4, 0x200);
+                timer_set(6, 4, 0);
+                view_draw(NW(views, 2), 0);
+                marks_draw(NW(views, 2), 0);
+                page_flip();
+                page_copy();
+                key = 0;
+                rec = far_at(S_DATA, 0x00BE);
+                pwb(rec, 2, 0);
+                pwb(rec, 0, 0);
+                pww(rec, 4, 0);
+            }
+        }
         else if (!told) {
             show_message(0x52, 0);
             show_message(0x3F, 1);
@@ -827,6 +855,149 @@ static void state_end(uint16_t side)
     if (loop_hook)
         loop_hook(LOOP_END, side);
     gs_and(0, 0xFFFD);
+}
+
+/* S2B9B:000A (joy_setup): the joysticks looked for and measured anew:
+ * the words that say which are there (DATA:0384, 0386) and their ranges
+ * cleared, the game port (201h) written and read after two retraces; a
+ * stick whose two axes' bits are 0 then is there and measured
+ * (S2BAD:0006).  The port has no game port: it reads FFh as the runner's
+ * does, no stick is there, and the largest range (DATA:03B6) is 0. */
+static void joy_setup(void)
+{
+    static const uint16_t cleared[] = { 0x0384, 0x0386, 0x0394, 0x0396, 0x03A4, 0x03A6, 0x0398, 0x039A, 0x03A8, 0x03AA };
+    unsigned i;
+
+    for (i = 0; i < sizeof cleared / sizeof cleared[0]; i++)
+        fww(S_DATA, cleared[i], 0);
+    fwb(S_DATA, 0x03B4, 0);
+    fww(S_DATA, 0x03B6, 0);
+}
+
+/* S066A:14BA to 1B17, in each side's part: the keys of entries 0Dh to 14h
+ * of the table of keys (F2 to F9).  The text goes to the first side's
+ * line, to the second's when the first side is the computer's, and stays
+ * 19h passes (timer_set); but for F4 200h in game_state's word 4 keeps
+ * the keys from being taken again for ten passes (timer 6).
+ *   0Fh (F4)  text 59h and the two bytes at S331F:0007 and 0006 as
+ *             numbers behind it
+ *   0Dh (F2)  the music off (text 56h) or on (55h): 40h in game_state;
+ *             only with 10h in its word 2 (there is music).  The port
+ *             makes no sound yet: S2F39:1058 and 0F87 are left out
+ *   0Eh (F3)  the effects off (58h) or on (57h): 80h; only with 20h in
+ *             word 2
+ *   10h, 11h (F5, F6)  the first and the second side's joystick off (65h,
+ *             67h) or on (66h, 68h): words 34h and 36h of the record of
+ *             DATA:009A (DATA:03B8, 03BA), then joy_setup.  F6's text
+ *             always stays by timer 2
+ *   12h (F7)  the mouse off (mouse_hide, mouse_close, 6Ah) or on (69h):
+ *             opened for the first side's input record, with S37FF:0114
+ *             above 0 for the second's, shown, the middle speed
+ *   13h (F8)  with a mouse its speed, S37FF:0113 0 to 2 (6Bh, 6Ch, 6Dh)
+ *   14h (F9)  the fights' pictures: no_fight_pics set gives 72h and both
+ *             it and S37FF:0130 cleared; else with 0130 set 70h and
+ *             no_fight_pics set; else 71h and 0130 set */
+static void setting_keys(void)
+{
+    uint16_t ts = side_word(0) & 2 ? 1 : 0, timer = ts ? 2 : 1, text, opt = S_no_fight_pics;
+    Far joy = far_at(S_DATA, 0x009A), ms = far_at(S_DATA, 0x00C2);
+
+    if (key == key_entry(0x0F)) {
+        show_message(0x59, ts);
+        num_draw(frb(S_game_state, 0x0007), 0x63, 0xBD);
+        num_draw(frb(S_game_state, 0x0006), 0x79, 0xBD);
+        timer_set(timer, 0x19, 0);
+        return;
+    }
+    if (key == key_entry(0x0D)) {
+        if (!(gs(2) & 0x10) || gs(4) & 0x200)
+            return;
+        if (gs(0) & 0x40) {
+            text = 0x56;
+            gs_and(0, 0xFFBF);
+        } else {
+            text = 0x55;
+            gs_or(0, 0x40);
+        }
+    } else if (key == key_entry(0x0E)) {
+        if (!(gs(2) & 0x20) || gs(4) & 0x200)
+            return;
+        if (gs(0) & 0x80) {
+            text = 0x58;
+            gs_and(0, 0xFF7F);
+        } else {
+            text = 0x57;
+            gs_or(0, 0x80);
+        }
+    } else if (key == key_entry(0x10) || key == key_entry(0x11)) {
+        uint16_t second = key != key_entry(0x10), o = second ? 0x36 : 0x34;
+
+        if (gs(4) & 0x200)
+            return;
+        if (pw(joy, o)) {
+            pww(joy, o, 0);
+            text = second ? 0x67 : 0x65;
+        } else {
+            pww(joy, o, 0xFFFF);
+            text = second ? 0x68 : 0x66;
+        }
+        joy_setup();
+        if (second)
+            timer = 2;
+    } else if (key == key_entry(0x12)) {
+        if (gs(4) & 0x200)
+            return;
+        if (pw(ms, 0)) {
+            mouse_hide();
+            mouse_close();
+            text = 0x6A;
+        } else {
+            mouse_open(0, frw(S_DATA, frb(opt, 0x0114) > 0 ? 0x00B6 : 0x00A6), 0);
+            mouse_show();
+            mouse_speed(0x0A, 0x0A, 0x0A, 0x0A, 0xFA0, 0x28, 0x28);
+            ms = far_at(S_DATA, 0x00C2);
+            pww(ms, 0x46, 0xFFFF);
+            text = 0x69;
+        }
+    } else if (key == key_entry(0x13)) {
+        uint8_t n;
+
+        if (gs(4) & 0x200 || !pw(ms, 0))
+            return;
+        n = (uint8_t)(frb(opt, 0x0113) + 1);
+        if (n > 2)
+            n = 0;
+        fwb(opt, 0x0113, n);
+        if (n == 0) {
+            mouse_speed(0x32, 0x32, 0x32, 0x32, 0xFA0, 0x28, 0x28);
+            text = 0x6B;
+        } else if (n == 1) {
+            mouse_speed(0x0A, 0x0A, 0x0A, 0x0A, 0xFA0, 0x28, 0x28);
+            text = 0x6C;
+        } else {
+            mouse_speed(3, 3, 3, 3, 0xFA0, 0x28, 0x28);
+            text = 0x6D;
+        }
+    } else if (key == key_entry(0x14)) {
+        if (gs(4) & 0x200)
+            return;
+        if (NB(no_fight_pics, 0)) {
+            text = 0x72;
+            SETB(no_fight_pics, 0, 0);
+            fwb(opt, 0x0130, 0);
+        } else if (frb(opt, 0x0130)) {
+            text = 0x70;
+            SETB(no_fight_pics, 0, 1);
+        } else {
+            text = 0x71;
+            fwb(opt, 0x0130, 1);
+        }
+    } else
+        return;
+    show_message(text, ts);
+    timer_set(timer, 0x19, 0);
+    gs_or(4, 0x200);
+    timer_set(6, 0x0A, 0);
 }
 
 /* one side's part of a pass (S066A:0F0C to 4399) */
@@ -928,14 +1099,8 @@ static void side_part(uint16_t side, const SideIn *in)
                 break;
             }
         }
-    } else if (key) {
-        static const uint8_t taken[] = { 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14 };
-        unsigned i;
-
-        for (i = 0; i < sizeof taken; i++)
-            if (key == key_entry(taken[i]))
-                missing = "a key of game_loop's table (S066A:14BA to 1C3A)";
-    }
+    } else if (key)
+        setting_keys();
     if (pb(view, 0x17) == 0) {
         Far map = far_at(S_map_cur, A_map_cur);
 

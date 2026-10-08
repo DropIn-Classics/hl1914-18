@@ -16,6 +16,10 @@ the menu N times.  The walks (default: all):
     pages    GAME SETUP and each of its rows chosen once, the other page
              and back (Esc twice), CONTROLS with two rows chosen, MISC,
              the best scores shown and left, then as code57
+    exit     Esc (the exit's page), EXIT TO DOS: the menu returns and
+             the program ends (S066A:4739); a second run is stopped where
+             the end calls its last routine (input_remove, S27FE:0060)
+             and its memory kept too (end.ram)
     back     as code57, then in the battle Esc and the key that confirms
              (the battle is over, the menu again), START once more: the
              menu's second return
@@ -72,6 +76,7 @@ WALKS = {
                (41, 'down'), (42, 'down'), (43, 'down'), (44, 'down'), (45, 'space'), (47, 'space'),
                (50, 'space'), (53, 'esc')] + code57(55), 1, 70, [9, 13, 25, 27, 34, 38, 46, 63]),
     'back': (code57(10) + [(30, 'esc'), (32, 'z'), (50, 'space')], 2, 60, [45]),
+    'exit': ([(10, 'esc'), (12, 'space')], 1, 20, [11]),
 }
 
 for walk in sys.argv[1:] or sorted(WALKS):
@@ -113,6 +118,9 @@ for walk in sys.argv[1:] or sorted(WALKS):
     for t, n in at:
         subprocess.run(['python3', KIT] + a[:a.index('-log')] + ['-until', str(until), '-break', 'S167A:0D3C#%d' % n,
                        '-vram', os.path.join(out, 'shot%s.vram' % t)] + ['HL.EXE'], capture_output=True, text=True, cwd=out)
+    if walk == 'exit':
+        subprocess.run(['python3', KIT] + a[:a.index('-log')] + ['-until', str(until), '-break', 'S27FE:0060',
+                       '-ram', os.path.join(out, 'end.ram')] + ['HL.EXE'], capture_output=True, text=True, cwd=out)
     open(os.path.join(out, 'shots.txt'), 'w').write(' '.join(str(t) for t, n in at) + '\n')
     print('%s: first pass at %s s, %d things came in, the menu returned at %s' %
           (walk, start, len([x for x in acts if not x.endswith(' 0')]), ', '.join(exits) or 'no time'))

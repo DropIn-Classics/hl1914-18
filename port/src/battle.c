@@ -500,8 +500,8 @@ int libs_start(Far *place)
  * of sites_40, fight_rec's routines.  Returns 0, or 2 for a file that
  * cannot be loaded.
  * Left out: S274D:0003 (not with a saved game; shows something before the
- * battle of a map up to 2Fh, not read to its end), the loading of a saved
- * game (200h in game_state) and the music's start (S2F39:0F87). */
+ * battle of a map up to 2Fh, not read to its end) and the music's start
+ * (S2F39:0F87). */
 int battle_begin(void)
 {
     Far st = game_text(A_game_state), rec, p;
@@ -612,6 +612,17 @@ int battle_begin(void)
     SETW(game_state, 0, NW(game_state, 0) | 0xC0);
     fww(S_GAME, 0x17F3, 0);
     SETB(free_depth, 0, 0);
+    /* S066A:0DAF: a saved game (200h in game_state, its number in word 6,
+     * both the menu's) read over what the setup made of the menu's map,
+     * then the grounds and the battle's pictures loaded again for it */
+    if (NW(game_state, 0) & 0x200) {
+        p = game_mem.pics;
+        load_game(game_mem.save_buf);
+        grounds_load(game_mem.pics, game_mem.work);
+        pictures_load(&p, game_mem.work, game_mem.save_buf);
+        game_mem.p = p;
+        SETW(game_state, 0, NW(game_state, 0) & 0xFDFF);
+    }
     /* S066A:0DE8: both views drawn from word 2 of each side's view, their
      * marks, the status lines cleared */
     for (i = 0; i < 2; i++) {

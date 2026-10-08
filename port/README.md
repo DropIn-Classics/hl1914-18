@@ -163,6 +163,26 @@ pass of its loop at or after second T, `-saves DIR` is where a file the program 
 game's folder is never written to. Esc in a battle and the key that
 confirms it now leave the battle (`loop.c`).
 
+2026-10-08, saving and loading (`src/save.c`: `save_game`, `load_game`,
+`save_blocks`, with `view_dim` and `game_text_at` in `src/draw.c`). With
+both sides waiting for the round's end the key of entry 1Ah of the table
+of keys (D) asks for a number: a digit saves the battle under it, the key
+of entry 0 (Esc) leaves. The file is the original's, byte for byte (a
+header of 1Bh bytes and 24 blocks of memory), named as the original
+names it (`03.DAT` for number 3) and kept where the port keeps what the
+program writes (`-saves DIR`, else the port's own folder), never in the
+game's folder. The menu's MISC, LOAD and a digit load it: `battle_begin`
+sets the battle of the menu's map up as before, reads the saved game
+over it (`load_game`) and loads the grounds and the pictures again. A
+saved game is looked for in the port's folder first, then in the game's
+(`host_load`), so one the original wrote into the game's folder loads
+too (not tried). With `-clock FILE` and no `-map` the program now walks
+its menu on its own clock and plays the battle behind it on the
+original's (`play.c`). Not done: nothing of it sounds; on the port's own
+clock saving takes no time (the original's two seconds in the runs were
+the wait for the digit; what its drawing and the file take was not
+measured).
+
 2026-10-08: the battle in the window. In the window build `-map N`
 alone (no key script, `-passes`, `-clock` or `-ram`) plays the battle
 there (`play_live`, `src/play.c`): the port's own clock runs at the
@@ -187,6 +207,23 @@ which lies there itself: the screen stayed black (fixed). Not done: the
 mouse, the sounds, the menu in the window (without `-map` the window
 still shows the text screen), the pictures of events, saving.
 
+2026-10-08, the keys F2 to F9 in a battle (`setting_keys` and
+`joy_setup` in `src/loop.c`, `num_draw` of `src/draw.c` for F4): F2 the
+music and F3 the effects off and on (the bits of `game_state`; the port
+makes no sound yet, so the calls that stop and start the music are left
+out), F4 a text with two numbers, F5 and F6 a side's joystick (no game
+port in the port: the word is switched and no stick found), F7 the mouse
+off and on, F8 its speed in three steps, F9 the three settings of the
+fights' pictures. The play no longer stops at them.
+
+2026-10-08, the program's end: when the menu ends the program (EXIT TO
+DOS on the exit's page) `menu_game` in `src/main.c` does what
+`game_loop` does at `S066A:4739`: the mouse's pointer off, the
+keyboard's interrupt given back, `mem_alloc`'s blocks freed. Left out as
+the machine's part: the screen's old mode, the sound's end, interrupt
+24h and the timer. The window build does not get there yet (its menu is
+not in the window).
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -195,6 +232,7 @@ still shows the text screen), the pictures of events, saving.
     port/build/history-line-headless -game game -map 5 -ram build/map5.ram
     port/build/history-line-headless -game game -map 8 -keys port/tests/keys/m8_site.keys -start 31.1 -seed 563 -passes 2000 -ram build/played.ram
     port/build/history-line-headless -game game -keys build/menu/back/keys.txt -start 8.05 -until 54 -menulog build/menu.log
+    port/build/history-line-headless -game game -keys build/play/m48_save/keys.txt -start 8.05 -clock build/play/m48_save/clock.txt -saves build/saves
 
 Both scripts define `PORT_VERSION` (a string) for the compiler when
 there is a version: the environment's `PORT_VERSION`, else the tag of the
@@ -214,6 +252,73 @@ anything the game needs before the first release.
 (which packages were started from a download, on which systems)
 
 ## Checked
+
+- EXIT TO DOS and the program's end (2026-10-08, macOS): a sixth walk of
+  `tests/menu_dumps.py` and `tests/menu_test.sh`, `exit` (Esc, the button
+  on EXIT TO DOS). What came in is the same (3 things), no byte differs
+  at the menu's return, nor in video memory at the exit's page. A second
+  run of the original is stopped where the end calls its last routine
+  (`input_remove`, `S27FE:0060`) and compared with the port's memory at
+  its end (`-ram`): the game's state, the menu's segment, the count of
+  `mem_alloc`'s blocks (`DATA:0467`, 0 in both) and `game_loop`'s block
+  the same; in the mouse's record 3 bytes of the pointer's place (words
+  10h and 12h) differ and are told apart: `game_loop` opens the mouse
+  again behind the menu, the original's driver then has the pointer in
+  the middle, the port's where the menu left it (the same difference a
+  battle has from its first pass on; `src/mouse.c` was not changed).
+  Not compared: the screen's mode, the vectors and DOS's memory after
+  the end; what `main` does behind `game_loop`'s return.
+
+- The keys F2 to F9 (2026-10-08, macOS): `sh port/tests/fkeys_test.sh
+  dumps` and `sh port/tests/fkeys_test.sh`, as the saving's test (both
+  programs through the menu by keys to map 48, the port's battle on the
+  original's clock), with `tests/keys/m48_fkeys.keys`: F2, F2, F3, F3,
+  F4, F5, F5, F6, F8 three times, F9 three times, F7, two seconds apart.
+  Memory a second after each key: 1,470 parts' inputs and the game's
+  state the same at all 20 passes compared, and of DATA the joysticks'
+  words (0380 to 03BC) and the mouse's record (0414 to 045C but the
+  pointer's place, 0424 to 0428, which differs from the first pass on:
+  the runner's mouse and the one the port's menu left) the same too
+  (`tests/range_cmp.py`). Seen in a first run with F7 pressed twice and
+  left out of the script: when F7 turns the mouse on again, the
+  original's first side reads a direction once (input word 8 in pass 447
+  of that run, where the port's had 0) and its cursor moves a field;
+  that is `input_mouse` (`S27FE:03D4`), which the port does not have.
+  Not compared: the texts as video memory (F4's numbers among them),
+  the sound (F2 stops and starts the music in the original), F2 and F3
+  on a machine without music or effects (10h, 20h of word 2 clear), the
+  keys while 200h is set (pressed again within ten passes), a computer's
+  first side (the text then goes to the second side's line), F6 pressed
+  twice, a joystick that is there, F8 without a mouse.
+
+- Saving and loading (2026-10-08, macOS): `sh port/tests/save_test.sh
+  dumps` runs the original twice through its menu by keys
+  (`tests/play_dumps.py` with `WALK` and `STATE`): `m48_save` (the code
+  of map 48, START, both sides end their half, D and 3 save the battle,
+  later D and Esc leave the saving) and `m48_load` on a folder with the
+  file that run wrote (MISC, LOAD, 3; the second side goes back into its
+  half and ends it again, the F1 pair carries the round out). `sh
+  port/tests/save_test.sh` lets the port's program do the same: its own
+  menu on its own clock, the battle on the original's clock
+  (`-clock`), its own saved game loaded in the second run. Result: the
+  port's `03.DAT` is the original's byte for byte (35,411 bytes); in
+  `m48_save` 1,344 parts' inputs and the game's state the same at all 13
+  passes compared (the passes before, with and after each saving among
+  them: 490 to 492, 497, 600 to 602, 607); in `m48_load` 1,190 parts'
+  inputs and the state the same at all 11 (the loaded battle's passes 1,
+  2, 3, 10, 50, 100, 200, the round's end in 229, 230, 400, 594). Not
+  compared: video memory while the number is asked for (the dark view
+  and the three texts) and after; text 5Ch (the file cannot be made); a
+  file that is not a saved game or ends early; a battle with the
+  computer's side saved and loaded (map 48 is for two humans, so the
+  computer's blocks were written and read but hold nothing in use); a
+  saved game of another map than the menu's (here the menu stood at map
+  0 when map 48's battle was loaded, which is such a case for the state
+  but not for the libraries of pictures a map chooses, which the port
+  does not compare); a game the original saved loaded by the port
+  without the port having written it (the two files are the same bytes).
+  The older tests still pass after the change (`menu_test.sh` all five
+  walks, `play_test.sh` `m8_site`, `m48_two`, `m57_last`).
 
 - The menu (2026-10-08, macOS): `python3 port/tests/menu_dumps.py` runs
   the original with keys that walk its menu and stops it where

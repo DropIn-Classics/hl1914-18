@@ -1,0 +1,10 @@
+# the battle port/tests/keys/m48_save.keys saved, loaded from the menu
+# (both sides have ended their half): the second side's button takes it
+# back into its half, it ends it again, then the F1 pair
+30.00 lalt
+33.00 lalt+
+33.30 x+
+33.70 lalt-
+33.90 x-
+37.00 f1
+38.00 f1

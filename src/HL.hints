@@ -904,12 +904,73 @@ name S066A:000D game_loop
 ; 03.DAT into the state folder. The D key (entry 1Ah of the key table) is
 ; compared at S066A:3FA7, reached while the other side's state byte is 5 and
 ; the key is not F1; the routine's result is the number of the text shown.
+; Read whole and translated (port/src/save.c; port/tests/save_test.sh: the
+; file the port writes is the original's byte for byte):
+; save_game(far buffer of 320h bytes): view_dim(0), the texts 1Eh, 1Dh and
+; 1Ch on the dark view (game_text_at, colours of amok_dat's byte 0Dh), the pages
+; flipped; then a loop without a wait that reads the key's record (byte 0
+; of DATA:00BE's, which the timer's routine fills): scancode 2 to 0Ah is
+; the number 1 to 9, 0Bh the number 0, the key of entry 0 returns 5Ah at
+; once (the view stays dark until game_loop draws it). The record's byte 0
+; is cleared, the file made (file_name(2, -1, num_text(number, num_buf, 2,
+; 4), 5), file_open with 1; 5Ch when it cannot be), the header of 1Bh bytes
+; put together in the first side's work buffer (the far pointer at sides +
+; 0Dh) and written, save_blocks' list written over it there and each block
+; written, the file closed, the view drawn again; 5Bh. S1571:0426, called
+; with 2 before and 1 after the file's work, does nothing.
+; game_loop (S066A:3FBD) then shows the text for the first side
+; (timer_set(1, 19h)), sets 200h in game_state's word 4 for four passes
+; (timer_set(6, 4)), draws the view once more and clears the key.
 name S1273:0005 save_game
 ; Loading: called at the start of game_loop when bit 200h of S331F:4CA4 is
 ; set; a run that chose MISC, LOAD and the digit continued the saved battle.
-; That this routine reads the file is read from its code (it calls
-; file_open), not shown by a breakpoint.
+; Read whole and translated (port/src/save.c; the loaded battle compared
+; pass by pass, port/tests/save_test.sh):
+; load_game(far buffer of 320h bytes): the file of the number in
+; game_state's word 6 opened (FFFFh when it is not there), 1Bh bytes read
+; into the first side's work buffer (file_read); bytes 0 and 1 must be 0
+; and 7, else FFFFh; the header's fields put back where save_game took
+; them from, save_blocks' list made in the buffer and each block read to
+; its place. Bits 40h and 80h of game_state are cleared when 10h or 20h
+; of its word 2 was not set before the blocks were read (no music, no
+; effects on this machine); 0. game_loop ignores the result, loads the
+; grounds and the battle's pictures again and clears 200h.
 name S1273:0399 load_game
+; view_dim(side): the 9 by 7 fields of the side's view, as view_draw
+; places them, each through mark_blit(x, y, 0, 5Fh, 90h): the view made
+; dark behind save_game's texts. Read, translated (port/src/draw.c); the
+; picture was not compared as video memory.
+name S131D:13A6 view_dim
+; game_text_at(x, y, number, colour): the text of that number (the table of
+; word offsets S331F:17BA points to) by text_draw with a line's height of
+; 6. Translated (port/src/draw.c).
+name S1571:00BE game_text_at
+; file_read(dword handle, far buffer, dword length): INT 21h AH=3Fh in
+; pieces of at most 8000h bytes, as file_write; FFFFh:FFFFh when a piece
+; comes short. Read from the code; load_game's only way of reading.
+name S2B87:000C file_read
+; The program's end, S066A:4739 (game_loop with 1 clear in game_state):
+; mouse_hide, key_remove, S2B7F:000E (INT 10h with bios_mode_old when it is
+; not 0), S2CC9:0002 (frees each block of mem_alloc's list at DATA:0469 by
+; INT 21h AH=49h and clears their count at DATA:0467), S2F39:0092 (the
+; sound's end, not read further), input_remove; returns [BP-26h]. Read;
+; the port's menu_game (port/src/main.c) does it but for the machine's
+; part; compared by port/tests/menu_test.sh exit.
+; joy_setup(): clears the words that say which joysticks are there
+; (DATA:0384, 0386), their bits (03B4) and ranges, writes the game port
+; (201h), waits two retraces and reads it: a stick whose axes' bits (3,
+; 0Ch) are 0 is there (FFFFh in its word) and measured by S2BAD:0006 (not
+; read); DATA:03B6 gets the largest range. Called at the start and by
+; game_loop for F5 and F6. Translated for a machine without a game port
+; (port/src/loop.c): on the runner the port reads FFh, no stick.
+name S2B9B:000A joy_setup
+; game_loop's keys F2 to F9 (S066A:14BA to 1B17, the entries 0Dh to 14h of
+; the table of keys, tested in each side's part): read, translated
+; (setting_keys in port/src/loop.c, what each does is listed there) and
+; compared (port/tests/fkeys_test.sh). The words F5 and F6 switch are 34h
+; and 36h of the record DATA:009A points to, which is DATA:0384: so
+; DATA:03B8 and 03BA, the words the timer's routine tests with 0384 and
+; 0386 before it reads a stick.
 
 ; First instruction starts observed outside decoded code in runs of 1800 s
 ; with a mode change every few seconds (rounds 4 and 5 reached).
@@ -976,8 +1037,10 @@ code S30EF:183B
 ; Fills a list of 24 entries (far pointer, dword length) with what a saved
 ; game holds after its header; save_game writes them in order (read from the
 ; code; their lengths add up to the size of a file a run wrote; the list is
-; in tools/savfiles.py and docs/HANDOFF.md). Presumably load_game uses it
-; too (it is called from two places; not read).
+; in tools/savfiles.py and docs/HANDOFF.md). load_game reads them back by
+; the same list. save_blocks(far list, far buffer of 320h bytes): the
+; buffer is the seventh block (game_loop's, which pictures_load fills with
+; the colours). Translated (port/src/save.c).
 name S1273:0662 save_blocks
 
 ; Where three data files lie in memory: a -ram dump after 300 s of play holds

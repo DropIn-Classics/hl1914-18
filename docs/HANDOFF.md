@@ -3221,9 +3221,10 @@ emulation error (2026-10-02).
     country's with the flags, the best scores, the code while it is
     typed); a winner's name and the file of scores written (`file_save`;
     translated, run in no walk: no script on the port's own clock wins
-    a battle yet), a saved game's number (translated, not run; loading
-    is not translated, the program stops there), EXIT TO DOS
-    (translated, not run), the program's end behind it (`S066A:4739`),
+    a battle yet), a saved game's number (translated, not run then; since
+    run and loading translated, see "Saving and loading" below), EXIT TO DOS
+    (translated, not run), the program's end behind it (`S066A:4739`; both run and compared since,
+    see "The program's end and the briefing" below),
     the menu without a mouse (not translated), a click or a moved mouse
     (the port has no mouse of the player's yet), the country left by
     Esc, a code that is not one, the backspace, a picture cut by the
@@ -3233,6 +3234,90 @@ emulation error (2026-10-02).
     (`S274D:0003`, left out before: the port's battle begins at once),
     and the times: the port's menu takes the same passes but no time for
     drawing or loading, so a key comes up to 0.54 s apart in the two.
+- Saving and loading, read whole and translated (2026-10-08, Mac;
+  `save_game`, `load_game`, `save_blocks` in src/HL.hints with what each
+  does; `port/src/save.c`). Learned:
+  - `save_game` asks for the number in a loop of its own that only reads
+    byte 0 of the key's record (scancodes 2 to 0Bh are 1 to 9 and 0; the
+    key of entry 0 leaves with text 5Ah and the view still dark), so the
+    timer's routine is all that runs meanwhile. The header is built in
+    the first side's work buffer (the far pointer at `sides` + 0Dh), and
+    `save_blocks` writes its list of 24 blocks over it there: after a
+    saving that buffer holds the list (C0h bytes).
+  - The seventh block (320h bytes) is the buffer `game_loop` hands to
+    `pictures_load` for the colours: the saved game holds the palette.
+    The list has `S331F:4C9E` (the map's three words, 6 bytes) between
+    the two views and `field_bits`; the list in the bullet "The saved
+    game's layout" above leaves it out, `tools/savfiles.py` has it.
+  - The two blocks of 1806h bytes are the maps with what lies behind
+    them in `game_loop`'s block: beyond `map_bytes` they hold what the
+    menu's files left there. So a saved game is only the same in two
+    programs that went through the same menu; the port started with
+    `-map` writes other bytes there (3,111 and 4,998 of them in the
+    first try) and no map's code in the header.
+  - `load_game` is called after the whole setup of the map the menu
+    stood at, reads the blocks over it, and `game_loop` then loads the
+    grounds and the pictures again. It clears the music's and effects'
+    bits (40h, 80h of `game_state`) when this machine has neither (10h,
+    20h of word 2 before the load). Its result is ignored: a number
+    without a file gives the menu's map from its beginning (the menu
+    looks for the file before it sets 200h, so that is not reached from
+    there).
+  - `S1571:0426`, called around the file's work, is empty.
+  - For the comparison the port's program had to go through its menu and
+    then play on the original's clock; the timer's routine fills the
+    sides' records on every fourth call, so which of the four it is at
+    (`DATA:0B19`) must be the original's at the battle's first pass
+    (`play_begin` sets it from the log's calls; the menu on the port's
+    own clock leaves another, seen as a button read three passes early).
+  - Compared (`sh port/tests/save_test.sh`, port/README.md "Checked"):
+    the file byte for byte, the passes around the saving and a loaded
+    battle through a round's end. Not compared or reached: listed there.
+- The keys F2 to F9 translated and compared (2026-10-08, Mac;
+  `setting_keys` in `port/src/loop.c`, `sh port/tests/fkeys_test.sh`).
+  What the reading of 2026-10-04 above guessed is confirmed or put
+  right: F7 and F8 are the mouse (off and on; its speed, `S37FF:0113`,
+  through `mouse_speed` with 32h, 0Ah or 3); F5 and F6 switch
+  `DATA:03B8` and `03BA` (a side's joystick wanted) and call `joy_setup`
+  (`S2B9B:000A`), which looks for the sticks anew, so without a game port
+  the text says "on" at every press; F4 has no 200h test and so runs in
+  both sides' parts of every pass while its key is the pass's; F6's text
+  always stays by timer 2. F9: `no_fight_pics` set gives text 72h and
+  clears it and `S37FF:0130`; else `0130` set gives 70h and sets
+  `no_fight_pics`; else 71h and `0130` set. The mouse turned on again by
+  F7 gives the first side a direction once in the original (the driver's
+  pointer after its reset against the middle, presumably; `input_mouse`,
+  `S27FE:03D4`, is not translated).
+- The program's end and the briefing (2026-10-08, Mac).
+  - `S066A:4739`, reached when 1 is clear in `game_state` behind the
+    menu or a battle (EXIT TO DOS sets 100h and clears 1 and 2):
+    `mouse_hide`, `key_remove`, `S2B7F:000E` (the BIOS's mode of
+    `bios_mode_old` set again when it is not 0), `S2CC9:0002` (each
+    block of `mem_alloc`'s list at `DATA:0469` freed, INT 21h AH=49h, the
+    count at `DATA:0467` 0), `S2F39:0092` (the sound's end; not read
+    further), `input_remove`; `game_loop` returns its word [BP-26h] (7Bh
+    after the last battle won). Translated but for the machine's part
+    and compared (`menu_test.sh exit`, port/README.md).
+  - The mouse's pointer: `game_loop` calls `mouse_open` again each time
+    the menu returns; the runner's driver then has the pointer in the
+    middle (A0h in word 10h of the record), the port's driver keeps the
+    place the menu left. Seen as 3 bytes at the program's end and in
+    every battle from its first pass (`DATA:0424` to `0426`). For
+    whoever gives the port the player's mouse (`port/src/mouse.c`).
+  - The briefing (`S274D:0003`, called with the map's number and two far
+    pointers unless a saved game is loaded) is still not read to its end
+    and not translated. Its outline from the generated source: it loads
+    a file and a picture (`file_load_size`, `lbm_show`), libraries
+    (`lib_load`, `lib_read`), starts and stops music (`S2F39:0F87`,
+    `1058`), draws many texts (`text_draw`, with `L2488` and `L2B15`
+    before them, presumably a number put into a text and texts joined;
+    not read), steps the colours (`pal_level`) and calls
+    `inputs_release`. One run only timed it: START on map 0 with the
+    first country, no key after the country's (13 s): the routine was
+    entered at 16.66 s and the battle's first pass began at 18.42 s, and
+    the screen at 19 s was the battle's. So on map 0 it did not wait for
+    a key there; whether it showed anything, and on which maps it
+    waits, is not known.
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

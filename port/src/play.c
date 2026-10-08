@@ -49,6 +49,8 @@
  *                       battle's end) has cleared the first record's
  *                       button and the key
  *       TIME L          S066A:45E8, the loop is left
+ *       TIME B          S063F:0009, battle_score is called behind the loop
+ *       TIME M          S066A:4728, what follows the loop is done
  *   The port's own keys, timer routine and passes are run in that order.
  *   S, R, W and X count from attacks_run's call to its last such line in
  *   the side's part (the pictures and waits of a round's end, which the
@@ -628,6 +630,8 @@ static void clock_run(long to, int round)
             fww(k.seg, (uint16_t)(k.off + 4), 0);
             break;
         case 'L':
+        case 'B':
+        case 'M':
             break;
         default:
             play_misses++;
@@ -849,6 +853,48 @@ void play_sync(void)
         clock_run(i, 0);
         clk_at = i;
     }
+}
+
+static void after_hook(uint16_t picture, uint16_t arg)
+{
+    if (ends) {
+        fprintf(ends, "after %X %X\n", (unsigned)picture, (unsigned)arg);
+        fflush(ends);
+    }
+}
+
+/* what follows the loop once the battle is over (battle_after); its
+ * pictures go into the ends' file as "after KIND ARGUMENT".  On the
+ * original's clock the log's lines up to battle_score's call come first,
+ * with what the picture before it did to the random numbers, and the
+ * rest up to S066A:4728 after (the calls of rand_next there are
+ * battle_score's own).  The pictures take no time here. */
+uint16_t play_after(void)
+{
+    uint16_t r;
+    long i;
+
+    battle_hook = after_hook;
+    if (have_clock) {
+        for (i = clk_at; i < clk_n && clk[i].kind != 'B' && clk[i].kind != 'M'; i++)
+            ;
+        if (i < clk_n) {
+            clock_run(i, 1);
+            clk_at = i;
+        } else
+            play_misses++;
+    }
+    r = battle_after();
+    if (have_clock) {
+        for (i = clk_at; i < clk_n && clk[i].kind != 'M'; i++)
+            ;
+        if (i < clk_n) {
+            clock_run(i, 0);
+            clk_at = i;
+        } else
+            play_misses++;
+    }
+    return r;
 }
 
 /* one pass; NULL, or why the battle does not go on */

@@ -186,9 +186,9 @@ if os.path.exists(epath):
     ea = [l.split()[:4] for l in open(epath).read().split('\n')[:-1]]
     eb = [l.split()[:4] for l in open(os.path.join(out, '%s_ends.txt' % ('o' if own else 'q'))).read().split('\n')[:-1]]
     if own:
-        ea, eb = [l[1:] for l in ea], [l[1:] for l in eb]
+        ea, eb = [l[l[0] != 'after':] for l in ea], [l[l[0] != 'after':] for l in eb]
     print('the battle\'s end: shown %d times by the original, %d by the port (pass, side, the first side\'s '
-          'text, the second\'s)%s' % (len(ea), len(eb), '' if ea == eb else ', DIFFERENT'))
+          'text, the second\'s; behind the loop the pictures\' kinds and arguments)%s' % (len(ea), len(eb), '' if ea == eb else ', DIFFERENT'))
     for l in ea if ea == eb else ['original ' + ' '.join(x) for x in ea] + ['port ' + ' '.join(x) for x in eb]:
         print('  ' + (l if isinstance(l, str) else ' '.join(l)))
     if ea != eb and not own:

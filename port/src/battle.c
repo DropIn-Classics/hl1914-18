@@ -141,6 +141,107 @@ int menu_result(uint16_t map)
     return 0;
 }
 
+void (*battle_hook)(uint16_t picture, uint16_t arg);
+
+/* S167A:3610 (scores_load): the map's four best scores, dwords at buf,
+ * and their names of six bytes from buf + 10h on: zeros and four times
+ * the name given, then the map's file of scores loaded over them (it
+ * need not be there: the word behind DATA:0096 is 0 meanwhile) */
+static void scores_load(Far buf, Far work, int16_t map, Far name)
+{
+    Far err = far_at(S_DATA, 0x0096);
+    uint16_t i, j;
+
+    for (i = 0; i < 4; i++) {
+        fww(buf.seg, (uint16_t)(buf.off + 4 * i), 0);
+        fww(buf.seg, (uint16_t)(buf.off + 4 * i + 2), 0);
+        for (j = 0; j < 6; j++)
+            pwb(buf, (uint16_t)(0x10 + 6 * i + j), pb(name, j));
+    }
+    fww(err.seg, err.off, 0);
+    file_load(buf, file_name(2, 1, num_text(map, game_text(0x177C), 2, 4), 0x0B), work);
+    fww(err.seg, err.off, 1);
+}
+
+/* S063F:0009 (battle_score), behind game_loop's loop: the map's number
+ * kept in game_state's word 0Fh, 1F4h more score for a side left without
+ * units (2000h), the next map and whether this was the last (20h) when a
+ * human has won (10h), else no score; a score above the lowest of the
+ * map's four best draws a random number, which in three of eight cases
+ * chooses a picture (battle_hook; not shown here) */
+static void battle_score(Far work)
+{
+    Far codes = far_add(work, 0x2710), best = far_add(work, 0x2710 + 0x3E8), name;
+    int32_t score, low = 0x7EF4;
+    uint16_t i, map, t;
+
+    if (NW(round_count, 0) < 1)
+        return;
+    name.seg = S_OPT;
+    name.off = 0x009E;
+    codes = file_load(codes, file_name(1, -1, name, 5), work);
+    if (!(codes.seg | codes.off))
+        return;
+    map = NW(map_number, 0);
+    SETW(game_state, 0x0F, map);
+    score = (int32_t)(NW(score, 0) | (uint32_t)NW(score, 2) << 16);
+    if (NW(game_state, 0) & 0x2000)
+        score += 0x1F4;
+    if (NW(game_state, 0) & 0x10) {
+        SETW(map_number, 0, map + pb(far_add(codes, (uint32_t)((int32_t)(int16_t)map * 10)), 7));
+        if (pb(far_add(codes, (uint32_t)((int32_t)(int16_t)map * 10)), 8) & 1)
+            SETW(game_state, 0, NW(game_state, 0) | 0x20);
+    } else
+        score = 0;
+    SETW(score, 0, score);
+    SETW(score, 2, (uint32_t)score >> 16);
+    if (score <= 0)
+        return;
+    name.seg = S_MAIN;
+    name.off = 0;
+    scores_load(best, work, (int16_t)map, name);
+    for (i = 0; i < 4; i++) {
+        int32_t v = (int32_t)(pw(best, (uint16_t)(4 * i)) | (uint32_t)pw(best, (uint16_t)(4 * i + 2)) << 16);
+
+        if (v < low)
+            low = v;
+    }
+    if (score <= low)
+        return;
+    t = NW(views, 0x22);
+    i = (uint16_t)rand_next() & 7;
+    if (i < 3 && battle_hook)
+        battle_hook(t == 0x0F || t == 0x11 ? 0xCE : 0xCF, i);
+}
+
+/* game_loop behind its loop, S066A:45E8 to 4728: with 10h in game_state
+ * (a human has won) the picture D0h, or CDh when a side was left without
+ * units (2000h), for the side whose view has 0Fh in word 22h (the first,
+ * else the second); battle_score; with one side the computer's below map
+ * 30h the picture whose number is the map's (the one before it when the
+ * battle was won, 6000h, and battle_score went on to the next; the map's
+ * own after the last, 20h); after the last map 100h is set and 1 and 2
+ * cleared, which ends the program with 7Bh; 6030h cleared.  Returns that
+ * 7Bh or 0.  The pictures are not shown (battle_hook is told each); left
+ * out too: the music's end (S2F39:1058), fade_out and S2AF3:000A. */
+uint16_t battle_after(void)
+{
+    uint16_t result = 0, gs = NW(game_state, 0);
+
+    if (gs & 0x10 && battle_hook)
+        battle_hook(gs & 0x2000 ? 0xCD : 0xD0, NW(views, 0x22) == 0x0F ? 0 : 1);
+    battle_score(game_mem.lists_end);
+    gs = NW(game_state, 0);
+    if (!(NW(game_state, 2) & 2) && (int16_t)NW(map_number, 0) < 0x30 && battle_hook)
+        battle_hook(gs & 0x6000 && !(gs & 0x20) ? NW(map_number, 0) - 1 : NW(map_number, 0), 0);
+    if (gs & 0x20) {
+        result = 0x7B;
+        gs = (gs | 0x100) & 0xFFFC;
+    }
+    SETW(game_state, 0, gs & 0x9FCF);
+    return result;
+}
+
 /* game_loop from S066A:0417 to S066A:0938: shares the block out (the
  * buffer save_game uses, the two 82h blocks, the two maps, a place for a
  * file of texts, each side's lists) and loads the battle's files: the

@@ -389,6 +389,24 @@ anything the game needs before the first release.
   the new lines) and `loop_test.sh` say the same as before. Not
   checked: the wait on the port's own clock (it stops the play when
   the key script has no key left), the texts 41h and 42h, the pixels.
+  What follows the loop (2026-10-08, macOS): `battle_after` and
+  `battle_score` in `src/battle.c` (`S066A:45E8` to `4728`,
+  `S063F:0009`): the map's number kept, the score, the next map, the
+  last map's mark and result 7Bh, the map's four best scores loaded and
+  the random number that chooses a picture when the score is among
+  them; the pictures themselves, the sound and the colours are left
+  out (`battle_hook` is told each picture). The program's play calls it
+  when the battle is over and says so; the menu that follows in the
+  original is not translated. `play_dumps.py` logs the original's
+  pictures behind the loop into `ends.txt` and dumps its memory at
+  `S066A:4728` (the pass after the one after the last; a run has to
+  last long enough: `m54_end.keys 350`), the port's `-dump` of that
+  number is its memory after `battle_after`. `m54_end` on the
+  original's clock: pictures D0h with 1 and CFh with 2 by both, the
+  game's state and the computer's the same at all 34 passes compared,
+  that one included (elsewhere 123,149 bytes there: the pictures).
+  Not checked: any other way through it (a side left without units, a
+  computer's side, the last map, a score below the map's best).
   Not reached: a unit destroyed, a site other than a headquarters
   taken, an end by a side left without units, what follows the loop,
   moving out, a carrier, the function keys, the other maps for two

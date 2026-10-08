@@ -2840,6 +2840,59 @@ emulation error (2026-10-02).
       in the port; 214 clearings in the two waits. Not verified: the
       wait on the port's own clock (no script reaches a battle's end
       there), the texts 41h and 42h in a run, the texts as pixels.
+    - What follows the loop (2026-10-08, Mac; `S066A:45E8` to `4728`
+      and `S063F:0009`, now `battle_score`, with `S167A:3610`,
+      `scores_load`, read; `m54_end` run on to 350 s). All of the
+      program is `game_loop`: the menu is its call of `S167A:0005` at
+      `S066A:0349`, and behind the loop it goes back there unless the
+      last map was won. In order: with 40h in `game_state`
+      `S2F39:1058(4)` (presumably the music's end; not read),
+      `fade_out`, `S2AF3:000A`; with 10h (a human has won)
+      `event_picture` with D0h, or CDh when 2000h is set (a side left
+      without units), and the side whose view has 0Fh (the first, else
+      the second); `battle_score`; with one side the computer's and a
+      map below 30h `event_picture` with the map's number as its kind
+      (the number before `battle_score` moved it on when 6000h is set;
+      presumably the newspaper; not seen here); with 20h (the last map
+      won) the result 7Bh, 100h set and 1 and 2 cleared; 6030h
+      cleared; then with 1 still set back to `S066A:0349` (1 set
+      again, 10h cleared, `inputs_release`, the menu), else the
+      program's end with the result. `battle_score` does nothing in
+      round 0; it loads `CODES.DAT` again, keeps the map's number in
+      word 0Fh of `game_state` (the pass's least length, no longer
+      needed), adds 1F4h to `score` (`S331F:4D2F`, `defence_sum`'s
+      result of the last round's end) with 2000h, and with 10h moves
+      `map_number` on by byte 7 of the map's record and sets 20h when
+      the record's byte 8 has 1; without 10h the score becomes 0. A
+      score above 0 is compared with the lowest of the map's four best
+      (`scores_load`: the file of `file_name(2, 1, two digits, 0Bh)`,
+      zeros when it is not there, never above 7EF4h): when higher,
+      `rand_next`'s low three bits below 3 choose one of three
+      pictures of kind CEh (the first view has 0Fh or 11h) or CFh.
+      That the menu then asks for the name is the menu's doing (its
+      screen "PLEASE ENTER YOUR NAME !" at 350 s), not read.
+    - Seen in `m54_end`: the loop left at 305.07 s, picture D0h for
+      side 1 from 306.09 s to 321.63 s (men with raised arms before a
+      building), `battle_score` with the score 0AE3h, one `rand_next`,
+      picture CFh with 2 to 345.32 s, `S066A:4728`, `0349`, the menu
+      at 345.49 s. `map_number` was 36h and is 37h there (byte 7 of
+      the record is 1).
+    - The port: `battle_after` and `battle_score` (`port/src/battle.c`)
+      do this but for the pictures, the sound and the colours; each
+      picture is told to `battle_hook`. `play.c` calls it once the
+      battle is over (`play_after`; on the original's clock the log's
+      lines `B`, `battle_score`'s call, and `M`, `S066A:4728`, bound
+      it), `-ends` gets "after KIND ARGUMENT" a picture, and
+      `play_dumps.py` dumps the original's memory at `S066A:4728` as
+      the pass after the one after the last. `m54_end`: the pictures
+      D0h with 1 and CFh with 2 in both, the game's state and the
+      computer's (with `rand_words`) the same there. The files lie in
+      the sides' work buffers (`CODES.DAT` in the second side's, the
+      scores behind it, the first side's as `file_load`'s work), which
+      are compared. Not translated: the menu, so the port's play ends
+      here; the pictures and their time. Not seen in a run: CDh, CEh,
+      a map for one player's picture, the last map (7Bh), a score not
+      above the lowest, a file of scores that is there.
     Not reached with two human sides: a carrier, the keys F2 to F9, a
     unit destroyed, a site other than a headquarters taken, a battle
     ended by a side with no unit left, what follows the loop (the

@@ -153,6 +153,10 @@ extern GameMem game_mem;
 int start_setup(void);
 int menu_result(uint16_t map);
 int battle_setup(void);
+/* called by battle_after for each picture the original shows there
+ * (event_picture's kind and its last argument) */
+extern void (*battle_hook)(uint16_t picture, uint16_t arg);
+uint16_t battle_after(void);
 int battle_begin(void);
 void view_to_field(uint16_t side, uint16_t field);
 void view_cursor(uint16_t side);
@@ -257,6 +261,7 @@ void play_ends(const char *path);
 void play_bios(uint32_t ticks);
 void play_begin(double start);
 void play_sync(void);
+uint16_t play_after(void);
 const char *play_pass(void);
 extern unsigned long play_passes, play_misses;
 

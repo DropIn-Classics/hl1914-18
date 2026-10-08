@@ -271,7 +271,14 @@ static int play_game(unsigned long passes, double start, double until, int clock
         if (play_passes >= passes || (until > 0 && play_now() >= until))
             break;
         if (!(NW(game_state, 0) & 2)) {
-            why = "the battle is over";
+            /* what follows the loop; a dump of the pass after the one
+             * after the last is the memory then (S066A:4728) */
+            uint16_t r = play_after();
+
+            for (i = 0; i < dumps_n; i++)
+                if (dumps[i].pass == play_passes + 2 && rm_write(dumps[i].file) != 0)
+                    ok = 0;
+            why = r ? "the battle is over, and it was the last (7Bh)" : "the battle is over";
             break;
         }
         why = play_pass();

@@ -1551,8 +1551,14 @@ name S0CB6:05F1 side_input
 ; view_draw(field, side): draws the 9 by 7 fields of a view from field
 ; (grounds by S331F:0153, units by S331F:013F through S2931:000E); a
 ; foreign unit with 2 in word 6 is not drawn. Presumably draws only (no
-; write to the game's state seen); the name is a guess.
+; write to the game's state seen); the name is a guess. Read whole: the
+; field is a byte offset in the map (two bytes a field), the second side
+; draws from map2_ptr at x A0h; the unit's picture is byte 0Fh + side of
+; its record plus 6 times byte 8, colours 30h with bit 0 of word 4, else
+; 20h. Translated (port/src/draw.c), compared on four calls (port/README.md).
 name S0E56:0D44 view_draw
+comment S290A:0006 ground_blit(x, y, far src): a field's ground, 16 by 24, copied in write mode 1 from video memory at src, then the hexagon's edge pixels plane by plane. Translated (port/src/draw.c).
+comment S2931:000E unit_blit(x, y, colour base, far src): a unit's 24 by 24 picture, 4 bits a pixel from src+12h, plane by plane; byte 8 of src the transparent value; keeps the plane mask and that byte at S2931:00F8/00F9. Translated (port/src/draw.c).
 ; marks_draw(field, side): the view's fields' marks in field_bits (55h
 ; for the first side, AAh for the second) drawn through S0E56:24ED.
 ; Presumably draws only; the name is a guess.

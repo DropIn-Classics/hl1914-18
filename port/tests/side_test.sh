@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 CC=${CC:-cc}
 RT=../doskit/runtime
 mkdir -p build
-$CC -O2 -Wall -Wextra -I$RT -Isrc -o build/side_test tests/side_test.c src/side.c src/units.c src/range.c src/battle.c src/pictures.c src/map.c src/files.c src/names.c src/fight.c src/move.c src/mem.c $RT/rmem.c $RT/vga.c $RT/sha256.c $RT/sys.c
+$CC -O2 -Wall -Wextra -I$RT -Isrc -o build/side_test tests/side_test.c src/side.c src/units.c src/range.c src/battle.c src/pictures.c src/screen.c src/draw.c src/map.c src/files.c src/names.c src/fight.c src/move.c src/mem.c $RT/rmem.c $RT/vga.c $RT/sha256.c $RT/sys.c
 if [ $# -gt 0 ]; then
     exec build/side_test "$@"
 fi

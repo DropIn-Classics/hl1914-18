@@ -207,6 +207,15 @@ which lies there itself: the screen stayed black (fixed). Not done: the
 mouse, the sounds, the menu in the window (without `-map` the window
 still shows the text screen), the pictures of events, saving.
 
+2026-10-08, the keys F2 to F9 in a battle (`setting_keys` and
+`joy_setup` in `src/loop.c`, `num_draw` of `src/draw.c` for F4): F2 the
+music and F3 the effects off and on (the bits of `game_state`; the port
+makes no sound yet, so the calls that stop and start the music are left
+out), F4 a text with two numbers, F5 and F6 a side's joystick (no game
+port in the port: the word is switched and no stick found), F7 the mouse
+off and on, F8 its speed in three steps, F9 the three settings of the
+fights' pictures. The play no longer stops at them.
+
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
@@ -235,6 +244,28 @@ anything the game needs before the first release.
 (which packages were started from a download, on which systems)
 
 ## Checked
+
+- The keys F2 to F9 (2026-10-08, macOS): `sh port/tests/fkeys_test.sh
+  dumps` and `sh port/tests/fkeys_test.sh`, as the saving's test (both
+  programs through the menu by keys to map 48, the port's battle on the
+  original's clock), with `tests/keys/m48_fkeys.keys`: F2, F2, F3, F3,
+  F4, F5, F5, F6, F8 three times, F9 three times, F7, two seconds apart.
+  Memory a second after each key: 1,470 parts' inputs and the game's
+  state the same at all 20 passes compared, and of DATA the joysticks'
+  words (0380 to 03BC) and the mouse's record (0414 to 045C but the
+  pointer's place, 0424 to 0428, which differs from the first pass on:
+  the runner's mouse and the one the port's menu left) the same too
+  (`tests/range_cmp.py`). Seen in a first run with F7 pressed twice and
+  left out of the script: when F7 turns the mouse on again, the
+  original's first side reads a direction once (input word 8 in pass 447
+  of that run, where the port's had 0) and its cursor moves a field;
+  that is `input_mouse` (`S27FE:03D4`), which the port does not have.
+  Not compared: the texts as video memory (F4's numbers among them),
+  the sound (F2 stops and starts the music in the original), F2 and F3
+  on a machine without music or effects (10h, 20h of word 2 clear), the
+  keys while 200h is set (pressed again within ten passes), a computer's
+  first side (the text then goes to the second side's line), F6 pressed
+  twice, a joystick that is there, F8 without a mouse.
 
 - Saving and loading (2026-10-08, macOS): `sh port/tests/save_test.sh
   dumps` runs the original twice through its menu by keys

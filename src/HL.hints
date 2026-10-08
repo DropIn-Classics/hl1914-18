@@ -949,6 +949,21 @@ name S1571:00BE game_text_at
 ; pieces of at most 8000h bytes, as file_write; FFFFh:FFFFh when a piece
 ; comes short. Read from the code; load_game's only way of reading.
 name S2B87:000C file_read
+; joy_setup(): clears the words that say which joysticks are there
+; (DATA:0384, 0386), their bits (03B4) and ranges, writes the game port
+; (201h), waits two retraces and reads it: a stick whose axes' bits (3,
+; 0Ch) are 0 is there (FFFFh in its word) and measured by S2BAD:0006 (not
+; read); DATA:03B6 gets the largest range. Called at the start and by
+; game_loop for F5 and F6. Translated for a machine without a game port
+; (port/src/loop.c): on the runner the port reads FFh, no stick.
+name S2B9B:000A joy_setup
+; game_loop's keys F2 to F9 (S066A:14BA to 1B17, the entries 0Dh to 14h of
+; the table of keys, tested in each side's part): read, translated
+; (setting_keys in port/src/loop.c, what each does is listed there) and
+; compared (port/tests/fkeys_test.sh). The words F5 and F6 switch are 34h
+; and 36h of the record DATA:009A points to, which is DATA:0384: so
+; DATA:03B8 and 03BA, the words the timer's routine tests with 0384 and
+; 0386 before it reads a stick.
 
 ; First instruction starts observed outside decoded code in runs of 1800 s
 ; with a mode change every few seconds (rounds 4 and 5 reached).

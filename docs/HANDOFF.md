@@ -3272,6 +3272,21 @@ emulation error (2026-10-02).
   - Compared (`sh port/tests/save_test.sh`, port/README.md "Checked"):
     the file byte for byte, the passes around the saving and a loaded
     battle through a round's end. Not compared or reached: listed there.
+- The keys F2 to F9 translated and compared (2026-10-08, Mac;
+  `setting_keys` in `port/src/loop.c`, `sh port/tests/fkeys_test.sh`).
+  What the reading of 2026-10-04 above guessed is confirmed or put
+  right: F7 and F8 are the mouse (off and on; its speed, `S37FF:0113`,
+  through `mouse_speed` with 32h, 0Ah or 3); F5 and F6 switch
+  `DATA:03B8` and `03BA` (a side's joystick wanted) and call `joy_setup`
+  (`S2B9B:000A`), which looks for the sticks anew, so without a game port
+  the text says "on" at every press; F4 has no 200h test and so runs in
+  both sides' parts of every pass while its key is the pass's; F6's text
+  always stays by timer 2. F9: `no_fight_pics` set gives text 72h and
+  clears it and `S37FF:0130`; else `0130` set gives 70h and sets
+  `no_fight_pics`; else 71h and `0130` set. The mouse turned on again by
+  F7 gives the first side a direction once in the original (the driver's
+  pointer after its reset against the middle, presumably; `input_mouse`,
+  `S27FE:03D4`, is not translated).
 - Battles that end (2026-10-04). Of 20 runs of three emulated hours (a
   click and the F1 pair every 15 s after ten busy minutes; an hour of host
   time each) 19 finished; one hung in the

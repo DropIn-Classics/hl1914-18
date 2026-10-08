@@ -59,8 +59,7 @@ static int start_file(int16_t ext, uint16_t keep, uint16_t rec)
  * memory, 2 a file.
  * Left out: the command line's /a and /b and the sound's start
  * (S2F39:000B, S30EF:1C2D, S2F39:1058; the port is the game with both
- * devices found), the screen's (S298E:000D, S28D9:000C, S2974:0002),
- * S27FE:0013, S27FE:056C, S1571:0426 and S1571:0443 (not read), and of
+ * devices found), S27FE:0013, S27FE:056C, S1571:0426 and S1571:0443 (not read), and of
  * S1650:0003 all but what it keeps of the keys: the far pointer to the
  * table of keys at S331F:0292, which game_loop compares the key of a pass
  * with, and twelve of its entries at S331F:02C7 (it also loads a file and
@@ -80,8 +79,14 @@ int start_setup(void)
     if (!(game_mem.block.seg | game_mem.block.off))
         return 1;
     game_mem.p = game_mem.block;
+    /* S066A:0131 to 0182: the screen; the error exit for a non-zero
+     * return of screen_open is left out (the port's returns nothing) */
+    screen_open(0x140, 0xC8, 0x2518, 1);
     p = far_at(S_DATA, 0x0092);
     fww(p.seg, p.off, 0);
+    screen_clear();
+    page_flip();
+    screen_clear();
     if ((r = start_file(3, 0x17AA, 0x290)) != 0 || (r = start_file(5, 0x17A6, 0x294)) != 0)
         return r;
     {
@@ -142,7 +147,7 @@ int menu_result(uint16_t map)
  * texts, AMOK.DAT, UNIT.DAT, WW1GNDS.DAT, then the map whose number is at
  * map_number and its .SHP file.  Returns 0, or 2 for a file that cannot
  * be loaded (the original's error exit).
- * Left out: S27FE:056C, S2A10:0006, S2974:0002, and S02E6:323E, which
+ * Left out: S27FE:056C (key_install) and S02E6:323E, which
  * loads the map's pictures to the block's free end (the lists then lie
  * over them). */
 int battle_setup(void)
@@ -172,6 +177,8 @@ int battle_setup(void)
     p = far_add(p, 0xBB8);
     game_mem.gfx = p;
     fww(scr.seg, (uint16_t)(scr.off + 0x1C), 0xFFFF);
+    pages_set();
+    page_flip();
     /* each side's record: the list of its attackers (11h), two blocks of
      * 2710h (0Dh; the first is the work buffer of the loads below) and
      * 3E8h bytes (9; side 0's takes the .SHP file) */
@@ -392,9 +399,8 @@ static int libs_start(void)
  * cannot be loaded.
  * Left out: S274D:0003 (not with a saved game; shows something before the
  * battle of a map up to 2Fh, not read to its end), the loading of a saved
- * game (200h in game_state), what draws the two views (S0E56:0D44,
- * S0E56:0F36, show_message, S2974:0002, S28DC:000A, S28E0:0004) and the
- * music's start (S2F39:0F87). */
+ * game (200h in game_state), what shows the drawn views (S2974:0002,
+ * S28DC:000A, S28E0:0004) and the music's start (S2F39:0F87). */
 int battle_begin(void)
 {
     Far st = game_text(A_game_state), rec, p;
@@ -503,6 +509,14 @@ int battle_begin(void)
     SETW(game_state, 0, NW(game_state, 0) | 0xC0);
     fww(S_GAME, 0x17F3, 0);
     SETB(free_depth, 0, 0);
+    /* S066A:0DE8: both views drawn from word 2 of each side's view, their
+     * marks, the status lines cleared */
+    for (i = 0; i < 2; i++) {
+        view_draw(NW(views, i * 0x31 + 2), i);
+        marks_draw(NW(views, i * 0x31 + 2), i);
+    }
+    message_clear(0);
+    message_clear(1);
     SETW(game_state, 0, NW(game_state, 0) & 0xFFF3);
     rec = far_at(S_DATA, 0xBE);
     fww(rec.seg, (uint16_t)(rec.off + 4), 0);

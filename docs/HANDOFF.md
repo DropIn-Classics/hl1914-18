@@ -31,7 +31,12 @@ in `src/HL.hints`, but are not translated or fully checked; see the
 `origin/master`, with additional uncommitted changes in `src/HL.hints` and
 `docs/HANDOFF.md`.
 
-The `doskit` submodule is now at `2f6fe29` (fast-forwarded from `a4b8166`,
+On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
+at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
+merged in, plus the VGA's and the BIOS data area's starting state), until
+that is merged into doskit's master.
+
+The `doskit` submodule was before at `2f6fe29` (fast-forwarded from `a4b8166`,
 eight commits). That update adds first support for LE images (`disasm.py`,
 `build.py`; this game has none), an assembler option
 `regreg_form=rm_reg` that puts the destination of a register ALU/MOV
@@ -1019,17 +1024,42 @@ emulation error (2026-10-02).
        (`port/src/screen.c`); `screen_open`'s call on map 0 is the same as
        the original's in memory, video memory and the VGA's registers
        (port/README.md). Mode X 320x200 with two pages: A400h drawn,
-       A000h shown at the start, page_flip swaps them. Not yet called by
-       the port's start: the wait for a retrace comes before the mode
-       set, and the runtime's VGA, never set to a mode, shows no retrace
-       (its CRTC registers are 0), so the port must first put the VGA in
-       the state DOS leaves it in (text mode 3; `vga_set_mode` knows only
-       graphics modes, so this wants a change in doskit's runtime).
-       `battle_setup`'s calls of `pages_set` and `page_flip` are not
-       wired in either. Not met: the 360-wide modes (`S298E:02B4`/`02CC`
+       A000h shown at the start, page_flip swaps them. Since 2026-10-08
+       called by the port's start (`start_setup`: `screen_open`, then
+       `screen_clear`, `page_flip`, `screen_clear` as at `S066A:014D`)
+       and `battle_setup` calls `pages_set` and `page_flip` where the
+       original does (after it sets word 1Ch of the record behind
+       `DATA:0092` to FFFFh). For
+       that doskit's runtime now starts as DOS leaves the machine
+       (doskit branch `debian/vga-start`): the VGA's registers are text
+       mode 3's, so the retrace status runs before the first mode set,
+       and `rm_load_exe` fills the BIOS's data area as the runner does
+       (the CRTC's port at 40:63 was 0 before). Between `screen_open`
+       and `S066A:0349` the original calls `page_flip` 73 times on map 0
+       (`run.py -log S2974:0002`), the port twice: the other 71 are in
+       routines the port leaves out at the start (which ones was not
+       looked at), so the page words at `DATA:0322`-`0331` and
+       `0354`-`0357` differ after `start_setup` (one swap) until
+       `battle_setup`'s `pages_set` sets them anew. Not met: the 360-wide modes (`S298E:02B4`/`02CC`
        tables), `S2B51:002A` (with `DATA:0463`/`0465` FFFFh).
     3. `view_draw` (`S0E56:0D44`) and `marks_draw` (`0F36`) for each side,
-       then `show_message(-1, side)` (`S10AF:000F`).
+       then `show_message(-1, side)` (`S10AF:000F`). `view_draw` done
+       2026-10-08 with `ground_blit` (`S290A:0006`, write mode 1 from the
+       grounds kept in video memory) and `unit_blit` (`S2931:000E`), in
+       `port/src/draw.c`; compared on its first two calls on map 0 and
+       on map 8 (port/README.md). `marks_draw` done too, with
+       `S0E56:24ED` and `mark_blit` (`S2A1C:0004`), compared on seven
+       calls. `show_message(-1, side)` done as `message_clear` with
+       `S28E5:0004` and `S28FA:0000` (it fills the status line; texts
+       are not translated). `battle_begin` now calls the five as the
+       original does at `S066A:0DE8`; with that the begin part is the
+       same as the original's in memory on map 0 and map 8, and its video
+       memory at the end is the original's right after the second
+       `show_message` (port/README.md). After that the original changes
+       62,890 bytes of the drawn page (4000h-7E7Fh) in the routines of
+       step 4 (`S2974:0002`, `S28DC:000A`, `S28E0:0004`). Seen: `mark_blit`
+       ends with `OUT DX,AX` while DX holds its hi:lo bytes, not 3C4h, so
+       the map mask stays on plane 3 after it.
     4. `S2974:0002`, `S28DC:000A`, `S28E0:0004` at the loop's beginning
        (not read; presumably showing the drawn screen or fading it in).
     5. In the loop: `field_draw` (`S0E56:145A`), `marks_erase` (`1217`),

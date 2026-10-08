@@ -2604,7 +2604,8 @@ name S28E0:002B fade_out
 ; byte 4 of both sides' input records (DATA:00A6, 00B6) and the words 30h
 ; and 34h behind DATA:00C2 (presumably the mouse's buttons) and waits
 ; wait_frames(5), again as long as one of them was set since: at least
-; twice. With `wait` not 0 it then waits until one is set (that part was
+; twice (it enters its loop with its first argument as the flag that one
+; was set; the clearings are done at S167A:2FEF and 30B2). With `wait` not 0 it then waits until one is set (that part was
 ; not read to its end). Called with 0 at the beginning of event_picture.
 name S167A:2F83 inputs_release
 ; event_picture(far, far, kind, ...): the picture shown for an event.

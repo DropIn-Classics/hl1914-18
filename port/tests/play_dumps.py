@@ -31,6 +31,8 @@ maps from 48 on are for two human sides) up to UNTIL emulated seconds
                the first input record's button and the key
     2532:0137  the fight's pictures have cleared the key
     02E6:000F  attacks_run
+    167A:2FEF, 30B2  inputs_release (the beginning of event_picture) has
+               cleared the key and both input records' buttons
     066A:42FC  the battle's end (state 7) is about to show its texts
     10AF:009F  show_message has its text's number (AX; DI 0 for the
                first side, A0h for the second)
@@ -72,6 +74,9 @@ With NOPICS=1 in the environment the fights are not shown as pictures
 (no_fight_pics, S37FF:0115, set at the first pass as loop_dumps.py does)
 and the files go to build/play/TAG_nopics/.
 
+A file port/tests/keys/TAG.pokes changes memory when the first pass
+begins (port/tests/play_pokes.py), for a state no short script reaches.
+
 No game data is kept in this file.
 """
 import os, re, subprocess, sys
@@ -105,6 +110,8 @@ else:
            '-key', '25', 'enter', '-mouse', '27', '150,48,1', '-mouse', '27.2', '150,48,0']
 pre += ['-keys', keypath, '-until', until]
 tag = os.path.splitext(keys)[0]
+pre += subprocess.run(['python3', os.path.join(HERE, 'play_pokes.py'), tag],
+                      capture_output=True, text=True).stdout.split()
 if os.environ.get('NOPICS'):
     # the fights without pictures: no_fight_pics is set when the first pass
     # begins (a poke, not the game's own way of setting it)
@@ -117,10 +124,11 @@ R8 = ('0CB6:0799', '0CB6:08DA', '0CB6:0AF5', '0CB6:0C7C')
 R5 = ('0CB6:084D', '0CB6:09C5', '0CB6:0BDA')
 WAITS = ('0CB6:0075', '0CB6:00C1', '0CB6:00E2')
 PRESS = ('0CB6:0DE4', '0CB6:0E30', '0CB6:0E51')
+RELEASE = ('167A:2FEF', '167A:30B2')
 LOGS = ('27FE:008C', '066A:0EE9', '066A:0FC3', '066A:1003', '0CB6:05F1', '0CB6:0658', '0CB6:0750',
         '066A:10D6', '2C95:0024', '2C95:004A', '02E6:000F', '27FE:04F4', '2C9A:0008',
         '2532:0137', '066A:45E8', '066A:42FC', '10AF:009F',
-        '1A39:0001', '063F:0009', '063F:0277', '063F:027E', '066A:4728') + R8 + R5 + WAITS + PRESS
+        '1A39:0001', '063F:0009', '063F:0277', '063F:027E', '066A:4728') + R8 + R5 + WAITS + PRESS + RELEASE
 
 
 def run(args):
@@ -185,6 +193,8 @@ for line in open(log):
             end[3 if reg('DI') else 2] = reg('AX')
             if None not in end:
                 end = None
+    elif at in RELEASE:
+        clock.append('%s Y' % t)
     elif at in PRESS:
         clock.append('%s E' % t)
     elif at == '2C95:0024':

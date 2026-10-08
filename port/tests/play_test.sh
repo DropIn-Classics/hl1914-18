@@ -47,6 +47,8 @@ esac
 KEYS=${TAG%_nopics}
 NOPICS=
 [ "$KEYS" = "$TAG" ] || NOPICS=-nopics
+# the script's pokes (tests/keys/TAG.pokes, play_pokes.py), if it has any
+NOPICS="$NOPICS $(python3 tests/play_pokes.py "$KEYS" port)"
 sh build.sh
 if [ "$2" = at ]; then
     START=$(awk '$2 == "P" { print $1; exit }' "$D/clock.txt")

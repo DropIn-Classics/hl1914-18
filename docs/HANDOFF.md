@@ -2949,10 +2949,65 @@ emulation error (2026-10-02).
       here; the pictures and their time. Not seen in a run: CDh, CEh,
       a map for one player's picture, the last map (7Bh), a score not
       above the lowest, a file of scores that is there.
+    - The other ends, on map 57 (2026-10-08, Mac; `m57_site.keys`,
+      `m57_last.keys` with `m57_last.pokes`; found with probe runs of
+      the original as before). Map 57 is the smallest for two players:
+      16 by 16, four units a side (a kind 0Fh, a cavalry 15h, a bunker
+      0Dh of three, and a kind 00h or 2Eh), a headquarters and a
+      factory each (`sites_400` records 0 and 1). The second side's
+      cavalry (unit 6) walks north in its move halves, (6,11) to (5,7),
+      (5,5), then:
+      - `m57_site` (215 s, ten rounds' ends): on to (3,4) and onto the
+        first side's factory (2,3). `attacks_run` of pass 2102
+        (167.39 s) takes it: the unit in the first place of both rows
+        of record 0 with 4000h, the record's byte 18h 0 to 5 and 19h 8
+        to 9, no end of the battle, two more rounds played. The
+        script steps the second side's cursor off the factory before it
+        ends its next half (the button and left on the site would go
+        in).
+      - `m57_last` (270 s): the pokes leave the second side with that
+        cavalry alone and one figure of it (the counts of its units 4,
+        5 and 7 set to 0 and of 6 to 1 when the first pass begins;
+        `units_drop_empty` takes the three off at the first round's
+        end; `unit_total` and the side's count stay 8 and 4, since
+        nothing counted them down: the poke's doing). The cavalry goes
+        to (5,3) and attacks the first side's bunker on (5,2) in round
+        4: shown as pictures, the bunker loses nothing, the cavalry its
+        one figure (`unit_destroy` for the attacker, the bunker's byte 1
+        0 to 2, `unit_total` 8 to 7). `attacks_run` then finds the
+        second side without a unit: both views in state 7, word 22h 11h
+        for the first and 12h for the second, texts 41h and 42h shown
+        in both parts of pass 1935, 2000h and 10h in `game_state`. One
+        press of 0.15 s (195.00 s) ended both waits here, the loop was
+        left at 195.10 s: the button is still held when the second
+        `wait_press` has cleared it, and the timer's routine sets it
+        again (in `m54_end` the second wait took the second press; not
+        looked at what differed). Behind the loop picture CDh with
+        side 1 (the test there is for 0Fh in the first view, which has
+        11h, so the winner's side is not the one passed; the original's
+        doing), `battle_score` at 213.88 s: the score A0h and 1F4h,
+        294h, `map_number` 39h to 3Ah, one `rand_next`, picture CEh
+        with 1, `S066A:4728` at 237.53 s.
+      - The port on the original's clock: both the same at every pass
+        compared, the inputs included, the end's texts, the pictures
+        behind the loop and the memory at `S066A:4728` (port/README.md).
+        It needed one thing more of the clock: `inputs_release`, with
+        which `event_picture` begins, clears the key and both buttons
+        (the second F1 of the script's pair was still kept when the
+        factory's picture began; without the clearing the port's next
+        part read it). `play_dumps.py` logs that as `Y` lines
+        (`S167A:2FEF`, `30B2`). `inputs_release` is entered with its
+        first argument as the flag "one was set", so with 1 it clears
+        at least twice; this corrects the hints' comment only in how it
+        comes about.
+      - On the port's own clock both are the same to round 3 and then
+        part (the steps' sampling, as in the other scripts with cursor
+        steps); the battle's end is not reached there.
     Not reached with two human sides: a carrier, the keys F2 to F9, a
-    unit destroyed, a site other than a headquarters taken, a battle
-    ended by a side with no unit left, what follows the loop (the
-    picture CDh or D0h, the menu), moving out of a site, a repair or a
+    unit destroyed by play alone (the one destroyed had its count poked
+    to 1) or as a fight's target, a battle ended by fights alone, a
+    depot (`sites_100`) taken, a taken site with units inside, the
+    menu behind the loop, moving out of a site, a repair or a
     build refused, a map from
     24 to 47 (where `rec_of` exchanges the two records; those maps
     have a computer's side), the joysticks and the mouse, and what

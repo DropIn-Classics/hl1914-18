@@ -45,6 +45,10 @@
  *                       button and the key
  *       TIME X          S2532:0137: the fight's pictures have cleared the
  *                       key
+ *       TIME Y          S167A:2FEF, 30B2: inputs_release (event_picture's
+ *                       beginning: a taken site's picture, the pictures
+ *                       behind the loop) has cleared the key and both
+ *                       records' buttons
  *       TIME E          S0CB6:0DE4, 0E30, 0E51: wait_press (S0CB6:0DA9, the
  *                       battle's end) has cleared the first record's
  *                       button and the key
@@ -52,7 +56,7 @@
  *       TIME B          S063F:0009, battle_score is called behind the loop
  *       TIME M          S066A:4728, what follows the loop is done
  *   The port's own keys, timer routine and passes are run in that order.
- *   S, R, W and X count from attacks_run's call to its last such line in
+ *   S, R, W, X and Y count from attacks_run's call to its last such line in
  *   the side's part (the pictures and waits of a round's end, which the
  *   port leaves out; rand_next elsewhere is the port's own computer's).
  *   A place the port comes to that the log does not have in the side's
@@ -625,6 +629,11 @@ static void clock_run(long to, int round)
         case 'X':
             fww(k.seg, (uint16_t)(k.off + 4), 0);
             break;
+        case 'Y':
+            pwb(far_at(S_DATA, 0x00B6), 4, 0);
+            pwb(far_at(S_DATA, 0x00A6), 4, 0);
+            fww(k.seg, (uint16_t)(k.off + 4), 0);
+            break;
         case 'E':
             pwb(far_at(S_DATA, 0x00A6), 4, 0);
             fww(k.seg, (uint16_t)(k.off + 4), 0);
@@ -743,7 +752,7 @@ static void hook(int at, uint16_t side)
             int seeds = 0;
 
             for (i = clk_at; i < clk_n && clk[i].kind != 'P'; i++)
-                if (strchr("SRWX", clk[i].kind)) {
+                if (strchr("SRWXY", clk[i].kind)) {
                     last = i;
                     seeds |= clk[i].kind == 'S';
                 }

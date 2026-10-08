@@ -15,10 +15,12 @@
  * - the port's own: the timer's routine (input_tick) is called every
  *   3FFFh of the timer's 1,193,182 counts a second, a pass lasts as many
  *   calls as game_loop waits for at its end (game_state's word 0Fh, at
- *   least one here), and everything else takes no time.  The BIOS's
- *   count of ticks, from which the random numbers are started at the
- *   setup and where the fight's pictures would be, runs with it from a
- *   value given (play_bios).
+ *   least one here), and a round's end as long as its two changes of
+ *   the screen's colours count retraces (60h each, without a site taken);
+ *   everything else takes no time, the fights' pictures and waits
+ *   included.  The BIOS's count of ticks, from which the random numbers
+ *   are started at the setup and where the fight's pictures would be,
+ *   runs with it from a value given (play_bios).
  * - the original's, from a log of a run of it (port/tests/play_dumps.py):
  *   a line for each call of the timer's routine and for each place where
  *   a pass reads what the interrupts left, with its time, and the numbers
@@ -55,6 +57,7 @@
 #define S_DATA (HL_DATA + HL_BASE)
 #define TICK (0x3FFF / 1193182.0)       /* the timer routine's period, s */
 #define BIOS_TICK (65536 / 1193182.0)   /* the BIOS's */
+#define RETRACE 0.014268                /* the screen's vertical retraces */
 
 typedef struct { double t; uint8_t code[2]; int n; long order; } KeyEv;
 typedef struct { double t; char kind; int a, b; uint32_t v; } ClockLine;
@@ -73,6 +76,7 @@ static int seen[2][4];          /* for -inputs: key, word, bytes 5 and 8 (-1 non
 static int thinks;              /* calls of computer_turn in the thinking loop */
 static uint16_t aim_kept;       /* fight_rec's word 1Ch over attacks_run */
 static double now, began;       /* the port's own clock, s */
+static double tick_at;          /* when the timer's routine is called next */
 static uint32_t bios0;          /* the BIOS's count when it began */
 static const char *stopped;     /* what the timer's routine met */
 
@@ -267,17 +271,38 @@ static void tick(double t)
         stopped = why;
 }
 
-/* the port's own clock moved on by one call of the timer's routine */
-static void own_tick(void)
+/* the port's own clock moved on to time t: the calls of the timer's
+ * routine that are due by then, and the BIOS's count with them */
+static void own_to(double t)
 {
-    now += TICK;
-    {
-        uint32_t b = bios0 + (uint32_t)((now - began) / BIOS_TICK);
+    while (tick_at <= t) {
+        uint32_t b;
 
+        now = tick_at;
+        tick_at += TICK;
+        b = bios0 + (uint32_t)((now - began) / BIOS_TICK);
         fww(0x40, 0x6C, (uint16_t)b);
         fww(0x40, 0x6E, (uint16_t)(b >> 16));
+        tick(now);
     }
-    tick(now);
+    now = t;
+}
+
+/* one call of the timer's routine */
+static void own_tick(void)
+{
+    own_to(tick_at);
+}
+
+/* n waits for the screen's next vertical retrace to begin (S2945:000A),
+ * which the original's pictures count their steps by: 70.086 a second in
+ * the game's screen mode (the runner's 0.014268 s) */
+static void own_retraces(int n)
+{
+    long k = (long)(now / RETRACE + 1e-6);
+
+    while (n-- > 0)
+        own_to((double)++k * RETRACE);
 }
 
 /* the input record of a side as game_loop chooses it (S066A:0F0C to 0FC3) */
@@ -411,6 +436,10 @@ static void hook(int at, uint16_t side)
     case LOOP_ROUND:
         if (have_clock)
             clock_to('A', 0, 0);
+        else if (!NW(site_taken, 0))
+            /* S0E56:21D8, the screen fades to grey: 20h and 40h steps, a
+             * retrace each */
+            own_retraces(0x60);
         /* a fight writes its target's field here, never FFFFh */
         aim_kept = NW(fight_rec, 0x1C);
         SETW(fight_rec, 0x1C, 0xFFFF);
@@ -438,13 +467,19 @@ static void hook(int at, uint16_t side)
             }
             if (seeds != pictures)
                 play_misses++;
-        } else if (pictures) {
-            /* the fight's pictures (S2532:0008) start the random numbers
-             * anew with clock_seed(0) and take the keys pressed meanwhile */
-            s->seeded = 1;
-            s->seed = clock_seed0();
-            pwb(far_at(S_DATA, 0x00A6), 4, 0);
-            fww(k.seg, (uint16_t)(k.off + 4), 0);
+        } else {
+            if (pictures) {
+                /* the fight's pictures (S2532:0008) start the random
+                 * numbers anew with clock_seed(0) and take the keys
+                 * pressed meanwhile */
+                s->seeded = 1;
+                s->seed = clock_seed0();
+                pwb(far_at(S_DATA, 0x00A6), 4, 0);
+                fww(k.seg, (uint16_t)(k.off + 4), 0);
+            }
+            /* S0E56:1F91, the colours come back: 40h and 20h steps */
+            if (!NW(site_taken, 0))
+                own_retraces(0x60);
         }
         break;
     }
@@ -461,6 +496,7 @@ void play_begin(double start)
     loop_hook = hook;
     loop_reset();
     now = began = start;
+    tick_at = start + TICK;
     play_passes = play_misses = 0;
     keys_at = clk_at = 0;
     key_byte = in_battle = 0;

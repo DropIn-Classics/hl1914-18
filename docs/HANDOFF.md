@@ -1,7 +1,8 @@
 # Handoff
 
-Last full rebuild check (2026-10-04): all four programs rebuilt
-identically (`HL.EXE` 71,755 instructions, INTRO 18,055, EXTRO 15,678,
+Last full rebuild check (2026-10-08): all four programs rebuilt
+identically (`HL.EXE` 71,762 instructions with the seven of the
+interrupt 24h handler `crit_error`, INTRO 18,055, EXTRO 15,678,
 the launcher 1,663). Everything
 that runs of the game executed is decoded, including whole battles on all
 72 maps, saving and loading. Stage 2 is under way in `HL.EXE`: the saved
@@ -2206,16 +2207,107 @@ emulation error (2026-10-02).
       pictures; (3) where the waits and pictures of a round's end clear
       the button and the key. No game state is taken from the original.
     - On the port's own clock (a pass lasts as many calls of the timer's
-      routine as the original waits for, at least one; nothing else takes
-      time) the same keys give the same state up to pass 291 of
-      `m8_site` and another cursor field by pass 400 (looked at once, by
-      hand): the original's passes are longer by what it draws, so a key
-      script written for the original's times does not fit the port's.
+      routine as the original waits for, at least one; nothing else took
+      time then) the same keys gave the same state up to pass 291 of
+      `m8_site` and another cursor field by pass 400; the next bullet
+      says why and what was done.
     Not done: nothing is drawn or sounded, the keys F2 to F9, Esc and
     saving stop the play ("not translated"), no battle was played to its
     end, the mouse and joysticks, a thinking loop ended by a key (none of
-    the three scripts has one), a computer first side. `S27FE`'s routines,
-    `S0CB6:0036` and `S1650:0003` are not named in `src/HL.hints` yet.
+    the three scripts has one), a computer first side.
+  - The port's own clock, and what still comes from the original's log
+    (2026-10-08, Mac; `port/src/play.c`, `sh port/tests/play_test.sh TAG
+    own`). `S27FE`'s routines, `S0CB6:0036` (`wait_input`), `S1650:0003`
+    (`start_setup`), the two waits for the screen and the two fades are
+    named in `src/HL.hints` now, with what was read of each.
+    - Why pass 400 differed: a round's end takes time in the original
+      and took none in the port. `game_loop` calls `fade_grey`
+      (`S0E56:21D8`) before `attacks_run` and `fade_back` (`S0E56:1F91`)
+      after it, each 60h steps with a wait for the screen's vertical
+      retrace (`retrace_wait`, `S2945:000A`): 192 retraces, 2.74 s at the
+      runner's 0.014268 s a retrace. In `m8_site`'s pass 291 the log has
+      96 calls of `retrace_wait` before `attacks_run` and 96 after it,
+      and the pass lasts 2.81 s. The script's second F1 (47.8 s) comes in
+      that time and is read by the second side in the same pass, where
+      it does nothing; in the port the pass was over at once and the F1
+      came to the first side in pass 306 (what it did there was not
+      followed; by pass 400 the cursor's field differed).
+    - Done: the port's own clock is a line of time on which the timer's
+      routine is due every 3FFFh counts and a retrace every 0.014268 s;
+      the round's end waits its 60h retraces before and after
+      `attacks_run` when no site was taken (`site_taken` 0). With that
+      the second F1 is read as in the original and pass 400 of `m8_site`
+      is the same.
+    - How far it goes now (the game's state and the computer's, at the
+      passes dumped): `m8_site` the same at 50, 200, 291, 292, 296, 386,
+      400 to 404; at 387 five bytes differ for one pass (the up of 55.0 s
+      is read in pass 386 by the original and in 388 by the port), and
+      from 405 on some bytes differ at every pass dumped (presumably
+      the cursor's field: the ups below; the bytes were not looked at).
+      `m8_d5r` the same at 50 and 200 and one or two bytes different at
+      400 and on, `m0_hq` the same at 50 and different at 200 (the parts
+      first read something else in pass 101).
+    - Why it cannot go further without drawing: `input_tick` samples the
+      keys on every fourth call (54.9 ms) and a pass lasts four calls, so
+      a tap of 0.08 s (5.8 calls) is found in one sample or in two by
+      where it falls between them, and `side_input` reports a direction
+      held over two calls twice. In `m8_site` the four ups from 55 s move
+      the cursor 1, 2, 2 and 1 fields in the original and 1, 1, 1 and 2
+      in the port. Where the samples fall is the original's time: its
+      passes last longer than four calls whenever it draws more (by
+      their times about 2,800 of `m8_site`'s 6,581 passes last four
+      calls, 2,700 one call, the passes without a wait, and the rest up
+      to 14), the round's end 0.07 s more than its retraces, and its
+      timer's routine comes late (28,998 calls in 400 s: 13.79 ms apart
+      instead of 13.73, most between 0.8 and 1.2 periods, single ones
+      from 0.1 to 3.1). A key script
+      written by the original's seconds therefore fits the port's own
+      clock only until the first tap that falls near a sample.
+    - What still comes from the log for the same battle (`-clock`; the
+      test with it is unchanged and the same over all of the three runs:
+      6,582, 4,574 and 4,428 passes), and why each:
+      1. The times of `input_tick` (T). They are the emulator's and the
+         sound's: `pit_irq` shares the timer with two routines of `S30EF`
+         whose periods set the timer, and calls come late or are lost
+         with it.
+      2. The times of the keyboard's interrupt (K). The runner brings a
+         key at the end of a batch of instructions, up to a millisecond
+         after its time, and a logged place cuts batches (`main.c` of
+         the runner); the order against T decides which sample has it.
+      3. The times of the places where a pass reads what the interrupts
+         left (P, I, V, C, A). They are the time the original takes to
+         compute and draw; the port draws nothing.
+      4. The numbers `clock_seed` sets (S). They are the BIOS's count of
+         ticks, which `pit_bios` counts with the period 10000h beside
+         `input_tick`'s 3FFFh. Tried: the count from the number of T
+         lines before the seed, `floor(n * 3FFFh / 10000h + x)`. One x
+         fits all eight seeds of `m8_site` (0.055 to 0.066) and all six
+         of `m8_d5r` (0.152 to 0.304), but not both runs: the fraction
+         moves with the other routines of the timer (presumably when the
+         sound's are added or their periods change; not followed). So a
+         derived seed can be one tick off, which is another number.
+      5. The calls of `rand_next` by the fight's pictures (R). They come
+         from `S2532:17D1`, which shares the losses still to show out
+         among the volleys left (one call when more are left than
+         volleys, or a draw against 80h otherwise) and takes off what
+         `S2532:1970` says fell; that depends on the picture's figures,
+         which are not read.
+      6. Where the waits and pictures of a round's end clear the button
+         and the key (W, X). `wait_input` is read (it clears both every
+         three frames until one comes or its count runs out), but when
+         it runs is the time of the fight's show around it (`S131D:1CAE`
+         before the pictures; some 10 s a fight between two seeds),
+         which the port does not have.
+      Nothing was cut from this list: each was looked at and is a time
+      of the original's drawing, of the emulator's interrupts or of the
+      sound, or needs the fight's pictures.
+    Not done: on the port's own clock a fight still takes no time (its
+    marks, `wait_input(96h)`, the pictures), nor does the round's end
+    with a site taken (`S28E0:002B` and `0004`, 64 steps of
+    `S2AFE:000C` each, not read); the retrace's period is the runner's
+    for the game's screen mode, not read from the game; `pit_del` and
+    `pit_period`'s callers; `input_mouse` and `crit_error` were read
+    only.
   - The fights of `attacks_run` (2026-10-07, Linux; `S02E6:0122` to
     `0D48`, `0D63` to `0E9C`, order 1 at `0ED9`, `order_undo`, read and
     translated, `port/src/orders.c` and `move.c`). Learned on the way:

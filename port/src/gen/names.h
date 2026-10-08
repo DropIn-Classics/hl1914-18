@@ -186,6 +186,8 @@
     X(S0B15, move_costs, 0x0A01) \
     X(S0B15, path_find, 0x0E52) \
     X(S0B15, move_targets_list, 0x13EC) \
+    X(S0CB6, wait_frames, 0x0001) \
+    X(S0CB6, wait_input, 0x0036) \
     X(S0CB6, view_cursor, 0x0154) \
     X(S0CB6, same_side, 0x0205) \
     X(S0CB6, timer_set, 0x0272) \
@@ -210,6 +212,8 @@
     X(S0E56, aim_grounds_set, 0x1B57) \
     X(S0E56, map_copy, 0x1D9B) \
     X(S0E56, unit_mark, 0x1DDB) \
+    X(S0E56, fade_back, 0x1F91) \
+    X(S0E56, fade_grey, 0x21D8) \
     X(S0E56, field_distance, 0x241F) \
     X(S10AF, show_message, 0x000F) \
     X(S10AF, unit_panel, 0x0131) \
@@ -242,6 +246,7 @@
     X(S15C5, unit_free, 0x0594) \
     X(S15C5, site_free, 0x06EA) \
     X(S15C5, carrier_moved, 0x0804) \
+    X(S1650, start_setup, 0x0003) \
     X(S1C74, computer_turn, 0x000B) \
     X(S1C74, computer_reset, 0x01B4) \
     X(S1CC6, computer_queue, 0x0000) \
@@ -276,7 +281,29 @@
     X(S2407, plan_ride, 0x0007) \
     X(S2474, fight_show, 0x0005) \
     X(S2487, fight_losses, 0x000A) \
+    X(S27FE, input_install, 0x0013) \
+    X(S27FE, input_remove, 0x0060) \
+    X(S27FE, input_tick, 0x008C) \
+    X(S27FE, input_side0, 0x0175) \
+    X(S27FE, input_side1, 0x020E) \
+    X(S27FE, input_keys, 0x029E) \
+    X(S27FE, input_record, 0x0320) \
+    X(S27FE, input_mouse, 0x03D4) \
+    X(S27FE, mouse_center, 0x04D0) \
+    X(S27FE, key_irq, 0x04F4) \
+    X(S27FE, crit_error, 0x055C) \
+    X(S27FE, key_install, 0x056C) \
+    X(S27FE, key_remove, 0x05AB) \
+    X(S27FE, pit_install, 0x0606) \
+    X(S27FE, pit_bios, 0x0692) \
+    X(S27FE, pit_remove, 0x0699) \
+    X(S27FE, pit_irq, 0x06D2) \
+    X(S27FE, pit_add, 0x0783) \
+    X(S27FE, pit_del, 0x07E8) \
+    X(S27FE, pit_period, 0x0882) \
     X(S2892, num_text, 0x0001) \
+    X(S2945, retrace_wait, 0x000A) \
+    X(S2947, display_wait, 0x0006) \
     X(S2B81, file_load_size, 0x0004) \
     X(S2B85, file_close, 0x0002) \
     X(S2B8F, file_size, 0x000C) \

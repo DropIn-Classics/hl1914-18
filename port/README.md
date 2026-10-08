@@ -107,8 +107,10 @@ with a key script as the human's input (`-keys FILE`, the format of
 and of the routine its timer calls, which fill the sides' input records
 (`key_irq`, `input_tick`; the joysticks and the mouse are left out). The
 port's own clock calls that routine 72.8 times a second, lets a pass
-last as many calls as the original waits for at its end and everything
-else no time, and starts the random numbers from the BIOS's count of
+last as many calls as the original waits for at its end and a round's
+end the 192 screen retraces of its two changes of colours (2.74 s;
+`fade_grey`, `fade_back`), everything else no time (a fight's show
+too), and starts the random numbers from the BIOS's count of
 ticks, which runs with it from the time of day or from `-seed N`, at
 the setup and after a round's end with fight pictures. `-clock FILE`
 runs the same by the times of a log of the original instead
@@ -184,9 +186,24 @@ anything the game needs before the first release.
   `sh port/tests/loop_test.sh` still says the same for `m8_site` with
   the changed `loop.c`, and of `move_test.sh` the 40 steps whose dumps
   are on this machine are as before with the text shown in `move_step`.
-  Not checked: the port's own clock against anything (it leaves the
-  original after pass 291 of `m8_site`, as it must: its passes are
-  shorter); a battle played to its end; maps other than 0 and 8; a
+  The port's own clock (2026-10-08, macOS): `sh port/tests/play_test.sh
+  TAG own` plays without the clock's file (of the log only the first
+  pass's time and the BIOS's count at the setup, as `-start` and
+  `-seed`) and says up to which pass dumped the state is still the
+  original's. With the round's end lasting its retraces: `m8_site` the
+  same at passes 50, 200, 291, 292, 296, 386 and 400 to 404 (before
+  the change it left the original in pass 291), five bytes different
+  at 387 and different from 405 on; `m8_d5r` the same at 50 and 200,
+  one or two bytes different from 400 on; `m0_hq` the same at 50,
+  different at 200. It cannot stay the same for long: the keys are
+  sampled every 54.9 ms, so a tap of 0.08 s moves the cursor one field
+  or two by when it falls, and that is the original's time
+  (docs/HANDOFF.md, "The port's own clock", which also lists what the
+  clock's file is still needed for and why). The test with the clock's
+  file was run again after the change, all three scripts as above, and
+  `loop_test.sh` (`m8_site`).
+  Not checked: a fight's time on the port's own clock (none is given);
+  a battle played to its end; maps other than 0 and 8; a
   second human side's keys; a computer first side; a thinking loop ended
   by a key; a run with the fight pictures switched off; `move_test`'s,
   `view_test`'s, `side_test`'s, `orders_test`'s and `income_test`'s dumps

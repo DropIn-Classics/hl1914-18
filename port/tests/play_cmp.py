@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Compares the port's own play of a battle with the original's.
 
-    python3 port/tests/play_cmp.py [TAG]
+    python3 port/tests/play_cmp.py [TAG [own]]
 
 In build/play/TAG/ (default m8_site): pNNNN.ram is the original's memory
 at the beginning of pass NNNN and inputs.txt what each side's part read
 (port/tests/play_dumps.py), qNNNN.ram and port_inputs.txt the same of
 the port's program started from its own setup (port/tests/play_test.sh).
+With `own` the port's files are those of a play on its own clock
+(oNNNN.ram, own_inputs.txt): its passes are not the original's then, so
+the result is up to which pass the two agree, and where the parts first
+read something else.
 
 Compared as port/tests/loop_test.c does: the game's state (S3306 up to the
 computer's player's segments S39B6 to S3AEB, and S3AEC:0008 up to DATA),
@@ -23,6 +27,7 @@ import os, re, struct, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 tag = sys.argv[1] if len(sys.argv) > 1 else 'm8_site'
+own = len(sys.argv) > 2 and sys.argv[2] == 'own'
 out = os.path.join(ROOT, 'build', 'play', tag)
 BASE = 0x76
 RAM = 0xA0000
@@ -94,7 +99,7 @@ def ranges(addrs):
 bad = 0
 # what each side's part read
 a = open(os.path.join(out, 'inputs.txt')).read().split('\n')[:-1]
-b = open(os.path.join(out, 'port_inputs.txt')).read().split('\n')[:-1]
+b = open(os.path.join(out, 'own_inputs.txt' if own else 'port_inputs.txt')).read().split('\n')[:-1]
 n = min(len(a), len(b))
 
 
@@ -116,8 +121,10 @@ if diff:
 
 passes = [int(x) for x in open(os.path.join(out, 'passes.txt')).read().split()]
 first = None
+agree = None        # the last pass compared before the first difference
+differs = False
 for p in passes:
-    qpath = os.path.join(out, 'q%04d.ram' % p)
+    qpath = os.path.join(out, '%s%04d.ram' % ('o' if own else 'q', p))
     if not os.path.exists(qpath):
         print('pass %d: the port did not come so far' % p)
         bad = 1
@@ -144,5 +151,13 @@ for p in passes:
                                        'the computer\'s' if kind[lo] == 1 else 'the game\'s state'))
     if c[0] or c[1]:
         bad = 1
+        differs = True
+    elif not differs:
+        agree = p
+if own:
+    print('on the port\'s own clock: the game\'s state and the computer\'s the same up to pass %s of those '
+          'compared%s' % (agree, '; the parts first read something else in pass %s' % a[diff[0]].split()[0]
+                          if diff else ''))
+    sys.exit(0)
 print('DIFFERENT' if bad else 'the inputs, the game\'s state and the computer\'s the same at every pass compared')
 sys.exit(bad)

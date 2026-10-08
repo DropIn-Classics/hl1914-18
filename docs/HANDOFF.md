@@ -952,6 +952,42 @@ emulation error (2026-10-02).
     `S3303:0028`. `2B87` also loads a file named by the number at
     `S37FF:0112` (presumably a palette, handed to `S0CB6:187F` with 300h)
     and makes two blocks of 1194h bytes (`S331F:02D7`, `02DF`). Left out.
+    2026-10-08: `S0C66:0009` is `lib_load`, `3484` is `libs_start`
+    (`LIB\pal.LIB` at the record `lib_pal`, sorted by `LIB\pal.DAT`
+    through `lib_order`, `S0C66:024E`; then `LIB\rnd.LIB` at `lib_rnd`).
+    A library's first dword is the offset of a table of 12-byte entries
+    (eight bytes of name, the picture's offset in the file) ended by an
+    offset of 0; `lib_load` makes it a list of normalised far pointers in
+    place and fills the record (14h bytes: name, length at 0Ah, list at
+    0Eh, count at 12h); the src/HL.hints comments have the rest. Records
+    seen in a start: `S331F:0131` pal, `0145` partS or partW (`323E`,
+    sorted too), `0159` rnd, `01E5` exp, `01A9` bum, `01F9` newshop
+    (`pictures_load`, which loads rnd a second time), and the menu's six
+    `MNU*.LIB` at `S37FF:0008` to `006C`. Both are translated
+    (`port/src/files.c`, `battle.c`; `battle_begin` now calls
+    `libs_start`) and `lib_load` compared byte for byte on all 13 calls
+    of a start on map 0 and on map 8 (port/README.md). Not reached:
+    `pictures_load` (its picture `S2B06:0000`, the palette, `lib_read`,
+    the blocks at `02D7`/`02DF`, sound), `323E` and `lib_pick`
+    (`S0C66:0414`), a library or a list name that is missing.
+    The drawing a battle screen needs, in the order proposed for
+    translating (from the calls of `game_loop`'s setup and loop as read
+    so far; none of them stepped, the order of the unread ones a guess):
+    1. `pictures_load` (`S02E6:2B87`) whole: the screen's picture through
+       `S2B06:0000`, the palette to `DATA:00CE` (300h bytes, `far_copy`),
+       `lib_read` (`S2C01:0006`), the libraries exp, bum, newshop.
+    2. The screen's set-up at the start (`S298E:000D`, `S28D9:000C`,
+       `S2974:0002`, left out of `start_setup`; not read).
+    3. `view_draw` (`S0E56:0D44`) and `marks_draw` (`0F36`) for each side,
+       then `show_message(-1, side)` (`S10AF:000F`).
+    4. `S2974:0002`, `S28DC:000A`, `S28E0:0004` at the loop's beginning
+       (not read; presumably showing the drawn screen or fading it in).
+    5. In the loop: `field_draw` (`S0E56:145A`), `marks_erase` (`1217`),
+       the sides' pointers (`S2A6B:0008`, `S2A6F:0002`), the bar of
+       `S1571:01F2`, `unit_panel` (`S10AF:0131`), the fades
+       (`fade_grey`, `fade_back`).
+    6. Last the fight: `fight_panel` (`S131D:178D`), the fight's pictures
+       (`S2532`), and `S02E6:323E` with `lib_pick` for the parts' list.
   - State, all translated: `field_bits_clear(FFh)` empties `field_bits`
     (`S331F:3B5A`); `view_tables` fills `row_y`, `row_y_odd` and `col_x` (a
     field is 10h wide and 18h high on the screen, odd columns 0Ch lower);
@@ -2739,8 +2775,8 @@ emulation error (2026-10-02).
      next translate them and compare against runs, then translate what of
      a side's part changes state and draws
      nothing (building, repairing, moving out), each with a comparison
-     as for the setup; and the libraries' loading (`S0C66:0009`) once
-     the port is to draw. `attacks_run` around them waits for
+     as for the setup; the libraries' loading (`lib_load`) is translated
+     and compared (2026-10-08), `pictures_load` is next toward drawing. `attacks_run` around them waits for
      the drawing routines; a fight the first side starts is still to be
      seen (a scripted attack by the player), as are a carrier's and a
      two-part unit's end;

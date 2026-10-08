@@ -1156,6 +1156,51 @@ name S02E6:2556 carrier_losses
 ; was not seen to change what the port keeps (presumably pictures and
 ; name_buf).
 name S02E6:2B87 pictures_load
+; lib_load(far name, far place, far work, far record, byte order): loads
+; a library of pictures (file_load_size) to place. Its first dword is the
+; offset of a table of 12-byte entries (eight bytes of name, the dword
+; offset of a picture in the file), ended by one with offset 0; with
+; order set lib_order sorts them first. Clears 12 bytes behind the file,
+; makes the table a list of far pointers in place (normalised, the last
+; one the file's beginning), and fills the record (14h bytes: the name at
+; 0, the file's length at 0Ah, the list at 0Eh, the count of pictures at
+; 12h). Returns the length less 4 a picture, FFFFh:FFFFh for a file that
+; cannot be loaded (the early RETF at S0C66:006A). Its callers move the
+; free end on by the record's length, not by what it returns. Read;
+; translated (port/src/files.c) and compared on its 13 calls of a start
+; on map 0 and on map 8 (port/README.md).
+name S0C66:0009 lib_load
+; lib_order(far place, far table, far record, far work): loads the
+; record's list of names (ending 5, eight bytes each) to place and copies
+; the table's entries behind it in the list's order, each looked for
+; among the first as many entries as the list has names (str_ncmp); the
+; result goes back over the table. A name not found is written on the
+; screen (S2A08:000A) before S0CB6:0DA9 (not read; not met). Read,
+; translated, compared through lib_load.
+name S0C66:024E lib_order
+; S0C66:0414: picks far pointers of a library's list by a table of bytes
+; (S02E6:323E uses it with the record at S331F:0145). Read only roughly;
+; the name is a guess.
+name S0C66:0414 lib_pick
+; far_copy(far from, far to, dword n): n bytes, one at a time, forwards.
+name S0CB6:187F far_copy
+; str_ncmp: the C library's strncmp (as far as the second's end).
+name CODE:2BFE str_ncmp
+; libs_start(free end, work): lib_load of the records at S331F:0131
+; (LIB\pal, sorted) and S331F:0159 (LIB\rnd) one behind the other; the
+; error exit (S0CB6:1842 with 2) when one cannot be loaded; returns the
+; free end moved on by both lengths. Read, translated (port/src/battle.c).
+name S02E6:3484 libs_start
+; Records of lib_load, 14h bytes each (names seen in two runs): pal, the
+; part pictures (partS or partW, S02E6:323E), rnd, bum, exp, the one at
+; 01F9 (newshop, pictures_load). The menu's six libraries (MNU*.LIB) have
+; their records at S37FF:0008, 001C, 0030, 0044, 0058 and 006C.
+name S331F:0131 lib_pal
+name S331F:0145 lib_parts
+name S331F:0159 lib_rnd
+name S331F:01A9 lib_bum
+name S331F:01E5 lib_exp
+name S331F:01F9 lib_newshop
 ; unit_panel(unit, side): draws a unit's panel for a fight (its count and
 ; experience) after show_message(-1, side). Read; only the drawing.
 name S10AF:0131 unit_panel

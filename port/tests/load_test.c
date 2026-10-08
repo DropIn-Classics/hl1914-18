@@ -1,7 +1,7 @@
 /* load_test.c - file_load, map_load, shp_load, file_name, num_text,
  * mem_alloc, battle_setup and battle_begin against the original.
  *
- *     load_test GAMEDIR  (load|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram [...]
+ *     load_test GAMEDIR  (load|lib|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram [...]
  *
  * Each set of six is one call in HL.EXE: the routine, SS:SP (hex) at its
  * entry, AX and DX at its RETF, and dosrun's -ram dumps at both.  The
@@ -23,6 +23,7 @@
  * routines left out there load further files).  `begin` is the part from
  * S066A:0938 to S066A:0EE6 (battle_begin), SS:BP likewise, the work buffer
  * read from the frame; begin_apart says what else is counted apart there.
+ * `lib` is one call of lib_load (S0C66:0009) with its five arguments.
  * port/tests/load_test.sh builds this.
  */
 #include <stdio.h>
@@ -100,7 +101,7 @@ int main(int argc, char **argv)
     int i, bad = 0, calls = 0, skipped = 0;
 
     if (argc < 8 || (argc - 2) % 6) {
-        fprintf(stderr, "usage: load_test GAMEDIR (load|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: load_test GAMEDIR (load|lib|map|shp|name|num|alloc|start|setup|begin) SS:SP AX DX ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     hl_game_dir = argv[1];
@@ -175,11 +176,19 @@ int main(int argc, char **argv)
         } else if (!strcmp(what, "begin")) {
             uint16_t bp = (uint16_t)sp;
             game_mem.work = far_at((uint16_t)ss, (uint16_t)(bp - 0x20));
+            game_mem.p = far_at((uint16_t)ss, (uint16_t)(bp - 4));
             got.off = (uint16_t)battle_begin();
             got.seg = 0;
             wide = 0;
             name.seg = name.off = 0;
             left_out = 3;
+        } else if (!strcmp(what, "lib")) {
+            /* lib_load(name, place, work, record, order) */
+            int32_t r = lib_load(to, name, work, far_at((uint16_t)ss, (uint16_t)(sp + 16)),
+                                 frb((uint16_t)ss, (uint16_t)(sp + 20)));
+            name = to;
+            got.off = (uint16_t)r;
+            got.seg = (uint16_t)((uint32_t)r >> 16);
         } else if (!strcmp(what, "map") || !strcmp(what, "shp")) {
             name = to;
             got.off = what[0] == 'm' ? map_load(to, far_at((uint16_t)ss, (uint16_t)(sp + 8)), work)

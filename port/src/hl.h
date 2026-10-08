@@ -110,9 +110,11 @@ uint16_t shp_load(Far name, Far buf, Far work);
 /* files.c */
 extern const char *hl_game_dir;     /* the installed game's folder */
 Far ptr_norm(Far p);
+Far far_add(Far p, uint32_t n);
 Far file_load(Far to, Far name, Far work);
 int32_t file_size(Far name);
 int32_t file_load_size(Far to, Far name, Far work);
+int32_t lib_load(Far name, Far to, Far work, Far rec, uint8_t order);
 
 /* mem.c */
 Far mem_alloc(uint32_t size);

@@ -292,6 +292,21 @@ anything the game needs before the first release.
   returns 0 there), a packed file without a work buffer, a file longer
   than a segment, `DATA:0378` above 0 (the name behind the name), and the
   failure to read.
+- Libraries of pictures (2026-10-08, Linux): `lib_load` (`S0C66:0009`)
+  with `lib_order` in `src/files.c`, and `libs_start` (`S02E6:3484`,
+  `LIB\pal.LIB` sorted by `LIB\pal.DAT`, then `LIB\rnd.LIB`) called by
+  `battle_begin`, which moves `game_mem.p` on by their lengths.
+  `load_test.sh` takes `lib` for a call of `lib_load`. Dumps at its entry
+  and at its last RETF (`S0C66:0246`) of all 13 calls of a start on map 0
+  and on map 8 (`port/tests/dumps.py ... lib_load N`, keys `m0_hq` and
+  `m8_site`, `build/n2/lib/`; argument list `build/n2/lib/lib_test.args`,
+  made from its `dumps.log`): the six menu libraries, `partS`/`partW`
+  (sorted), `pal` (sorted), `rnd` twice, `exp`, `bum`, `newshop`. All 26
+  the same: the return and all memory, but for the stack and `beside`.
+  Not covered: a file that cannot be loaded, a name of the list missing
+  from the library (the original writes it on the screen; the port skips
+  it), and `battle_begin` as a whole after the change (its `begin` dumps
+  were not at hand; see docs/HANDOFF.md).
 - Whole loads and names (2026-10-04, macOS): the same test takes `map`,
   `shp`, `name` and `num` for calls of `map_load`, `shp_load`, `file_name`
   and `num_text` (dumps by the scratch script `build/n2/calls1.py`: the

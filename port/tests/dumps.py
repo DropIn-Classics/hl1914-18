@@ -7,6 +7,7 @@ import os, re, struct, subprocess, sys
 R={'move_arrive':('S10E1:0AF0','S10E1:0F70',['side','map_off','map_seg']),
    'move_target':('S10E1:0F82','S10E1:1444',['field','side','map_off','map_seg']),
    'orders':('S02E6:0E9C','S02E6:19B8',[]),
+   'lib_load':('S0C66:0009','S0C66:0246',['name_off','name_seg','place_off','place_seg','work_off','work_seg','rec_off','rec_seg','flag']),
    'file_load':('S2C45:0002','S2C45:011E',['to_off','to_seg','name_off','name_seg','work_off','work_seg']),
    'attack_order':('S0AE0:0008','S0AE0:02DB',['view_off','view_seg','map_off','map_seg','side']),
    'move_step':  ('S10E1:072C','S10E1:0AEF',[]),

@@ -552,9 +552,12 @@ every pass, both waits and all 20 frames, pages included);
 (S30EF, the music not translated) and the interrupt vectors.
 Not done or not checked: the SDL window by hand; D0h, CEh and CFh on
 the port's own clock (no script reaches them there: `m54_end` and
-`m57_last` part from the original after round 3, the cursor's short
-taps sampled otherwise, and `m57_last`'s fight's outcome follows the
-clock; their loading times are taken from one run each); a battle's end
+`m57_last` part from the original after round 3, the cursor's keys
+sampled otherwise, and `m57_last`'s fight's outcome follows the
+clock; their loading times are taken from one run each; why the passes'
+phase moves, docs/HANDOFF.md "Why `m54_end` parts on the port's own
+clock": shorter round's ends, passes that overran and lost timer
+interrupts in the original, not fixed); a battle's end
 in the window from the menu (with `-map` the play ends behind the
 pictures; from the menu the menu follows, not tried with this script);
 the sounds of CDh as sound; a medal with `which` 1 or 2.
@@ -747,6 +750,12 @@ the pictures' end, so the passes never showed it).
   7,066 parts, at every round's dump and at all 207 fight frames of their
   seven fights (memory and video memory); the dump after the last pass
   (3535) is not reached by the window, which closes a pass earlier.
+  Since `debian/window11` the window is given pictures up to the end of
+  the last round's end begun before the log's end and a second more
+  (that round's end ran to 212.35 s, the log to 199.99 s): rerun, the
+  same in all 7,068 parts and all 436 files, 3534 and 3535 included.
+  `m8_site live` differs in its inputs with and without the change (177
+  files, its script was not written by the window).
 - After the merge of origin/master b371682, `m8_site`, `m48_sattack` and
   `m57_win` rerun on the original's clock with `-seeds`: still the same at
   every pass.

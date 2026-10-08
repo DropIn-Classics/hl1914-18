@@ -109,10 +109,13 @@ if [ "$2" = live ]; then
     # shellcheck disable=SC2086
     build/history-line-headless $ARGS $MICE -keys tests/keys/$KEYS.keys -until "$UNTIL" -inputs "$D/keys_inputs.txt" $K
     # shellcheck disable=SC2086
+    # the window's pictures last to the log's end or, when a round's end
+    # begun before it runs past it, to that end and a second more (the
+    # pass after it is dumped too)
     MOVES=
     [ -f "tests/keys/$KEYS.moves" ] && MOVES=$(python3 tests/live_keys.py --moves "tests/keys/$KEYS.moves" "$START")
     DK_KEYS=$(python3 tests/live_keys.py "tests/keys/$KEYS.keys" "$START") DK_MOUSEMOVE=$MOVES \
-    DK_FRAMES=$(awk -v s="$START" -v u="$UNTIL" 'BEGIN { print int(38 + (u - s) / 0.014268) }') \
+    DK_FRAMES=$(awk -v s="$START" -v u="$UNTIL" '$4 > u { u = $4 } END { print int(38 + (u + 1 - s) / 0.014268) }' "$D/own_rounds.txt") \
         build/history-line-headless $ARGS -inputs "$D/live_inputs.txt" $W
     n=$(wc -l < "$D/live_inputs.txt")
     [ "$(wc -l < "$D/keys_inputs.txt")" -lt "$n" ] && n=$(wc -l < "$D/keys_inputs.txt")

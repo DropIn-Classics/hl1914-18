@@ -3153,7 +3153,44 @@ emulation error (2026-10-02).
         elsewhere then, and its fight's outcome follows the clock when
         its pictures begin; `m54_end`'s passes run shorter in the port
         after the second side's move order in round 4, so an F1 is
-        read in the other side's part: not looked into further).
+        read in the other side's part; why, below).
+      - Why `m54_end` parts on the port's own clock (2026-10-09,
+        `debian/window11`): at 114.0 s, the F1 that ends round 4 in the
+        original's pass 1350, the port is in pass 1360 and its state
+        already differs (`play_test.sh m54_end at m54_end 114.0`:
+        `unit_marks`, `field_bits`, `sides`, `attack_pick`, the
+        computer's). The second side's held cursor keys at 99 s are read
+        in another number of parts (the record's word 10h in 6 parts and
+        1 in 2 in the original, 5 and 4 in the port), because the port's
+        passes lie at another phase to the keys. The lead of 10 passes
+        by 114 s, measured with `-until` against the clock's file:
+        - the round's ends without fights: 2.81 to 2.84 s in the
+          original from the pass to the next part, 2.73 s in the port
+          (the `T_` numbers come from map 8; `attacks_run` to the next
+          part 1.44 to 1.46 s against 1.37): about 5 passes;
+        - passes whose work overran four ticks in the original (from 40
+          to 114 s: 1,183 passes of 4 ticks, one of 5, four of 6, among
+          them 630 to 633): 9 ticks, about 2 passes;
+        - ticks lost by the timer: from 31.34 s on the PIT runs with
+          reload 1549 (770.29 a second, the period the sound's
+          `pit_add` asks for; `pit_irq` takes 060Dh off every client's
+          count, `S27FE:06EB` logged), input_tick's 3FFFh then come
+          10 or 11 interrupts apart (0.0130 and 0.0143 s, 57.5 % 11, as
+          16383/1549 says), but from 40 to 110 s there are 5,090 calls
+          of input_tick (72.71 a second) against 5,098 of the PIT's
+          count: about 85 interrupts lost, presumably while one was
+          still pending (not checked where; it follows the runner's
+          speed, as a real machine's would follow its own): about 2
+          passes.
+        The PIT is reprogrammed only four times in the run (0.16, 0.51,
+        18.57, 31.34 s, `S27FE:075A`), so the reprogramming is not a
+        cause. Not fixed: the port does not draw and does not run the
+        sound's timer, and any phase shift between the passes and the
+        script's held keys changes their count, so no constant makes
+        it the same; a script for the own clock needs keys held for
+        whole passes away from round ends (or `-keylog` from the
+        window). D0h, CEh and CFh on the own clock stay unreached for
+        that reason, not because of the pictures.
         `m57_win` (a poke leaves the second side without units, so the
         first round's end ends the battle) is the same on both clocks,
         in the window and behind the loop (port/README.md).
@@ -5047,8 +5084,9 @@ emulation error (2026-10-02).
      start (the sound's owner), `event_picture`'s other kinds (C8h,
      C9h, CCh, the newspapers of the maps 0 to 2Fh, `S1A39:059D`), a
      script that reaches D0h and CEh/CFh on the port's own clock (why
-     `m54_end`'s passes run shorter in the port after the second side's
-     move order in round 4) (the end in the window from the menu is
+     `m54_end` parts there is found, `debian/window11`: a phase shift of
+     the passes against held keys; such a script would be written by the
+     window's `-keylog`) (the end in the window from the menu is
      done, `debian/window8`);
    - the fight is confirmed (`build/n2/fights.sh`, `fightcalc.py`); left
      of it: a fight of a kind with 4 in word 0Fh, `S131D:178D` and the

@@ -521,6 +521,44 @@ in the window from the menu (with `-map` the play ends behind the
 pictures; from the menu the menu follows, not tried with this script);
 the sounds of CDh as sound; a medal with `which` 1 or 2.
 
+2026-10-08 (`debian/window6`): the second side's attack in the window.
+Nothing of the port needed changing: the second side's attack goes
+through the same `menu_attack`, `attack_order` and `attacks_run` as the
+first side's. `m48_sattack.keys` (map 48, 180 s) is what the headless
+window wrote (`-keylog`) playing `make_two.py` with `2R45 2R46 2R47 2R48
+2u50 2u51 2u52 2u53 2u54 2d55 2L56 2L57 2m59/0 2R62 2R63 2R64 2R65 2L66
+2u67 2u68 2d69 2a71 2a73 1E93 2E95 2f99 2f99.8 105:180` (`m48_build`'s
+first round, the gesture's up let go with the button): in its first
+(attack) half the second side's medium artillery is chosen, the attack's
+view darkened, the aim stepped onto the first side's cavalry two fields
+up and the attack ordered (71 to 73 s); the first round's end fights it
+with its pictures (attacks_run at pass 1235, the pictures' key cleared
+at 105.5 s), then five more rounds are ended by both sides. With
+`m48_build`'s `2m59` (up let go 0.2 s after the button) the window and
+the original read the trailing up by other numbers of passes (the aim
+one field apart, the same cause as `m48_move`'s), and no script with
+that length is the same in both; let go with the button it is.
+The original's run of the same file (`play_dumps.py m48_sattack.keys
+180`, `VRAM=1`, `PASSES="536 652 724 754 1234"`: the artillery chosen,
+the attack's view, the aim stepped, the order, the pass before the
+fight):
+- `play_test.sh m48_sattack`: the inputs, the game's state and the
+  computer's the same at every pass compared (26 dumps, the attack's
+  screens and all six rounds' ends and the passes after them); both
+  pages of video memory the same at all of them (5,655 bytes differ
+  behind the pages, as in `m48_attack`, not looked into);
+- `rounds` (the port's own clock, the window's): the game's state and
+  the computer's the same but for the passes' in all six rounds (the
+  port's round 1 ends at pass 1239, the original's at 1235), the pages
+  the same;
+- `live`: the window's play and the `-keys` play the same in all 4,574
+  parts and all 26 dumps, memory and video memory.
+Not done or not checked: the fight's pictures frame by frame in video
+memory against the original (only the views before and after them),
+the computer as second side attacking in the window (map 48 has two
+human sides; the computer's attacks were compared behind the window,
+`computer_test.sh`), the SDL window by hand.
+
 2026-10-08, the field menu's information (`unit_info`, `unit_values`,
 `info_rect` and `battle_info` in `src/draw.c`, the original's
 `S131D:0483`, `0148`, `0008` and `0EE5`; `state_field` of `src/loop.c`

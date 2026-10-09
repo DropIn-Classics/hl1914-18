@@ -6,7 +6,8 @@
 
 HL.EXE is run on the runner with a key script of port/tests/keys/
 (default m8_site.keys, map 8 chosen as dumps.py does with MAP8; a script
-whose name starts with m0 plays map 0) up to UNTIL emulated seconds
+whose name starts with m0 plays map 0, one with mNN_, two digits, map NN,
+its code entered in the menu as play_dumps.py does) up to UNTIL emulated seconds
 (default 145, before the first fight of m8_site, at 150 s).  One run logs
 what a pass reads from outside the translated code, by registers at:
 
@@ -63,6 +64,17 @@ keypath = os.path.join(HERE, 'keys', keys)
 if keys.startswith('m0'):
     pre = ['-mouse', '22', '150,48,1', '-mouse', '22.2', '150,48,0',
            '-mouse', '31', '230,80,1', '-mouse', '31.2', '230,80,0']
+elif re.match(r'm\d\d_', keys):
+    # the menu's CODE row, the map's five letters, Enter, START, as
+    # play_dumps.py has them (the code read from CODES.DAT, not kept)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import tpwmfiles
+    game = os.environ.get('DOSKIT_GAME') or os.path.join(ROOT, 'game')
+    rec = tpwmfiles.unpack(open(os.path.join(game, 'CODES.DAT'), 'rb').read())[int(keys[1:3]) * 10:][:5]
+    pre = ['-mouse', '21', '150,73,1', '-mouse', '21.2', '150,73,0']
+    for i, b in enumerate(rec):
+        pre += ['-key', str(22 + i * 0.5), chr(b - 0x11 + ord('a'))]
+    pre += ['-key', '25', 'enter', '-mouse', '27', '150,48,1', '-mouse', '27.2', '150,48,0']
 else:
     pre = ['-mouse', '21', '150,73,1', '-mouse', '21.2', '150,73,0', '-key', '22', 'r',
            '-key', '22.5', 'a', '-key', '23', 't', '-key', '23.5', 'i', '-key', '24', 'o',
@@ -167,6 +179,7 @@ extra = [int(x) for x in os.environ.get('PASSES', '').split()]
 chosen = sorted(set([1, 50, 200, 400] + [p + 1 for p in fights] + [p for p in fights]
                     + [passes - 1] + extra))
 chosen = [p for p in chosen if 1 <= p < passes]
+rel = lambda p: os.path.relpath(p, os.path.join(ROOT, 'port')).replace(os.sep, '/')
 have = sorted(int(f[1:-4]) for f in os.listdir(out) if re.match(r'p\d{4,}\.ram$', f))
 lines = []
 todo = []
@@ -180,9 +193,8 @@ with ThreadPoolExecutor(os.cpu_count() or 1) as pool:   # a run each, side by si
 for p in sorted(set(chosen + have)):
     if p > 1:
         path = os.path.join(out, 'p%04d.ram' % p)
-        lines.append('%d %s' % (p, os.path.relpath(path, os.path.join(ROOT, 'port'))))
-with open(os.path.join(out, 'loop_test.args'), 'w') as f:
-    f.write('%s %s\n' % (os.path.relpath(os.path.join(out, 'start.ram'), os.path.join(ROOT, 'port')),
-                         os.path.relpath(os.path.join(out, 'inputs.txt'), os.path.join(ROOT, 'port'))))
+        lines.append('%d %s' % (p, rel(path)))
+with open(os.path.join(out, 'loop_test.args'), 'w', newline='\n') as f:   # read by sh
+    f.write('%s %s\n' % (rel(os.path.join(out, 'start.ram')), rel(os.path.join(out, 'inputs.txt'))))
     f.write('\n'.join(lines) + '\n')
 print('%d passes logged, attacks_run in passes %s; dumps at %s' % (passes, fights, chosen))

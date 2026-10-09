@@ -95,6 +95,31 @@ static int region(uint32_t a)
     return 2;
 }
 
+/* the fight's pictures, which run here once pictures_load can load them,
+ * draw from rand_words (volley_end) and play every volley, while those of
+ * the original's run did not draw (loop_dumps.py refuses a run in which
+ * rand_next is called by other code than rand_range): words 4 and 6 of
+ * rand_words, which clock_seed leaves alone, are given back at their end;
+ * words 0 and 2 come from the log after attacks_run (loop.c) */
+static uint16_t kept[2];
+static int keeping;
+
+static void pics_keep(int at)
+{
+    if (at == PICS_SEED) {
+        if (!keeping) {
+            kept[0] = NW(rand_words, 4);
+            kept[1] = NW(rand_words, 6);
+            keeping = 1;
+        }
+        clock_seed_bios();
+    } else if (at == PICS_END && keeping) {
+        SETW(rand_words, 4, kept[0]);
+        SETW(rand_words, 6, kept[1]);
+        keeping = 0;
+    }
+}
+
 int main(int argc, char **argv)
 {
     FILE *f;
@@ -102,6 +127,10 @@ int main(int argc, char **argv)
     int i, bad = 0, done = 1, last = 0;
     uint32_t st;
 
+    /* the game's files, which pictures_load reads after a fight: run from
+     * port/, so ../game unless $DOSKIT_GAME names another folder */
+    hl_game_dir = getenv("DOSKIT_GAME") ? getenv("DOSKIT_GAME") : "../game";
+    pics_hook = pics_keep;
     if (argc > 1 && !strcmp(argv[1], "-replay")) {
         loop_replay = 1;
         argc--;
@@ -115,6 +144,18 @@ int main(int argc, char **argv)
     if (!load(argv[1], mem))
         return 2;
     st = (uint32_t)0x3EA4 << 4;         /* the stack's segment in the dumps */
+    /* the far pointers game_loop keeps in its frame (BP 0FEAh there), which
+     * battle.c sets in a battle the port begins itself: without them
+     * pictures_load, after a fight or a site taken, fails at its first load
+     * and leaves the music's digit (S331F:0284) unwritten */
+    game_mem.p = far_at(0x3EA4, 0x0FEA - 0x04);
+    game_mem.block = far_at(0x3EA4, 0x0FEA - 0x08);
+    game_mem.save_buf = far_at(0x3EA4, 0x0FEA - 0x0C);
+    game_mem.gfx = far_at(0x3EA4, 0x0FEA - 0x10);
+    game_mem.libs = far_at(0x3EA4, 0x0FEA - 0x14);
+    game_mem.lists_end = far_at(0x3EA4, 0x0FEA - 0x18);
+    game_mem.pics = far_at(0x3EA4, 0x0FEA - 0x1C);
+    game_mem.work = far_at(0x3EA4, 0x0FEA - 0x20);
     f = fopen(argv[2], "r");
     if (!f) {
         fprintf(stderr, "%s: cannot be opened\n", argv[2]);

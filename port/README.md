@@ -3561,6 +3561,32 @@ anything the game needs before the first release.
   reached on no map, docs/HANDOFF.md). Not verified: the bar the
   original draws while the computer thinks (`S1C74:0354`, read as
   counting only; not translated).
+- The computer as the first side (2026-10-09, Windows; branch
+  `win/computer`): `tests/keys/m24_quiet.keys` and `m30_quiet.keys`
+  play the maps 24 and 30, where side 0 is the computer's, with a human
+  second side that only ends its halves. `tests/loop_dumps.py` now takes
+  `mNN_` scripts as `tests/play_dumps.py` does (the map's code typed in
+  the menu). 400 s of each, `tests/loop_test.sh $(cat
+  ../build/loop/TAG/loop_test.args)`: the game's state and the
+  computer's the same at every pass compared, 33 passes of 6,119 on map
+  24 (14 with `attacks_run`) and 15 of 5,065 on map 30 (5). Rerun the
+  same way: `m8_site` and `m0_carry`, the same at every pass.
+  `tests/play_test.sh m24_quiet`: the inputs, the game's state and the
+  computer's the same at every pass compared; `m30_quiet` did not run:
+  on the original's clock the port's program comes to no pass (`-until
+  57` to `200` all stopped by a timeout of 40 s, nothing written), while on
+  its own clock it plays (1,382 passes in 60 s). Not looked into: it
+  is `play.c`'s (map 30's first pass begins at 56.6 s, map 24's at 31 s;
+  the script's keys begin at 70 s, after it).
+  `tests/loop_test.c` was changed for it: it sets `game_mem` from
+  `game_loop`'s frame in the first dump and gives the game's folder
+  (`../game`, `$DOSKIT_GAME`), without which `pictures_load` after a
+  fight failed and left the music's digit (`S331F:0284`) unwritten; on
+  map 24 the digit changed and the test said DIFFERENT. The fight's
+  pictures now run in the test and draw from `rand_words`, which the
+  original's runs did not do: words 4 and 6 are given back at their end
+  (docs/HANDOFF.md). Not covered: both sides the computer's; not run
+  with `-replay`.
 - The fights' rarer paths (2026-10-08, Linux; key scripts
   `tests/keys/m8_long.keys` and `m0_carry.keys`, made as
   `tests/side_dumps.sh` checks): `m8_long` is `m8_site` up to 375 s, then

@@ -1,0 +1,9 @@
+# map 48, two human sides: the joysticks on the port's own clock
+# (options_test.sh own), with m48_joyown.joy beside it: taps only, which
+# are sampled alike whenever they fall.  F6 twice (off, on) finds the
+# second side's stick, F5 switches the first side's off and on again; see
+# port/README.md
+32.00 f6
+33.00 f6
+40.00 f5
+42.00 f5

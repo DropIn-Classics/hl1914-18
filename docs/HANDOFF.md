@@ -122,6 +122,17 @@ port and the real one is started from the timer's routine; the line its
 owner can put in instead is in that bullet. Not run: the window, a real
 stick or controller (the window's program has no stick at all).
 
+On the branch `mac/options2` (2026-10-09) the four things that bullet
+left open are run and set beside the original: a stick in the menu (two
+walks, the same), `-map` with a clock's log and a sticks' script (the
+same but the pointer's range the menu sets), the sticks on the port's
+own clock (taps: the same, the counts of gaps a step apart at 5 of 35
+times) and the texts of F5 to F8 as video memory (no byte of the two
+pages different). The port changed in two small places for it
+(`joy.c`'s script in the menu before a battle on the original's clock,
+`main.c`'s pokes made when the first pass begins); the bullet "The
+joysticks' leftovers" says what was learned and what is still not run.
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -3971,10 +3982,71 @@ emulation error (2026-10-02).
   - Not done: the window (no stick there: `plat_sdl.c` gives a
     controller as keys; a stick would call `joy_stick` with one-shot
     times made from its axes), a real game port's speed (the counts are
-    the runner's machine's, as the T_ numbers of `play.c`), the texts of
-    F5 to F8 as video memory, the sticks in the menu (run `m48_joy0` had
-    its stick at rest there), `joy_read` with `03B6` 0 and a stick there
-    (10000h reads).
+    the runner's machine's, as the T_ numbers of `play.c`), `joy_read`
+    with `03B6` 0 and a stick there (10000h reads). (The texts of F5 to
+    F8 as video memory and the sticks in the menu: the next bullet.)
+- The joysticks' leftovers (2026-10-09, Mac, branch `mac/options2`;
+  `sh port/tests/options_test.sh` with its new ways `map` and `own`,
+  the walks `joy57` and `joyload` of `menu_dumps.py`/`menu_test.sh`;
+  port/README.md has the counts). Seen in runs of the original and of
+  the port beside it:
+  - The menu takes a stick as it takes the first side's keys: a
+    direction moves to the next item (what comes in is 5, as for a
+    key), either button chooses (1; the second button chose LOAD in
+    `joyload`). START takes the stick's first press, where the walks
+    by keys need a second after a code was typed: the button's key was
+    let go while the keys were the BIOS's and the program still had it
+    as held, and a stick's button is no key. START with no code typed
+    leads to the countries; left there and the button gave map 24 as
+    the key does.
+  - The saved game's question (`S167A:192E`) is left by the stick's
+    first button (the passes of the menu's loop go on 0.4 s after it,
+    the MISC page again), as the reading of `mac/menuload` expected;
+    right and left do nothing there. The second button at the question
+    was not run (it came while the menu was back and chose LOAD).
+  - `text_input`'s cursor (the `]`) comes and goes by the passes, so
+    what the page holds when Enter ends it is a matter of the clock:
+    with Enter at 15.0 s the original's page had it and the port's on
+    its own clock did not, at 15.1 both the same. The original's state
+    with Enter from 15.0 to 15.6 in tenths: at 15.0, 15.3, 15.4 and
+    15.5 one, at 15.1, 15.2 and 15.6 the other (which of them has the
+    cursor was read at 15.0 only: the original's, by the byte 5Dh of
+    the block).
+  - `-map` with a clock's log: the port makes the log's calls of the
+    timer's routine from the program's start, so the sticks' script,
+    which counts those calls, is at the right time in the battle with
+    nothing done for it (`joy_battle(0)`). What a `-map` start cannot
+    have is what the original's menu left: the pointer's range
+    (`DATA:043A` up to 0442; the menu's `mouse_range(8, 4, 12Ah, C0h)`
+    holds on through the battle in the original) and the counts of
+    holds and gaps, which the test pokes. A `-poke` of the port was
+    made before those calls; it is made when the first pass begins
+    now, as the original's runs get theirs (`S066A:0EE9#1`). Nothing
+    else of the comparisons with pokes changed by it (`m57_win`,
+    `m57_last` and the menu's walks with a battle rerun; `m48_undo`
+    and `m8_scroll` have no dumps of the original on this machine: not
+    rerun).
+  - The port's own clock: a stick's tap of 0.056 s is read once by a
+    side's part in both programs wherever it fell in this script (18
+    of 18), as the keys' taps of 0.06 s; the timer's routine reads the
+    sticks every 0.0549 s, so a shorter one can be missed. The counts
+    of gaps (the second word of each of a record's five pairs, 0 to 10
+    round) are the only bytes of DATA 0380 up to 045C that depend on
+    when in such a period a pass begins.
+  - The texts: F5 65h (off) and 66h, F6 67h and 68h, F7 6Ah (off) and
+    69h, F8 6Ch, 6Dh, 6Bh, all through `show_message` with DI 0 (the
+    first side's line; lines 189 to 193 of the page), still shown a
+    second later. F6 says 68h with no second stick there, as read
+    before. The port's page is the original's byte for byte.
+  - `joy.c`: with a clock's file the sticks' script and the setup's
+    wait did not move while the port's menu ran (the clock's calls
+    begin with the battle), so a stick there from the start was found
+    at the battle's first call only; they go by the port's own clock
+    there now. Nothing compared reaches that: not verified beyond the
+    runs' being the same as before.
+  - Not done: listed in port/README.md at the same point; first of all
+    a stick in the window (`plat_sdl.c`), which is the only way a
+    player's stick reaches these routines.
 - The program's end and the briefing (2026-10-08, Mac).
   - `S066A:4739`, reached when 1 is clear in `game_state` behind the
     menu or a battle (EXIT TO DOS sets 100h and clears 1 and 2):

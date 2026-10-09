@@ -1,0 +1,14 @@
+# map 48, two human sides: the texts of F5 to F8 as video memory
+# (options_test.sh, which keeps the video memory 0.3 s and a second after
+# each key), with a first stick there from the start (m48_ftext.joy) and
+# no second: F5 (off, on), F6 (off, on), F7 (the mouse off, on), F8 three
+# times (its speed); see port/README.md
+30.00 f5
+32.00 f5
+34.00 f6
+36.00 f6
+38.00 f7
+40.00 f7
+42.00 f8
+44.00 f8
+46.00 f8

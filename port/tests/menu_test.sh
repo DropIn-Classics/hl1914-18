@@ -32,6 +32,9 @@
 # backspace and show the best scores of a map that has one; twice57 and
 # livetwice57 begin with that best score in the folder (seed/, copied
 # into the port's -saves folder) and win a second.
+# The walks joy57 and joyload have a joystick (tests/keys/menu_WALK.joy,
+# the runner's -joys and the port's): its directions and buttons walk the
+# menu and leave the saved game's question.
 set -e
 # awk reads the clock's times as numbers only with a decimal point
 export LC_ALL=C
@@ -40,7 +43,7 @@ GAME=${DOSKIT_GAME:-../game}
 sh build.sh
 LIVE=
 [ "$1" = live ] && { LIVE=1; shift; }
-[ $# -gt 0 ] || set -- back code57 end57 exit live57 livename57 livetwice57 name57 noload pages start0 start24 twice57
+[ $# -gt 0 ] || set -- back code57 end57 exit joy57 joyload live57 livename57 livetwice57 name57 noload pages start0 start24 twice57
 r=0
 for w in "$@"; do
     D=../build/menu/$w
@@ -59,6 +62,8 @@ for w in "$@"; do
     # a walk that begins with best scores there (menu_dumps.py's SEEDS)
     for f in "$D"/seed/*; do [ -f "$f" ] && cp "$f" "$D/port_saves/"; done
     [ -f "$D/pokes.txt" ] && V="$V $(cat "$D/pokes.txt") -evdump $D/port_"
+    # the walk's joysticks (the runner's -joys script), if it has any
+    [ -f "tests/keys/menu_$w.joy" ] && V="$V -joys tests/keys/menu_$w.joy"
     # shellcheck disable=SC2086
     build/history-line-headless -game "$GAME" -keys "$D/keys.txt" -start "$(cat "$D/start.txt")" -seed 0 \
         -until "$until" -menulog "$D/port.log" -menudump "$n" "$D/port.ram" $V -saves "$D/port_saves" -ram "$D/port_end.ram" > "$D/port.txt" 2>&1 || true

@@ -4376,7 +4376,72 @@ emulation error (2026-10-02).
     from their first frame and prints the battle's drift apart.
   Not reached: 15h (both sides without units), CDh with CEh (a first
   side that wins by fights), a score not above the map's best on the own
-  clock. Not done: the SDL window by hand, the sounds.
+  clock. Not done: the SDL window by hand, the sounds. (All three
+  reached since, next bullet.)
+- The battle's three end edges left (2026-10-09, `debian/window15`,
+  Linux; port/README.md has the scripts and counts). Learned:
+  - A fight's losses draw no random number (`fight_losses` seeds
+    rand_state from the record and draws nothing): they follow from the
+    two counts, the experience (byte 1, one more after each fight both
+    were in) and the grounds' bonus (class: byte 5 of the ground's
+    record in `ww1gnds_dat`, the bonus in `ground_bonus`). Rounds where
+    neither side attacks change nothing of them. So which fights a
+    script gets was worked out beforehand: `fight_losses`' sums (as
+    port/src/fight.c has them) over counts, experience and ground
+    classes, checked against m60_fights' five fights (6/6 to 0/1, all
+    on class 8) and then by the port.
+  - On map 60 with both cavalries on class 8 the fights go 6/6, 5/5,
+    4/4, 3/3 and then the attacker loses 1 and the target 2: no order
+    of attackers reaches 1/1 there (all 112 orders of 5 to 7 fights
+    tried on the port end 2/1 or 1/2, then 1/0 or 0/1). An attacker
+    on class 1 against a target on class 8 at 3/3 (experience 3) and
+    2/2 (experience 4) takes one from each; at 1/1 (experience 5) a
+    fight on class 8 against 8 destroys both. (44,19) is class 1 and
+    touches (45,18) (class 8); (45,19) is class 8.
+  - A side's half is a move half and an attack half by turns: the field
+    menu's "up" (`field_menu`, view byte 16h bit 0) is the move aim in
+    one and the attack aim (target marked 4 or 8 in `field_bits`, state
+    0) in the other. On map 60 after the walk the first side attacks in
+    the odd rounds from 1454.5 s and moves in the even ones, the second
+    the other way round; a move aim in an attack half marks no field.
+    So a side attacking twice needs an odd number of rounds between.
+  - Next to the other side's unit the second side's cavalry may move one
+    field (only (46,19) and then (45,18) marked), the first side's many
+    (its range around (46,19) reached (44,19)); not read why.
+  - The second side's end of a half: a Space given just as the end's
+    texts appear (5.75 s after them in one try) ended both waits at
+    once (the second 0.06 s after the first); 7 s and 13 s after the
+    texts each ended one.
+  - 15h (both without units): no picture behind the loop at all (no
+    10h, so neither D0h nor CDh; battle_score gives no score), the texts
+    42h for both sides.
+  - A score not above the best: battle_score compares the score with
+    the lowest of the four as signed dwords and goes on only when it is
+    above (the `JBE` before `S063F:025D`, read in build/HL.ASM): equal is not
+    above. The file is `MAP\57.HI` for map 57 (`num_text` of the map's
+    number, as the port names it `MAP_57.HI`; `m57_menu`'s `04.HI` is
+    not map 57's, not followed). With four scores 620, 520, 420 and 320
+    (m57_hq's own) neither draws the random number nor shows CEh.
+  - Time of CDh then CEh on the own clock (`m60_first`): by the BIOS's
+    count the two agree from CDh's first frame to its 121st (235 ticks
+    each), then the port is 7 ticks later at CEh's first frame and
+    stays so. By the runner's own clock that stretch (CDh's last frames,
+    `wait_frames(0x64)`, `fade(0)`, battle_score, CEh's loading) is
+    4.207 s in the original and 4.273 s in the port, about a tick
+    apart; but the original's timer routine was called 286 times in it
+    (68 a second, 70.6 over CDh's first 121 frames, 72.3 after), and
+    its BIOS count goes with those calls. The port's retraces and fades
+    are timed by the screen's rate, its timer at 72.8 a second. Not
+    read why the runner's timer runs slow there (a doskit matter, not
+    changed here); presumably the same lies in D0h's tail, which
+    `EV_WON_END` (1.11 s, "presumably music_fade") makes up for, not
+    checked. `endclock_test.sh` allows 7 ticks for `m60_first`.
+  - `play_dumps.py` keeps an existing `log.txt`: a run redone into a
+    folder whose dumps alone were removed reported the old run's end.
+    Remove the folder.
+  Not done: the SDL window by hand, the sounds. Not looked at: the two
+  map-60 differences on the original's clock, which are `m60_fights`'
+  (pass 1's setup bytes, pass 4748's bytes 5 and 8).
 - The field menu's information (2026-10-08, Mac; `unit_info`,
   `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
   each does; `port/src/draw.c`). Learned:
@@ -6073,10 +6138,12 @@ emulation error (2026-10-02).
      (`win/computer5`);
    - a battle's end in the window (`debian/window5`): the pictures CDh
      to D0h are translated and compared; next there the music they
-     start (the sound's owner); `event_picture`'s other kinds (C8h,
-     C9h, CCh, the newspapers of the maps 0 to 2Fh, `S1A39:059D`) are
-     translated on `win/papers` (the bullet "The newspapers"); the
-     end on the port's own clock by play is done (`debian/window14`,
+      start (the sound's owner); `event_picture`'s other kinds (C8h,
+      C9h, CCh, the newspapers of the maps 0 to 2Fh, `S1A39:059D`) are
+      translated on `win/papers` (the bullet "The newspapers"); the
+      end on the port's own clock by play is done (`debian/window14`,
+      its three edges 15h, CEh after a win by fights and a score not
+      above the best on `debian/window15`,
      `m54_hq`, `m57_hq`) (the end in the window from the menu is
      done, `debian/window8`);
    - the fight is confirmed (`build/n2/fights.sh`, `fightcalc.py`); left

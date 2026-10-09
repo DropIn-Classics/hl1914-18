@@ -5805,6 +5805,62 @@ emulation error (2026-10-02).
       from the first tick, see `-map`); what holds the interrupt in the
       fights; a real machine and a real chip.
 
+  - The Sound Blaster played, and the drums (2026-10-09, Debian, branch
+    `debian/sound`, in Mac's place; Mac reviews). port/README.md
+    ("State") says what the program does.
+    - Point 6 of "What the audio's clock needs" is done in the port:
+      `snd_dig` behind `dig_irq`'s start of a buffer and at
+      `dig_kick`'s halt, a queue in `main.c` added in the callback. The
+      kit still has no source for such bytes (the queue is written in
+      `main.c`, port-specific glue, not a copy of a kit piece). A
+      generic, tested "PCM queue at a rate, resampled into the callback"
+      in doskit would replace it; a gap for the lead, not built here.
+    - Map 8 with `m8_site.keys`, 180 s, with `DK_WAV`: 96,256 bytes of
+      the card (9.6 s at 10000 a second), 9 halts. The intro (`-intro`,
+      `-until 120`): 161,356 bytes, 48 halts. Against master's program
+      on the same run the WAVE files differ in 577,743 samples, all in
+      the seconds 8 to 23 (the BANG scene, before the tune starts at its
+      frame 87h). Not listened to.
+    - The intro's effects: with the Sound Blaster found, `S033D` loads
+      BANG.SFX (the name at `S0E07:0260`) and plays it on the channels 0
+      to 7 by the table at `S0E07:036E`; without it BANG.AFX on 8 to 0Bh
+      (`seq.c`, as translated before; not compared with the original's
+      run here). EXTRO has no effects (its strings name only the two
+      .ADL files, and its folder has no .SFX or .AFX).
+    - The drums. The tunes do not use the chip's rhythm mode (no write to
+      BDh in `soundout_test.sh`'s two walks), so the drums are melodic
+      voices. The noisy ones presumably use the highest feedback (C?h =
+      0Eh, feedback 7, set on the voices 3, 5, 6 and 7 in those walks;
+      which instrument is a drum was not checked). Findings:
+      - The suites cannot see the difference from DOSBox: the runner's
+        `-oplwav` renders with the same `doskit/runtime/opl.c`
+        (`tools/run/build.sh`), so oplwav and soundout compare one
+        synthesizer with itself. The register stream was already judged
+        the original's write for write in the tunes the game side does
+        not touch (port/README.md "Checked", `mac/oplwav`). The 35
+        differing writes are in the battle's tune from `-map 8` only
+        (the direct start's levels and three notes), not in a game
+        entered through the menu, so they cannot make the drums of
+        every tune duller. Not changed.
+      - `opl.c`'s feedback noise depends on the rate it renders at. A
+        voice alone, feedback 7, at 44100 Hz makes 19,867 zero
+        crossings a second, at 49716 Hz (the chip's) 22,155: 11 % more,
+        the ratio of the rates (feedback 5 and 6 alike; a scratch
+        program on `opl_init`/`opl_write`/`opl_render`, not kept). A
+        chip makes its noise at 49716 Hz whatever the card's output, so
+        at the port's 44100 every noisy instrument is about 11 % lower
+        in pitch: presumably the duller snares. Also by its own header
+        `opl.c` is no circuit model (a float sine, no log-sin tables,
+        no 9-bit envelope steps; the attack's curve and the carrier's
+        modulation depth are choices), which changes the noise's colour
+        too; not measured.
+      - For the lead (kit gap, not built): `opl.c` should step at the
+        chip's 49716 Hz and resample to the device's rate (or a
+        chip-exact core taken into `third_party/` under a permissive
+        licence), with a test against a reference. Then the port's
+        sound and the runner's `-oplwav` would show it. Not done here:
+        doskit is read-only on this branch.
+
 ## `HL14-18.EXE` stage 1
 
 - MZ program, entry `0000:000B`, stack `0296:0100`; its relocation

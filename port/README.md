@@ -1324,6 +1324,34 @@ Differs: the original's Esc is lost when its timer routine reads the
 key first (seen at 20.00 and 70 s); the port always takes it. Where
 DOS has less room than the original's mem_alloc asks (HL.EXE stays
 loaded under it in the port) the largest block is taken.
+
+2026-10-09 (Debian, branch `debian/sound`): the Sound Blaster's effects
+are played. `sound.c`'s `dig_irq` hands each buffer it starts to a hook
+(`snd_dig`: the buffer's bytes, unsigned 8 bit mono, and `dsp_rate`'s
+rate), and `dig_kick` calls it with NULL where the original halts the
+DSP. `main.c` queues the buffers one behind the other, reads them in
+the audio callback with a linear step to 44100 Hz and adds them to the
+chip's samples. A queue that has run empty begins AUDIO_LEAD samples
+behind the samples played, as the AdLib's writes do, and a halt drops
+only what lies beyond the game's moment (the lead ahead of the samples
+played), so the buffers mixed anew follow on without a gap. The card's
+interrupt stays on the port's clock (`snd_clock`), as before. That
+covers the fights' pictures (`pics_play`, `dig_play`) and the intro's
+BANG scene (BANG.SFX on the channels 0 to 7, `seq.c`); EXTRO plays no
+effects (its folder has no .SFX or .AFX, its program names only
+`EXTRO1.ADL` and `CREDITS1.ADL`, and `extro_play` calls no `sfx_play`).
+Without a device nothing changes (the hook is unset). With one the
+program's last lines to stderr count the card's bytes and halts. Not
+verified: by ear; the level of the card's bytes against the chip's (an
+effect peaks at about 5,500 where the music peaks at about 1,500, and
+how a card and an AdLib compared on a PC was not measured); the
+interrupt's time against the device's (the queue only joins the
+buffers, so a port clock running ahead lets it grow, one running
+behind leaves gaps); the window's program with a real device; Windows.
+`soundout_ref` checks a WAVE file against its list of AdLib writes, so
+a walk with digital effects in it would not pass that check. The walks
+`soundout_test.sh` makes have none (map 8's first fight pictures come
+after its 120 s), so it is not extended yet.
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)

@@ -132,6 +132,7 @@ int32_t sfx_load(Far place, Far name, Far work);
 
 /* sound.c */
 extern void (*snd_opl)(uint8_t reg, uint8_t value);
+extern void (*snd_dig)(const uint8_t *p, int n, int rate);
 extern void (*snd_played)(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, int16_t r);
 uint16_t snd_init(uint16_t mask);
 void snd_end(void);

@@ -115,9 +115,9 @@ static const double t_ev_load[] = {
     0.333,  /* EV_LOAD_SITE: site_picture's files, S1A39:1906 to 195B in m0_s4 (round 4) */
     1.01,   /* EV_LOAD_PAPER: a newspaper's files, S1A39:059D to its first frame 1.558 s in m0_paper (both pages) */
     2.11,   /* EV_PAPER_END: a newspaper's music_fade(14h), presumably (not checked what takes the time); its loop's end S1A39:0A45 to the next page's S1A39:059D 3.356 s, to S066A:4728 3.363 s in m0_paper */
-    0.0,    /* EV_LOAD_SHIP: CCh's files (not measured) */
-    0.0,    /* EV_LOAD_ZEPPELIN: C9h's files (not measured) */
-    0.0,    /* EV_LOAD_RICHT: C8h's files (not measured) */
+    0.66,   /* EV_LOAD_SHIP: CCh's files: the port's first frame 12 ticks further ahead than at page 0's last in m34_paper */
+    1.04,   /* EV_LOAD_ZEPPELIN: C9h's files: the port's first frame 19 ticks early in m31_paper against 12 before event_picture in m0_paper (the same battle's end by Esc), an estimate */
+    0.55,   /* EV_LOAD_RICHT: C8h's files: the port's first frame 22 ticks early in m22_paper against 12 before event_picture in m0_paper (the same battle's end by Esc), an estimate */
 };
 #define T_SETUP 2.75        /* the menu's return (S066A:0390) to the loop's first pass (back walk: 20.18 to 22.93 s) */
 

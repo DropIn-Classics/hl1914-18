@@ -4004,8 +4004,14 @@ record (`S3812:0D14`) and the fonts (`S3B76`); behind the pages
 (offsets 7E84h on) the original has what it put there before the
 battle's first pass, the port nothing. The BIOS's ticks at those
 frames: the port 6 to 12 ticks early throughout (12 at the first; the
-difference lies before `event_picture`). `check.py` all ok; the window
-and headless programs build (MSVC), `orders_test` builds with the cc
-wrapper.
+difference lies before `event_picture`). The three pictures the same
+way, each with the newspaper around it: `tests/keys/m31_paper.keys`
+(C9h), `m22_paper.keys` (C8h), `m34_paper.keys` (CCh, before page 21):
+all 126, 132 and 148 dumped frames have both pages the same. Their
+loading counts CCh 0.66 s (measured), C9h 1.04 s and C8h 0.55 s
+(estimated, docs/HANDOFF.md); with them the port stays 4 to 16 ticks
+early at all dumped frames of the four runs. `check.py` all ok; the
+window and headless programs build (MSVC), `orders_test` builds with
+the cc wrapper.
 Not checked: the music by ear; the pause key; the original's clock
 (`-clock`) through a newspaper; the live window (the player checks).

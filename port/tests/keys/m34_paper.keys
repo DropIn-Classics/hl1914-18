@@ -1,0 +1,10 @@
+# Map 34 against the computer, left at once: Esc and the key at scancode
+# 2Ch (the runner's z) end the battle and its newspaper follows, which
+# has the ship, picture CCh, before its second page (event_picture;
+# map 34 shares map 10's newspaper). The two spaces before go through
+# the screens of new units the map shows after START (the battle's first
+# pass at 46.6 s; the port's play passes over keys before its start).
+42.00 space
+44.00 space
+55.00 esc
+56.00 z

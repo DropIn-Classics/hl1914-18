@@ -2621,9 +2621,33 @@ emulation error (2026-10-02).
           first frame 12 ticks (0.66 s) early, within 6 to 12 through
           both pages; the 0.66 s lie before `event_picture` (the
           battle left by Esc; not looked into).
+        - The pictures before three pages (`pic_zeppelin` C9h,
+          `pic_ship` CCh, `pic_richt` C8h; sprites of 1Ch-byte records
+          in S3812 over streams, `sprite_draw` keeping what they cover)
+          compared the same way: `m31_paper` (map 31, page 14: C9h's
+          53 + 50 frames, then 1,150 of the newspaper), `m22_paper`
+          (map 22, page 44: C8h's 140 + 80, then 1,098), `m34_paper`
+          (map 34, page 21: page 20's 617 frames, CCh's 130, then
+          page 21's): all 126, 132 and 148 dumped frames have both
+          pages of video memory the same. Their frames start at
+          `S1A39:1BED`/`1D0F`, `1FCF`/`221B`, `169A`; in two loops the
+          original sets the count after `unders_restore`, so the
+          port's `EV_PAPER` comes before it there (where the dump is).
+          Their loading on the port's own clock: CCh 0.66 s (measured
+          against page 20's last frame in the same run), C9h 1.04 s
+          and C8h 0.55 s (estimates: the first frame's lead less the
+          12 ticks m0_paper has before `event_picture`, the same
+          battle's end by Esc in both). The port's frames of C9h and
+          C8h are 2 to 3 ticks shorter over their 100 to 220 frames
+          (presumably the original's `page_copy` and stream decoding in
+          each frame, which the port does not count).
         - `play_dumps.py` reads a script named `m0...` as map 0, so a
           script for map 7 must not be `m07_...`: map 31 shares its
-          newspaper (`m31_paper`).
+          newspaper (`m31_paper`). Map 10's code (and map 34's) START
+          shows screens of new units first, which wait for a press; map
+          34's script presses space at 42 and 44 s (the port's play
+          passes over keys before its start). The runner's `-shot T
+          FILE` showed it.
         - Not done: the newspapers' music is started and faded
           (`music_start`, `music_fade`) as the site's is, not listened
           to; the pause key not run; the original's clock (`-clock`):

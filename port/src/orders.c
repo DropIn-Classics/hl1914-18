@@ -33,7 +33,7 @@
 /* S331F:4CAE depot_count, the next record of sites_100: names.h */
 
 void (*orders_hook)(int at, int n);
-static int fought;      /* a fight was shown in this attacks_run */
+int orders_fought;      /* a fight was shown in this attacks_run ([BP-0Eh]) */
 
 static Far unit_at(uint8_t unit)
 {
@@ -212,7 +212,7 @@ static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, ui
     SETW(game_state, 0, NW(game_state, 0) | 0x1000);
     fww(S_site_taken, A_site_taken, 1);
     if (orders_hook)
-        orders_hook(ORDERS_TAKEN, fought);
+        orders_hook(ORDERS_TAKEN, orders_fought);
     /* S02E6:1249 to 1373: the other side's view on the site, its field
      * marked with 30h while the marks are drawn and the mark taken off
      * again, the taker's view covered, shown, wait_frames(1Eh); the
@@ -234,11 +234,11 @@ static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, ui
     page_copy();
     if (orders_hook)
         orders_hook(ORDERS_WAIT, 0x1F);
-    if (!NB(no_fight_pics, 0) && fought) {
+    if (!NB(no_fight_pics, 0) && orders_fought) {
         fade_in();
         if (orders_hook)
             orders_hook(ORDERS_FADE, 0);
-    } else if (!NB(no_fight_pics, 0) || !fought) {
+    } else if (!NB(no_fight_pics, 0) || !orders_fought) {
         fade_back(game_mem.save_buf);
         if (orders_hook)
             orders_hook(ORDERS_WAIT, 0x60);
@@ -737,7 +737,7 @@ static void fights_run(uint16_t a, uint16_t m, Far map)
         fww(S_fight_rec_ptr, (uint16_t)(A_fight_rec_ptr + 2), S_fight_rec);
         if (orders_hook)
             orders_hook(ORDERS_FIGHT, pictures);
-        fought = 1;     /* [BP-0Eh], S02E6:08F5 */
+        orders_fought = 1;     /* [BP-0Eh], S02E6:08F5 */
         if (pictures) {
             Far rec = { S_fight_rec, A_fight_rec }, p;
 
@@ -820,7 +820,7 @@ uint8_t attacks_run(void)
     uint16_t a, m, u, c0 = 0, c1 = 0;
     Far map, other, v0, v1;
 
-    fought = 0;
+    orders_fought = 0;
     field_bits_clear(0xFF);
     show_message(0xFFFF, 0);
     show_message(0xFFFF, 1);

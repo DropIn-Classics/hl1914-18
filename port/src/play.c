@@ -91,6 +91,7 @@
  * round's end, seconds, measured in logged runs (docs/HANDOFF.md; m8_d5r
  * with and without fight pictures, m0_hq): not counted by the game. */
 #define T_VIEW 0.59         /* the view drawn before the first fight's panel, a fight's after pictures, a taken site's wait */
+#define T_TAKE_VIEW 0.085   /* a site taken after a fight: from the fight's end (S02E6:08F5) to order 4's wait_frames (12E7), m30_both with pictures */
 #define T_NEXT 0.10         /* a later fight without pictures: to its panel */
 #define T_PANEL 0.10        /* fight_panel before its first fade or mark */
 #define T_MARK 0.017        /* a mark of the panel drawn (it misses one retrace) */
@@ -856,7 +857,9 @@ static void round_hook(int at, int n)
         /* order 4, S02E6:1233 on: the view drawn (orders.c draws it
          * after this); its waits and fades come as ORDERS_WAIT and
          * ORDERS_FADE, the site's picture through site_hook */
-        if (first)
+        if (n)
+            own_busy(T_TAKE_VIEW);
+        else if (first)
             own_busy(T_VIEW);
         first = 0;
         break;

@@ -2340,7 +2340,36 @@ emulation error (2026-10-02).
         (`S1C74:0354`) is still not translated. (Wrong: it was
         translated on `debian/window`; read whole and compared on
         `mac/thinkbar`, the bullet "The pass with the computer's own
-        turn".)
+        turn".) (Both sides: done since, the next bullet.)
+    - Both sides the computer's (2026-10-09, Windows, branch
+      `win/computer2`). The menu has it: GAME SETUP (third row of the
+      main page) shows player one and two in its second and third rows
+      (HUMAN, COMPUTER; items 7 and 8), and with both COMPUTER the menu
+      leaves 2 in word 0 of both sides and 4 in word 2 of `game_state`
+      (seen in a dump after START). Its first row, EXT FIGHT ON/OFF, is
+      `no_fight_pics` (OFF gave 1 at `S37FF:0115`). A click counts for
+      the item the pointer was on in the pass before: without moving the
+      pointer onto a row first, the click toggled the row the pointer came
+      from (seen: GAME SETUP's own row on the main page, the third).
+      - `loop_dumps.py` `mNN_both`: after the code, GAME SETUP, fights
+        OFF, the third row to COMPUTER, EXIT, START (only for maps from
+        18h on, where the code leaves the second side human; below that
+        not checked). With the fights' pictures on, the original's run
+        called `rand_next` outside `rand_range` (map 24 pass 3721, map 30
+        8639: presumably the pictures, not looked into), which the test
+        refuses, so they are off.
+      - Map 30 stops on its NEW UNITS pages with both sides the
+        computer's until a key comes (two spaces, 42 and 47 s; the
+        battle begins at 49.6 s); map 24 needs none (39.0 s).
+      - Compared with `loop_test`, 600 s each: map 24 7,760 passes, 10
+        round ends (`attacks_run`), the same at the 22 passes compared
+        (9 round ends and the pass after each); map 30 8,704 passes, 3
+        round ends, the same at the 10 compared (all three and the pass
+        after). A round's end needs no key here: `loop.c` already takes
+        both sides' word 0 at the round's end, nothing in the port
+        changed. Not done: `play_test.sh` (the port's whole program on
+        the original's clock; `play_dumps.py` has no `both` path), the
+        fights' pictures on, maps below 18h.
       - On Windows without cc: the `.sh` tests ran under Git Bash with
         `CC` set to a small wrapper that hands the gcc-style options to
         MSVC's cl (vcvars64, `/MT`, `advapi32.lib shell32.lib
@@ -5668,8 +5697,8 @@ emulation error (2026-10-02).
 2. `HL.EXE`: 71,755 instructions decode and play finds no more code. Go on
    with stage 2 where it stands (the bullets of 2026-10-04 above):
    - the computer's player (`win/computer`: the first side compared on
-     the maps 24 and 30): next both sides the computer's (a way to set
-     it up, then `loop_test`), and the
+     the maps 24 and 30; `win/computer2`: both sides, `loop_test` on the
+     same maps): next both sides in `play_test.sh`, and the
      paths no map reached (`plan_to_site`, `plan_approach`,
      `computer_plan`'s states 2 and 6, the step of kind 5);
    - a battle's end in the window (`debian/window5`): the pictures CDh

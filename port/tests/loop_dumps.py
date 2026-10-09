@@ -7,7 +7,9 @@
 HL.EXE is run on the runner with a key script of port/tests/keys/
 (default m8_site.keys, map 8 chosen as dumps.py does with MAP8; a script
 whose name starts with m0 plays map 0, one with mNN_, two digits, map NN,
-its code entered in the menu as play_dumps.py does) up to UNTIL emulated seconds
+its code entered in the menu as play_dumps.py does; mNN_both also makes
+the human side the computer's and the fights' pictures off in GAME
+SETUP) up to UNTIL emulated seconds
 (default 145, before the first fight of m8_site, at 150 s).  One run logs
 what a pass reads from outside the translated code, by registers at:
 
@@ -74,7 +76,24 @@ elif re.match(r'm\d\d_', keys):
     pre = ['-mouse', '21', '150,73,1', '-mouse', '21.2', '150,73,0']
     for i, b in enumerate(rec):
         pre += ['-key', str(22 + i * 0.5), chr(b - 0x11 + ord('a'))]
-    pre += ['-key', '25', 'enter', '-mouse', '27', '150,48,1', '-mouse', '27.2', '150,48,0']
+    pre += ['-key', '25', 'enter']
+    if keys[4:8] == 'both':
+        # both sides the computer's: GAME SETUP (third row of the main
+        # page); there the first row to EXT FIGHT OFF (no_fight_pics: with
+        # the fights' pictures the original draws from rand_words outside
+        # rand_range, which the test cannot follow) and the third, player
+        # two, from HUMAN to COMPUTER (menu_code_set leaves the second side
+        # human from map 18h on; only the maps 24 and 30 seen); EXIT, then
+        # START. The pointer is moved onto a row before its click: a click
+        # counts for the item the pointer was on in the pass before
+        if int(keys[1:3]) < 0x18:
+            sys.exit('mNN_both: the human side\'s row below map 18h not checked')
+        for t, at in ((27, '150,97'), (29, '150,48'), (31, '150,97'), (33, '290,180'),
+                      (35, '150,48')):
+            pre += ['-mouse', str(t - 0.5), at + ',0', '-mouse', str(t), at + ',1',
+                    '-mouse', str(t + 0.2), at + ',0']
+    else:
+        pre += ['-mouse', '27', '150,48,1', '-mouse', '27.2', '150,48,0']
 else:
     pre = ['-mouse', '21', '150,73,1', '-mouse', '21.2', '150,73,0', '-key', '22', 'r',
            '-key', '22.5', 'a', '-key', '23', 't', '-key', '23.5', 'i', '-key', '24', 'o',

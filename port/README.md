@@ -3641,8 +3641,21 @@ anything the game needs before the first release.
   map 24 the digit changed and the test said DIFFERENT. The fight's
   pictures now run in the test and draw from `rand_words`, which the
   original's runs did not do: words 4 and 6 are given back at their end
-  (docs/HANDOFF.md). Not covered: both sides the computer's; not run
-  with `-replay`.
+  (docs/HANDOFF.md). Not run with `-replay`.
+- Both sides the computer's (2026-10-09, Windows; branch
+  `win/computer2`): `tests/loop_dumps.py` with a script named
+  `mNN_both` sets it in the menu's GAME SETUP (player two to COMPUTER,
+  the fights' pictures OFF) before START; `tests/keys/m24_both.keys`
+  (no key) and `m30_both.keys` (two keys through map 30's NEW UNITS
+  pages). 600 s each, `tests/loop_test.sh $(cat
+  ../build/loop/TAG/loop_test.args)`: the game's state and the
+  computer's the same at every pass compared, 22 passes of 7,760 on
+  map 24 (the ends of 9 of its 10 rounds and the pass after each) and
+  10 of 8,704 on map 30 (all 3 round ends). The port needed no change.
+  Rerun after merging master (972da43): `m24_quiet`, `m30_quiet`,
+  `m8_site`, `m0_carry` the same. Built with the cc wrapper for MSVC
+  under Git Bash (docs/HANDOFF.md). Not covered: `play_test.sh` with
+  both sides the computer's, the fights' pictures on, maps below 18h.
 - The bar of the computer's thinking (2026-10-09, Mac; branch
   `mac/thinkbar`): `computer_progress` (`S1C74:0354`, `src/plan.c`) and
   the bar `computer_part` draws with it (`src/loop.c`, `bar_draw` in

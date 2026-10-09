@@ -186,6 +186,14 @@ video memory and the DAC, nothing different. Of the port's source
 nothing changed; the tests and the hints' names only (the bullet "The
 pass with the computer's own turn", its last item).
 
+On the branch `debian/window14` (2026-10-09) the battle's end is reached
+by play alone on the port's own clock, no pokes: `m54_hq` (the second
+side takes the first's headquarters: D0h, CFh) and `m57_hq` (the first
+side takes the second's: D0h, CEh), both run on the original and the
+same at every round's end and every tenth frame. The bullet "The end by
+play on the own clock" says how the scripts were found;
+`sh port/tests/endclock_test.sh` runs them.
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -4058,7 +4066,47 @@ emulation error (2026-10-02).
   Not reached: CEh on the own clock (needs 0Fh or 11h in the first
   view's word 22h), D0h and CFh on the own clock by play without pokes
   (the phase matter of `debian/window11`). Not done: the SDL window by
-  hand, the sounds.
+  hand, the sounds. (All three reached since, next bullet.)
+- The end by play on the own clock (2026-10-09, `debian/window14`,
+  Linux; port/README.md has the scripts and counts). Learned:
+  - A key script survives both clocks when every step of a cursor is a
+    tap of 0.06 s and every gesture lets its direction go 0.03 s after
+    the button (as `m60_fights` found), and when each tap lies a second
+    or more from a gesture. A tap of 0.05 s 0.8 s after a gesture was
+    lost on the original in a first try (round 8 of `m54_hq`; spaced
+    to 1.3 s and 0.06 s it was read). With 0.03 s after the button the
+    gesture's direction does not step the cursor at all; with
+    `m54_end`'s 0.2 s it stepped once more on most move menus, which
+    `m54_hq` gives as a tap of its own (`2u70`, `2u132`, `2u163`,
+    `1u187`, `2u205`, `2u236`). Found by printing each side's cursor
+    (view word 0) and state (byte 1Bh) every third pass of the port on
+    the original's clock (`-clock` of `m54_end`) and on its own, and
+    making the own clock's sequence the same.
+  - While a move aim is chosen (view state 4) one step of the cursor can
+    move it two fields: seen as one input word (0200h, down) at one pass
+    and the field two rows further at the next. Not read why
+    (presumably the cursor skips fields it may not go to, or the view
+    scrolls by two); the same on both clocks, so a script finds its way
+    by trying (on map 57 `d` and then `u` went one field down).
+  - `field_bits` is 64 bytes a row whatever the map's width: during a
+    move aim bit 1 marks the fields the unit may go to (40h its own),
+    which shows a unit's range without trying.
+  - Map 57's second headquarters (7,11) has the second side's units on
+    (6,11) and (8,11) beside it and can be entered from (7,10) only; the
+    first side's cavalry came there in six move halves ((8,1) to (9,4),
+    (9,7), (7,7), (7,8), (7,9), (7,10)) after the second side moved its
+    unit from (7,10) to (7,9) and on to (6,9). Its range shrinks near
+    the second side's units (one field a move from (7,7) on); not read
+    why.
+  - The pictures' time from their first frame: every tenth frame within
+    3 BIOS ticks of the original, `S066A:4728` within 3. The battle
+    before them drifts (the first frame 7 or 8 ticks later in the port
+    over 15 rounds: the passes' phase and the timer of
+    `debian/window11`), so `endclock_test.sh` now counts the pictures
+    from their first frame and prints the battle's drift apart.
+  Not reached: 15h (both sides without units), CDh with CEh (a first
+  side that wins by fights), a score not above the map's best on the own
+  clock. Not done: the SDL window by hand, the sounds.
 - The field menu's information (2026-10-08, Mac; `unit_info`,
   `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
   each does; `port/src/draw.c`). Learned:
@@ -5704,11 +5752,9 @@ emulation error (2026-10-02).
    - a battle's end in the window (`debian/window5`): the pictures CDh
      to D0h are translated and compared; next there the music they
      start (the sound's owner), `event_picture`'s other kinds (C8h,
-     C9h, CCh, the newspapers of the maps 0 to 2Fh, `S1A39:059D`), a
-     script that reaches D0h and CEh/CFh on the port's own clock (why
-     `m54_end` parts there is found, `debian/window11`: a phase shift of
-     the passes against held keys; such a script would be written by the
-     window's `-keylog`) (the end in the window from the menu is
+     C9h, CCh, the newspapers of the maps 0 to 2Fh, `S1A39:059D`), the
+     end on the port's own clock by play is done (`debian/window14`,
+     `m54_hq`, `m57_hq`) (the end in the window from the menu is
      done, `debian/window8`);
    - the fight is confirmed (`build/n2/fights.sh`, `fightcalc.py`); left
      of it: a fight of a kind with 4 in word 0Fh, `S131D:178D` and the

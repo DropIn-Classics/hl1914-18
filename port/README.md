@@ -1241,6 +1241,19 @@ end) and music_fade's wait. A test aid, not the launcher: `-intro` /
 `-extro` play one by itself and end the program (in the window live),
 `-seqlog` prints each page shown, `-seqdump N FILE` writes memory,
 `.vram` or `.dac` at page N.
+In the window, from the menu on, the program plays them where the
+launcher HL14-18.EXE does: INTRO.EXE before HL.EXE (its CODE:0054; Esc
+ends it, as INTRO's own Esc does, and the game starts whatever it
+returns), on HL.EXE's loaded image, which is then loaded again so the
+game starts on fresh memory; EXTRO.EXE only when HL.EXE would end with
+7Bh, the last battle won (its CODE:009A, CODE:00D5), after which the
+program ends. `-nointro` leaves the intro out (the launcher has no such
+choice; the player can also press Esc). Scripted runs (`-keys`,
+`DK_KEYS`, headless) and `-map` play neither, so their times stay.
+Checked: the build, `check.py`, `-extro` headless (4530 pages, to
+561.78 s, as before). Not checked: the intro and outro in the live
+game path (left to the player's run), a key held over from the intro
+into the menu.
 Checked against the runner's originals (INTRO.EXE alone, EXTRO.EXE
 with `0 HL14-18`): the same number and order of pages shown (INTRO
 1831 flips and pans, EXTRO 4530 flips, the screen_open's own one aside);

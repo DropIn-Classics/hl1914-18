@@ -240,8 +240,12 @@ static void menu_mouse(void)
 
 /* HL.EXE into the program's memory and the translated parts of its
  * start and of a battle's setup for map `map`; a line about the result
- * in `line`.  0 if it failed. */
-static int start_game(const char *game, int map, uint32_t bios, char *line, size_t n)
+ * in `line`.  With `intro` the launcher's INTRO.EXE is played first, as
+ * HL14-18.EXE runs it before HL.EXE (its CODE:0054): on HL.EXE's image,
+ * which holds the libraries' data it uses (seq.c), and HL.EXE loaded
+ * again behind it so that the game starts on fresh memory as the new
+ * process does.  0 if it failed. */
+static int start_game(const char *game, int map, uint32_t bios, int intro, char *line, size_t n)
 {
     char exe[SYS_PATH], err[256];
     int r;
@@ -255,6 +259,20 @@ static int start_game(const char *game, int map, uint32_t bios, char *line, size
         return 0;
     }
     hl_game_dir = game;
+    if (intro) {
+        /* the launcher goes on to HL.EXE whatever INTRO returns */
+        play_bios(bios);
+        play_start(0);
+        intro_play();
+        if (play_stopped()) {
+            snprintf(line, n, "The program was ended in the intro.");
+            return 0;
+        }
+        if (rm_load_exe(exe, HL_SIZE, HL_SHA256, HL_PSP, HL_PARAS, err, sizeof err) != 0) {
+            snprintf(line, n, "%.*s", (int)n - 1, err);
+            return 0;
+        }
+    }
     play_bios(bios);
     r = start_setup();
     key_install();      /* S066A:0344, after what start_setup translates */
@@ -781,7 +799,8 @@ static int play_game(unsigned long passes, double start, double until, int clock
  * A -menudump N FILE is the memory when the menu
  * has returned the N-th time.  A line about how far it came in `line`;
  * 0 if something failed. */
-static int menu_game(unsigned long passes, double start, double until, int clocked, char *line, size_t n)
+static int menu_game(unsigned long passes, double start, double until, int clocked, int extro, char *line,
+                     size_t n)
 {
     uint16_t data = (uint16_t)(HL_DATA + HL_BASE);
     int menus = 0, battles = 0, i, r, ok = 1;
@@ -847,6 +866,12 @@ static int menu_game(unsigned long passes, double start, double until, int clock
         }
         if (!(NW(game_state, 0) & 1)) {
             why = "the last battle is won";
+            /* HL.EXE ends with 7Bh, on which alone the launcher runs
+             * EXTRO.EXE (its CODE:009A, CODE:00D5) */
+            if (extro) {
+                play_start(play_now());   /* on the clock of what is not a battle */
+                extro_play();
+            }
             break;
         }
     }
@@ -860,7 +885,7 @@ int main(int argc, char **argv)
     const char *given = NULL, *gog = NULL, *ram = NULL, *keys = NULL, *clock_file = NULL, *why = NULL;
     const char *seeds_file = NULL;
     char game[SYS_PATH], line[300];
-    int i, map = -1, ok, play = 0, seeded = 0, seq = 0;
+    int i, map = -1, ok, play = 0, seeded = 0, seq = 0, nointro = 0, seqs = 0;
     unsigned long passes = 0, seed = 0;
     double start = 0, until = 0;
 
@@ -923,6 +948,8 @@ int main(int argc, char **argv)
             seq = 1;
         else if (!strcmp(argv[i], "-extro"))
             seq = 2;
+        else if (!strcmp(argv[i], "-nointro"))
+            nointro = 1;
         else if (!strcmp(argv[i], "-seqlog"))
             seq_log = 1;
         else if (!strcmp(argv[i], "-seqdump") && i + 2 < argc && seq_dumps_n < 32) {
@@ -993,7 +1020,7 @@ int main(int argc, char **argv)
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
                             "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-keylog FILE] [-poke ADDR HEX]... [-dump N FILE]...\n"
                             "       [-oplat FILE] [-oplcount RATE STEP] [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]... [-askvram N FILE]...\n"
-                            "       [-intro | -extro] [-seqlog] [-seqdump N FILE]...\n"
+                            "       [-intro | -extro | -nointro] [-seqlog] [-seqdump N FILE]...\n"
                             "With -keys and no -map the program begins at the menu (at -start seconds).\n");
             return 2;
         }
@@ -1034,6 +1061,9 @@ int main(int argc, char **argv)
         audio_live = 1;
         briefing_player = 1;
         play = 1;
+        /* the launcher's intro and outro around the game, for the player
+         * in the window only (scripted runs keep their times) */
+        seqs = plat_has_window() && map < 0;
     }
     if (seq) {
         ok = seq_game(game, seq, start, line, sizeof line);
@@ -1044,9 +1074,9 @@ int main(int argc, char **argv)
     }
     if (!play && map < 0)
         map = 0;
-    ok = start_game(game, map, seeded ? (uint32_t)seed : bios_now(), line, sizeof line);
+    ok = start_game(game, map, seeded ? (uint32_t)seed : bios_now(), seqs && !nointro, line, sizeof line);
     if (ok && play && map < 0)
-        ok = menu_game(passes, start, until, clock_file != NULL || seeds_file != NULL, line, sizeof line);
+        ok = menu_game(passes, start, until, clock_file != NULL || seeds_file != NULL, seqs, line, sizeof line);
     else if (ok && play) {
         fprintf(stderr, "%s\n", line);
         ok = play_game(passes, start, until, clock_file != NULL || seeds_file != NULL, line, sizeof line);

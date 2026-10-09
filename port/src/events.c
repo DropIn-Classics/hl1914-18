@@ -290,7 +290,8 @@ static int16_t pic_won(Far place, Far work, uint16_t side)
     }
     pal_level(0xFF, pal);
     hook(EV_LEVEL, 0);
-    /* music_fade(0Ah): left out */
+    /* music_fade(0Ah): left out, its time counted */
+    hook(EV_BUSY, EV_WON_END);
     wait_frames(0x64);
     return 0;
 }

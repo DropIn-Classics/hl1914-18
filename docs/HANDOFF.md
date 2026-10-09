@@ -143,6 +143,14 @@ while the battle is set up, the battle played on the original's clock
 tests only. Found by the way: the port's menu has its first pass 0.84 s
 behind its `-start` (the bullet "The joysticks' two gaps").
 
+On the branch `debian/window13` (2026-10-09) the two clock gaps the
+window's notes left are run and set beside the original: a battle on
+the original's clock inside a menu walk (`m57_menu`; the menu behind it
+got no keys, now fixed) and the pictures D0h and CFh on the port's own
+clock (`m57_won`, `m57_medal`, by pokes; 1.11 s behind D0h were
+missing, now counted). The bullet "A battle's end on both clocks" says
+what was learned; `sh port/tests/endclock_test.sh` runs it.
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -3858,6 +3866,52 @@ emulation error (2026-10-02).
     changes, not written. The original was not run with `m54_own`.
   Not done: the SDL window by hand, the sounds, G lines for the older
   logs (their runs would have to be made again).
+- A battle's end on both clocks (2026-10-09, `debian/window13`, Linux;
+  port/README.md has the counts; `port/tests/endclock_test.sh`).
+  Learned:
+  - Do the end pictures need a clock of their own? No: on the port's
+    own clock all kinds go through the same `ev_hook` (frames counted by
+    the timer's calls into word 22Eh, retraces, fades, per-kind load
+    times), and D0h and CFh reached by pokes (`m57_won`, `m57_medal`:
+    the battle ended with its first pass, a round and a score poked) are
+    the same as the original's at every tenth frame, pages included.
+    Their time was not: behind D0h's last frame the original takes 2.74 s
+    to battle_score (2.725 in `m54_end`), the port counted 1.63 s, so
+    CFh began 20 BIOS ticks early. The difference is presumably D0h's
+    `music_fade(0Ah)` (left out, like the `music_fade(4)` that
+    `T_AFTER` stands for; not checked what in it takes the time). Counted
+    now (`EV_WON_END`, 1.11 s): every tenth frame within 2 ticks, the
+    end at `S066A:4728` within 1.
+  - game_loop tests whether the battle goes on before a pass begins:
+    poked at `S066A:0EE9` (pass 1) with 2 cleared, the original plays
+    that pass and leaves after it (its log: P, P, L). The port tested
+    after its pokes and left before pass 1; `play_game` now tests the
+    state from before them. Inferred from the log, the test itself not
+    read in the original.
+  - The battle on the original's clock inside a menu walk was played
+    the same (`m57_menu`: every pass, both waits, the 13 frames of CDh),
+    but the port's menu behind it never got a key: `play_begin` clears
+    `in_menu`, and with a log the keys come by its K lines only, so the
+    name's screen waited for ever; the own clock also still stood at the
+    menu's end (22.9 s). `play_after` now goes on with the own clock from
+    the log's time at `S066A:4728` and its next timer call, the menu's
+    keys by their times. A log made to 100 s has the original's second
+    battle in it (START at 94 s, the battle at 97.9 s) and its dumps are
+    of that one: `m57_menu` runs to 95 s. One battle a clock's file: a
+    second battle in the same run would replay the log from where it
+    stands (not supported, not needed by any test).
+  - The scores' file of `m57_menu` differs in the name's second byte
+    (the cursor `]` in the original's, 0 in the port's): text_input's
+    passes after the battle are the port's own, as in `name57`'s notes;
+    not changed. `end57` (all on the own clock) has it the same.
+  - `play_cmp.py rounds` takes the setup's bytes from the first pass
+    when no round's end was dumped (a battle over before one); before,
+    the bytes `-map` leaves unwritten (the menu's, `S37FF`) counted as
+    differences at the frames.
+  Not reached: CEh on the own clock (needs 0Fh or 11h in the first
+  view's word 22h), D0h and CFh on the own clock by play without pokes
+  (the phase matter of `debian/window11`). Not done: the SDL window by
+  hand, the sounds.
 - The field menu's information (2026-10-08, Mac; `unit_info`,
   `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
   each does; `port/src/draw.c`). Learned:

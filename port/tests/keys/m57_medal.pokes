@@ -1,0 +1,7 @@
+# m57_medal: as m57_won.pokes, and round_count 1 and a score of 100h, so that
+# battle_score goes on to a best score (none in the file, so any score above 0)
+# and its picture of kind CEh or CFh.  Not the game's own doing: pokes, for
+# the pictures behind the loop on the port's own clock.
+game_state D1
+round_count 0100
+score 00010000

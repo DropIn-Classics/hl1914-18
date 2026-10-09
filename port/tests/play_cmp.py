@@ -210,6 +210,10 @@ if by_rounds:
             differs = True
         elif not differs:
             agree = (n, po, pp)
+    if first is None and os.path.exists(os.path.join(out, 'r0001.ram')):
+        # a battle over before its first round's end: the setup's still
+        # from the first pass's dumps
+        first = (open(os.path.join(out, 'p0001.ram'), 'rb').read(), open(os.path.join(out, 'r0001.ram'), 'rb').read())
     ends_bad = not at and ends_cmp('r', first)
     print('%s on the port\'s own clock%s: the game\'s state and the computer\'s the same but for the '
           'passes\' up to %s' % ('time by time' if at else 'round by round', ' with the original\'s seeds' if seeds else '',

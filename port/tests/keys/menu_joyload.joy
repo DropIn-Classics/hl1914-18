@@ -1,0 +1,40 @@
+# the joystick of menu_dumps.py's walk joyload ("T N,X,Y,B", the format
+# of m48_joy.joy): there from the program's start, 570 its middle
+0 0,570,570,0
+# down four times: MISC
+10.00 0,570,1100,0
+10.20 0,570,570,0
+11.00 0,570,1100,0
+11.20 0,570,570,0
+12.00 0,570,1100,0
+12.20 0,570,570,0
+13.00 0,570,1100,0
+13.20 0,570,570,0
+# the first button chooses it
+14.00 0,570,570,1
+14.20 0,570,570,0
+# down: LOAD, and the button: the saved game's question
+16.00 0,570,1100,0
+16.20 0,570,570,0
+17.00 0,570,570,1
+17.20 0,570,570,0
+# the first button at the question leaves it
+19.00 0,570,570,1
+19.20 0,570,570,0
+# the second button chooses LOAD again; right and left at the question
+21.00 0,570,570,2
+21.20 0,570,570,0
+23.00 0,1100,570,0
+23.20 0,570,570,0
+24.00 0,100,570,0
+24.20 0,570,570,0
+# the first button leaves it again (Esc at 27 by the keys: the main menu)
+25.00 0,570,570,1
+25.20 0,570,570,0
+# the button: START, the countries; left: the other one; the button
+29.00 0,570,570,1
+29.20 0,570,570,0
+31.00 0,100,570,0
+31.20 0,570,570,0
+32.50 0,570,570,1
+32.70 0,570,570,0

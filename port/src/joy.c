@@ -235,7 +235,8 @@ void joy_measure(int wait, double now)
  * "T N,off" takes it away; # begins a comment), the runner's -joys.  A
  * line of time 0 holds from the program's start.  The others come by the
  * calls of the timer's routine (joy_tick, from input_tick): on the
- * port's own clock by its time; with the original's clock by the times
+ * port's own clock by its time (the menu's too when a battle behind it
+ * is played on the original's); with the original's clock by the times
  * of that log's calls, which the port's calls in a battle are one for
  * one (play.c; joy_clock reads them, joy_battle says the battle's first
  * is next: the log's first, or after a menu on the port's own clock the
@@ -321,13 +322,13 @@ double joy_tick(void)
 {
     static double t;
 
-    if (!calls)
+    if (!calls || calls_at < 0)
         t = play_now();
-    else if (calls_at >= 0 && calls_at < calls_n)
+    else if (calls_at < calls_n)
         t = calls[calls_at++];
-    else if (calls_at >= 0)
+    else
         t += 0x3FFF / 1193182.0;
-    for (; evs_at < evs_n && evs[evs_at].t <= t && (!calls || calls_at >= 0); evs_at++)
+    for (; evs_at < evs_n && evs[evs_at].t <= t; evs_at++)
         joy_stick(evs[evs_at].stick, evs[evs_at].x, evs[evs_at].y, evs[evs_at].b);
     while (setup_stage && setup_due <= t)
         setup_step();

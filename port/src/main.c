@@ -656,16 +656,19 @@ static int play_game(unsigned long passes, double start, double until, int clock
     dumps_ok = 1;
     if (nopics)
         SETB(no_fight_pics, 0, 1);
-    for (i = 0; i < pokes_n; i++) {
-        unsigned long a = pokes[i].at;
-        const char *h = pokes[i].hex;
-        unsigned v;
-
-        for (; h[0] && h[1] && sscanf(h, "%2x", &v) == 1; h += 2, a++)
-            fwb((uint16_t)(a >> 4), (uint16_t)(a & 15), (uint8_t)v);
-    }
     for (;;) {
         play_sync();
+        /* the pokes when the first pass begins, as the original's runs
+         * get theirs: behind what the clock's log has before it (with
+         * -map and a log the timer's calls from the program's start) */
+        for (i = 0; !play_passes && i < pokes_n; i++) {
+            unsigned long a = pokes[i].at;
+            const char *h = pokes[i].hex;
+            unsigned v;
+
+            for (; h[0] && h[1] && sscanf(h, "%2x", &v) == 1; h += 2, a++)
+                fwb((uint16_t)(a >> 4), (uint16_t)(a & 15), (uint8_t)v);
+        }
         for (i = 0; i < dumps_n; i++)
             if (dumps[i].pass == play_passes + 1 && dump_write(dumps[i].file) != 0)
                 ok = 0;

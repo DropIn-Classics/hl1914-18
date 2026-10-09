@@ -301,8 +301,12 @@ million a second, so a stick measures what it does in a run of the
 original there. **This is a changeable choice of machine, not the
 game's**: a faster or slower PC counts other numbers for the same stick.
 Sticks come from a script only (`-joys FILE`, lines `T N,X,Y,B` or
-`T N,off` as the runner's `-joys`); the window's program has no stick (a
-controller is keys there), so there F5 and F6 still find none.
+`T N,off` as the runner's `-joys`, in the order of their times; they go
+by the port's own clock, in a battle on the original's clock by that
+log's calls of the timer's routine); the window's program has no stick (a
+controller is keys there), so there F5 and F6 still find none. In the
+menu a stick's directions and buttons do what the first side's keys do
+(compared 2026-10-09 on `mac/options2`, see "Checked").
 Different from the original, because `src/loop.c` was not to be changed
 on this branch: F5 and F6 still call `loop.c`'s own `joy_setup` (the one
 for a machine without a game port), and the real one is started by the
@@ -1674,8 +1678,9 @@ anything the game needs before the first release.
   original's first side reads a direction once (input word 8 in pass 447
   of that run, where the port's had 0) and its cursor moves a field;
   that is `input_mouse` (`S27FE:03D4`), which the port does not have.
-  Not compared: the texts as video memory (F4's numbers among them),
-  the sound (F2 stops and starts the music in the original), F2 and F3
+  Not compared: the texts of F2 to F4 and F9 as video memory (F4's
+  numbers among them; those of F5 to F8: "The joysticks' leftovers"
+  below), the sound (F2 stops and starts the music in the original), F2 and F3
   on a machine without music or effects (10h, 20h of word 2 clear), the
   keys while 200h is set (pressed again within ten passes), a computer's
   first side (the text then goes to the second side's line), F6 pressed
@@ -1742,16 +1747,106 @@ anything the game needs before the first release.
   `play_test.sh`, `menu_test.sh`, `save_test.sh`, `loop_test.sh`,
   `info_test.sh`, `briefing_test.sh`, `fight_test.sh`, `units_test.sh`:
   as before; their dumps of the original were not made anew).
-  Not compared: the window and a real stick or controller, the menu
-  with a stick moved or its button pressed, the texts of F5 to F8 as
-  video memory, the port's own clock (the sticks' script goes by
-  `play_now()` there: built, not run), `-map` with a clock's log and a
-  sticks' script (the script then counts the log's calls from its
-  beginning: not run), a machine of another speed, `joy_read` with a
+  Not compared: the window and a real stick or controller, a machine of
+  another speed, `joy_read` with a
   stick whose range is 0, a stick changed in the middle of a read, the
   exact call at which the port's `joy_measure` ends against the
   original's `joy_setup` (to within a call; seen the same in the runs'
-  dumps, none of which falls into a setup).
+  dumps, none of which falls into a setup). (The menu with a stick, the
+  texts of F5 to F8 as video memory, the port's own clock and `-map`
+  with a clock's log, listed here before: the next point.)
+
+- The joysticks' leftovers (2026-10-09, macOS, `mac/options2`): four
+  things the point above had not run, each set beside the original.
+  Changed in the port for them: `src/joy.c` lets the sticks' script go
+  by the port's own clock in the menu also when the battle behind it is
+  played on the original's (before, a script's lines and the setup's
+  wait stood still until the battle's first call of the timer's
+  routine), and `src/main.c` makes its `-poke`s when the first pass
+  begins, behind what the clock's log has before it (they were made
+  before; the same for a port that comes from its menu or plays on its
+  own clock).
+  - A stick in the menu (`python3 port/tests/menu_dumps.py joy57
+    joyload`, `sh port/tests/menu_test.sh joy57 joyload`; the sticks'
+    scripts `tests/keys/menu_joy57.joy`, `menu_joyload.joy`, taps of
+    0.2 s, the menu on the port's own clock as in every walk). `joy57`:
+    down, the first button on the CODE row, the code typed by the keys,
+    up, the button on START. `joyload`: down four times and the button
+    (MISC), down and the button (LOAD), the first button at the saved
+    game's question, the second button (LOAD again), right and left at
+    the question, the first button, Esc by the key, then the button
+    (START), left (the other country) and the button. What came in is
+    the same in both and in the same order (5 and 11 things, the times
+    at most 0.05 s apart), no byte differs in the memory at the menu's
+    return and at the two screens outside the loop of each walk, nor in
+    the two pages of video memory at the passes kept (3 and 5) and at
+    those screens. `joy57`'s Enter is at 15.1 s: at 15.0 the last pass
+    of `text_input` had the cursor (the `]`) in the original and not in
+    the port (504 bytes of the two pages and one of the block), which
+    is the clock's and not the stick's: it comes and goes by the passes
+    (the port tried with Enter from 15.00 to 15.70, the original from
+    15.10 to 15.60: the same at 15.1, 15.3 and 15.6, not at 15.2, 15.4,
+    15.5).
+  - `-map` with a clock's log and a sticks' script (`sh
+    port/tests/options_test.sh map`: `m48_joy` and `m48_joy0` again,
+    the port begun with `-map 48`, compared with the same dumps of the
+    original). The port then makes the log's calls of the timer's
+    routine from the program's start on and the script goes by their
+    times. 1,484 and 614 parts read the same input, the game's state
+    the same at every pass compared (51 and 19; the setup's 41 bytes in
+    `S37FF:0012` to `012D` are those of every `-map` start), and of
+    DATA 0380 up to 045C no byte different but the four words of the
+    pointer's range (043A up to 0442: the menu's 8 to 12Ah and 4 to
+    C0h, which a port begun with `-map` never sets; told apart by
+    `options_cmp.py`). The input records are given once as in the
+    point above; with that poke made before the log's first calls, as
+    `main.c` did, the counts of gaps differed in `m48_joy` at every
+    pass (10 bytes), without it 3 bytes.
+  - The port's own clock (`sh port/tests/options_test.sh dumps
+    m48_joyown`, `sh port/tests/options_test.sh own`): the port from
+    its menu on with nothing of the original's log but when the menu's
+    first pass began, the sticks' script by its own time. The script
+    (`tests/keys/m48_joyown.keys`, `.joy`) has taps of 0.056 s only, a
+    little more than the 0.0549 s between two reads of the sticks: the
+    first stick (there from the start) left, right, up, down, right and
+    down at once, the second found by F6 twice and moved the same, both
+    at once, F5 off (a tap gives nothing) and on, each side's button.
+    The 18 parts that read something read the same in the same order
+    in both (the original's passes 54 to 416, the port's 58 to 423),
+    and at the 35 times compared (the first pass of each at or after
+    half a second behind each line of the script and a second behind
+    each key) the game's state is the same (`play_cmp.py` `at`: 0
+    bytes, with 2 to 5 of the passes' counted apart) and DATA 0380 up
+    to 045C too, but that at 5 of them the ten counts of gaps are one
+    step apart (they go round 0 to 10 with every fourth call of the
+    timer's routine, and the two passes do not begin at the same
+    moment; told apart by `options_cmp.py`). No poke was needed.
+  - The texts of F5 to F8 as video memory (`sh
+    port/tests/options_test.sh dumps m48_ftext`, `sh
+    port/tests/options_test.sh m48_ftext`; on the original's clock, a
+    first stick there and at rest, no second): F5 twice, F6 twice, F7
+    twice, F8 three times, video memory 0.3 s and a second after each.
+    The original shows the texts 65h, 66h, 67h, 68h, 6Ah, 69h, 6Ch,
+    6Dh, 6Bh in that order on the first side's line (the lines 189 to
+    193 of the page change at each key and stay to the second dump).
+    At the 22 passes with video memory no byte of the two pages differs
+    (810 behind them, as in every comparison), 978 parts read the same,
+    the game's state and DATA 0380 up to 045C the same at every pass.
+  Run again after the changes, as before: `options_test.sh` (all
+  three ways), `fkeys_test.sh`, `menu_test.sh` (15 walks), `save_test.sh`,
+  `info_test.sh`, `briefing_test.sh`, `loop_test.sh` and `play_test.sh`
+  with `m57_last`, `m57_win` (pokes), `m48_two`, `m8_site`, `m54_end`.
+  Not compared: a stick moved in the menu before a battle played on
+  the original's clock (the walks with a stick end at the battle's
+  beginning; `m48_joy0` and `m48_ftext` have theirs at rest there), the
+  second button at the saved game's question, the mouse's button
+  there, a stick at the country's choice other than left, the name's
+  and the code's `text_input` with a stick's button, the scripts with
+  pokes whose dumps of the original are not on this machine
+  (`m48_undo`, `m8_scroll`) after `main.c`'s change, a key or a stick
+  held longer than a tap on the own clock (known to be sampled by the
+  passes' length), the texts of F5 to F8 on the second side's line (a
+  computer's first side), the window, a real stick; macOS only.
 
 - Saving and loading (2026-10-08, macOS): `sh port/tests/save_test.sh
   dumps` runs the original twice through its menu by keys
@@ -1812,7 +1907,8 @@ anything the game needs before the first release.
   - Not compared or not run: video memory of a loaded battle (the
     libraries of pictures a map chooses, so a saved game of a winter
     map loaded with the menu at a summer one is still open); the
-    question left by a joystick's or the mouse's button; a file that
+    question left by the mouse's button (a joystick's: "The joysticks'
+    leftovers" below, the walk `joyload`); a file that
     cannot be read after it was opened (a DOS error); a file cut inside
     the first blocks (the maps, the units), where the state is half one
     map's and half another's; the digits other than 0, 1, 2, 3, 5 and

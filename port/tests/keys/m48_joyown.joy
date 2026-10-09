@@ -1,0 +1,45 @@
+# the sticks for m48_joyown.keys (the format is m48_joy.joy's), for a play
+# on the port's own clock: every move and press is a tap of 0.056 s, a
+# little more than the 0.0549 s between two of the timer routine's reads
+# of the sticks, so each is read once or twice whenever it falls and a
+# side's part takes it once (as the keys' taps of 0.06 s in make_two.py).
+# The first stick is there from the program's start
+0 0,570,570,0
+# the first stick: left, right, up, down, right and down at once
+26.000 0,100,570,0
+26.056 0,570,570,0
+27.000 0,1100,570,0
+27.056 0,570,570,0
+28.000 0,570,100,0
+28.056 0,570,570,0
+29.000 0,570,1100,0
+29.056 0,570,570,0
+30.000 0,1100,1100,0
+30.056 0,570,570,0
+# the second stick, there when F6 looks for it at 32 and 33
+31.000 1,600,500,0
+# its left, right, up, down
+35.000 1,100,500,0
+35.056 1,600,500,0
+36.000 1,1100,500,0
+36.056 1,600,500,0
+37.000 1,600,100,0
+37.056 1,600,500,0
+38.000 1,600,1000,0
+38.056 1,600,500,0
+# both at once
+39.000 0,100,570,0
+39.000 1,1100,500,0
+39.056 0,570,570,0
+39.056 1,600,500,0
+# the first side's stick not wanted from 40: nothing
+41.000 0,100,570,0
+41.056 0,570,570,0
+# wanted again from 42
+43.500 0,100,570,0
+43.556 0,570,570,0
+# each side's button
+45.000 0,570,570,1
+45.056 0,570,570,0
+46.000 1,600,500,1
+46.056 1,600,500,0

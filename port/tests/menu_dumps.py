@@ -45,6 +45,20 @@ the menu N times.  The walks (default: all):
              backspace, the two scores shown, START
     livename57, livetwice57   those two as the headless window played
              them (keys/menu57_name.keys, menu57_twice.keys, its -keylog)
+    joy57    as code57 with a joystick for the keys' directions and
+             button (keys/menu_joy57.joy, the runner's -joys; the stick
+             is there from the program's start): down, its first button
+             (the CODE row), the code typed, up, the button (START, which
+             takes this first press: the stick's button is no key)
+    joyload  a joystick alone: down four times and the button (MISC),
+             down and the button (LOAD), the first button at the saved
+             game's question (it leaves it), the second button (LOAD
+             again), left and right at the question (nothing), the first
+             button (left again); Esc; the button (START), left (the
+             other country) and the button: map 24
+
+A walk WALK with a file port/tests/keys/menu_WALK.joy gets that sticks'
+script (the runner's -joys; menu_test.sh gives it to the port's -joys).
 
 The runner's files written (a best score) go to WALK/state/, emptied
 before each run (and for a walk of SEEDS filled with the other walk's
@@ -142,6 +156,11 @@ WALKS = {
                  (91, 'enter'), (100, 'space'), (104, 'space')], 2, 112, [20.7, 27, 102]),
     'livename57': ([], 2, 116, [93, 100, 105, 107]),
     'livetwice57': ([], 2, 112, [20.7, 27, 102]),
+    # (joy57's Enter at 15.1: text_input's cursor, the `]`, comes and goes by its passes, and the port's
+    # passes are not the original's; at 15.0 the original's last pass had it and the port's did not, as
+    # it is at 15.2, 15.4 and 15.5; at 15.1, 15.3 and 15.6 both have the same)
+    'joy57': (code(57, 12) + [(15.1, 'enter')], 1, 24, [9, 10.6, 16.6]),
+    'joyload': ([(27, 'esc')], 1, 40, [9, 15, 20, 26, 28]),
 }
 # a walk with a battle played to its end: a key script (port/tests/keys/
 # KEYS.keys, its times moved by the seconds given; a key codeN is the N-th
@@ -222,6 +241,9 @@ for walk in sys.argv[1:] or sorted(WALKS):
         return subprocess.run(['python3', KIT] + args + ['HL.EXE'], capture_output=True, text=True, cwd=out)
 
     a = ['-key', '3', 'enter', '-key', '6', 'enter', '-state', state] + pokes
+    # the walk's joysticks, if it has a script of them
+    if os.path.exists(os.path.join(HERE, 'keys', 'menu_%s.joy' % walk)):
+        a += ['-joys', os.path.join(HERE, 'keys', 'menu_%s.joy' % walk)]
     if battle:
         a += ['-keys', os.path.join(out, 'battle.keys')]
     for t, k in keys:

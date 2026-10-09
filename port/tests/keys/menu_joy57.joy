@@ -1,0 +1,15 @@
+# the joystick of menu_dumps.py's walk joy57 ("T N,X,Y,B", the format of
+# m48_joy.joy): there from the program's start, 570 its middle
+0 0,570,570,0
+# down: the CODE row
+10.00 0,570,1100,0
+10.20 0,570,570,0
+# the first button chooses it; the code is typed by the keys
+11.00 0,570,570,1
+11.20 0,570,570,0
+# up: START
+16.00 0,570,100,0
+16.20 0,570,570,0
+# the button
+17.00 0,570,570,1
+17.20 0,570,570,0

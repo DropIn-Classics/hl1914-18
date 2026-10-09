@@ -2520,8 +2520,12 @@ emulation error (2026-10-02).
         make them afterwards at once. The audio thread
         (plat_win32.c) waits on waveOut's event and only shares a
         short critical section, so starving it is not the likely
-        cause (presumably; not checked). If so the fix is in play.c's
-        live clock (snd_clock during screen_wait), not in doskit.
+        cause (presumably; not checked). Done on `win/fademusic`
+        (2026-10-09): `screen_wait` calls `snd_clock(now)` after each
+        picture; with the window's device the interrupts go by the
+        samples played, so the tune keeps its pace during the wait.
+        Only sound routines run there. Not heard yet (the player's
+        check); headless suites unaffected (the hook is live only).
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

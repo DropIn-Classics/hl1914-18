@@ -3927,3 +3927,20 @@ anything the game needs before the first release.
   repair of a unit with lost count and no 4000h in word 6, a move out of
   a unit with 4 or 10h in word 6, and the computer's own repair step
   (`step_site_menu`, reached on no map, docs/HANDOFF.md).
+
+2026-10-09 (Windows, branch `win/fademusic`): the music goes on through
+the screen's waits in the window. The live `screen_wait` (`src/play.c`)
+shows a fade's steps and a retrace wait's pictures at real time while
+the port's clock stands still; it now calls `snd_clock` after each
+picture, which with the window's audio device runs the timer's sound
+interrupts (`adl_tick`, `fade_tick`, the card's) that the samples
+played have made due, as the original's timer interrupts its fades.
+Before, none ran during the wait and they came all at once after it,
+so the tune slowed in a fade and hurried behind it (the player's
+report, compared with DOSBox by ear). Only the sound's routines run
+there, never the game's (no `tick`, keys or mouse). Checked: the build,
+`oplwav_test.sh` and `soundout_test.sh` as expected (the screen hook is
+set by `play_live` only, so the headless runs these compare are not
+touched); `opl_test.sh` reports `WALK.out` different and its dumps
+missing in this worktree, the same without the change. Not checked:
+the window by ear (left to the player); timing measured live.

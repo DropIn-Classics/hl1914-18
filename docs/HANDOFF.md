@@ -3788,6 +3788,66 @@ emulation error (2026-10-02).
     key after 149 and 151 frames (which key not checked).
   Not done: a fight's pictures to their end on the original's clock, the
   SDL window by hand, the sounds.
+- The window's leftovers (2026-10-09, `debian/window12`, Linux, headless
+  window; port/README.md has the counts). The gaps the window notes
+  left, each run and compared or explained:
+  - The repair in `m8_mouse` (the unit not damaged): the original shows
+    text 50h for the first side at 322.74 s (`show_message`'s AX in the
+    log), so the kind's full count was already reached (HL.hints at
+    `side_points`); the port's state was the same there already.
+  - The mouse's mickeys below a pixel: each `-micelog` line is where the
+    motion put the driver, its kept mickeys counted in, and `-mice` puts
+    the driver there at the same time, so the positions the game reads
+    are the window's at every time; only the driver's own rest differs,
+    which is not the game's memory (comment in `play.c`; the `live` runs
+    of `m8_mouse`, `m0_cmouse`, `m8_scroll` are the same throughout).
+  - The bytes "behind the pages" (1,442 in every comparison): they lie
+    at fixed places off the screen (7E84-7FF8, A398-A50D, C4E0-C57F)
+    and are in the original's video memory from about 1 to 2 s after
+    HL.EXE starts, the publisher's logo screen (`BB.IFF`, `HLLOGO.IFF`),
+    which the port does not show; the menu walks have them too (810).
+    No later drawing reads them (the pages are the same everywhere).
+  - The 11,220 to 12,947 bytes behind the pages after fights with
+    pictures on the original's clock: the port showed all 749 frames of
+    each fight, the original's key ended them at 149 and 151
+    (`m8_cattack`, the F1s at 120.006 and 129.994 s). The clock's file
+    had no line for a fight's frame, so on the original's clock no key
+    reached the frames. `play_dumps.py` now writes a `G` line for each
+    `S2532:156D`, and `play.c` (`clock_frame`) runs the log's lines up
+    to a frame's G line at that frame (timer, keys, the waits' and
+    pictures' clearing of the key) and leaves S and R for the round's
+    end as before. The W lines of the waits between two fights had to
+    go with them: left for the round's end they cleared the F1 the
+    second fight had left for the next part. Logs from before
+    `debian/window10` have no `S2532:156D`, so no G lines; for them the
+    frames take no time as before (`have_g`). Behind the pages 632
+    bytes are left (the logo's that the fights do not cover).
+  - `m8_d5r`/`m8_rmouse` with fight pictures do not reach the repair in
+    the original either (run here: no text 51h; its last texts 36h, 33h,
+    34h at 322 to 339 s): the times were written for fights without
+    pictures. Not a matter of the window.
+  - `m8_rmouse`'s fight 2 frames: word 4 of `rand_words` (DATA:0AF5)
+    differs in the port on the original's clock. `seed_set` writes words
+    0 and 2 only; words 4 and 6 are what fight 1 left, and the port gives
+    back at a fight's end the words kept before it (for the round's
+    replay of the S and R lines). The pictures and every pass are the
+    same; not changed.
+  - `rounds` from round 4 on (`m8_site`, `m8_mouse`): with the original's
+    seeds (`seeds`) `rand_words` first differ in round 3's pass after
+    the fights with pictures: on the port's clock a key ends the
+    pictures at another frame (`m8_cattack` on its own clock: frame 215
+    against 149 and 151), so rand_next is called another number of
+    times. The same cause as `m54_end`'s, a phase of the port's passes
+    against the script's keys.
+  - D0h, CEh and CFh on the port's own clock: still not reached.
+    `m54_own.keys` (`m54_end`'s with every direction let go together
+    with the button, as `debian/window6` found both read alike) does not
+    win on the port's clock either (6,128 passes, no end), nor does the
+    window's play of `m54_end` (6,565 passes). The cause is the one
+    `debian/window11` found; a script for it needs keys that no phase
+    changes, not written. The original was not run with `m54_own`.
+  Not done: the SDL window by hand, the sounds, G lines for the older
+  logs (their runs would have to be made again).
 - The field menu's information (2026-10-08, Mac; `unit_info`,
   `unit_values`, `info_rect`, `battle_info` in src/HL.hints with what
   each does; `port/src/draw.c`). Learned:

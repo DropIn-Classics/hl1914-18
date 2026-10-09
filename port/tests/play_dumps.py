@@ -30,7 +30,7 @@ maps from 48 on are for two human sides) up to UNTIL emulated seconds
     0CB6:0075, 00C1, 00E2  the routine that waits (S0CB6:0036) has cleared
                the first input record's button and the key
     2532:0137  the fight's pictures have cleared the key
-    2532:156D  fight_frames tests the key at a frame's end
+    2532:156D  fight_frames tests the key at a frame's end (a G line)
     02E6:000F  attacks_run
     167A:2FEF, 30B2  inputs_release (the beginning of event_picture) has
                cleared the key and both input records' buttons
@@ -299,6 +299,7 @@ for line in open(log):
         fights.append(0)
     elif at == '2532:156D':
         fights[-1] += 1
+        clock.append('%s G' % t)
     elif row is None:
         continue
     elif at == '066A:1003':

@@ -796,6 +796,51 @@ after a key ended the original's (the port's run goes on to 749 frames;
 their dumps have no counterpart), a fight's pictures to their own end on
 the original's clock, the SDL window by hand, the sounds.
 
+2026-10-09 (`debian/window12`): the window's leftovers. A fight's
+pictures on the original's clock now end where the original's key ended
+them. The clock's file had no line for a fight's frame, so the port
+showed all 749 frames of each fight where the original's F1 ended them
+at 149 and 151 (`m8_cattack`); only the video memory behind the pages
+showed it (11,220 to 12,947 bytes after the fights). `play_dumps.py`
+writes a `G` line for each frame's end (`S2532:156D`), and `play.c`'s
+`clock_frame` runs the log up to a frame's G line at that frame (the
+timer's routine, the keys, the clearings of the key by the waits and
+pictures, W/X/Y/E) and takes those lines out; S and R stay for the
+round's end as before. A log without G lines (all made before
+`debian/window12` but `m8_cattack`'s and `m8_rmouse`'s) plays as before.
+- `play_test.sh m8_cattack` (clock.txt made again from its log): the
+  inputs (7,148 parts), the game's state and the computer's the same at
+  every pass, both pages the same at every pass and fight frame; behind
+  the pages 632 bytes after the fights (before: 11,220). With the W lines
+  left for the round's end, as at first, pass 1850's second side lost
+  the F1 (3Bh) the second fight left: they are run with the frames.
+- `m8_rmouse` (fight pictures on; the original run here, `VRAM=1`,
+  `PASSES="5765 5809 5854 5881 5915 5984"`, 350 s): the inputs (9,730
+  parts), the game's state and the computer's the same at every pass.
+  In the 17 dumps of fight 2's frames `rand_words`' word 4 (DATA:0AF5)
+  differs: `seed_set` writes words 0 and 2, the others are
+  what fight 1 left, and the port gives the words back at a fight's end
+  for the round's replay; the same with the G lines taken out. The
+  pass before the last (4864) has 96 bytes different on the page (rows
+  30 and 31, presumably the pointer; not checked), the same without the
+  G lines. The original does not reach the repair with pictures on
+  either (no text 51h): the script's times are `m8_d5r_nopics`'s.
+- `m8_site`, `m48_attack`, `m54_end` (older logs, no G lines): still the
+  same at every pass; `m8_cattack live`: the window and `-keys` the same
+  in all parts and files.
+Explained, not changed: the 1,442 bytes behind the pages in every
+comparison are the logo screen's (`BB.IFF`, `HLLOGO.IFF`, in the
+original's video memory 1 to 2 s after HL.EXE starts; the port does not
+show it); the repair of `m8_mouse` is text 50h (the full count already);
+the mickeys below a pixel (`play.c`'s comment); `rounds` from round 4
+(`m8_site`): `seeds` shows `rand_words` differ first after round 3's
+fights with pictures, which a key ends at another frame on the port's
+clock. Not reached: D0h, CEh, CFh on the port's own clock;
+`m54_own.keys` (`m54_end`'s with each direction let go with the
+button) does not win there either; the original was not run with it.
+Not done: the SDL window by hand, the sounds, the older logs made again
+with G lines.
+
 2026-10-08, the field menu's information (`unit_info`, `unit_values`,
 `info_rect` and `battle_info` in `src/draw.c`, the original's
 `S131D:0483`, `0148`, `0008` and `0EE5`; `state_field` of `src/loop.c`

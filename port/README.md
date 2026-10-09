@@ -841,6 +841,58 @@ button) does not win there either; the original was not run with it.
 Not done: the SDL window by hand, the sounds, the older logs made again
 with G lines.
 
+2026-10-09 (`debian/window15`): the battle's three end edges left by
+`debian/window14`, by play, set beside the original on both clocks
+(`sh port/tests/endclock_test.sh dumps` runs the original, without it
+the port; why each script does what it does in docs/HANDOFF.md, "The
+battle's three end edges left"):
+- `m57_low` (map 57, 360 s): `m57_hq`'s keys with a scores file for
+  map 57 in place (`MAP\57.HI` in the original's state folder,
+  `MAP_57.HI` in the port's saves; four scores 620, 520, 420, 320, the
+  lowest the battle's own, written by the test, not game data).
+  battle_score finds the score not above the best: D0h with 0 and no
+  CEh on both clocks (`m57_hq` has CEh with 2).
+- `m60_first` (map 60, 1,640 s, fights not shown as pictures as
+  `m60_fights`): `tests/keys/make_m60.py A B A N A B end=5,10`, the first
+  side attacking in fights 3 and 4: 6/6 to 2/1, then 1/0. Texts 41h and
+  42h, CDh with 1 and CEh with 2 on both clocks.
+- `m60_both` (map 60, 1,700 s, the same): `make_m60.py A B A R4 R5 N R7
+  R8 R7 R10 R11 end=6.4,12.4` with
+    R4  1d-1,1m0,1L2,1L2.6,1a3.6,1a5.1,2E7.1,1E8.6   (to (44,19))
+    R5  2m0,2L2,2a3.6,2a5.1,1E7.1,2E8.6              (to (45,18))
+    R7  1m0,1R2,1u2.6,1a3.6,1a5.1,2E7.1,1E8.6        (attack)
+    R8  1L2,1d2.6,2E7.1,1E8.6                        (cursor back)
+    R10 1L0,1d0.6,1m2,1R4,1a5.6,1a7.1,2E9.1,1E10.6   (to (45,19))
+    R11 1m0,1u2,1a3.6,1a5.1,2E7.1,1E8.6              (attack)
+  three fights where the walk left them (3/3), two from the class 1
+  field (44,19) (2/2, 1/1), the last from (45,19): both cavalries
+  destroyed in the same fight, 15h, texts 42h for both sides, no
+  picture behind the loop, on both clocks.
+- Compared: on the original's clock (`play_test.sh`) the inputs, the
+  game's state and the computer's the same at every pass compared
+  (`m57_low` 3,615 passes; `m60_first` 23,199, `m60_both` 24,622,
+  about 196 and 192 places each), both end waits and every tenth
+  picture frame with video memory. On the map-60 runs what differs is
+  `m60_fights`' (its walk is theirs): pass 1's setup bytes and the
+  second side's bytes 5 and 8 in pass 4748; `endclock_test.sh` accepts
+  exactly that. On the port's own clock (`rounds`) the same at every
+  round's end and the pass after it (15, 87 and 92 rounds), at both
+  end waits and at every tenth picture frame (7 of 7 and 26 of 26,
+  both pages). Time by the BIOS's count from the first frame: `m57_low`
+  within 1 tick, `S066A:4728` +0; `m60_first` within 7, +6, all of it
+  between CDh's frame 121 and CEh's first, where the original's runner
+  called the timer routine 68 times a second (docs/HANDOFF.md); by the
+  runner's clock that stretch is 0.066 s longer in the port.
+  `endclock_test.sh` allows 7 ticks for `m60_first`, 3 for the others.
+- `endclock_test.sh` plays the three new tags too (the `_nopics` ones
+  with `-nopics` on the own clock as well) and skips the pictures' time
+  when there is no picture.
+- Nothing of the port's source changed. Not done: the SDL window by
+  hand, the sounds. Not run here after the change: the other
+  `play_test.sh` scripts (no source changed). The original's runs were made
+  before origin/master was merged in (7c35db0, a fast-forward, which
+  changed six files of port/src), the port's comparisons all after it.
+
 2026-10-09 (`debian/window14`): the battle's end by play on the port's
 own clock, no pokes, set beside the original's (`sh
 port/tests/endclock_test.sh dumps` runs the original, without it the

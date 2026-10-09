@@ -817,7 +817,6 @@ static int site_hook(int at, int n)
 static void round_hook(int at, int n)
 {
     static int first;
-    int i;
 
     if (have_clock)
         return;
@@ -825,27 +824,18 @@ static void round_hook(int at, int n)
     case ORDERS_FIGHT:
         own_busy(first || n ? T_VIEW : T_NEXT);
         first = 0;
-        /* fight_panel, S131D:178D */
+        /* fight_panel, S131D:178D, up to its first fade or mark; its
+         * fades, marks and waits come from it as ORDERS_FADE,
+         * ORDERS_MARK, ORDERS_WAIT and ORDERS_INPUT, the one after the
+         * panels again (S02E6:0AE6) as ORDERS_WAIT; with pictures then
+         * fight_pictures, through pics_hook */
         own_busy(T_PANEL);
-        if (n)
-            own_fade();
-        for (i = 0; i < 6; i++) {
-            own_busy(T_MARK);
-            own_retraces(7);
-        }
-        own_retraces(13);
-        if (n) {
-            own_wait_input(0x96);
-            own_fade();
-            /* then fight_pictures, through pics_hook */
-        } else {
-            for (i = 0; i < 6; i++) {
-                own_busy(T_MARK);
-                own_retraces(7);
-            }
-            own_wait_input(0x46);
-            own_retraces(31);       /* S02E6:0AE6, wait_frames(1Eh) */
-        }
+        break;
+    case ORDERS_MARK:
+        own_busy(T_MARK);
+        break;
+    case ORDERS_INPUT:
+        own_wait_input(n);
         break;
     case ORDERS_BLAST:
         own_retraces(3);            /* S02E6:0D24, wait_frames(2) */

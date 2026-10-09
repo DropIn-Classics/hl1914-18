@@ -5860,6 +5860,66 @@ emulation error (2026-10-02).
         licence), with a test against a reference. Then the port's
         sound and the runner's `-oplwav` would show it. Not done here:
         doskit is read-only on this branch.
+  - `opl.c` against DOSBox, and the drums (2026-10-09, Debian, branch
+    `debian/oplmodel`). Negative result: neither the rate nor the model's
+    three guesses make the drums duller. No kit change was made.
+    - The rate (the last entry's kit gap). Tried and dropped, not
+      committed: `opl.c` stepping at 49716 Hz and resampling linearly to
+      44100. The "11 % fewer zero crossings" were mostly bandwidth: a
+      44100 Hz render has nothing above 22 kHz. Through the same 5 kHz
+      low pass, a feedback-7 voice changes sign 5062 times a second at
+      44100 (the old code) and 5054 at 49716. Power per octave from
+      250 Hz to 22 kHz: the old 44100 render is as close to the 49716
+      one as the resampled one, which is 2-4 dB lower above 4 kHz
+      (linear interpolation). The rate does not lower the noise's pitch.
+    - The reference: DOSBox 0.74-3 (Debian's package, unpacked in a
+      scratch folder, `oplemu=default`, `oplrate`/`rate` 49716, SB2,
+      recorded with SDL's `disk` audio driver), used as a black box
+      only. No DOSBox source was read or used; nothing of it is in the
+      repository. It played a scratch `.COM` (not kept) that replays the
+      menu walk's register writes (`build/oplwav/menu.orig` from
+      `oplwav_dumps.py menu`, its first 47 s: 2171 writes, the first
+      tune) at their times, by polling the PIT's channel 0. The same
+      writes went through `opl.c` at 49716 Hz. The two recordings were
+      aligned by frame energy (offset 0.13 s), 46.9 s compared. Also
+      each channel alone (the others' key bits cleared). Channels 1 and
+      7 are silent in that stretch.
+    - Whole tune, power per octave relative to the total, `opl.c` minus
+      DOSBox, 62 Hz .. 16 kHz: -0.3 -0.1 0.0 0.3 -0.3 -0.1 -0.2 -0.3
+      -1.5 dB. Each channel's level against the mix within 0.4 dB of
+      DOSBox's, except channel 6 at -1.2 dB. Above 1 kHz the mix is
+      0.45 dB rms off. Small differences sit in quiet voices: channel 3
+      (-17 dB of the mix) is 23-27 dB short from 4 kHz up, channel 0
+      6-12 dB at 8-16 kHz.
+    - Zero crossings: `opl.c`'s output has a DC offset (the mix's mean
+      +437, DOSBox's +928 at a 2.1 times higher level), so crossings
+      are counted about the mean. Whole tune: 0.94 of DOSBox's.
+    - The guesses one by one; numbers are the rms of the band
+      differences from 1 kHz up (lower is closer), whole tune first:
+      - Modulation depth (the modulator's peak moves the carrier by 4
+        cycles; tried 2, 4, 6, 8, 12, 16). 4 fits best on channels 0,
+        2 and 5 (channel 5: 1.28 at 4, 4.09 at 6, 6.21 at 2). No depth
+        closes channel 3's gap. Leave it.
+      - Feedback scaling (tried 0.5x, 1x, 2x the data sheet's table).
+        Mix 1.01 / 0.45 / 0.63; channel 6, the feedback-7 voice, 1.72 /
+        0.46 / 1.78. As it is fits best. Leave it.
+      - The float sine against the chip's resolutions. Tried 10-bit
+        phase, integer operator outputs (1/4096) and envelope
+        attenuation in steps of 0.1875 dB. Each is a choice, not taken
+        from a data sheet. Mix 0.45 -> 0.24. Phase helps channel 0 (6.03
+        -> 2.13), the envelope steps channel 3 (19.85 -> 9.33),
+        channel 8 gets worse (1.85 -> 2.37). Coarser steps fit
+        channel 3 better and channels 5 and 8 worse: a fitted
+        parameter, not a mechanism. In the mix it is a fraction of a dB
+        (not listened to); not taken into the kit.
+    - So against DOSBox, `opl.c` plays this tune within half a dB in
+      every octave. If the drums sound weaker than in DOSBox, the cause
+      is presumably outside the synthesizer: the port's output chain
+      (levels, the SB mix, filtering), the 35 differing writes of the
+      battle tune, or which tune and voice were heard. Not checked:
+      the brief and battle tunes, the rhythm mode (no tune here uses
+      it), DOSBox's other `oplemu` settings, and no listening test was
+      done.
 
 ## `HL14-18.EXE` stage 1
 

@@ -2460,7 +2460,9 @@ name S202F:0BA7 sites_list
 ; worth 190h and as its field that of the nearest record of sites_400 of
 ; the side that unit_reaches (mode 1) finds a way to, the side's
 ; headquarters without one. The distance is taken of the map offsets not
-; halved, as the code has it. Read; no call of it was compared.
+; halved, as the code has it. Read; reached on no battle by itself (no
+; kind has 4 in word 11h of unit_dat, whence word 6); one call compared
+; on map 11 with that bit poked (port/tests/computer_dumps.py, POKED).
 name S202F:0EAA plan_to_site
 ; The units' plans: a record of 9 bytes for each unit, word 0 a field (or
 ; what the kind of plan needs), word 2 FFFFh until computer_queue has made
@@ -2546,8 +2548,10 @@ name S202F:071E plan_move
 ; can go to: a step of kind 1 there, the plan done, and for a unit of
 ; another side around that field that the kind can attack the plan 2
 ; against it in unit_plans2; without such a field the plan becomes 1 to
-; the unit's field. Returns 1 from that state. Read; not compared (no
-; call was dumped).
+; the unit's field. Returns 1 from that state. Read; reached only with a
+; poke (no kind that takes sites has 20h and a byte 4 above 0 in
+; kind_worth on the maps for one player); compared on map 22 so
+; (port/tests/computer_dumps.py, POKED).
 name S202F:000A plan_approach
 ; Six bytes added to a direction by plan_approach.
 name S3AEA:000C approach_order
@@ -2692,8 +2696,10 @@ name S202F:0E3C unit_chosen
 ; step_site_menu (byte 1, a unit), 7 step_build (bytes 1 and 3, a kind
 ; and a record of sites_400). A handler returns not 0 when its step is
 ; done and byte 46h goes up. Returns 0, or FFFFh at the list's end (the
-; list is emptied). In runs the kinds 1, 2, 3, 4 and 7 came up, 5 and 6
-; never. Read; translated, and compared for those five kinds
+; list is emptied). In runs the kinds 1, 2, 3, 4, 6 and 7 came up; 5
+; never: the nine calls of step_add write the kinds 1, 2, 6, 4, 2, 7, 3,
+; 1 and 1 into step_draft, none 5, and nothing else writes computer_steps
+; but its emptying (by the listing). Read; translated, and compared for those five kinds
 ; (port/README.md).
 name S1E4B:012E computer_step
 ; computer_input(side): puts the next word of input into computer_out (0
@@ -2751,8 +2757,10 @@ name S1E4B:038F step_add
 ; and down in a site's list is the repair (game_loop's state 2), and
 ; computer_queue adds this step for the plan 6, which plan_repairs gives a
 ; unit below its full count in a site: so this is the computer's repair.
-; No step of this kind came up in 1500 s on 16 maps. Read and
-; translated, not compared.
+; It comes up on map 26 (from 251 s quiet) and ten more; translated and
+; compared on single calls (states 0 to 5) and in the passes of map 26
+; (port/README.md). State 6 is the table's seventh entry: byte 47h never
+; gets there, state 5 sets it to 0.
 ; step_build(side, cursor, kind, site, steps), kind 7: cursor_script to
 ; the field of the record `site` of sites_400 (pointer at S3AE8:0027), the
 ; code 82h, the list's row to the last free place (FFh) of the side's row

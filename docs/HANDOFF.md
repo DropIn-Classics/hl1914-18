@@ -2282,6 +2282,44 @@ emulation error (2026-10-02).
         showed; why the plan 7, which state 4 gives, never reached the
         queue on the code 22 was not looked at. These stay translated
         from the listing only.
+    - The computer as the first side in the port's passes (2026-10-09,
+      Windows, branch `win/computer`): the maps 24 and 30 (side 0 the
+      computer's, side 1 a human who only ends its halves,
+      `port/tests/keys/m24_quiet.keys`, `m30_quiet.keys`, after
+      `play_quiet` of `computer_dumps.py`), 400 s each, run by
+      `loop_test.sh` and `play_test.sh` against the original: the same at
+      every pass compared but `play_test.sh m30_quiet`, which did not run
+      (port/README.md: on the original's clock the port comes to no pass
+      on map 30; left to `play.c`'s owner). Nothing of `computer_turn` or
+      `loop.c` needed a change for the first side. Map 30's battle begins
+      at 56.6 s, so its script begins at 70 s, map 24's at 52 s.
+      - What was wrong was the test: `loop_test` starts from a dump and
+        never set `game_mem`, so `pictures_load` after a fight failed at
+        its first load (its palette's buffer 0:0) and returned 2 before
+        it wrote the music's digit (`S331F:0284`, by the ratio of the
+        sides' unit counts). With the computer first the digit changed
+        ('2' to '3' after side 0 built three units); on the maps 8 and 0
+        it did not, so the earlier runs agreed by chance. On this machine
+        `m0_carry` differed on `master` for the same reason (not checked
+        whether also on the others). `loop_test` now takes the far
+        pointers from `game_loop`'s frame in the dump (SS 3EA4h, BP
+        0FEAh) and the game's files from `../game` or `$DOSKIT_GAME`.
+      - With that the fight's pictures run in `loop_test` too, and play
+        every volley drawing from `rand_words` (`volley_end`), while the
+        original's in those runs called no `rand_next` (`loop_dumps.py`
+        refuses a run that does; why the original's did not was not
+        looked at: presumably the pictures end early or no losses are
+        left to share out). The test gives words 4 and 6 back at the
+        pictures' end (`pics_hook`), as `play.c` does.
+      - Not done: both sides the computer's. The menu has no item for it
+        that was found (word 2 of `game_state` 4); a poke of both sides'
+        word 0 was not tried. The computer's thinking bar
+        (`S1C74:0354`) is still not translated.
+      - On Windows without cc: the `.sh` tests ran under Git Bash with
+        `CC` set to a small wrapper that hands the gcc-style options to
+        MSVC's cl (vcvars64, `/MT`, `advapi32.lib shell32.lib
+        winhttp.lib`); `loop_dumps.py` now writes `loop_test.args` with
+        `/` and LF, which `sh` needs.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h
@@ -5516,6 +5554,11 @@ emulation error (2026-10-02).
    status 007Bh remains unverified.
 2. `HL.EXE`: 71,755 instructions decode and play finds no more code. Go on
    with stage 2 where it stands (the bullets of 2026-10-04 above):
+   - the computer's player (`win/computer`: the first side compared on
+     the maps 24 and 30): next both sides the computer's (a way to set
+     it up, then `loop_test`), the thinking bar (`S1C74:0354`), and the
+     paths no map reached (`plan_to_site`, `plan_approach`,
+     `computer_plan`'s states 2 and 6, the step of kind 5);
    - a battle's end in the window (`debian/window5`): the pictures CDh
      to D0h are translated and compared; next there the music they
      start (the sound's owner), `event_picture`'s other kinds (C8h,

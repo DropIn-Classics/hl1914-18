@@ -257,9 +257,12 @@ int fight_pictures(const FightPics *a);
  * frame's wait ends with its log), after a fade_in or fade_out (EV_FADE)
  * and a pal_level (EV_LEVEL), and for the loading of the files n
  * (EV_BUSY with an EV_LOAD_) or the music's fade left out behind D0h
- * (EV_BUSY with EV_WON_END) */
-enum { EV_RELEASE, EV_FRAME, EV_RETRACES, EV_FADE, EV_LEVEL, EV_BUSY };
-enum { EV_LOAD_WON, EV_LOAD_WIPED, EV_LOAD_MEDAL, EV_LOAD_MEDAL2, EV_LOAD_MEDAL3, EV_WON_END, EV_LOAD_SITE };
+ * (EV_BUSY with EV_WON_END); a newspaper's key of pause
+ * (EV_PAUSE: inputs_release(1, 1), until a key comes; 0 to end it) and
+ * a frame's beginning of a newspaper or of the pictures C8h, C9h and CCh
+ * (EV_PAPER: no frame of the log's) */
+enum { EV_RELEASE, EV_FRAME, EV_RETRACES, EV_FADE, EV_LEVEL, EV_BUSY, EV_PAUSE, EV_PAPER };
+enum { EV_LOAD_WON, EV_LOAD_WIPED, EV_LOAD_MEDAL, EV_LOAD_MEDAL2, EV_LOAD_MEDAL3, EV_WON_END, EV_LOAD_SITE, EV_LOAD_PAPER, EV_PAPER_END, EV_LOAD_SHIP, EV_LOAD_ZEPPELIN, EV_LOAD_RICHT };
 extern int (*event_hook)(int at, int n);
 extern int event_frame;
 int16_t event_picture(Far place, Far work, uint16_t kind, uint16_t arg);

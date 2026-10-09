@@ -113,6 +113,11 @@ static const double t_ev_load[] = {
     2.53,   /* EV_LOAD_MEDAL3: CEh's picture on its background, the last frame to S066A:4728 (9.96 s) */
     1.11,   /* EV_WON_END: D0h's music_fade(0Ah), presumably (not checked what in it takes the time); its last frame to battle_score 2.74 s in m57_won and m57_medal, 2.725 in m54_end, of which the port counted 1.63 */
     0.333,  /* EV_LOAD_SITE: site_picture's files, S1A39:1906 to 195B in m0_s4 (round 4) */
+    1.01,   /* EV_LOAD_PAPER: a newspaper's files, S1A39:059D to its first frame 1.558 s in m0_paper (both pages) */
+    2.11,   /* EV_PAPER_END: a newspaper's music_fade(14h), presumably (not checked what takes the time); its loop's end S1A39:0A45 to the next page's S1A39:059D 3.356 s, to S066A:4728 3.363 s in m0_paper */
+    0.66,   /* EV_LOAD_SHIP: CCh's files: the port's first frame 12 ticks further ahead than at page 0's last in m34_paper */
+    1.04,   /* EV_LOAD_ZEPPELIN: C9h's files: the port's first frame 19 ticks early in m31_paper against 12 before event_picture in m0_paper (the same battle's end by Esc), an estimate */
+    0.55,   /* EV_LOAD_RICHT: C8h's files: the port's first frame 22 ticks early in m22_paper against 12 before event_picture in m0_paper (the same battle's end by Esc), an estimate */
 };
 #define T_SETUP 2.75        /* the menu's return (S066A:0390) to the loop's first pass (back walk: 20.18 to 22.93 s) */
 
@@ -509,10 +514,10 @@ static void ev_dump(char kind, long n)
 {
     char path[1024];
 
-    if (!ev_prefix || ((kind == 'f' || kind == 's') && n % 10 != 1) || (kind == 'g' && n % 1000 % 10 != 1))
+    if (!ev_prefix || ((kind == 'f' || kind == 's' || kind == 'n') && n % 10 != 1) || (kind == 'g' && n % 1000 % 10 != 1))
         return;
     snprintf(path, sizeof path, kind == 'e' ? "%se%ld.ram" : kind == 'f' ? "%sf%04ld.ram" :
-             kind == 's' ? "%ss%04ld.ram" : "%sg%04ld.ram", ev_prefix, n);
+             kind == 's' ? "%ss%04ld.ram" : kind == 'n' ? "%sn%04ld.ram" : "%sg%04ld.ram", ev_prefix, n);
     if (rm_write(path) != 0)
         fprintf(stderr, "%s: not written\n", path);
     strcpy(path + strlen(path) - 4, ".vram");
@@ -781,6 +786,7 @@ static void pics_clock(int at)
  * (the waits end at once, the log's calls come later).  -evdump dumps
  * its frames. */
 static long site_frames;
+static long paper_frames;       /* -evdump: the newspapers' frames (EV_PAPER) */
 
 static int site_hook(int at, int n)
 {
@@ -1398,6 +1404,13 @@ static int ev_hook(int at, int n)
         if (!have_clock)
             own_busy(t_ev_load[n]);
         return 1;
+    case EV_PAPER:
+        ev_dump('n', ++paper_frames);
+        return 1;
+    case EV_PAUSE:
+        if (!have_clock)
+            own_wait_press();
+        return !stopped;
     default:
         return 1;
     }

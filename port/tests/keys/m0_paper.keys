@@ -1,0 +1,5 @@
+# Map 0 against the computer, left at once: Esc and the key at scancode
+# 2Ch (the runner's z, Y on a German keyboard) end the battle, and the
+# newspaper of map 0 follows (event_picture with kind 0: pages 0 and 1).
+48.00 esc
+49.00 z

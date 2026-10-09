@@ -2566,6 +2566,93 @@ emulation error (2026-10-02).
         view) link `tests/orders_hook.c`, which holds the hook and, with
         `LOAD_TEST_STEPS`, writes the video memory at each step. The
         sum of the times is unchanged; only where they fall moved.
+      - The newspapers (2026-10-09, Windows, branch `win/papers`). The
+        player saw in DOSBox newspapers before and after the battles
+        that the port never showed. `event_picture`'s kinds 0 to 2Fh
+        are them: `S1A39:059D` (`newspaper`) twice, pages 2n and 2n +
+        1 (n the kind, or the kind less 18h from 18h on: the maps 24 to
+        47 share the newspapers of 0 to 23). `battle_after` already
+        passed these kinds (the map's number with one side the
+        computer's and a map below 30h; `event_picture` printed "not
+        translated"). Read whole and translated (`src/events.c`;
+        `src/HL.hints` names it all):
+        - A page's record of six bytes at `S3812:05A0`: the digits of
+          its files' names (text `TXT\aabb.TXT`, pictures
+          `TXT\aabb.DAT`, background `TXT\Hcc.LBM`), flags (4: the
+          pictures), a picture of `event_picture` before it (pages 14,
+          21, 44: C9h, CCh, C8h; maps 7/31, 10/34, 22/46), the tune
+          (`TXT\ZWTXT1.ADL` and on). Fonts `TIMES_8`, `TIMES_10`,
+          `TIMES_12` (`.NEW` a "PLIB" library of the characters'
+          pictures, `.CHR` their widths), palette `TXT\ZWTXT.PAL`.
+        - The text is set by the routines of `S2D47` (nothing else
+          calls them) a line at a time into a buffer of four planes,
+          two pixels a byte (the glyphs and the planes' output in
+          `S2F11:00E9` and `01F4`), 30h rows below a window of 118h by
+          B4h at 14h, 0Ah, and scrolled up a row a frame of 8 timer
+          counts; what lies under the window is kept and put back each
+          frame (screen_keep, screen_put; events.c has its own copy of
+          the two, which fightpics.c keeps static). Its codes: `|` a
+          hyphenation point, `^Fn` font, `^Ac` alignment (L, R, C, B
+          both sides), `^Nn` empty rows, `^Rn` a number for newspaper
+          (9100 to 9102 where the next picture goes, 9200 + k picture
+          k of the library, rising from the window's bottom, 9999 the
+          end). The key of entry 0 of the table at `S331F:02D3` ends a
+          page (presumably Esc; not checked), that of entry 1 waits for
+          a key (presumably a pause key; not checked; the port's own
+          clock takes it as `wait_press`, `EV_PAUSE`).
+        - Times (m0_paper, map 0 left by Esc and `z` at once):
+          `event_picture` at 50.051 s, page 0's `S1A39:059D` 50.223,
+          its first frame 51.781, 994 frames of 0.1255 s to 160.971,
+          its end 161.082 (`S1A39:0A45`), page 1 at 164.439 (first
+          frame 165.926, 833 frames, end 257.457), `S066A:4728` at
+          260.820. The port's own clock counts 1.01 s for a page's
+          loading (`EV_LOAD_PAPER`) and 2.11 s after its
+          `music_fade(14h)` (`EV_PAPER_END`; presumably the fade's
+          waiting, not checked what in it takes the time).
+        - Compared (`tests/keys/m0_paper.keys`; `play_dumps.py` now
+          dumps `nNNNN` at every tenth frame of the newspapers and of
+          their pictures, the port's `-evdump` the same): all 183
+          dumped frames of both pages have both pages of video memory
+          the same as the original's, and the window's record
+          (`S3812:0D14`) and the fonts (`S3B76`) the same. Video memory
+          differs only behind the pages (offsets 7E84h on), which the
+          original has filled since the battle's first pass and the
+          port has not (not looked into). The BIOS's ticks: the port's
+          first frame 12 ticks (0.66 s) early, within 6 to 12 through
+          both pages; the 0.66 s lie before `event_picture` (the
+          battle left by Esc; not looked into).
+        - The pictures before three pages (`pic_zeppelin` C9h,
+          `pic_ship` CCh, `pic_richt` C8h; sprites of 1Ch-byte records
+          in S3812 over streams, `sprite_draw` keeping what they cover)
+          compared the same way: `m31_paper` (map 31, page 14: C9h's
+          53 + 50 frames, then 1,150 of the newspaper), `m22_paper`
+          (map 22, page 44: C8h's 140 + 80, then 1,098), `m34_paper`
+          (map 34, page 21: page 20's 617 frames, CCh's 130, then
+          page 21's): all 126, 132 and 148 dumped frames have both
+          pages of video memory the same. Their frames start at
+          `S1A39:1BED`/`1D0F`, `1FCF`/`221B`, `169A`; in two loops the
+          original sets the count after `unders_restore`, so the
+          port's `EV_PAPER` comes before it there (where the dump is).
+          Their loading on the port's own clock: CCh 0.66 s (measured
+          against page 20's last frame in the same run), C9h 1.04 s
+          and C8h 0.55 s (estimates: the first frame's lead less the
+          12 ticks m0_paper has before `event_picture`, the same
+          battle's end by Esc in both). The port's frames of C9h and
+          C8h are 2 to 3 ticks shorter over their 100 to 220 frames
+          (presumably the original's `page_copy` and stream decoding in
+          each frame, which the port does not count).
+        - `play_dumps.py` reads a script named `m0...` as map 0, so a
+          script for map 7 must not be `m07_...`: map 31 shares its
+          newspaper (`m31_paper`). Map 10's code (and map 34's) START
+          shows screens of new units first, which wait for a press; map
+          34's script presses space at 42 and 44 s (the port's play
+          passes over keys before its start). The runner's `-shot T
+          FILE` showed it.
+        - Not done: the newspapers' music is started and faded
+          (`music_start`, `music_fade`) as the site's is, not listened
+          to; the pause key not run; the original's clock (`-clock`):
+          the newspapers' frames have no log line, so there the port
+          runs them without waiting (not run).
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h
@@ -5909,9 +5996,10 @@ emulation error (2026-10-02).
    `snd_end()` at the end of `game_loop` in `loop.c` by its owner
    (translated on `mac/opl`, not called),
    `S1A39`'s screens with their tunes (the pictures of `events.c`
-   leave `music_start` and `music_fade` out; the pictures C8h, C9h and
-   CCh with their effects are not translated, and no caller of them was
-   found), and the output itself (the OPL2 is fed since `mac/opl` and
+   leave `music_start` and `music_fade` out but for the site's and the
+   newspapers'; the pictures C8h, C9h and CCh with their effects are
+   translated on `win/papers`, called by the newspapers), and the
+   output itself (the OPL2 is fed since `mac/opl` and
    its stream compared, and played on the audio's clock since
    `mac/soundout`, rendered headless and not listened to: the bullet
    "The AdLib played"; set beside the runner's `-oplwav` on
@@ -5934,8 +6022,9 @@ emulation error (2026-10-02).
      (`win/computer5`);
    - a battle's end in the window (`debian/window5`): the pictures CDh
      to D0h are translated and compared; next there the music they
-     start (the sound's owner), `event_picture`'s other kinds (C8h,
-     C9h, CCh, the newspapers of the maps 0 to 2Fh, `S1A39:059D`), the
+     start (the sound's owner); `event_picture`'s other kinds (C8h,
+     C9h, CCh, the newspapers of the maps 0 to 2Fh, `S1A39:059D`) are
+     translated on `win/papers` (the bullet "The newspapers"); the
      end on the port's own clock by play is done (`debian/window14`,
      `m54_hq`, `m57_hq`) (the end in the window from the menu is
      done, `debian/window8`);

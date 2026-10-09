@@ -3034,17 +3034,21 @@ name S167A:2F83 inputs_release
 ; to 1Ch, makes the record the whole screen (0Eh 1, the box 0,0 to
 ; 13Fh,C7h, 1Ch 0), pages_set and page_flip, and puts them back after the
 ; picture the same way. After inputs_release it goes by kind: C8h to D0h
-; through the table at S1A39:02B3, others to S1A39:059D twice (not read).
+; through the table at S1A39:02B3, others to newspaper (S1A39:059D)
+; twice, pages 2n and 2n + 1 for the kind n (0 to 17h) or n - 18h (18h to
+; 2Fh; FFFFh, pages FFFEh and FFFFh, for any other kind), both only when
+; SI (not set in event_picture: its caller's) is not below 0.
 ; CAh and CBh, the site taken by the first or the second side
 ; (attacks_run's order 4), both go to site_picture, with 0 or A0h as its
 ; first argument; CDh to pic_wiped, CEh and CFh to pic_medal with 0 and 1,
 ; D0h to pic_won (2026-10-08, read whole for those four and translated,
 ; port/src/events.c). game_loop gives its [BP-10h] as the work buffer
 ; and 2710h behind it as the place; battle_score its own, moved on by
-; 2710h, 3E8h and 32h by then. The table's other three: C8h S1A39:1DD5,
-; C9h S1A39:1A11, CCh S1A39:149D (not read but for their calls of
-; sfx_play and chan_stop, docs/HANDOFF.md; no caller passing these kinds
-; as a constant was found, not looked for in a run).
+; 2710h, 3E8h and 32h by then. The table's other three: C8h pic_richt
+; (S1A39:1DD5), C9h pic_zeppelin (S1A39:1A11), CCh pic_ship (S1A39:149D);
+; no caller passes them as a constant: newspaper does, from byte 4 of a
+; page's record (pages 14, 21 and 44). All read whole and translated
+; (2026-10-09, port/src/events.c).
 name S1A39:0001 event_picture
 ; site_picture: loads its files (S1A39:034C with 3 and the names at
 ; S3812:086C; not read), starts a sound (S2F39:0F87, not read), then
@@ -3103,6 +3107,146 @@ name S1A39:0D1A pic_medal
 ; sfx_play (channels 0 to 6, or 8 to 10 with S3303:0022), snd_pass.
 ; wait_frames(64h), fade_out.
 name S1A39:1262 pic_wiped
+; newspaper(place, work, n): page n of the newspapers behind a battle.
+; Its record of six bytes at S3812:05A0 + 6n: the digits of the text's
+; and the pictures' names (bytes 0, 1: TXT\aabb.TXT, TXT\aabb.DAT), of
+; the background's (byte 2: TXT\Hcc.LBM), flags (byte 3; 4 loads the
+; pictures), a picture of event_picture shown first (byte 4, 0 none:
+; C9h on page 14, CCh on 21, C8h on 44), the tune (byte 5: the names of
+; 16 bytes from S3812:04FA, TXT\ZWTXT1.ADL and on). It loads the three
+; fonts (font_load with the names at S3812:0528 and 0564, 14h bytes
+; apart: TIMES_8, TIMES_10, TIMES_12 .NEW and .CHR), puts the digits in
+; (paper_names), shows the background (lbm_show, page_flip, page_copy),
+; loads TXT\ZWTXT.PAL, the tune, the text (text_load into the window's
+; record at S3812:0D14) and with flag 4 the pictures (lib_load, record
+; S3812:04C0, their table's far pointer at S3812:04CE); the window
+; (paper_init: 118h by B4h at 14h, 0Ah, 30h rows more in its buffer,
+; colours from 10h; the buffer at the place); paper_step(0) twice with a
+; page_flip between; the palette made the game's, fade_in,
+; music_start(tune, 14h, FFh). Then frames of 8 timer counts (word 22Eh
+; of the screen's record and the key's word 4 set to 0 at S1A39:08F9):
+; paper_restore, paper_step(1), whose result 9999 ends it, 9100 to 9198
+; choose where the next picture goes (9100 'L', 9101 'C', 9102 'R', the
+; rest 'L'; 'R' at first), 9200 to 9298 add picture n - 9200 of the
+; library (paper_picture, base 0); page_flip; the key of entry 0 of the
+; table behind S331F:02D3 ends it, that of entry 1 waits
+; (inputs_release(1, 1)). At the end paper_restore, wait_frames(32h),
+; fade_out, music_fade(14h). Returns 0, or FFFFh when a file could not be
+; loaded. Map 0's two pages ran 994 and 833 frames of 0.1255 s in m0_paper
+; (2026-10-09); translated (port/src/events.c, paper), both pages of
+; video memory the same as the original's at every tenth frame.
+name S1A39:059D newspaper
+; paper_names(n): the digits of byte 0 and 1 of page n's record (decimal,
+; two each) put into the names at S3812:04D4 and 04E1, those of byte 2
+; into S3812:04EE.
+name S1A39:22D3 paper_names
+; pic_ship (CCh): a file of sounds as pic_wiped, four files from
+; S3812:06D4 (ZWI\SHIPA.ANI, SHIPC.ANI, SHIP.PAL, SHIP.DAT); six sprites
+; of 1Ch bytes at S3812:07C4 (x0, y0, x, y, first and last frame, steps of
+; x and y, of the scale, the scale, the picture) from the library's
+; first picture; the second stream's first frame, sfx_play(0 or 8, 5,
+; 1Eh or AAh, 258h, 200h), first_frame with the first stream; 82h frames of
+; 6 counts (S1A39:169A): the sounds of the table at S3812:0764 (30h bytes
+; a sound kind, S3303:0022) on channels 1 to 7 (9 to 11), the first
+; stream again from its beginning when it ends, the second from frame 57h
+; on, the sprites (sprite_draw, centred, what they cover kept), page_flip,
+; unders_restore, page_copy, page_flip. Then chan_stop(0 to 0Bh),
+; fade_out, unders_restore, page_flip, unders_restore.
+name S1A39:149D pic_ship
+; pic_zeppelin (C9h): the sounds' file, four files from S3812:0938
+; (ZWI\ZEPP.ANI, ZEPP2.PAL, ZEPP.PAL, ZEPP.DAT); the first palette, the
+; screen cleared, the stream's first frame, the library's first picture
+; at 85h, 2Eh, the first frame again, page_flip, page_copy, fade_in,
+; sfx_play(0 or 8, 2, C8h, FFh, 200h), wait_frames(C8h). The stream to its
+; end or 35h frames of 6 counts (S1A39:1BED): the sounds of S3812:08EC
+; (frame, volume) on the same channel, the colours 0Ah steps from the
+; first palette to the second from frame 8 on, 0Fh back from 13h on
+; (S2A62:0008); then 32h frames (S1A39:1D0F) of the picture growing from
+; scale 100h by 14h. chan_stop, fade_out, unders_restore, page_flip,
+; unders_restore.
+name S1A39:1A11 pic_zeppelin
+; pic_richt (C8h): the sounds' file, four files from S3812:0AE0
+; (ZWI\RICHT.LBM shown, RICHT.DAT, RICHT.ANI, RICHT.PAL); the palette,
+; page_flip, page_copy, fade_in, sfx_play(9, 1, FFh, 2, 200h); 0Fh sprites
+; at S3812:0B70 from the library's third picture, the second and third
+; with its second and first. 8Ch frames of 3 counts (S1A39:1FCF): the
+; sounds of S3812:0A1C (frame, volume; 0Eh bytes a sound kind) on channel
+; 7 (0Bh), those of S3812:0A38 (54h bytes a sound kind) on channels 0 to 6
+; (8 to 10), the sprites, changed at the frames 28h, 46h and 6Eh; then the
+; stream to its end at 6 counts (S1A39:221B); chan_stop, wait_frames(64h),
+; fade_out, unders_restore, page_flip, unders_restore.
+name S1A39:1DD5 pic_richt
+; S2D47: the newspaper's text set a line at a time into a buffer of four
+; planes with two pixels a byte and scrolled up through a window
+; (2026-10-09, read whole for what newspaper calls, translated in
+; port/src/events.c). The fonts are kept in S3B76, 416h bytes each (the
+; library's count, offsets, place and size, a word a character for its
+; picture and its width, the widest, the highest, the mean width, the
+; gap).
+; fill(far p, byte v, n)
+name S2D47:0008 fill
+; font_load(far name, far chr, i, gap, far place, far work): font i (0 to
+; 6): the "PLIB" library (plib_open), then the list of its characters
+; (chr: a line each, the character and its width in digits) read into the
+; tables; returns the library's size, FFFF:FFFF to FFFF:FFFC for errors.
+; Without a place it takes memory (mem_alloc) and frees the list's
+; (S2CC5:0004).
+name S2D47:0038 font_load
+; text_load(far name, far win, far place, far work): the text loaded, the
+; window's far words 0 and 4 set to it, its size at 8, byte 0Eh 'L'.
+name S2D47:02BD text_load
+; paper_picture(far win, far pic, base, align): a picture added to the
+; first free of six places, coming up from the window's bottom on the
+; left, on the right (8 from the edge) or in the middle (the lines kept
+; empty for its height and two gaps: word 12h, flag 1 of word 10h).
+name S2D47:0356 paper_picture
+; paper_line(far win): the next line set into the buffer. The text's
+; codes: '|' a place where a word may be broken with '-', CR and LF a
+; space but at a line's beginning, "^Fn" font n, "^Ac" alignment c (L, R,
+; C, B both sides), "^Nn" n empty rows, "^Rn" n returned. The text's end
+; begins it again. Characters a font lacks become '.' (or ' ').
+name S2D47:0473 paper_line
+; paper_lf(far win): the next line's row a line further (the font's
+; height and the gap), the cleared part's end too.
+name S2D47:0CF6 paper_lf
+; paper_size(w, h, extra): the bytes the window's buffer needs (its
+; result is not used by newspaper).
+name S2D47:0D65 paper_size
+; paper_init(far win, far buf, w, h, extra, x, y, base): the window's
+; record made (port/src/events.c names its words); FFFFh when x + w is
+; beyond 140h or no memory could be had.
+name S2D47:0DD2 paper_init
+; paper_restore(far win): what lay under the window put back on the page
+; drawn (screen_put).
+name S2D47:1159 paper_restore
+; paper_step(far win, a, step): lines set until the buffer reaches step
+; rows below the part shown, the part moved on by step (the buffer used
+; round, two rectangles), what lies under the window kept (screen_keep),
+; the pictures drawn cut to the window's rows and moved up, the text over
+; them. Returns the last "^R" code met, 0 none, FFFFh for a or step below
+; 0.
+name S2D47:1208 paper_step
+; paper_show(far desc, x, y, far rect, base): a rectangle of the buffer
+; shown on the page drawn, plane by plane (S2F11:01F4).
+name S2D47:1695 paper_show
+; paper_clear(far desc, far rect, v): a rectangle of the buffer filled.
+name S2D47:1785 paper_clear
+; glyph(far font, n, far desc, x, y): character picture n into the buffer
+; (S2F11:00E9).
+name S2D47:185C glyph
+; plib_open(far name, far rec, far work): a "PLIB" library loaded and its
+; header read into the font's record; FFFFh not loaded, FFFEh no PLIB.
+name S2D47:1AB4 plib_open
+; glyph_put(far pic, far desc, x, y, pitch): a character's picture (word 0
+; the bytes of a copy of its planes, 2 the bytes a row up to 14h, 4 the
+; rows; its planes at 8, a copy shifted by half a byte behind) put into
+; the buffer: whole bytes where it begins in a high half, the first of
+; each row or-ed in where it begins in a low half.
+name S2F11:00E9 glyph_put
+; plane_put(plane, off, h, n, far src, base, pitch): n bytes of h rows of
+; a plane of the page drawn from the buffer's plane, each half not 0
+; written with base added.
+name S2F11:01F4 plane_put
 ; vdif_frame(x, y, far stream): a frame of a "VDIF" stream drawn into the
 ; page drawn (screen_seg) at x (made a multiple of 4) and y: for each of
 ; the four planes runs of bytes, a byte below 80h the count to copy, else

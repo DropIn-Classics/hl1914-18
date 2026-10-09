@@ -174,6 +174,18 @@ Of the port's source only `menu.c`'s log for the tests changed (a line
 "ask N TIME" for each screen outside the menu's loop); the bullet "The
 input options' last two gaps".
 
+On the branch `mac/thinkbar` (2026-10-09) the bar of the computer's
+thinking is read whole and set beside the original. The task said it
+was not translated; it was, since `debian/window` (`23fa0e9`:
+`computer_progress` in `plan.c`, `bar_draw` in `draw.c`, the call in
+`loop.c`'s `computer_part`), but only `bar_draw` had been compared, with
+the value taken from the original's stack, and `S1C74:0354` had been
+read to its first loop. Now 13 calls of three maps, both sides: what
+`computer_progress` returns, memory at the call and behind the bar,
+video memory and the DAC, nothing different. Of the port's source
+nothing changed; the tests and the hints' names only (the bullet "The
+pass with the computer's own turn", its last item).
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -2325,7 +2337,10 @@ emulation error (2026-10-02).
       - Not done: both sides the computer's. The menu has no item for it
         that was found (word 2 of `game_state` 4); a poke of both sides'
         word 0 was not tried. The computer's thinking bar
-        (`S1C74:0354`) is still not translated.
+        (`S1C74:0354`) is still not translated. (Wrong: it was
+        translated on `debian/window`; read whole and compared on
+        `mac/thinkbar`, the bullet "The pass with the computer's own
+        turn".)
       - On Windows without cc: the `.sh` tests ran under Git Bash with
         `CC` set to a small wrapper that hands the gcc-style options to
         MSVC's cl (vcvars64, `/MT`, `advapi32.lib shell32.lib
@@ -2555,6 +2570,48 @@ emulation error (2026-10-02).
       plans for a bar drawn by `S1571:01F2`; presumably it writes
       nothing of the state (read to the first loop only, not checked
       to its end; the comparisons show no difference from it).
+      Read whole and compared 2026-10-09 (Mac, branch `mac/thinkbar`;
+      `computer_progress`, `bar_draw`, `rect_fill` and `line_fill` are
+      names in `src/HL.hints` now):
+      - It writes its frame of 12h bytes and nothing else. The table of
+        plans is `unit_plans2` for the side's `attack_pick` 2, else
+        `unit_plans`; counted are the units 0 to F0h that are not a
+        second half (40h without 80h in word 4), have none of C000h in
+        word 4, not 20h in word 6, none of 380h in the kind's word 2 of
+        `kind_worth` and are the side's by `same_side`; of those the
+        ones with byte 8 of their plan 0 are taken off: 64h less their
+        number * 100h / (count * 100h / 64h), kept to 0 to 63h, 0 with
+        no unit counted. The translation in `plan.c` was there and reads
+        the same line for line; nothing of it needed a change.
+      - `game_loop` is its one caller (`S066A:11C1`), after the pass's
+        turn or thinking loop and its text, while the phase has
+        20h or 40h and the side's `attack_pick` is 1. It keeps the value
+        doubled at `[BP-42h]` and the side's x (0 or A0h) at `[BP-44h]`
+        and calls `bar_draw(x + 17h, C3h, the colour at S331F:4C85, the
+        back at S331F:4C87, 1, value * 2, C8h)`. `bar_draw` halves both,
+        so the bar is the value in pixels of 64h.
+      - The rectangles have both ends: the back is 65h pixels on two
+        rows (y C3h and C4h), 202 bytes of video memory changed at
+        every call, the value 0 too (presumably because the page drawn
+        is the other one each pass: the dumps have them at two
+        places; not looked at further).
+      - In the runs the value rises while the side thinks: `m8_d5r`
+        (300 s) 487 calls, 0 to 45h in the first round; `m0_hq` (300 s)
+        768 calls, 0 to 55h; `m24_quiet` (400 s, the computer first)
+        754 calls, 0 to 5Dh (`run.py -log S1C74:0519`).
+      - Compared (`port/tests/thinkbar_dumps.py`, `load_test.sh` with
+        `think` and `progress`; port/README.md "The bar of the
+        computer's thinking"): 13 calls, each from the call of
+        `computer_progress` to behind `bar_draw` and the routine alone,
+        nothing different.
+      Not verified: the line in `loop.c` itself was not run by the test
+      (`computer_part` is static and `loop.c` was not to be touched; the
+      test has the same call, and the line reads the same as the
+      original's); the bar in the window by eye; a side whose
+      `attack_pick` is 2 (the routine then takes `unit_plans2`, but
+      `game_loop` calls it only with 1, so that way was met in no run);
+      the two ways out of range (below 0, above 63h), reached in none of
+      the 2,009 calls logged.
     Open: a loop ended early by a key, a computer first side in the
     pass (the single calls of `computer_turn` covered side 0, the pass
     did not); the pass is now run by the program too (the next bullet).
@@ -5612,7 +5669,7 @@ emulation error (2026-10-02).
    with stage 2 where it stands (the bullets of 2026-10-04 above):
    - the computer's player (`win/computer`: the first side compared on
      the maps 24 and 30): next both sides the computer's (a way to set
-     it up, then `loop_test`), the thinking bar (`S1C74:0354`), and the
+     it up, then `loop_test`), and the
      paths no map reached (`plan_to_site`, `plan_approach`,
      `computer_plan`'s states 2 and 6, the step of kind 5);
    - a battle's end in the window (`debian/window5`): the pictures CDh

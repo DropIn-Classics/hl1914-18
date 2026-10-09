@@ -43,7 +43,11 @@
  * `fgrey` and `fback` are fade_grey (S0E56:21D8, RETF at 241E) and
  * fade_back (S0E56:1F91, RETF at 21D7), `bar` the bar of S1571:01F2 (its
  * RETF taken at the caller, S066A:1212; its seven argument words, two
- * of which it halves, counted as the stack), `blast` S02E6:225C (RETF at
+ * of which it halves, counted as the stack), `progress`
+ * computer_progress (S1C74:0354, RETF at 0519; AX compared, no video
+ * memory), `think` game_loop's part that draws the bar of the computer's
+ * thinking (S066A:11C1, the call of computer_progress, to S066A:1212
+ * behind bar_draw: SS:SP at that call), `blast` S02E6:225C (RETF at
  * the caller, S02E6:0BC2) and `pic` pic_draw (S2A6B:0008), each with the
  * video memory likewise; for the fades the keyboard interrupt's bytes
  * counted apart (key_apart).  Beside every dump a .dac (dumps.py with
@@ -446,6 +450,35 @@ int main(int argc, char **argv)
             got.off = (uint16_t)ax;
             got.seg = (uint16_t)dx;
             name.seg = name.off = 0;
+        } else if (!strcmp(what, "progress")) {
+            /* computer_progress(side) (S1C74:0354, RETF at 0519): AX */
+            uint16_t side = frw((uint16_t)ss, (uint16_t)(sp + 4));
+
+            got.off = computer_progress(side);
+            wide = 0;
+            name.seg = name.off = 0;
+            snprintf(text, sizeof text, "side %u: %02X", side, got.off);
+        } else if (!strcmp(what, "think")) {
+            /* game_loop's bar of the computer's thinking, from the call
+             * of computer_progress (S066A:11C1, the side pushed) to
+             * behind bar_draw (S066A:1212), as loop.c's computer_part
+             * has it; game_loop keeps the doubled value and the side's
+             * x in its frame ([BP-42h], [BP-44h], BP 54h above the SP
+             * here): video memory likewise */
+            uint16_t side = frw((uint16_t)ss, (uint16_t)sp), bp = (uint16_t)(sp + 0x54);
+            uint16_t x = side & 1 ? 0xA0 : 0, v;
+
+            vram_in(argv[i + 3]);
+            v = (uint16_t)(computer_progress(side) << 1);
+            fww((uint16_t)ss, (uint16_t)(bp - 0x42), v);
+            fww((uint16_t)ss, (uint16_t)(bp - 0x44), x);
+            bar_draw((uint16_t)(x + 0x17), 0xC3, frb(HL_S331F + HL_BASE, 0x4C85), frb(HL_S331F + HL_BASE, 0x4C87),
+                     1, (int16_t)v, 0xC8);
+            r_pict = 0;
+            got.off = (uint16_t)ax;
+            got.seg = (uint16_t)dx;
+            name.seg = name.off = 0;
+            snprintf(text, sizeof text, "side %u: %02X", side, v >> 1);
         } else if (!strcmp(what, "blast")) {
             /* S02E6:225C(n, far map, view, side), its RETF taken at the
              * caller (S02E6:0BC2): video memory likewise */
@@ -547,7 +580,7 @@ int main(int argc, char **argv)
                      || ((!strcmp(what, "view") || !strcmp(what, "marks") || !strcmp(what, "msg")
                           || !strcmp(what, "fdraw") || !strcmp(what, "merase") || !strcmp(what, "panel") || !strcmp(what, "fpanel") || !strcmp(what, "fpics")
                           || !strcmp(what, "fgrey") || !strcmp(what, "fback") || !strcmp(what, "bar") || !strcmp(what, "blast")
-                          || !strcmp(what, "pic"))
+                          || !strcmp(what, "pic") || !strcmp(what, "progress") || !strcmp(what, "think"))
                          && begin_apart(a)))
                 d_beside++;
             else if (left_out && (mem[a] == entry[a] || a == kept || a == kept + 1))

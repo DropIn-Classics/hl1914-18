@@ -129,7 +129,7 @@ static Far loaded(uint16_t tab)
  * count - 2, then the byte), FFh and a word an offset from the place (the
  * plane's end at 3E80h or more).  The place's offset is kept at
  * S2982:00A2.  Returns the next frame, or FFFF:FFFF when `src` is none. */
-static Far vdif(Far src, uint16_t x, uint16_t y)
+Far vdif(Far src, uint16_t x, uint16_t y)
 {
     uint16_t es = NW(screen_seg, 0), di, di0, si = src.off, w;
     uint8_t mask, planes, b;
@@ -844,7 +844,7 @@ static int16_t plib_open(Far name, Far rec, Far work)
  * is not kept), below 0 for an error.  Without a place it would take
  * memory of its own (mem_alloc, S2CC5:0004): not translated, the
  * newspaper always gives one. */
-static int32_t font_load(Far name, Far chr, int16_t i, uint16_t gap, Far place, Far work)
+int32_t font_load(Far name, Far chr, int16_t i, uint16_t gap, Far place, Far work)
 {
     Far rec, p, offs, pic;
     uint16_t r, k, n, maxw = 0, maxh = 0;
@@ -903,7 +903,7 @@ static int32_t font_load(Far name, Far chr, int16_t i, uint16_t gap, Far place, 
 /* S2D47:02BD (text_load(name, win, place, work)): the text loaded to
  * place; the window's far words 0 (the text) and 4 (where it is read)
  * set to it, its size at 8, the alignment (byte 0Eh) 'L' */
-static int32_t paper_text(Far name, Far w, Far place, Far work)
+int32_t paper_text(Far name, Far w, Far place, Far work)
 {
     Far f = file_load(place, name, work);
     int32_t n;
@@ -1067,7 +1067,7 @@ static void paper_show(Far desc, uint16_t x, uint16_t y, Rect r, uint8_t base)
 /* S2B76:0004 and S294A:000A (screen_keep, screen_put) as fightpics.c has
  * them, which keeps them to itself: h rows of w bytes of each plane of the
  * screen at src kept at `to` one plane after the other, and back */
-static void keep(Far src, Far to, uint16_t w, uint16_t h)
+void planes_keep(Far src, Far to, uint16_t w, uint16_t h)
 {
     uint16_t pitch = NW(screen_pitch, 0), si = src.off, di = to.off, plane, r, k;
 
@@ -1085,7 +1085,7 @@ static void keep(Far src, Far to, uint16_t w, uint16_t h)
     }
 }
 
-static void put_back(Far from, Far dst, uint16_t w, uint16_t h)
+void planes_put(Far from, Far dst, uint16_t w, uint16_t h)
 {
     uint16_t pitch = NW(screen_pitch, 0), s = from.off, plane, r, k;
     uint8_t m = 0x11;
@@ -1392,7 +1392,7 @@ static uint16_t paper_line(Far w)
  * screen A6h, and as far words of both pages DCh, E0h), the width A8h,
  * the rows below the window AAh, the colours' base E5h, the font E6h
  * (font 0), the line's gap 0Ch (1). */
-static int16_t paper_init(Far w, Far buf, uint16_t wd, uint16_t h, uint16_t extra, uint16_t x, uint16_t y, uint8_t base)
+int16_t paper_init(Far w, Far buf, uint16_t wd, uint16_t h, uint16_t extra, uint16_t x, uint16_t y, uint8_t base)
 {
     uint16_t si = wd, bpr, size, di, k;
     Far f0;
@@ -1479,11 +1479,11 @@ static uint16_t paper_page(Far w)
 }
 
 /* S2D47:1159: what lay under the window put back on the page drawn */
-static void paper_restore(Far w)
+void paper_restore(Far w)
 {
     uint16_t i = paper_page(w), o = (uint16_t)(i * 0x16);
 
-    put_back(pfar(w, (uint16_t)(0xB0 + o)), pfar(w, (uint16_t)(0xDC + i * 4)), pw(w, (uint16_t)(0xC0 + o)), pw(w, (uint16_t)(0xC4 + o)));
+    planes_put(pfar(w, (uint16_t)(0xB0 + o)), pfar(w, (uint16_t)(0xDC + i * 4)), pw(w, (uint16_t)(0xC0 + o)), pw(w, (uint16_t)(0xC4 + o)));
 }
 
 /* S2D47:0356 (paper_picture(win, pic, base, align)): a picture added to
@@ -1525,7 +1525,7 @@ static int16_t paper_picture(Far w, Far pic, uint16_t base, uint16_t align)
  * kept (screen_keep), the pictures drawn (cut to the window's rows, the
  * screen's record's words 14h and 18h, 0Eh FFFFh) and moved up, the
  * text over them.  Returns the last "^R" code met, 0 none. */
-static int16_t paper_step(Far w, int16_t a, int16_t step)
+int16_t paper_step(Far w, int16_t a, int16_t step)
 {
     Far r = scr();
     uint16_t ret = 0, st = (uint16_t)step, i, o;
@@ -1560,7 +1560,7 @@ static int16_t paper_step(Far w, int16_t a, int16_t step)
     }
     i = paper_page(w);
     o = (uint16_t)(i * 0x16);
-    keep(pfar(w, (uint16_t)(0xDC + i * 4)), pfar(w, (uint16_t)(0xB0 + o)), pw(w, (uint16_t)(0xC0 + o)), pw(w, (uint16_t)(0xC4 + o)));
+    planes_keep(pfar(w, (uint16_t)(0xDC + i * 4)), pfar(w, (uint16_t)(0xB0 + o)), pw(w, (uint16_t)(0xC0 + o)), pw(w, (uint16_t)(0xC4 + o)));
     pwb(w, 0xE4, (uint8_t)(pb(w, 0xE4) ^ 1));
     for (di = 0; di < 6; di++) {
         uint16_t y0, y1, e0;

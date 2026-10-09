@@ -212,3 +212,40 @@ raw S0C22:0040
 raw S0C22:004E
 raw S0C22:0072
 raw S0C3B:00AD
+
+; The intro's own module (S033D, its data S0E07), translated in port/src/seq.c.
+; intro_main: the scenes of the flag word 3F7h one after the other (BANG,
+; BUCH1A, BUCH1B, AUTO, the scroll and MORD, BUCH2A, BUCH2B, the countries,
+; BUCH3), then the music faded out (port/src/seq.c says each).
+name S033D:000C intro_main
+; intro_end(code, name): music_fade(5), the screen's mode back, mem_alloc's
+; blocks freed, snd_end, input_remove; a message for a code not 0; exit.
+name S033D:17E0 intro_end
+; intro_wait(n): the timer's count (screen record + 22Eh) from 0 up to n;
+; -1 for Esc (intro_key), any other key is taken and ignored.
+name S033D:1856 intro_wait
+name S033D:18A3 intro_key
+; scene_load(rec, place, work): the stream named at rec to place (rec+20h),
+; the palette named at rec+10h behind it (rec+24h); the bytes of both.
+name S033D:18D4 scene_load
+; anim(x, y, rec, n, speed): the stream's palette, at most n frames, each
+; shown, copied, `speed` counts waited; -1 for Esc (callers ignore it).
+name S033D:19A5 anim
+; pan(x): CRTC start address and pixel panning to x pixels into the page of
+; screen record 27Ah, the pages 27Ah/27Ch swapped; waits for retraces.
+name S033D:1A47 pan
+; lib(name, place, work, rec, 0): a library loaded, its table made far
+; pointers in place (rec+0Eh), the count at rec+12h.
+name S033D:1BD5 lib
+name S033D:1EE8 text_draw
+name S033D:2007 text_mid
+name S033D:205D text_width
+; blend(p1, p2, ranges, list, n, steps): colour ranges blended, a retrace each.
+name S033D:2149 blend
+; lands(from, to, k, speed): country record k (S0E07:05B0, 32 bytes each)
+; blended step by step (the countries' text code k+1).
+name S033D:21BD lands
+; S056A:11A6 is HL.EXE's S2F39:11AC (music_seek), S056A:1A05 its 1A0B
+; (music_beat); both translated in port/src/sound.c.
+name S056A:11A6 music_seek
+name S056A:1A05 music_beat

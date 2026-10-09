@@ -90,7 +90,16 @@ uint8_t *host_load(Far name, size_t *size)
             continue;
         }
         part[n] = 0;
-        if (n && strcmp(part, ".")) {
+        if (!strcmp(part, "..")) {
+            /* the folder above (the intro's and the outro's '..\' fonts,
+             * seq.c: hl_game_dir is their folder then) */
+            char *s1 = strrchr(path, '/'), *s2 = strrchr(path, '\\');
+
+            if (s2 > s1)
+                s1 = s2;
+            if (s1)
+                *s1 = 0;
+        } else if (n && strcmp(part, ".")) {
             if (!sys_find(path, part, next, sizeof next))
                 return NULL;
             strcpy(path, next);

@@ -934,8 +934,156 @@ static int due(uint16_t r)
     return now >= ((uint32_t)D(r + R_DUE + 2) << 16 | D(r + R_DUE));
 }
 
-/* S30EF:192D (adl_tick), the timer's routine.  Left out: music_restore
- * (S30EF:0250 set, which nothing found sets) */
+static void far_move(Far from, Far to, uint16_t n)
+{
+    uint16_t i;
+
+    for (i = 0; i < n; i++)
+        pwb(to, i, pb(from, i));
+}
+
+static Far drv_at(uint16_t off)
+{
+    Far p;
+
+    p.seg = DRV;
+    p.off = off;
+    return p;
+}
+
+/* S2F39:18FE (music_restore), called by adl_tick when the tune has come
+ * to the place music_seek marked (S30EF:0256): the tune's place back to
+ * the one at 0252, its beginning (0232) moved on by the time between them
+ * (0236), and each of its voices given the state the third copy
+ * (S30EF:03D4) has: the voices the effects leave it get it (their
+ * instrument and note sent again), the others' second copy (0320); then
+ * each voice's volume */
+static void music_restore(void)
+{
+    uint16_t si;
+    uint32_t t;
+
+    if (!(NW(snd_devices, 0) & 1))
+        return;
+    DSET(REC(MUSIC) + R_AT, D(0x0252));
+    DSET(REC(MUSIC) + R_AT + 2, D(0x0254));
+    t = ((uint32_t)D(0x0234) << 16 | D(0x0232)) + ((uint32_t)D(0x0238) << 16 | D(0x0236));
+    DSET(0x0232, (uint16_t)t);
+    DSET(0x0234, (uint16_t)(t >> 16));
+    for (si = 0; D(REC(MUSIC) + R_VOICES) > si; si++) {
+        uint16_t at = (uint16_t)(si * 0x14);
+
+        if ((uint16_t)(9 - used()) > si) {
+            far_move(drv_at((uint16_t)(0x03D4 + at)), drv_at((uint16_t)(VOICE + at)), 0x14);
+            voice_instrument(si, drv_at((uint16_t)(VOICE + at)));
+            voice_note(si, D(VOICE + V_NOTE + at));
+        } else
+            far_move(drv_at((uint16_t)(0x03D4 + at)), drv_at((uint16_t)(KEPT + at)), 0x14);
+        voice_level(si, D(VOICE + V_VOL + at));
+    }
+}
+
+/* S2F39:11AC (music_seek(from, to); INTRO's S056A:11A6): the tune read
+ * from its beginning without sound up to `from` beats (S30EF:022C ticks
+ * each), its voices' state there worked out into the third copy (their
+ * volumes the music's first; notes, keys let go, own volumes and
+ * instruments by the events), that place kept at S30EF:0252; read on up
+ * to `to` beats, that place kept at 0256, the time between the two at
+ * 0236; and 0250 set: when the tune comes to the second place, adl_tick
+ * calls music_restore, which takes it back to the first.  The events'
+ * lengths as the routine reads them, which differ from music_events' for
+ * 50h (a wait of 50h + the voice) and 70h (its byte and as many more
+ * skipped, 77h too).  -1 without the AdLib, without the music or at the
+ * tune's end */
+int16_t music_seek(uint16_t from, uint16_t to)
+{
+    Far p = far_at(DRV, REC(MUSIC) + R_START);
+    uint32_t at = 0, target;
+    uint16_t mark = 0x0252, di;
+    int si;
+
+    if (!(NW(snd_devices, 0) & 1) || !NW(music_on, 0))
+        return -1;
+    for (di = 0; di < 0xB4; di++)
+        DSETB(0x03D4 + di, 0);
+    for (di = 0; D(REC(MUSIC) + R_VOICES) > di; di++)
+        DSET(0x03D4 + V_VOL + di * 0x14, NW(music_volume_now, 0));
+    target = (uint32_t)from * D(0x022C);
+    for (si = 0; si < 2; si++) {
+        DSET(0x0236, (uint16_t)at);
+        DSET(0x0238, (uint16_t)(at >> 16));
+        while (at < target) {
+            uint8_t b = pb(p, 0);
+            uint16_t v = (uint16_t)((b & 0x0F) * 0x14);
+
+            p.off++;
+            if ((uint16_t)(D(REC(MUSIC) + R_START) + D(REC(MUSIC) + R_LEN)) <= p.off)
+                return -1;
+            switch (b & 0xF0) {
+            case 0x00:
+                at += (((uint32_t)b << 8) + pb(p, 0)) << 7;
+                p.off++;
+                break;
+            case 0x10:
+                if (!si)
+                    DSET(0x03D4 + V_NOTE + v, pw(p, 0));
+                p.off = (uint16_t)(p.off + 2);
+                break;
+            case 0x20:
+                if (!si)
+                    DSET(0x03D4 + V_NOTE + v, D(0x03D4 + V_NOTE + v) & 0xDFFF);
+                break;
+            case 0x30:
+                if (!si)
+                    DSET(0x03D4 + V_OWN_VOL + v, pb(p, 0));
+                p.off++;
+                break;
+            case 0x40:
+                if (!si) {
+                    far_move(p, drv_at((uint16_t)(0x03D4 + v)), 0x0C);
+                    DSET(0x03D4 + V_CHANNEL + v, MUSIC);
+                }
+                p.off = (uint16_t)(p.off + 0x0B);
+                break;
+            case 0x60:
+                p.off = (uint16_t)(p.off + 2);
+                break;
+            case 0x70:
+                p.off = (uint16_t)(p.off + pb(p, 0) + 1);
+                break;
+            default:
+                at += b & 0x7F;
+                break;
+            }
+        }
+        DSET(mark, p.off);
+        DSET(mark + 2, p.seg);
+        mark = 0x0256;
+        {
+            uint32_t was = (uint32_t)D(0x0238) << 16 | D(0x0236), len = at - was;
+
+            DSET(0x0236, (uint16_t)len);
+            DSET(0x0238, (uint16_t)(len >> 16));
+        }
+        target = (uint32_t)to * D(0x022C);
+    }
+    DSET(0x0250, 1);
+    return 1;
+}
+
+/* S2F39:1A0B (music_beat; INTRO's S056A:1A05): the beats (S30EF:022C
+ * ticks each) since the tune began (0232) */
+uint16_t music_beat(void)
+{
+    uint32_t now = (uint32_t)NW(snd_ticks, 2) << 16 | NW(snd_ticks, 0);
+    uint32_t began = (uint32_t)D(0x0234) << 16 | D(0x0232);
+
+    return D(0x022C) ? (uint16_t)((now - began) / D(0x022C)) : 0;
+}
+
+/* S30EF:192D (adl_tick), the timer's routine: with S30EF:0250 set
+ * (music_seek) music_restore first when the tune has come to the place
+ * at 0256 (its offset compared) */
 void adl_tick(void)
 {
     uint32_t t = ((uint32_t)NW(snd_ticks, 2) << 16 | NW(snd_ticks, 0)) + 1;
@@ -949,6 +1097,8 @@ void adl_tick(void)
     if ((NW(music_on, 0) & 1) && due((uint16_t)REC(MUSIC))) {
         DSET(0x10E3, REC(MUSIC));
         SETW(snd_channel, 0, MUSIC);
+        if ((D(0x0250) & 1) && D(REC(MUSIC) + R_AT) >= D(0x0256))
+            music_restore();
         music_events(far_at(DRV, (uint16_t)(REC(MUSIC) + R_AT)));
     }
     if (used() & 0x0F) {

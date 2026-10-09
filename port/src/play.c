@@ -1307,6 +1307,18 @@ void play_fade(void)
     own_fade();
 }
 
+/* one pal_level */
+void play_level(void)
+{
+    own_to(now + PAL_LEVEL);
+}
+
+/* s seconds the original computes or draws meanwhile */
+void play_busy(double s)
+{
+    own_busy(s);
+}
+
 /* the time the original's battle setup takes after the menu (the timer's
  * routine goes on meanwhile; the mouse put to the middle by it is gone
  * when the setup clears the sides' records) */

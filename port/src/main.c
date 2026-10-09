@@ -631,15 +631,81 @@ static void brief_dump(int at, int n)
     }
 }
 
+/* the DAC's 256 colours as dosrun's -dac writes them */
+static int dac_write(const char *file)
+{
+    FILE *f = fopen(file, "wb");
+    int i, ok;
+
+    if (!f)
+        return -1;
+    vga_outb(0x3C7, 0);
+    for (i = 0; i < 0x300; i++)
+        fputc(vga_inb(0x3C9), f);
+    ok = !ferror(f);
+    return fclose(f) == 0 && ok ? 0 : -1;
+}
+
 /* a -dump's file: the memory, or the video memory for a name that ends
- * in .vram */
+ * in .vram, the DAC's colours for one that ends in .dac */
 static int dump_write(const char *file)
 {
     size_t n = strlen(file);
 
     if (n > 5 && !strcmp(file + n - 5, ".vram"))
         return vga_write_planes(file);
+    if (n > 4 && !strcmp(file + n - 4, ".dac"))
+        return dac_write(file);
     return rm_write(file);
+}
+
+/* -intro, -extro: the launcher's programs before and after the game
+ * (seq.c), played by themselves on the port's own clock (with -keys its
+ * keys) and the program ended; -seqdump N FILE writes the memory, the
+ * video memory (.vram) or the DAC (.dac) when the N-th page is shown, and
+ * a line for each page shown goes to stderr with -seqlog */
+static struct { int n; const char *file; } seq_dumps[32];
+static int seq_dumps_n, seq_log, seq_ok = 1;
+
+static void seq_shown(int at, int n)
+{
+    int i;
+
+    if (at == 1) {
+        if (seq_log)
+            fprintf(stderr, "frame %d bytes at %.6f\n", n, play_now());
+        return;
+    }
+    if (seq_log)
+        fprintf(stderr, "page %d at %.6f\n", n, play_now());
+    for (i = 0; i < seq_dumps_n; i++)
+        if (seq_dumps[i].n == n && dump_write(seq_dumps[i].file) != 0)
+            seq_ok = 0;
+}
+
+static int seq_game(const char *game, int which, double start, char *line, size_t n)
+{
+    char exe[SYS_PATH], err[256];
+    int r;
+
+    if (!sys_find(game, HL_EXE, exe, sizeof exe)) {
+        snprintf(line, n, "%s was not found.", HL_EXE);
+        return 0;
+    }
+    /* HL.EXE's image holds the libraries' data the programs share */
+    if (rm_load_exe(exe, HL_SIZE, HL_SHA256, HL_PSP, HL_PARAS, err, sizeof err) != 0) {
+        snprintf(line, n, "%.*s", (int)n - 1, err);
+        return 0;
+    }
+    hl_game_dir = game;
+    play_bios(bios_now());
+    play_start(start);
+    seq_hook = seq_shown;
+    r = which == 1 ? intro_play() : extro_play();
+    seq_hook = NULL;
+    snprintf(line, n, "%s: %d pages shown, to %.2f s%s.", which == 1 ? "INTRO" : "EXTRO", seq_flips, play_now(),
+             r ? ", a file could not be loaded" : "");
+    return r == 0 && seq_ok;
 }
 
 /* the battle played from the setup on (play.c), at most `passes` passes
@@ -794,7 +860,7 @@ int main(int argc, char **argv)
     const char *given = NULL, *gog = NULL, *ram = NULL, *keys = NULL, *clock_file = NULL, *why = NULL;
     const char *seeds_file = NULL;
     char game[SYS_PATH], line[300];
-    int i, map = -1, ok, play = 0, seeded = 0;
+    int i, map = -1, ok, play = 0, seeded = 0, seq = 0;
     unsigned long passes = 0, seed = 0;
     double start = 0, until = 0;
 
@@ -853,6 +919,16 @@ int main(int argc, char **argv)
             play_evdump(argv[++i]);
         else if (!strcmp(argv[i], "-nopics"))
             nopics = 1;
+        else if (!strcmp(argv[i], "-intro"))
+            seq = 1;
+        else if (!strcmp(argv[i], "-extro"))
+            seq = 2;
+        else if (!strcmp(argv[i], "-seqlog"))
+            seq_log = 1;
+        else if (!strcmp(argv[i], "-seqdump") && i + 2 < argc && seq_dumps_n < 32) {
+            seq_dumps[seq_dumps_n].n = atoi(argv[++i]);
+            seq_dumps[seq_dumps_n++].file = argv[++i];
+        }
         else if (!strcmp(argv[i], "-saves") && i + 1 < argc)
             hl_save_dir = argv[++i];
         else if (!strcmp(argv[i], "-infodump") && i + 1 < argc) {
@@ -917,6 +993,7 @@ int main(int argc, char **argv)
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
                             "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-keylog FILE] [-poke ADDR HEX]... [-dump N FILE]...\n"
                             "       [-oplat FILE] [-oplcount RATE STEP] [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]... [-askvram N FILE]...\n"
+                            "       [-intro | -extro] [-seqlog] [-seqdump N FILE]...\n"
                             "With -keys and no -map the program begins at the menu (at -start seconds).\n");
             return 2;
         }
@@ -957,6 +1034,13 @@ int main(int argc, char **argv)
         audio_live = 1;
         briefing_player = 1;
         play = 1;
+    }
+    if (seq) {
+        ok = seq_game(game, seq, start, line, sizeof line);
+        fprintf(stderr, "%s\n", line);
+        audio_end();
+        plat_shutdown();
+        return !ok;
     }
     if (!play && map < 0)
         map = 0;

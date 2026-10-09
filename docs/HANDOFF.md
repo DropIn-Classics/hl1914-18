@@ -2394,7 +2394,22 @@ emulation error (2026-10-02).
         ignored `build/ccw/cc` (same idea as above). Next: the script
         play (phase 1, `computer_input` alone while a script plays):
         choose passes inside a played script, with the codes 81h, 84h
-        and the diagonals still never seen.
+        and the diagonals still never seen. (Done, the next item.)
+      - The script play (phase 1) compared (2026-10-09, Windows, branch
+        `win/computer4`): `loop_dumps.py` with `SCRIPT=N` picks passes
+        in which a side only played a code of its script (no
+        `computer_step` in its part), N per code; `loop_test` now sets
+        the computer's played word beside the original's every pass.
+        Maps 24 and 30, both sides the computer's, 600 s: the words the
+        same on every pass, the state the same at every dump
+        (port/README.md). Learned: what a script plays alone is only
+        the codes 1, 2 (up, down) and the gestures 80h, 82h, 83h; the
+        codes 3 to 5 never alone (the words 4, 8, 10h are seen,
+        presumably from passes with a step; not checked), and 81h (button and
+        down), 84h (button twice) and the diagonals 6 to 9 were never
+        played in these runs (no word 12h or 5, 6, 9, 0Ah in
+        `inputs.txt`). Next: a map or state where they come up (not
+        searched), and both sides in `play_test.sh`.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

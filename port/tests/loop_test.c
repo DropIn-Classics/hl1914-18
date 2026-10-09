@@ -26,6 +26,7 @@
 
 #define RAM 0xA0000u
 #define MAXP 20000
+#define SIDE_SIZE 0x17u     /* a record of `sides` */
 
 static uint8_t want[RAM];
 static SideIn in[MAXP][2];
@@ -124,7 +125,8 @@ int main(int argc, char **argv)
 {
     FILE *f;
     char line[200];
-    int i, bad = 0, done = 1, last = 0;
+    int i, s, bad = 0, done = 1, last = 0;
+    unsigned played = 0, keys_bad = 0;
     uint32_t st;
 
     /* the game's files, which pictures_load reads after a fight: run from
@@ -206,6 +208,17 @@ int main(int argc, char **argv)
                 printf("pass %d: not translated: %s\n", done, why);
                 return 1;
             }
+            /* the keys the computer played: its word in computer_out
+             * against DI the original's pass took at S066A:1243 */
+            for (s = 0; s < 2 && !loop_replay; s++)
+                if (NW(sides, s * SIDE_SIZE) & 2) {
+                    played++;
+                    if (NW(computer_out, s * 4) != in[done][s].word) {
+                        if (keys_bad++ < 12)
+                            printf("pass %d side %d: the computer played %X, the original %X\n", done, s,
+                                   NW(computer_out, s * 4), in[done][s].word);
+                    }
+                }
         }
         if (!load(argv[i + 1], want))
             return 2;
@@ -228,6 +241,10 @@ int main(int argc, char **argv)
         if (d[0] || (d[1] && !loop_replay))
             bad = 1;
     }
+    if (!loop_replay)
+        printf("the computer's input word: %u of %u side-passes different\n", keys_bad, played);
+    if (keys_bad)
+        bad = 1;
     printf("%s\n", bad ? "DIFFERENT" : loop_replay ? "the game's state the same at every pass compared"
            : "the game's state and the computer's the same at every pass compared");
     return bad;

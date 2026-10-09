@@ -949,9 +949,9 @@ static LauncherItem setup_menu[] = {
 };
 static LauncherItem setup_game[] = {
     { LI_CHOICE, "Intro and title screen", "intro", play_skip, &skip_intro, 0,
-      "INTRO.EXE, then HL.EXE's logo screens; a key skips each" },
+      "The opening sequence, then the title screens; a key skips each" },
     { LI_CHOICE, "Outro", "extro", play_skip, &skip_extro, 0,
-      "The launcher's EXTRO.EXE after the last battle is won" },
+      "The closing sequence after the last battle is won" },
 };
 static LauncherItem setup_sound[] = {
     { LI_CHOICE, "Volume", "volume", steps, &volume, 0,

@@ -589,14 +589,20 @@ static void live_picture(void)
  * a pal_level.  The pictures due within it are shown now, so that a
  * fade's steps and what is drawn between retraces are seen; the clock's
  * own account of the wait (own_fade, own_retraces) then finds them shown
- * and does not wait again */
+ * and does not wait again.  The music's interrupts go on meanwhile, as
+ * the original's timer interrupts a fade: snd_clock after each picture
+ * runs those the audio device's samples played have made due (with the
+ * window's device it goes by the samples, not by `now`, which stands
+ * still here); it runs only the sound's routines, never the game's */
 static void screen_wait(int kind)
 {
     if (shown_to < now)
         shown_to = now;
     shown_to += kind == SCREEN_PAL_LEVEL ? PAL_LEVEL : RETRACE;
-    for (; pic_at <= shown_to; pic_at += RETRACE)
+    for (; pic_at <= shown_to; pic_at += RETRACE) {
         live_picture();
+        snd_clock(now);
+    }
 }
 
 /* the port's own clock moved on to time t: the calls of the timer's

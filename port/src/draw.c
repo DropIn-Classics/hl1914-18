@@ -1063,9 +1063,12 @@ static void panel_whole(Far unit, uint16_t x, uint16_t y, uint8_t base)
  * the side, a step a page shown.  With pictures then fade_out; without,
  * the figures lost drawn again from the last step down in colours B0h
  * and C0h.  Each figure drawn or taken off sounds (panel_sound 4 and 5;
- * sound.c, no sound comes out).  Left out here: the
- * waits (wait_frames, wait_input), which the port's clock counts
- * (play.c), and wait_input's clearing of the button and the key.
+ * sound.c, no sound comes out).  The waits (fade_in, fade_out,
+ * wait_frames, wait_input) go to orders_hook at the original's places
+ * (fade_in at S131D:1AC8, the steps' wait_frames at 1C9A and 1EE7, the
+ * 0Ch one at 1CB2), which the port's
+ * clock counts (play.c); wait_input's clearing of the button and the key
+ * is left out.
  * Returns 2 where the original goes to its error exit. */
 /* S131D:1FF0 (panel_sound): effect n on channel 8, started at once */
 static void panel_sound(uint16_t n)
@@ -1105,6 +1108,8 @@ int fight_panel(Far rec, uint16_t pictures)
         page_flip();
         page_copy();
         fade_in();
+        if (orders_hook)
+            orders_hook(ORDERS_FADE, 0);
     }
     if (f0 & 0x40)
         panel_whole(u0, x, 0, c0);
@@ -1123,9 +1128,19 @@ int fight_panel(Far rec, uint16_t pictures)
         }
         page_flip();
         page_copy();
+        if (orders_hook) {
+            orders_hook(ORDERS_MARK, 0);
+            orders_hook(ORDERS_WAIT, 7);    /* wait_frames(6) */
+        }
     }
+    if (orders_hook)
+        orders_hook(ORDERS_WAIT, 13);       /* wait_frames(0Ch) */
     if (pictures) {
+        if (orders_hook)
+            orders_hook(ORDERS_INPUT, 0x96);
         fade_out();
+        if (orders_hook)
+            orders_hook(ORDERS_FADE, 0);
         return 0;
     }
     c0 = right ? 0xC0 : 0xB0;
@@ -1149,7 +1164,13 @@ int fight_panel(Far rec, uint16_t pictures)
         }
         page_flip();
         page_copy();
+        if (orders_hook) {
+            orders_hook(ORDERS_MARK, 0);
+            orders_hook(ORDERS_WAIT, 7);    /* wait_frames(6) */
+        }
     }
+    if (orders_hook)
+        orders_hook(ORDERS_INPUT, 0x46);
     return 0;
 }
 

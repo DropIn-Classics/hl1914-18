@@ -797,6 +797,8 @@ static void fights_run(uint16_t a, uint16_t m, Far map)
             page_flip();
             page_copy();
             unders_restore();
+            if (orders_hook)
+                orders_hook(ORDERS_WAIT, 0x1F);     /* wait_frames(1Eh) */
             if (destroyed)
                 blasts_run(map, m);
         }

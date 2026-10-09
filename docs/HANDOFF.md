@@ -2526,6 +2526,46 @@ emulation error (2026-10-02).
         samples played, so the tune keeps its pace during the wait.
         Only sound routines run there. Not heard yet (the player's
         check); headless suites unaffected (the hook is live only).
+      - The fight panel's buildup (2026-10-09, Windows, branch
+        `win/fightpanel`). The player saw in DOSBox that before a
+        fight's pictures the original builds the units' figures up
+        step by step on the panel, the port all at once. Read from
+        `fight_panel`'s listing (`S131D:178D` to `1F0C`): the drawing
+        of the port was already the original's (six steps, each the
+        figure i of both units at the step's place of `S331F:02B9`,
+        then `page_flip`, `page_copy`, `wait_frames(6)` at `1C9A`;
+        `wait_frames(0Ch)` at `1CB2`, then with pictures
+        `wait_input(96h)` and `fade_out`, without them six steps back,
+        `wait_frames(6)` at `1EE7` each, and `wait_input(46h)`). The
+        cause was the port's clock: `round_hook` (play.c) counted all
+        of the panel's waits at `ORDERS_FIGHT`, before `fight_panel`
+        drew anything, so the live window waited first and then drew
+        the six steps without time between them. Measured in the
+        original (m8_d5r's first fight, with pictures, the runner's
+        breaks): entry t=132.364, `fade_in` over +0.624, step 1 at
+        +0.630, then one step each 0.1141 s (8 retraces), the 0Ch wait
+        at +1.298, `wait_input` at +1.484.
+        For Debian's review, the hunks in its files (a one-time
+        exception the lead granted; nothing else in them changed):
+        `port/src/draw.c`, inside `fight_panel` only: after `fade_in`
+        and after `fade_out` `orders_hook(ORDERS_FADE, 0)`; after each
+        step's `page_copy` (both loops) `orders_hook(ORDERS_MARK, 0)`
+        and `orders_hook(ORDERS_WAIT, 7)`; after the first loop
+        `ORDERS_WAIT, 13`; `ORDERS_INPUT, 0x96` before `fade_out` and
+        `ORDERS_INPUT, 0x46` at the end without pictures; its comment
+        says so. `port/src/play.c`, `round_hook` only: `ORDERS_FIGHT`
+        keeps `T_VIEW`/`T_NEXT` and `T_PANEL` and nothing of the
+        panel; new cases `ORDERS_MARK` (`own_busy(T_MARK)`, the step's
+        drawing) and `ORDERS_INPUT` (`own_wait_input(n)`); the unused
+        `i` gone. Outside them: `hl.h` names the two new events;
+        `orders.c` sends `ORDERS_WAIT, 0x1F` after the panels again of
+        a fight without pictures (`S02E6:0AE6`, the original's
+        `wait_frames(1Eh)` behind `unders_restore`), which
+        `round_hook` used to count before the panel; the test programs
+        that link draw.c without orders.c (computer, load, move, side,
+        view) link `tests/orders_hook.c`, which holds the hook and, with
+        `LOAD_TEST_STEPS`, writes the video memory at each step. The
+        sum of the times is unchanged; only where they fall moved.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

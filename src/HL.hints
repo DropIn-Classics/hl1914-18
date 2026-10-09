@@ -1716,6 +1716,8 @@ name S10AF:0131 unit_panel
 ; map in six steps, each drawn and followed by wait_frames(6), then
 ; wait_frames(0Ch); with pictures wait_input(96h) and fade_out, without
 ; them the six steps back with wait_frames(6) each and wait_input(46h).
+; The waits sit at S131D:1C9A (each step forward), 1CB2 (0Ch), 1EE7 (each
+; step back); the port sends them to orders_hook there (port/README.md).
 name S131D:178D fight_panel
 ; big_unit(place, kind, right): a kind's large picture in a place of the
 ; fight's panel (table S331F:020D, 8 bytes: x, y, the name's x and y):

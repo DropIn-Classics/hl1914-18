@@ -3944,3 +3944,29 @@ set by `play_live` only, so the headless runs these compare are not
 touched); `opl_test.sh` reports `WALK.out` different and its dumps
 missing in this worktree, the same without the change. Not checked:
 the window by ear (left to the player); timing measured live.
+
+2026-10-09 (Windows, branch `win/fightpanel`): a fight's panel builds
+its figures up step by step at the original's pace. `fight_panel`
+(`src/draw.c`) sends its waits to `orders_hook` where the original
+waits (`ORDERS_FADE` after `fade_in` and `fade_out`, `ORDERS_MARK` and
+`ORDERS_WAIT` 7 after each step's page, `ORDERS_WAIT` 13 after the
+steps, `ORDERS_INPUT` 96h or 46h), and `round_hook` (`src/play.c`)
+counts only the time before the panel at `ORDERS_FIGHT`; before, it
+counted all the panel's waits there, so the window drew the six steps
+at once after them. `orders.c` sends the `wait_frames(1Eh)` after the
+panels of a fight without pictures (`S02E6:0AE6`) where it falls.
+Checked: m8_d5r's first fight with pictures, the original dumped by
+the runner at fight_panel's entry, its RETF and each step's
+`wait_frames(6)` (`S131D:1C9A`, hits 1 to 6); `load_test.sh fpanel`
+with `LOAD_TEST_STEPS` (`tests/orders_hook.c`) writes the port's video
+memory at each step: all six the same as the original's, and the call
+the same as before (video memory 0 different). The original's times
+there: `fade_in` over 0.624 s after the entry, a step each 0.1141 s
+(8 retraces), the 0Ch wait 1.298 s, `wait_input` 1.484 s; the port's
+own clock gives a step `T_MARK` and 7 retraces, as it counted them
+before. `loop_test.sh` the same; computer, move, side and view test
+programs build. Not checked: the steps without pictures against the
+original (the same code, its six steps back), the port's own-clock
+times at the steps (no original run of m8_d5r's log on this machine
+to compare `rounds` with), `orders_test.sh` and `fight_test.sh`
+(their dumps are not here), the live window (the player checks).

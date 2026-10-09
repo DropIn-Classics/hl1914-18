@@ -388,8 +388,10 @@ extern uint16_t loop_end_texts[2];
  * fight without pictures; a fight is over (n: pictures); a site is taken
  * (n: a fight came before in this attacks_run); order 4's waits of n
  * retraces and its fade_in; its site picture over and the libraries
- * loaded again (ORDERS_TAKEN_BACK) */
-enum { ORDERS_FIGHT, ORDERS_BLAST, ORDERS_FOUGHT, ORDERS_TAKEN, ORDERS_WAIT, ORDERS_FADE, ORDERS_TAKEN_BACK };
+ * loaded again (ORDERS_TAKEN_BACK).  fight_panel (draw.c) sends its own
+ * waits at its places: ORDERS_FADE, ORDERS_MARK for a step drawn,
+ * ORDERS_WAIT, ORDERS_INPUT for wait_input(n) */
+enum { ORDERS_FIGHT, ORDERS_BLAST, ORDERS_FOUGHT, ORDERS_TAKEN, ORDERS_WAIT, ORDERS_FADE, ORDERS_TAKEN_BACK, ORDERS_MARK, ORDERS_INPUT };
 extern void (*orders_hook)(int at, int n);
 void timer_fire(uint16_t kind, uint16_t timer);
 const char *loop_pass(const SideIn in[2]);

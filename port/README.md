@@ -1383,6 +1383,20 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The snare in the battle's tune (2026-10-09, Debian, branch
+  `debian/snare`; docs/HANDOFF.md has the numbers). The snare is
+  channel 5, a melodic voice at feedback 7 (no rhythm mode). The
+  port's `-map 8` run gives it the same instrument bytes as the
+  original at every key-on. Rendered alone and in the mix through
+  `opl.c`, DOSBox 0.74-3 and DOSBox-X's Nuked OPL (black boxes, the
+  same register list): its level against the mix within 0.5 dB, each
+  hit's attack within 1 dB, its spectrum 1-1.6 dB darker above 2 kHz
+  than Nuked (the two references differ by up to 2.2 dB in a band).
+  The window's output stage (DC blocker, volume, the card's bytes
+  added) changes it against the mix by less than 0.7 dB. The port's
+  whole output is 6.25 dB (DOSBox) or 3.71 dB (DOSBox-X) quieter.
+  No change made. Not checked: by ear, the user's own setup of the
+  original, a real chip.
 - The AdLib beside the original's (2026-10-09, macOS, branch
   `mac/oplwav`): `python3 port/tests/oplwav_dumps.py menu brief battle`
   runs the original on the walks of `opl_dumps.py` with `-oplwav`

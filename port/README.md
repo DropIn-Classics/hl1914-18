@@ -2071,6 +2071,60 @@ anything the game needs before the first release.
   third button and the sticks in the window, a real mouse or stick;
   macOS only.
 
+- The input options' last two gaps (2026-10-09, macOS, `mac/options5`):
+  what the points above still listed of the F keys and the question,
+  each set beside the original. Of the port's source only the tests'
+  log changed: `src/menu.c` writes a line "ask N TIME" into its
+  `-menulog` at each screen outside the menu's loop, and
+  `tests/menu_cmp.py` prints those times beside the original's (a
+  different number of screens counts as different; for dumps of the
+  original made before all six addresses were logged it says that the
+  times are not compared). `tests/options_test.sh` has the tag
+  `m24_ftext`, `tests/menu_dumps.py` and `tests/menu_test.sh` the walk
+  `heldask`.
+  - The texts of F5 to F8 on the second side's line (`sh
+    port/tests/options_test.sh dumps m24_ftext`, `sh
+    port/tests/options_test.sh m24_ftext`; `tests/keys/m24_ftext.keys`,
+    `.joy`; map 24 by its code, the computer's first side, the battle
+    on the original's clock; a first stick there and at rest, no
+    second): F5 twice, F6 twice, F7 twice, F8 three times, video memory
+    0.3 s and a second after each. The original shows the texts 65h,
+    66h, 67h, 68h, 6Ah, 69h, 6Ch, 6Dh, 6Bh in that order with DI A0h
+    (the runner's log of `show_message`): the second side's line. At
+    the 23 passes with video memory no byte of the two pages differs
+    (810 behind them at 17 passes, 577 at 6), 960 parts read the same
+    input, the game's state and the computer's the same at every pass,
+    DATA 0380 up to 045C too (the input records' counts given once as
+    in the points above).
+  - A button held from before the saved game's question (`python3
+    port/tests/menu_dumps.py heldask`, `sh port/tests/menu_test.sh
+    heldask`; `tests/keys/menu_heldask.joy`, `.mice`; the menu on the
+    port's own clock as in every walk): the first stick to MISC and
+    LOAD, its first button on LOAD from 17.0 to 20.0 s with Esc by the
+    key at 19.0, the button again at 22.0; the mouse's first button on
+    LOAD from 24.0 to 27.0, its second at 29.0; Esc, the code, START.
+    In the original the question is drawn at 20.15 and 27.14 s, when
+    the button has been let go, and the Esc during the hold is not
+    taken; in the port at 20.16 and 27.11 s. 14 things came in, the
+    same in both and in the same order (the times at most 0.06 s
+    apart), no byte differs in the memory at the menu's return and at
+    the four screens outside the loop (the two questions,
+    `text_input`'s beginning and end), nor in the two pages of video
+    memory at the four passes kept and at those screens.
+  Run again on the tree with `origin/master` (`5484df5`) merged:
+  `menu_test.sh` (19 walks; the times of the screens printed for 12,
+  not compared for `back`, `code57`, `noload`, `pages`, whose dumps of
+  the original are older; `exit`, `start0`, `start24` have no such
+  screen), `options_test.sh` (all three ways, every
+  tag), `fkeys_test.sh`: as before. Seen in the new times: in the six
+  walks with a battle between the winner's name is asked 0.91 to 0.98 s
+  earlier in the port than in the original (docs/HANDOFF.md, "The
+  input options' last two gaps"; not looked into). Not run again: the
+  other tests, `menu_test.sh live`. Not compared: a key held from
+  before the question, the second stick's button or the mouse's second
+  held there, the texts with a second stick there, the window; macOS
+  only.
+
 - Saving and loading (2026-10-08, macOS): `sh port/tests/save_test.sh
   dumps` runs the original twice through its menu by keys
   (`tests/play_dumps.py` with `WALK` and `STATE`): `m48_save` (the code

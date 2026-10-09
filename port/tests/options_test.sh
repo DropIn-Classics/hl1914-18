@@ -13,10 +13,12 @@
 # stick moved in the menu and held left while the battle is set up),
 # m48_joyptr (the same with the mouse's pointer moved while the stick is
 # held: what the pass after the stick's letting go reads), m48_ftext
-# (the texts of F5 to F8, with the video memory), m48_joyown (taps of
+# (the texts of F5 to F8, with the video memory), m24_ftext (the same on
+# map 24, where the first side is the computer's and the texts go to the
+# second side's line), m48_joyown (taps of
 # the sticks, for `own`) or m48_joyhold (sticks held longer, for `own`);
 # without one all that the way of running has are run.
-# Both programs go through the menu by keys to map 48 and get the keys of
+# Both programs go through the menu by keys to the tag's map and get the keys of
 # port/tests/keys/TAG.keys with the mouse of TAG.mice and the sticks of
 # TAG.joy beside it (the runner's -mice and -joys, the port's -mice and
 # -joys); the port's program plays the battle on the original's clock (as
@@ -26,7 +28,7 @@
 # (play_cmp.py) and of DATA the joysticks' words, the sides' input
 # records and the mouse's record (options_cmp.py).  The input records'
 # counts are given to the port once, from the original's first dump (see
-# below).  m48_ftext is dumped 0.3 s after each key too, and with the
+# below).  m48_ftext and m24_ftext are dumped 0.3 s after each key too, and with the
 # video memory, which play_cmp.py compares where both have it.
 #
 # With `map` (m48_joy, m48_joy0) the port does not go through its menu:
@@ -53,15 +55,15 @@ case $1 in
 dumps|map|own) MODE=$1; shift ;;
 esac
 case $MODE in
-dumps) TAGS=${1:-m48_mouse m48_mouse3 m48_joy m48_joy0 m48_joymenu m48_joyptr m48_ftext m48_joyown m48_joyhold} ;;
+dumps) TAGS=${1:-m48_mouse m48_mouse3 m48_joy m48_joy0 m48_joymenu m48_joyptr m48_ftext m24_ftext m48_joyown m48_joyhold} ;;
 map) TAGS=${1:-m48_joy m48_joy0} ;;
 own) TAGS=${1:-m48_joyown m48_joyhold} ;;
-*) TAGS=${1:-m48_mouse m48_mouse3 m48_joy m48_joy0 m48_joymenu m48_joyptr m48_ftext} ;;
+*) TAGS=${1:-m48_mouse m48_mouse3 m48_joy m48_joy0 m48_joymenu m48_joyptr m48_ftext m24_ftext} ;;
 esac
 dump_times() {
     {
         awk '/^[0-9]/ { print $1 + 1 }' "tests/keys/$1.keys"
-        [ "$1" = m48_ftext ] && awk '/^[0-9]/ { print $1 + 0.3 }' "tests/keys/$1.keys"
+        case $1 in *_ftext) awk '/^[0-9]/ { print $1 + 0.3 }' "tests/keys/$1.keys" ;; esac
         for f in "tests/keys/$1.mice" "tests/keys/$1.joy"; do
             [ "$1" = m48_joyhold ] && continue
             [ -f "$f" ] && awk '/^[0-9]/ && $1 > 0 { print $1 + 0.5 }' "$f"
@@ -88,10 +90,10 @@ if [ "$MODE" = dumps ]; then
         D=../build/play/$T
         UNTIL=64
         [ "$T" = m48_joy0 ] || [ "$T" = m48_joymenu ] && UNTIL=40
-        [ "$T" = m48_ftext ] || [ "$T" = m48_joyown ] || [ "$T" = m48_mouse3 ] || [ "$T" = m48_joyhold ] && UNTIL=50
+        [ "$T" = m48_ftext ] || [ "$T" = m24_ftext ] || [ "$T" = m48_joyown ] || [ "$T" = m48_mouse3 ] || [ "$T" = m48_joyhold ] && UNTIL=50
         [ "$T" = m48_joyptr ] && UNTIL=30
         V=
-        [ "$T" = m48_ftext ] && V=1
+        case $T in *_ftext) V=1 ;; esac
         rm -rf "$D"
         WALK=code STATE=$D/state VRAM=$V python3 tests/play_dumps.py "$T.keys" "$UNTIL"
         WALK=code STATE=$D/state VRAM=$V PASSES="$(dump_passes "$T" | tr '\n' ' ')" python3 tests/play_dumps.py "$T.keys" "$UNTIL"

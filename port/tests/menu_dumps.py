@@ -73,6 +73,15 @@ the menu N times.  The walks (default: all):
              at the second); the third in the menu with LOAD the item
              (nothing); Esc, then as code57 a tenth later (the cursor
              of text_input, see joy57 below)
+    heldask  a button held from before the saved game's question
+             (keys/menu_heldask.joy, .mice): the first stick to MISC and
+             LOAD, its first button on LOAD held for three seconds with
+             Esc by the key a second before it is let go (the question
+             is drawn only when the button is let go, and the Esc is
+             not taken), the button again (left); the mouse's first
+             button on LOAD held for three seconds (the same), its
+             second (left); Esc (the main menu), then as code57 a tenth
+             later
 
 A walk WALK with a file port/tests/keys/menu_WALK.joy gets that sticks'
 script (the runner's -joys; menu_test.sh gives it to the port's -joys),
@@ -185,6 +194,7 @@ WALKS = {
                  1, 51, [9, 20, 25, 31.5, 34]),
     'mouse3': ([(10, 'down'), (11, 'down'), (12, 'down'), (13, 'down'), (14, 'space'), (16, 'down'), (17, 'space'),
                 (23, 'space'), (24, 'space'), (30, 'esc')] + code57(32.1), 1, 48, [9, 22.5, 27.5, 29, 31]),
+    'heldask': ([(19, 'esc'), (31, 'esc')] + code57(33.1), 1, 49, [9, 23, 30, 32]),
 }
 # a walk with a battle played to its end: a key script (port/tests/keys/
 # KEYS.keys, its times moved by the seconds given; a key codeN is the N-th

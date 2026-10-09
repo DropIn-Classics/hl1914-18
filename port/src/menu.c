@@ -83,6 +83,9 @@ static void ask_screen(void)
     int i;
 
     asked++;
+    /* when it came, for the tests (a line "ask N TIME" of the log) */
+    if (menu_log)
+        fprintf(menu_log, "ask %d %.3f\n", asked, play_now());
     for (i = 0; i < asks_n; i++)
         if (asks[i].n == asked) {
             char ram[SYS_PATH];

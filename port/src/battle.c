@@ -13,6 +13,7 @@
 #define S_OPT (HL_S37FF + HL_BASE)
 
 GameMem game_mem;
+void (*start_title)(void);
 
 static void set_far(uint16_t seg, uint16_t off, Far p)
 {
@@ -62,8 +63,10 @@ static int start_file(int16_t ext, uint16_t keep, uint16_t rec)
  * dsp_rate(10000) (S30EF:1C2D), S27FE:0013, S27FE:056C, S1571:0426 and S1571:0443 (not read), and of
  * S1650:0003 all but what it keeps of the keys: the far pointer to the
  * table of keys at S331F:0292, which game_loop compares the key of a pass
- * with, and twelve of its entries at S331F:02C7 (it also loads a file and
- * shows something; read no further). */
+ * with, and twelve of its entries at S331F:02C7; its logo screens
+ * by the hook start_title (title.c's title_screens, set by the player's
+ * setup; NULL: left out).  S1650:0003's far argument is
+ * taken to be game_mem.p (not checked). */
 int start_setup(void)
 {
     Far p;
@@ -100,6 +103,8 @@ int start_setup(void)
         for (i = 0; i < 12; i++)
             fwb(S_GAME, (uint16_t)(0x02C7 + i), frb(S_GAME, (uint16_t)(0x0292 + entry[i])));
     }
+    if (start_title)
+        start_title();     /* the logo screens (title.c) */
     fww(S_GAME, 0x4D4A, 0);
     SETW(sides, 0, 0);
     fww(S_GAME, 0x4D31, 0);

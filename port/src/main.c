@@ -78,6 +78,7 @@
 #include "inno.h"
 #include "launcher.h"
 #include "opl.h"
+#include "pad.h"
 #include "oplq.h"
 #include "platform.h"
 #include "sys.h"
@@ -892,28 +893,63 @@ static int menu_game(unsigned long passes, double start, double until, int clock
 }
 
 /* The setup screen (launcher.h, doskit/docs/LAUNCHER.md), in the window
- * before the game: the menu with "Start the game" and pages of the
- * port's settings, kept in history-line.cfg in the data folder.  The
- * original has no setup program or settings file of its own (HL14-18.EXE
- * takes no options; its sound is the AdLib only), so these are the
- * port's: whether the launcher's INTRO.EXE and EXTRO.EXE are played,
- * the volume with the keypad's + - * in play (docs/PLAYER-SETTINGS.md),
- * the headphone mix and full screen. */
+ * before the game: the menu with "Start the game", the pages of the
+ * port's settings and full screen, kept in history-line.cfg in the data
+ * folder.  The original has no setup program or settings file of its own
+ * (HL14-18.EXE takes no options; its sound is the AdLib only), so these
+ * are the port's: whether the launcher's INTRO.EXE with HL.EXE's logo
+ * screens (start_title) and EXTRO.EXE are played, the volume with the
+ * keypad's + - * in play, the headphone mix, the player's keys and a
+ * controller's buttons (doskit/docs/PLAYER-SETTINGS.md), full screen. */
 static const char *const no_yes[] = { "No", "Yes", NULL };
 static const char *const play_skip[] = { "Play", "Skip", NULL };
 static const char *const steps[] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", NULL };
 static int skip_intro, skip_extro, fullscreen;
+
+/* The game's keys, read from HL.EXE: the two sides' tables of held keys
+ * (DATA:0B2C and 0B2E point to them, 7 bytes an entry: the scancode, then
+ * left, right, up, down, fire) and the table of keys at S331F:0292 that
+ * game_loop and the menu compare a pressed key with (F1 its entry 0Ch,
+ * F2 0Dh, F3 0Eh, F9 14h; what they do is the manual's, page 51).  Make
+ * codes as pad.h's, the arrows E0 keys.  The first side has the keypad
+ * too (7 9 1 3 the diagonals) and Enter to fire, the second F for up and
+ * Alt to fire; those stay as they are. */
+enum { K_AUP, K_ADOWN, K_ALEFT, K_ARIGHT, K_AFIRE, K_BUP, K_BDOWN, K_BLEFT, K_BRIGHT, K_BFIRE,
+       K_F1, K_F2, K_F3, K_F9, K_COUNT };
+static const unsigned char game_key[K_COUNT] = {
+    0xC8, 0xD0, 0xCB, 0xCD, 0x39, 0x20, 0x2E, 0x2D, 0x2F, 0x1D, 0x3B, 0x3C, 0x3D, 0x43
+};
+static int player_key[K_COUNT];
+static unsigned char keymap[256];
+
+/* what a controller's button can do: nothing, one of the actions above
+ * (the player's key for it), or a key the game's menus and texts need */
+static const char *const pad_does[] = {
+    "nothing", "A up", "A down", "A left", "A right", "A fire",
+    "B up", "B down", "B left", "B right", "B fire",
+    "F1 confirm", "F2 music", "F3 sounds", "F9 fights",
+    "Esc", "Enter", "Space", "Y", "N", NULL
+};
+static const unsigned char pad_extra[] = { 0x01, 0x1C, 0x39, 0x15, 0x31 };     /* Esc Enter Space Y N */
+static int pad_choice[PAD_BUTTONS] = {
+    5, 15, 11, 0, 15, 16, 0, 0, 0, 0, 0, 0,     /* A fire, B Esc, X F1, Back Esc, Start Enter */
+    1, 2, 3, 4                                  /* the D-pad (and left stick) the first side's arrows */
+};
+static char pad_name[PAD_BUTTONS][24];
+static PadKeys pad_table;
 
 static LauncherItem setup_menu[] = {
     { LI_ACTION, "Start the game", NULL, NULL, NULL, 1, NULL },
     { LI_HEAD, "", NULL, NULL, NULL, 0, NULL },
     { LI_PAGE, "Game", NULL, NULL, NULL, 1, NULL },
     { LI_PAGE, "Sound", NULL, NULL, NULL, 2, NULL },
-    { LI_PAGE, "Display", NULL, NULL, NULL, 3, NULL },
+    { LI_PAGE, "Keyboard", NULL, NULL, NULL, 3, NULL },
+    { LI_PAGE, "Controller", NULL, NULL, NULL, 4, NULL },
+    { LI_CHOICE, "Full screen", "fullscreen", no_yes, &fullscreen, 0, NULL },
 };
 static LauncherItem setup_game[] = {
-    { LI_CHOICE, "Intro", "intro", play_skip, &skip_intro, 0,
-      "The launcher's INTRO.EXE before the game's menu" },
+    { LI_CHOICE, "Intro and title screen", "intro", play_skip, &skip_intro, 0,
+      "INTRO.EXE, then HL.EXE's logo screens; a key skips each" },
     { LI_CHOICE, "Outro", "extro", play_skip, &skip_extro, 0,
       "The launcher's EXTRO.EXE after the last battle is won" },
 };
@@ -923,16 +959,86 @@ static LauncherItem setup_sound[] = {
     { LI_CHOICE, "Headphone mix", "headphone", no_yes, &headphone, 0,
       "Blends the sides a little, for headphones" },
 };
-static LauncherItem setup_display[] = {
-    { LI_CHOICE, "Full screen", "fullscreen", no_yes, &fullscreen, 0, NULL },
+#define KEY_HELP "The game's own key works too; this key is not itself any more"
+static LauncherItem setup_keys[] = {
+    { LI_HEAD, "Player A", NULL, NULL, NULL, 0, NULL },
+    { LI_KEY, "Up", "key_a_up", NULL, &player_key[K_AUP], 0, "The keypad's 7 9 1 3 stay the diagonals" },
+    { LI_KEY, "Down", "key_a_down", NULL, &player_key[K_ADOWN], 0, KEY_HELP },
+    { LI_KEY, "Left", "key_a_left", NULL, &player_key[K_ALEFT], 0, KEY_HELP },
+    { LI_KEY, "Right", "key_a_right", NULL, &player_key[K_ARIGHT], 0, KEY_HELP },
+    { LI_KEY, "Fire", "key_a_fire", NULL, &player_key[K_AFIRE], 0, "Enter fires too" },
+    { LI_HEAD, "Player B", NULL, NULL, NULL, 0, NULL },
+    { LI_KEY, "Up", "key_b_up", NULL, &player_key[K_BUP], 0, "F is up too" },
+    { LI_KEY, "Down", "key_b_down", NULL, &player_key[K_BDOWN], 0, KEY_HELP },
+    { LI_KEY, "Left", "key_b_left", NULL, &player_key[K_BLEFT], 0, KEY_HELP },
+    { LI_KEY, "Right", "key_b_right", NULL, &player_key[K_BRIGHT], 0, KEY_HELP },
+    { LI_KEY, "Fire", "key_b_fire", NULL, &player_key[K_BFIRE], 0, "Alt fires too" },
+    { LI_HEAD, "Functions", NULL, NULL, NULL, 0, NULL },
+    { LI_KEY, "Confirm mode", "key_f1", NULL, &player_key[K_F1], 0, "Ends a side's half of the round" },
+    { LI_KEY, "Music", "key_f2", NULL, &player_key[K_F2], 0, "On and off" },
+    { LI_KEY, "Sounds", "key_f3", NULL, &player_key[K_F3], 0, "On and off" },
+    { LI_KEY, "Fights", "key_f9", NULL, &player_key[K_F9], 0, "The fights' pictures on and off" },
 };
+static LauncherItem setup_pad[PAD_BUTTONS];
 static LauncherPage setup_pages[] = {
     { "Setup", setup_menu, (int)(sizeof setup_menu / sizeof *setup_menu) },
     { "Game", setup_game, (int)(sizeof setup_game / sizeof *setup_game) },
     { "Sound", setup_sound, (int)(sizeof setup_sound / sizeof *setup_sound) },
-    { "Display", setup_display, (int)(sizeof setup_display / sizeof *setup_display) },
+    { "Keyboard", setup_keys, (int)(sizeof setup_keys / sizeof *setup_keys) },
+    { "Controller", setup_pad, PAD_BUTTONS },
 };
 #define SETUP_PAGES (int)(sizeof setup_pages / sizeof *setup_pages)
+
+/* the keys' defaults the game's; the Controller page a choice per button,
+ * named pad_<button> in the settings file */
+static void setup_init(void)
+{
+    static const char *const label[PAD_BUTTONS] = {
+        "A", "B", "X", "Y", "Back", "Start", "Left stick press", "Right stick press",
+        "Left shoulder", "Right shoulder", "Left trigger", "Right trigger",
+        "Up", "Down", "Left", "Right"
+    };
+    int b, k;
+
+    for (k = 0; k < K_COUNT; k++)
+        player_key[k] = game_key[k];
+    for (b = 0; b < PAD_BUTTONS; b++) {
+        LauncherItem *it = &setup_pad[b];
+
+        snprintf(pad_name[b], sizeof pad_name[b], "pad_%s", pad_button_name(b));
+        memset(it, 0, sizeof *it);
+        it->kind = LI_CHOICE;
+        it->label = label[b];
+        it->name = pad_name[b];
+        it->values = pad_does;
+        it->value = &pad_choice[b];
+        it->help = b >= PAD_UP ? "The D-pad and the left stick alike" : NULL;
+    }
+}
+
+/* the player's keys to the game's (frame.h's keymap) and the buttons'
+ * table (pad.h), a game action given as the player's key */
+static void setup_keys_apply(void)
+{
+    int i, b;
+
+    for (i = 0; i < 256; i++)
+        keymap[i] = (unsigned char)i;
+    for (i = 0; i < K_COUNT; i++)
+        if (player_key[i] && player_key[i] != game_key[i])
+            keymap[player_key[i]] = game_key[i];
+    frame_set_keymap(keymap);
+    memset(pad_table, 0, sizeof pad_table);
+    for (b = 0; b < PAD_BUTTONS; b++) {
+        int c = pad_choice[b];
+
+        if (c >= 1 && c <= K_COUNT)
+            pad_table[b][0] = (unsigned char)(player_key[c - 1] ? player_key[c - 1] : game_key[c - 1]);
+        else if (c > K_COUNT)
+            pad_table[b][0] = pad_extra[c - K_COUNT - 1];
+    }
+    pad_set_keys(&pad_table);
+}
 
 static void setup_apply(void)
 {
@@ -977,6 +1083,7 @@ static int setup_run(void)
     sys_data_dir(data, sizeof data);
     sys_mkdir(data);
     sys_join(cfg, sizeof cfg, data, "history-line.cfg");
+    setup_init();
     launcher_load(cfg, setup_pages, SETUP_PAGES);
     fx_on = 1;
     setup_apply();
@@ -984,6 +1091,7 @@ static int setup_run(void)
     launcher_save(cfg, "history-line's settings (the setup screen writes them)", setup_pages, SETUP_PAGES);
     if (r != 1)
         return 0;
+    setup_keys_apply();
     frame_set_hud(hud_draw, hud_control);
     return 1;
 }
@@ -1058,6 +1166,8 @@ int main(int argc, char **argv)
             seq = 2;
         else if (!strcmp(argv[i], "-nointro"))
             nointro = 1;
+        else if (!strcmp(argv[i], "-title"))
+            start_title = title_screens;
         else if (!strcmp(argv[i], "-seqlog"))
             seq_log = 1;
         else if (!strcmp(argv[i], "-seqdump") && i + 2 < argc && seq_dumps_n < 32) {
@@ -1128,7 +1238,7 @@ int main(int argc, char **argv)
                             "       [-keys FILE] [-passes N] [-until T] [-start T] [-seed N] [-clock FILE] [-seeds FILE]\n"
                             "       [-nopics] [-rounds FILE] [-inputs FILE] [-ends FILE] [-keylog FILE] [-poke ADDR HEX]... [-dump N FILE]...\n"
                             "       [-oplat FILE] [-oplcount RATE STEP] [-saves DIR] [-menulog FILE] [-menudump N FILE]... [-menuvram T FILE]... [-askvram N FILE]...\n"
-                            "       [-intro | -extro | -nointro] [-seqlog] [-seqdump N FILE]...\n"
+                            "       [-intro | -extro | -nointro] [-title] [-seqlog] [-seqdump N FILE]...\n"
                             "With -keys and no -map the program begins at the menu (at -start seconds).\n");
             return 2;
         }
@@ -1187,6 +1297,9 @@ int main(int argc, char **argv)
     }
     if (!play && map < 0)
         map = 0;
+    /* HL.EXE's logo screens with the intro (the setup's one choice) */
+    if (seqs && !nointro && !skip_intro)
+        start_title = title_screens;
     ok = start_game(game, map, seeded ? (uint32_t)seed : bios_now(), seqs && !nointro && !skip_intro, line, sizeof line);
     if (ok && play && map < 0)
         ok = menu_game(passes, start, until, clock_file != NULL || seeds_file != NULL, seqs && !skip_extro, line, sizeof line);

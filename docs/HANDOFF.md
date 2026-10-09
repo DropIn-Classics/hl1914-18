@@ -6368,3 +6368,41 @@ loading routines. `tools/test_file_formats.py` uses synthetic data only.
   (PLAYER-SETTINGS.md) need the game's key table read from the INT 9
   handler (`key_install`, S27FE:056C) first; and whether the game uses
   the keypad's + - * (taken by the volume hud) is not checked.
+
+## win/titlesetup: title screens, keys, controller (2026-10-09, Windows)
+
+- The title screen the player saw before the menu is HL.EXE's, not the
+  menu's (S167A) and not TITEL.TXT or GAME.IFF: S1650:0003
+  (`start_setup`) ends with BB.DAT/BB.IFF (S28A5:000C, `title_show`, an
+  animation of 43h frames by the table at S28A5:01AD), a wait, HLLOGO.IFF
+  faded in, a wait, a fade_out. The wait is S0CB6:18F1 (`wait_span(min,
+  max)`, named in src/HL.hints; `wait_input` was taken by S0CB6:0036):
+  any key, stick button or mouse click ends it, else 1F4h timer counts
+  (6.88 s measured). Before key_install keys reach it through the BIOS
+  buffer the timer routine reads (input.c). The names BB and HLLOGO are
+  at S37FE:000E and 0011. Runs and numbers: the comment of S1650:0003 in
+  src/HL.hints. menu.c needed no change, so the scoped exception for it
+  was not used.
+- S1650:0003's far argument is taken to be the port's `game_mem.p` (the
+  caller loads it from S3303:0024; not checked against a run).
+- The game's keys: the two sides' held keys are tables in DATA behind
+  DATA:0B2C (side 1, at 0B30) and 0B2E (side 2, at 0B93), 7 bytes an
+  entry (scancode, left, right, up, down, fire): side 1 Space and Enter
+  fire, the keypad 1 to 9 (4F to 49) the eight directions (the arrows
+  are the same codes behind E0); side 2 Alt and Ctrl fire, C down, D and
+  F up, X left, V right. The pressed keys are compared with the table at
+  S331F:0292 (game_loop, S0CB6, S1273, the menu, S1A39), entries 0 to
+  22h: Esc, Space, Backspace, Del, Ctrl, Tab, Enter twice, the arrows,
+  F1 to F10, S, E, Z, N, D, X, C, V, F, /, then 37h, 4Ah, 4Eh (the
+  keypad's *, - and +). Which of those last three entries is read was
+  not checked (the player confirmed + - * are free in play; frame.c
+  keeps them from the program while the hud is set). S331F:02C7 to 02D2
+  (twelve entries copied by start_setup) are not read by any routine
+  found by a text search of build/HL.asm for those labels.
+- Remapping is in main.c only: frame.h's `frame_set_keymap` and pad.h's
+  `pad_set_keys` (PLAYER-SETTINGS.md) act before the game's INT 9, so
+  the seam the lead asked about does not cross menu.c, input.c or
+  joy.c. joy.c's game port stays without a stick in the window; a
+  controller is keys.
+- Not checked: the title screens and both pages in the window (the
+  player live-checks), a byte comparison of the logo's pictures.

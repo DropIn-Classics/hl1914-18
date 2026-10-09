@@ -163,6 +163,17 @@ in either program) and why the tenth pass of `m48_joymenu` reads 8
 moves it and the pass reads that). Nothing of the port's source
 changed; the tests only (the bullet "The joysticks' three remainders").
 
+On the branch `mac/options5` (2026-10-09) the two gaps the input
+options still had are run and set beside the original: the texts of F5
+to F8 on the second side's line (`m24_ftext`: map 24, the computer's
+first side; all nine texts through `show_message` with DI A0h, no byte
+of the two pages different at 23 passes) and a button held from before
+the saved game's question (the walk `heldask`: the question is drawn
+only when the button is let go, 0.15 s behind it, in both programs).
+Of the port's source only `menu.c`'s log for the tests changed (a line
+"ask N TIME" for each screen outside the menu's loop); the bullet "The
+input options' last two gaps".
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -4356,6 +4367,51 @@ emulation error (2026-10-02).
     before the saved game's question, the third button in the window
     (`plat_sdl.c`; not looked at whether it passes one on), a real
     mouse or stick; macOS only.
+- The input options' last two gaps (2026-10-09, Mac, branch
+  `mac/options5`; the tag `m24_ftext` of `options_test.sh`, the walk
+  `heldask` of `menu_dumps.py`/`menu_test.sh`; port/README.md has the
+  counts). Seen in runs of the original and of the port beside it:
+  - The texts of F5 to F8 with the computer as the first side (map 24,
+    reached by its code; a first stick there and at rest, no second):
+    the nine texts 65h, 66h, 67h, 68h, 6Ah, 69h, 6Ch, 6Dh, 6Bh all come
+    through `show_message` (`S10AF:009F`) with DI A0h, the second
+    side's line, and the port's two pages are the original's byte for
+    byte 0.3 s and a second after each key. `setting_keys` had that
+    already (the line by bit 1 of the first side's word); nothing
+    changed. The key is taken in the first side's part of the pass,
+    the computer's, at eight of the nine presses and in the second
+    side's at one (pass 378, the second F8), in both programs alike;
+    why that one falls to the second side's part was not looked into
+    (presumably where in the pass the key came).
+  - A button held from before the saved game's question. The first
+    stick's first button pressed on LOAD at 17.0 s and held to 20.0:
+    LOAD is chosen at once (what came in at 17.05 s), but the question
+    (`S167A:1929`) is drawn at 20.15 s, 0.15 s behind the button's
+    letting go: the `inputs_release` before it waits five frames again
+    as long as something was set since. A key in that wait is not
+    taken: Esc at 19.0 s, while the button was held, did not leave the
+    question, which stood until the button's next press at 22.0 (the
+    menu's passes go on at 22.47 s). The mouse's first button pressed
+    on LOAD at 24.0 and held to 27.0: the same, the question at
+    27.14 s, left by the second button at 29.0. The port: 20.16 and
+    27.11 s, what came in the same and in the same order, the memory
+    and the two pages at both questions the same.
+  - The port's `-menulog` has a line "ask N TIME" for each screen
+    outside the menu's loop now (`ask_screen`, `menu.c`), and
+    `menu_cmp.py` sets those times beside the original's (the runner's
+    log). Found by it in the walks with a battle between (`end57`,
+    `name57`, `twice57` and the window's three): `text_input` for the
+    winner's name begins 0.91 to 0.98 s earlier in the port than in
+    the original (76.25 against 77.16 s in `end57`), the screens
+    behind it at the same times again. Not looked into (presumably
+    the time of what is shown behind the battle on the port's own
+    clock; whether it is what `debian/window13` found behind D0h was
+    not checked). In the walks without a battle the times are at most
+    0.06 s apart.
+  - Not done: a key held from before the question (the key scripts
+    have presses only), the second stick's button or the mouse's
+    second held, the texts on the second side's line with a second
+    stick there or on map 30, both in the window; macOS only.
 - The program's end and the briefing (2026-10-08, Mac).
   - `S066A:4739`, reached when 1 is clear in `game_state` behind the
     menu or a battle (EXIT TO DOS sets 100h and clears 1 and 2):

@@ -6,6 +6,9 @@
 
 In build/menu/WALK/: acts.txt and exit.ram are the original's
 (menu_dumps.py), port.log and port.ram the port's (-menulog, -menudump).
+When each screen outside the menu's loop came is set side by side too
+(the runner's log.txt and the lines "ask N TIME" of port.log; the times
+are printed, a different number of screens counts as different).
 Compared:
 
   * what came in, in order (1 chosen, 2 the other page, 5 another item,
@@ -51,7 +54,7 @@ Exit status 0 when the order is the same and no byte differs.
 compares two files of video memory that way (menu_test.sh's `live`):
 exit status 0 when the pages are the same or the same exchanged.
 """
-import os, sys
+import os, re, sys
 
 
 def pages_differ(v, w):
@@ -82,9 +85,22 @@ def acts(name):
     rows = []
     for line in open(os.path.join(out, name)):
         f = line.split()
-        if len(f) >= 2:
+        if len(f) >= 2 and f[0] != 'ask':
             rows.append((float(f[0]), int(f[1])))
     return rows
+
+
+def asks():
+    """when each screen outside the menu's loop came: the original's
+    (the runner's log, the addresses of menu_dumps.py's ASKS) and the
+    port's (the lines "ask N TIME" of its -menulog)"""
+    x = [float(m.group(1)) for m in (re.match(r'log HL\.EXE\+167A:(?:1929|1B5A|334E|3604|0AAE|1C7C) t=(\S+) hit=\d+ regs', l)
+                                     for l in open(os.path.join(out, 'log.txt'))) if m]
+    y = [float(f[2]) for f in (l.split() for l in open(os.path.join(out, 'port.log'))) if len(f) == 3 and f[0] == 'ask']
+    # a log made before menu_dumps.py logged all six addresses
+    whole = all(any(l.startswith('log HL.EXE+167A:%s lin=' % a) for l in open(os.path.join(out, 'log.txt')))
+                for a in ('1929', '1B5A', '334E', '3604', '0AAE', '1C7C'))
+    return x, y, whole
 
 
 a, b = acts('acts.txt'), acts('port.log')
@@ -95,6 +111,15 @@ if [k for _, k in a] != [k for _, k in b]:
 else:
     far = max([abs(x[0] - y[0]) for x, y in zip(a, b)] or [0])
     print('%s: %d things came in, the same in both; times at most %.2f s apart' % (walk, len(a), far))
+x, y, whole = asks()
+if len(x) != len(y) and not whole:
+    print('  when the screens outside the loop came: not compared (the original\'s log is older than their addresses in menu_dumps.py)')
+elif len(x) != len(y):
+    bad += 1
+    print('  the screens outside the loop: %d in the original, %d in the port' % (len(x), len(y)))
+elif x:
+    print('  the screens outside the loop came at %s s, in the port at %s (at most %.2f s apart)' %
+          (' '.join('%.2f' % t for t in x), ' '.join('%.2f' % t for t in y), max(abs(p - q) for p, q in zip(x, y))))
 
 def memory(what, x, y):
     """the regions of two dumps compared; how many of them differ"""

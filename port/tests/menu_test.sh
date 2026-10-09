@@ -37,7 +37,11 @@
 # menu and leave the saved game's question.  joyask has the sticks'
 # other buttons at the question, mouseask the mouse's (tests/keys/
 # menu_mouseask.mice, -mice in both programs), mouse3 the mouse's third
-# button at the question and in the menu.
+# button at the question and in the menu, heldask a stick's and the
+# mouse's button that chooses LOAD and stays held (the question comes
+# when it is let go: menu_cmp.py sets the times of the screens outside
+# the loop side by side, the port's from the lines "ask N TIME" of its
+# -menulog).
 set -e
 # awk reads the clock's times as numbers only with a decimal point
 export LC_ALL=C
@@ -46,7 +50,7 @@ GAME=${DOSKIT_GAME:-../game}
 sh build.sh
 LIVE=
 [ "$1" = live ] && { LIVE=1; shift; }
-[ $# -gt 0 ] || set -- back code57 end57 exit joy57 joyask joyload live57 livename57 livetwice57 mouse3 mouseask name57 noload pages start0 start24 twice57
+[ $# -gt 0 ] || set -- back code57 end57 exit heldask joy57 joyask joyload live57 livename57 livetwice57 mouse3 mouseask name57 noload pages start0 start24 twice57
 r=0
 for w in "$@"; do
     D=../build/menu/$w

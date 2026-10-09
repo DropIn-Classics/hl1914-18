@@ -1,0 +1,9 @@
+# the mouse of menu_dumps.py's walk heldask ("T X,Y,B", as
+# menu_mouseask.mice; 98,73 is where the menu has the pointer on its
+# MISC page with LOAD chosen): the first button pressed on LOAD and held
+# for three seconds
+24.00 98,73,1
+27.00 98,73,0
+# the second button at the question
+29.00 98,73,2
+29.20 98,73,0

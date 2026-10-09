@@ -1,0 +1,26 @@
+# the joysticks of menu_dumps.py's walk heldask ("T N,X,Y,B", the format
+# of m48_joy.joy): both there from the program's start, 570 their middle
+0 0,570,570,0
+0 1,570,570,0
+# the first stick down four times: MISC
+10.00 0,570,1100,0
+10.20 0,570,570,0
+11.00 0,570,1100,0
+11.20 0,570,570,0
+12.00 0,570,1100,0
+12.20 0,570,570,0
+13.00 0,570,1100,0
+13.20 0,570,570,0
+# its first button chooses it
+14.00 0,570,570,1
+14.20 0,570,570,0
+# down: LOAD
+16.00 0,570,1100,0
+16.20 0,570,570,0
+# the button chooses LOAD and stays held for three seconds (Esc by the
+# keys at 19, while it is held)
+17.00 0,570,570,1
+20.00 0,570,570,0
+# the button again, at the question
+22.00 0,570,570,1
+22.20 0,570,570,0

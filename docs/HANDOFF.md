@@ -5920,6 +5920,70 @@ emulation error (2026-10-02).
       the brief and battle tunes, the rhythm mode (no tune here uses
       it), DOSBox's other `oplemu` settings, and no listening test was
       done.
+  - The snare (2026-10-09, Debian, branch `debian/snare`). The user
+    heard the snare drums clearly weaker in the port than in the
+    original. Negative result: from the register stream to the output
+    stage, nothing in the port loses the snare against two reference
+    emulators by more than they differ from each other. No code change.
+    - Which voice. The battle's tune (`oplwav_dumps.py battle`, the
+      tune from 31.1 to 150.5 s of `build/oplwav/battle.orig`, no write
+      to BDh: no rhythm mode) has two noisy voices at feedback 7:
+      channel 5 (161 key-ons; 20h-F5h modulator/carrier 30/10 00/D1
+      A8/D6 4C/4F waves 2/3, C0h 0Eh, block 2, F-number 432) and
+      channel 3 (92). Channel 5 is the snare: it has the envelope of
+      channel 6 (a feedback-0 sine at the same note, the kick, 114
+      key-ons), plays the off-beats and the 16th rolls (73.74, 73.89,
+      74.04, 74.19 s) and always comes with channel 4. 58 of its hits
+      are retriggers: key-off and key-on in the same tick.
+    - The registers. The port's `-map 8` run (`-opllog`, 120 s) gives
+      channel 5 the same 11 instrument bytes at every key-on (165 in
+      120 s against the original's 161; ticks, not values), and every
+      other voice too. So the 35 differing writes of `mac/oplwav` (the
+      direct start's first tick and three notes) never reach a key-on:
+      not a suspect for the snare.
+    - The references, black boxes only (renders, no source): DOSBox
+      0.74-3 (`oplemu=default`) and DOSBox-X 2025.02.01 (Debian's
+      packages unpacked under `build/`, `oplemu=nuked`, both `oplrate`
+      49716, SB2), each playing the tune's writes (31.0 to 150.5 s,
+      10,206 writes; the writes before 31.0 s dropped but 01h, 08h and
+      BDh's) from the replay `.COM` of the last entry, once whole and
+      once with every other voice's key bit cleared; `opl.c` the same
+      list at 49716 Hz.
+    - Level. Each voice against the mix (rms, DOSBox): `opl.c` within
+      0.5 dB on all nine; the snare -18.30 dB against -17.82 (DOSBox)
+      and -17.78 (Nuked). Hit by hit (each of the 161 aligned on its
+      own; DOSBox's replay drifts 135 ms over the tune), the first 15 ms
+      after the mix's gain: peak +0.06 dB, rms -0.17 dB (-0.85 to
+      +0.99), 15-90 ms +0.42 dB.
+    - Spectrum (the snare alone, per octave against its own total,
+      `opl.c` minus Nuked, 31 Hz .. 16 kHz): +1.6 +4.9 +0.8 +0.8 +0.7
+      -0.2 -1.1 -1.1 -1.6 -1.2 dB; rms from 125 Hz 1.01 dB (DOSBox
+      1.55). DOSBox minus Nuked differ by up to 2.2 dB in a band. So
+      `opl.c`'s snare is 1-1.6 dB darker above 2 kHz and has more at
+      62 Hz, where the window's 38 Hz DC blocker takes most of it.
+      Tried on a scratch copy: feedback 0.5x/2x and modulation depth
+      2/8 are worse; the chip's 10-bit phase (the last entry's guess)
+      brings it to 0.60 (Nuked) and 1.11 (DOSBox), the 62 Hz excess to
+      +0.5. A small gain inside the references' spread, and the last
+      entry found that guess worse on other voices: not taken.
+    - The chain after the chip: the voice volume, `music_volume` and the
+      fade are register writes (the same as the original's, above); the
+      Sound Blaster's bytes are only added (`dig_add`); `audiofx` at 0
+      dB is flat but for its DC blocker, which moves the snare against
+      the mix by less than 0.7 dB (rms, 0 to 38 Hz tried); the volume is
+      one gain; the chip renders at 44100 (the last entry: the rate
+      does not change the noise); SDL converts to the device's rate.
+    - Told, not judged: the port's whole output is 6.25 dB below
+      DOSBox 0.74's and 3.71 dB below DOSBox-X's (the references
+      disagree on the level by 2.5 dB). Since the card's bytes go in at
+      full scale in both, the music is that much quieter against the
+      effects than in those emulators. Not snare-specific.
+    - For the user's ear: `build/snare/listen/` has the tune and the
+      snare alone from the three (`opl.c` raised by 6.25 dB to DOSBox's
+      level), 49716 Hz mono. Not kept in the repository.
+    - Not checked: what the user heard the original on (emulator,
+      `oplemu`, card) and the port's window build by ear; a real
+      OPL2; the menu and briefing tunes' drums against Nuked.
 
 ## `HL14-18.EXE` stage 1
 

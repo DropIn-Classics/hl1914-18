@@ -3725,6 +3725,22 @@ anything the game needs before the first release.
   `m8_site`, `m0_carry` the same. Built with the cc wrapper for MSVC
   under Git Bash (docs/HANDOFF.md). Not covered: `play_test.sh` with
   both sides the computer's, the fights' pictures on, maps below 18h.
+- The queue and run phases in the pass (2026-10-09, Windows; branch
+  `win/computer3`): `STEPS=6 python3 tests/loop_dumps.py m24_both.keys
+  600` (and `m30_both`) logs in a second run where `computer_turn` gets
+  back from `computer_queue` (`S1C74:010F`) and `computer_step`
+  (`014E`) and dumps six passes in which a step was queued (the queue's
+  1; its run begins in the same pass), six in which the list ran out
+  (the step's not 0, back to the queue), and the pass after each.
+  Map 24: 163 and 161 such passes in 600 s, map 30: 108 and 108.
+  `loop_test` compared 46 passes on map 24 and 34 on map 30, each
+  played by the port from the first pass: the game's state and the
+  computer's (with it `computer_steps`, `computer_script` and the
+  phases) 0 bytes different at every one. The port needed no change.
+  Rerun after merging master (bd2232d). Not covered: the script play
+  (phase 1) on its own (it runs in the same passes but was not chosen
+  for), `play_test.sh`, the fights' pictures on, other maps; which
+  side queued in a chosen pass was not recorded.
 - The bar of the computer's thinking (2026-10-09, Mac; branch
   `mac/thinkbar`): `computer_progress` (`S1C74:0354`, `src/plan.c`) and
   the bar `computer_part` draws with it (`src/loop.c`, `bar_draw` in

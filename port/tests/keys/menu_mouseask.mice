@@ -1,0 +1,16 @@
+# the mouse of menu_dumps.py's walk mouseask ("T X,Y,B": the driver's
+# place and the buttons held, 1 left, 2 right).  98,73 is where the menu
+# puts the pointer on its MISC page with LOAD chosen (read from a dump
+# of the original, the mouse's record), so that the pointer let go there
+# when the menu is back is on no other item; the question itself puts it
+# at 290,181 (pointer_to(122h, B5h)) and does not ask where it is.
+# the first button at the question
+19.00 98,73,1
+19.20 98,73,0
+# the second button at the question
+24.00 98,73,2
+24.20 98,73,0
+# the pointer moved at the question with no button, then both buttons
+29.00 200,120,0
+30.00 98,73,3
+30.20 98,73,0

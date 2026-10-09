@@ -56,9 +56,20 @@ the menu N times.  The walks (default: all):
              again), left and right at the question (nothing), the first
              button (left again); Esc; the button (START), left (the
              other country) and the button: map 24
+    joyask   two joysticks (keys/menu_joyask.joy): the first to MISC and
+             LOAD as in joyload; at the saved game's question its second
+             button; LOAD again and both its buttons at once; LOAD again
+             and the second stick's second button; Esc by the key (the
+             main menu), then as code57
+    mouseask the keys to MISC and LOAD, at the saved game's question the
+             mouse (keys/menu_mouseask.mice): its first button; LOAD
+             again (the key pressed twice, see code57) and its second
+             button; LOAD again, the pointer moved with no button and
+             both buttons; Esc (the main menu), then as code57
 
 A walk WALK with a file port/tests/keys/menu_WALK.joy gets that sticks'
-script (the runner's -joys; menu_test.sh gives it to the port's -joys).
+script (the runner's -joys; menu_test.sh gives it to the port's -joys),
+one with a file menu_WALK.mice that mouse's script (-mice in both).
 
 The runner's files written (a best score) go to WALK/state/, emptied
 before each run (and for a walk of SEEDS filled with the other walk's
@@ -161,6 +172,10 @@ WALKS = {
     # it is at 15.2, 15.4 and 15.5; at 15.1, 15.3 and 15.6 both have the same)
     'joy57': (code(57, 12) + [(15.1, 'enter')], 1, 24, [9, 10.6, 16.6]),
     'joyload': ([(27, 'esc')], 1, 40, [9, 15, 20, 26, 28]),
+    'joyask': ([(30, 'esc')] + code57(32), 1, 48, [9, 20, 24, 28.5, 31]),
+    'mouseask': ([(10, 'down'), (11, 'down'), (12, 'down'), (13, 'down'), (14, 'space'), (16, 'down'), (17, 'space'),
+                  (21, 'space'), (22, 'space'), (26, 'space'), (27, 'space'), (33, 'esc')] + code57(35),
+                 1, 51, [9, 20, 25, 31.5, 34]),
 }
 # a walk with a battle played to its end: a key script (port/tests/keys/
 # KEYS.keys, its times moved by the seconds given; a key codeN is the N-th
@@ -244,6 +259,8 @@ for walk in sys.argv[1:] or sorted(WALKS):
     # the walk's joysticks, if it has a script of them
     if os.path.exists(os.path.join(HERE, 'keys', 'menu_%s.joy' % walk)):
         a += ['-joys', os.path.join(HERE, 'keys', 'menu_%s.joy' % walk)]
+    if os.path.exists(os.path.join(HERE, 'keys', 'menu_%s.mice' % walk)):
+        a += ['-mice', os.path.join(HERE, 'keys', 'menu_%s.mice' % walk)]
     if battle:
         a += ['-keys', os.path.join(out, 'battle.keys')]
     for t, k in keys:

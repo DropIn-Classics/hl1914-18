@@ -1,0 +1,6 @@
+# map 48, two human sides: a joystick there from the program's start and
+# moved in the menu and while the battle is set up, with
+# m48_joymenu.joy beside it (the menu's keys are the walk's, WALK=code).
+# F5 at 29 switches it off and at 30 on again; see port/README.md
+29.00 f5
+30.00 f5

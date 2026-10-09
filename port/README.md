@@ -1836,17 +1836,65 @@ anything the game needs before the first release.
   three ways), `fkeys_test.sh`, `menu_test.sh` (15 walks), `save_test.sh`,
   `info_test.sh`, `briefing_test.sh`, `loop_test.sh` and `play_test.sh`
   with `m57_last`, `m57_win` (pokes), `m48_two`, `m8_site`, `m54_end`.
-  Not compared: a stick moved in the menu before a battle played on
-  the original's clock (the walks with a stick end at the battle's
-  beginning; `m48_joy0` and `m48_ftext` have theirs at rest there), the
-  second button at the saved game's question, the mouse's button
-  there, a stick at the country's choice other than left, the name's
+  Not compared (a stick moved in the menu before a battle played on
+  the original's clock, the second button at the saved game's question
+  and the mouse's button there, listed here before: the next point): a
+  stick at the country's choice other than left, the name's
   and the code's `text_input` with a stick's button, the scripts with
   pokes whose dumps of the original are not on this machine
   (`m48_undo`, `m8_scroll`) after `main.c`'s change, a key or a stick
   held longer than a tap on the own clock (known to be sampled by the
   passes' length), the texts of F5 to F8 on the second side's line (a
   computer's first side), the window, a real stick; macOS only.
+
+- The joysticks' two gaps (2026-10-09, macOS, `mac/options3`): the
+  first two things of the list above, each set beside the original.
+  Nothing of the port's source changed; `tests/menu_dumps.py` and
+  `tests/menu_test.sh` give a walk its mouse's script too
+  (`tests/keys/menu_WALK.mice`, `-mice` in both programs), and
+  `tests/options_test.sh` has the tag `m48_joymenu`.
+  - The buttons at the saved game's question (`python3
+    port/tests/menu_dumps.py joyask mouseask`, `sh
+    port/tests/menu_test.sh joyask mouseask`; the menu on the port's
+    own clock as in every walk). `joyask` (two sticks there from the
+    start, `tests/keys/menu_joyask.joy`): the first stick to MISC and
+    LOAD, at the question its second button; LOAD again and both its
+    buttons at once; LOAD again and the second stick's second button;
+    Esc by the key, then the code of map 57 and START by keys.
+    `mouseask` (`tests/keys/menu_mouseask.mice`): the keys to MISC and
+    LOAD, at the question the mouse's first button; LOAD again and its
+    second; LOAD again, the pointer moved with no button (the question
+    stays), then both buttons; Esc, the code, START. In the original
+    each of the six presses leaves the question, and so in the port:
+    what came in is the same in both and in the same order (15 things
+    each, the times at most 0.06 and 0.05 s apart), no byte differs in
+    the memory at the menu's return and at the five screens outside
+    the loop of each walk (the three questions, `text_input`'s
+    beginning and end), nor in the two pages of video memory at the
+    five passes kept of each and at those screens.
+  - A stick moved in the menu before a battle on the original's clock
+    (`sh port/tests/options_test.sh dumps m48_joymenu`, `sh
+    port/tests/options_test.sh m48_joymenu`; `tests/keys/
+    m48_joymenu.joy`, `.keys`): the stick there from the start, down
+    and up in the menu before the walk's keys, held left from 20.0 to
+    23.6 s (behind START into the battle, whose first pass is at
+    23.13 s), then down, the button, right and up at once, F5 twice.
+    614 parts read the same input (the first side's "left" in passes
+    1 to 9 among them), the game's state and the computer's the same
+    at each of the 13 passes compared, DATA 0380 up to 045C the same at
+    every one. The input records' counts are given once as in the
+    points above.
+  Not compared: an input in the first 0.84 s of the menu (the port's
+  first pass is that much behind its `-start`, which the tests set to
+  the original's first pass; docs/HANDOFF.md, "The joysticks' two
+  gaps": a stick's down at 8.6 s was taken by the original and not by
+  the port, so the script has it at 9.2), a stick held across START
+  itself (a stick that gives something keeps its side's keys from
+  being asked, and START here is a key), the mouse's third button and
+  a button held from before the question, the walks in the window
+  (`menu_test.sh live`), the other tests after this branch (the port's
+  source is unchanged; `menu_test.sh joyload joy57` and
+  `options_test.sh m48_joy0` were run again, the same); macOS only.
 
 - Saving and loading (2026-10-08, macOS): `sh port/tests/save_test.sh
   dumps` runs the original twice through its menu by keys
@@ -1906,9 +1954,10 @@ anything the game needs before the first release.
     compared.
   - Not compared or not run: video memory of a loaded battle (the
     libraries of pictures a map chooses, so a saved game of a winter
-    map loaded with the menu at a summer one is still open); the
-    question left by the mouse's button (a joystick's: "The joysticks'
-    leftovers" below, the walk `joyload`); a file that
+    map loaded with the menu at a summer one is still open); (the
+    question left by the mouse's buttons and a joystick's: "The
+    joysticks' leftovers" and "The joysticks' two gaps", the walks
+    `joyload`, `joyask`, `mouseask`); a file that
     cannot be read after it was opened (a DOS error); a file cut inside
     the first blocks (the maps, the units), where the state is half one
     map's and half another's; the digits other than 0, 1, 2, 3, 5 and

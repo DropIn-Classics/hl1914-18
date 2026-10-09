@@ -5981,7 +5981,50 @@ emulation error (2026-10-02).
   trace is very large because EXTRO polls DOS during its active loop; avoid
   long `-dos` runs when coverage or targeted breakpoints are sufficient.
 
+### Intro and outro translated (2026-10-09, Windows, branch `win/intro`)
+
+- INTRO's module is `S033D` (data `S0E07`), EXTRO's `S0340` (data
+  `S0D22`); everything else is HL.EXE's libraries. Matching each far
+  call's first bytes (relocated words masked) against HL.EXE found every
+  library routine they call; INTRO's data offsets in the driver are
+  HL's + 0Ah (S071F:0236 = S30EF:022C), its DATA's near the end + 0Ch
+  (D0AF1 = HL D0AFD). Named in src/INTRO.hints and src/EXTRO.hints.
+- The flag word: INTRO 3F7h always (its argument only prints a credit
+  for "?"; bit 8 never set), EXTRO 1Fh, and EXTRO needs its second
+  argument "HL14-18" (strupr'd), which explains the earlier tail probe.
+- Keys: the modules' wait takes a key with kbhit/getch (DOS 0Bh), only
+  Esc counts; the timer routine (S02AF:00A0 / S27FE:00A0) takes BIOS
+  keys with int 16h too, so an Esc that comes while the module computes
+  is lost. Runner: INTRO Esc at 5, 20.05, 30, 45, 200 s ends it ~0.7 s
+  later, at 20.00 and 70 s nothing; EXTRO at 100 s nothing. This is why
+  the earlier EXTRO runs with Esc at 60/300/400 s ran to the end.
+- S2F39:11AC is `music_seek(from, to)` and S2F39:1A0B `music_beat`;
+  music_restore is reached (INTRO's countries, EXTRO's two tunes).
+- The runner's original computes a lot between waits (its waits count
+  from 0 after the work): see port/README.md for the measured costs;
+  EXTRO's text rows cost 41 ms each, which is where its 160 s over the
+  bare waits come from.
+- The launcher seam, for the lead (not built): HL14-18.EXE runs INTRO
+  (CODE:0054) before HL.EXE, and EXTRO (CODE:00D5, tail "0 HL14-18")
+  only when HL.EXE exits with 7Bh (CODE:009A). In the port: call
+  `intro_play()` after HL.EXE's image is loaded (the libraries' data is
+  in it) and before `start_setup`, then load HL.EXE's image again, so
+  HL starts on fresh memory as a new process would (main.c's `seq_game`
+  shows the call); `extro_play()` where `menu_game` sees "the last
+  battle is won" (`play_after` returned 7Bh). Memory: with HL.EXE loaded
+  DOS has 6000h paragraphs, less than INTRO's 72038h bytes; `big_alloc`
+  takes the largest block, enough for every scene (THEEND's 365 KB
+  stream fits).
+- Comparison tooling used (build/seq, not committed): logs of
+  `S09B5:000C`/`S033D:1A47` (INTRO) and `S0514:000A` (EXTRO), the port's
+  `-seqlog`, breakpoints as `INTRO.EXE+09B5:000C#N` (run.py passes
+  `S09B5:000C#N` through untranslated: a linear address that never
+  hits), `-vram`/`-dac` against `-seqdump`.
+
 ## Next
+
+- Intro/outro: the launcher wiring above (lead); the sound of both
+  checked against the original's OPL stream; the player's live check.
 
 0. The sound (the bullet "The sound" above): the runner's REP STOS is
    fixed and the sound's, the menu's and the battle's comparisons named

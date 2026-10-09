@@ -148,6 +148,8 @@ void dig_irq(void);
 void adl_tick(void);
 int16_t music_start(Far tune, uint16_t fade, uint16_t vol);
 int16_t music_fade(uint16_t speed);
+int16_t music_seek(uint16_t from, uint16_t to);
+uint16_t music_beat(void);
 int16_t music_volume(uint16_t vol);
 void fade_tick(void);
 int snd_irq(void);
@@ -266,6 +268,24 @@ enum { EV_LOAD_WON, EV_LOAD_WIPED, EV_LOAD_MEDAL, EV_LOAD_MEDAL2, EV_LOAD_MEDAL3
 extern int (*event_hook)(int at, int n);
 extern int event_frame;
 int16_t event_picture(Far place, Far work, uint16_t kind, uint16_t arg);
+/* what seq.c uses of them: a stream's frame (S2982:0002), screen_keep's
+ * way of S2B76:0004, S2D47's fonts and scrolled text */
+Far vdif(Far src, uint16_t x, uint16_t y);
+void planes_keep(Far src, Far to, uint16_t w, uint16_t h);
+void planes_put(Far from, Far dst, uint16_t w, uint16_t h);
+int32_t font_load(Far name, Far chr, int16_t i, uint16_t gap, Far place, Far work);
+int32_t paper_text(Far name, Far w, Far place, Far work);
+int16_t paper_init(Far w, Far buf, uint16_t wd, uint16_t h, uint16_t extra, uint16_t x, uint16_t y, uint8_t base);
+void paper_restore(Far w);
+int16_t paper_step(Far w, int16_t a, int16_t step);
+
+/* seq.c: the intro (INTRO.EXE) and the outro (EXTRO.EXE) on the port's
+ * own clock; 0, or -1 when a file could not be loaded.  seq_hook is told
+ * each page shown (at 0, n from 1 on, seq_flips) */
+int intro_play(void);
+int extro_play(void);
+extern void (*seq_hook)(int at, int n);
+extern int seq_flips;
 
 /* mem.c */
 Far mem_alloc(uint32_t size);
@@ -473,6 +493,8 @@ void play_start(double start);
 void play_tick(void);
 void play_retraces(int n);
 void play_fade(void);
+void play_level(void);
+void play_busy(double s);
 void play_setup(void);
 int play_idle(void);
 const char *play_stopped(void);

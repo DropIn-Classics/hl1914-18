@@ -147,6 +147,18 @@ words S0943:190D 10 S0943
 words S0B72:0CBB 5 S0B72
 words S0B72:0C8B 4 S0B72
 
+; The outro's own module (S0340, its data S0D22), translated in
+; port/src/seq.c. extro_main: with the second argument HL14-18 the scenes
+; of the flags 1Fh (the war's end, the treaty with EURO.ANI, the crater,
+; THEEND.ANI, the credits); without it it ends at once.
+name S0340:0004 extro_main
+name S0340:12B8 extro_end
+name S0340:132E extro_wait
+name S0340:137B extro_key
+name S0340:13AC extro_scene_load
+name S0340:147D extro_anim
+name S078D:11AB music_seek
+
 ; ==== carried over from INTRO.hints by tools/xfer.py; check, then keep or edit
 code CODE:0482
 code CODE:052B
@@ -262,3 +274,18 @@ raw S0774:003C
 raw S0774:004A
 raw S0774:006E
 raw S0B56:00A7
+; (not mapped) name S033D:000C intro_main
+; (not mapped: S0340:12B8 would be extro_end and intro_end) name S033D:17E0 intro_end
+; (not mapped: S0340:132E would be extro_wait and intro_wait) name S033D:1856 intro_wait
+; (not mapped: S0340:137B would be extro_key and intro_key) name S033D:18A3 intro_key
+; (not mapped: S0340:13AC would be extro_scene_load and scene_load) name S033D:18D4 scene_load
+; (not mapped: S0340:147D would be extro_anim and anim) name S033D:19A5 anim
+; (not mapped) name S033D:1A47 pan
+; (not mapped) name S033D:1BD5 lib
+; (not mapped) name S033D:1EE8 text_draw
+; (not mapped) name S033D:2007 text_mid
+; (not mapped) name S033D:205D text_width
+; (not mapped) name S033D:2149 blend
+; (not mapped) name S033D:21BD lands
+; (not mapped: S078D:11AB would be music_seek and music_seek) name S056A:11A6 music_seek
+name S078D:1A0A music_beat

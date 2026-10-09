@@ -1206,12 +1206,66 @@ Not done: nothing listened to; a tick's time not modelled (the lost
 interrupts, the writes' spread); the direct start's volumes; the Sound
 Blaster's bytes. Not verified: see "Checked".
 
+2026-10-09 (Windows, branch `win/intro`): the intro and the outro, the
+launcher's INTRO.EXE and EXTRO.EXE (`src/seq.c`). Their own modules
+(INTRO `S033D`, EXTRO `S0340`) are translated over HL.EXE's memory; the
+libraries they link are HL.EXE's (matched routine by routine on their
+bytes), so the port's translations are called: page_flip, page_copy,
+fade_in/out, pal_level, pal_blend, rect_fill, `vdif` (the streams),
+lbm_show, file_load_size, sfx_load/sfx_play, music_start/fade, and the
+newspapers' scrolled text (`font_load`, `paper_*`, now exported from
+`src/events.c` with `vdif`, `planes_keep`, `planes_put`). New in
+`src/sound.c`: `music_beat` (S2F39:1A0B, the beats a tune has played,
+which INTRO waits for), `music_seek` (S2F39:11AC: the tune's voices
+worked out up to a beat, a loop between two beats set) and
+`music_restore` (S2F39:18FE, which `adl_tick` now calls at the loop's
+end). The modules' data (file names, scene records, the frames' tables
+of palettes, sounds and the countries' colours) is read at run time
+from the player's INTRO.EXE / EXTRO.EXE (their size checked) into a DOS
+block, so its offsets are the original's. The files are found in
+INTRO\ and EXTRO\ (`host_load` now goes up for `..\`, the fonts).
+INTRO: BANG (title text from CHR14.LIB, the shot with its palettes and
+sounds by frame number, the tune from frame 87h), BUCH1A, BUCH1B, AUTO
+(the module's own CRTC panning, the car's colours from CARPAL.DAT),
+the kept picture scrolled and MORD, BUCH2A, BUCH2B blended to its
+second palette, the countries (LAENDER.LBM, buch3.txt scrolled, the
+countries blended by the text's codes, the tune looping beats 6Fh to
+EAh), BUCH3. EXTRO: the war's end, the treaty with EURO.ANI, the
+crater, THEEND.ANI, the credits (loops 107h-162h and 1-16Bh). Only Esc
+ends either early; other keys are taken and ignored, as in the
+originals. The port's clock counts what the runner's original spends
+computing (a file 0.05 s + 5.5 us a packed byte, a stream frame 0.8 us
+a byte, page_copy 5 ms, a text row 16.6 ms (INTRO), 41 ms (EXTRO's
+F0h-wide windows), 23.3 ms (credits); the pan's wait for a retrace's
+end) and music_fade's wait. A test aid, not the launcher: `-intro` /
+`-extro` play one by itself and end the program (in the window live),
+`-seqlog` prints each page shown, `-seqdump N FILE` writes memory,
+`.vram` or `.dac` at page N.
+Checked against the runner's originals (INTRO.EXE alone, EXTRO.EXE
+with `0 HL14-18`): the same number and order of pages shown (INTRO
+1831 flips and pans, EXTRO 4530 flips, the screen_open's own one aside);
+at 15 pages of each spread over all scenes (INTRO 2 ... 1800, EXTRO 2
+... 4500; breakpoints `INTRO.EXE+09B5:000C#N` / `+033D:1A47#N`,
+`EXTRO.EXE+0514:000A#N`) both video pages and the DAC are byte for
+byte the same. Times: INTRO ends at 370.6 s (original 368.1), within
+-0.8 to +2.6 s of the original at every page; EXTRO 561.8 s (561.7),
+within -0.5 to +1.2 s. Esc at 20 s ends the port's intro at 20.61 s.
+Not checked: the sound by ear and against the original's OPL stream
+(music_seek/restore are read from the code, not compared); the live
+window (the player checks); the Sound Blaster's effects (sfx through
+the port's driver memory only). Not done: the launcher's wiring (the
+intro before the menu, the outro after a 7Bh end; docs/HANDOFF.md).
+Differs: the original's Esc is lost when its timer routine reads the
+key first (seen at 20.00 and 70 s); the port always takes it. Where
+DOS has less room than the original's mem_alloc asks (HL.EXE stays
+loaded under it in the port) the largest block is taken.
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)
     port\build.bat            # Windows (MSVC)
     port/build/history-line -game game
     port/build/history-line-headless -game game -map 5 -ram build/map5.ram
+    port/build/history-line -game game -intro       # or -extro, in the window
     port/build/history-line-headless -game game -map 8 -keys port/tests/keys/m8_site.keys -start 31.1 -seed 563 -passes 2000 -ram build/played.ram
     port/build/history-line-headless -game game -keys build/menu/back/keys.txt -start 8.05 -until 54 -menulog build/menu.log
     port/build/history-line-headless -game game -keys build/play/m48_save/keys.txt -start 8.05 -clock build/play/m48_save/clock.txt -saves build/saves

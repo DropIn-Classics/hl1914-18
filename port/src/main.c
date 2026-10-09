@@ -440,6 +440,12 @@ static void audio_irq(uint64_t sample, uint32_t next)
 
 static void audio_start(void)
 {
+    /* the chip and the queue first: the device's callback renders from
+     * its first buffer on, synchronously inside plat_audio_start, and
+     * oplq_render hands every run to the chip (a NULL chip crashed the
+     * window's build at startup: opl_render read address 0) */
+    opl_init(&adlib, AUDIO_RATE);
+    oplq_init(&adlib_q, &adlib);
     if (!plat_audio_start(AUDIO_RATE, audio_fill, NULL)) {
         if (count_rate > 0) {
             snd_rate = (int)count_rate;
@@ -447,10 +453,6 @@ static void audio_start(void)
         }
         return;
     }
-    plat_audio_lock();
-    opl_init(&adlib, AUDIO_RATE);
-    oplq_init(&adlib_q, &adlib);
-    plat_audio_unlock();
     audio_on = 1;
     snd_rate = AUDIO_RATE;
     snd_samples = audio_samples;

@@ -16,8 +16,9 @@
  * card would play in the driver's two buffers, moves the digital channels
  * on, begins one again that is played more than once and takes one off at
  * its end; dig_kick (from snd_pass) and dig_irq (the card's interrupt)
- * call it as the original does.  Nothing is sent to a card: the bytes
- * stay in the buffers, and the card's interrupt, which the original gets
+ * call it as the original does.  Each buffer dig_irq starts goes to
+ * snd_dig when it is set (its bytes and dsp_rate's rate; NULL where
+ * dig_kick halts the card), which main.c plays.  The card's interrupt, which the original gets
  * when a buffer has been played, is made by snd_clock that long after a
  * buffer was started (its length at the rate dsp_rate set), on the port's
  * own clock only.
@@ -115,6 +116,9 @@ static uint64_t irq_last;       /* the last interrupt's sample */
  * snd_clock was last called with, and when the buffer started last has
  * been played (below 0: none is being played) */
 static uint16_t dig_rate = 8000;
+/* the card's output: a buffer started (unsigned 8 bit mono at `rate`),
+ * or p NULL where the DSP is halted and what it had not played is lost */
+void (*snd_dig)(const uint8_t *p, int n, int rate);
 static double clock_now = -1, dig_at = -1;
 
 /* the period the timer calls adl_tick with: pit_add's 1843h until a tune
@@ -719,6 +723,14 @@ void dig_irq(void)
     DSETB(0x0496, 1);
     len = D(h);
     if (len >= 0x28) {
+        if (snd_dig) {
+            uint8_t b[0x400];
+            uint16_t at = D(h + 6), i;
+
+            for (i = 0; i < len && i < sizeof b; i++)
+                b[i] = DB(at + i);
+            snd_dig(b, i, dig_rate);
+        }
         DSETB(0x0499, DB(0x0499) ^ 1);
         dig_at = clock_now < 0 ? -1 : clock_now + (double)len / dig_rate;
         DSET(h, 0);
@@ -734,6 +746,8 @@ static void dig_kick(void)
 {
     if (!(NW(snd_devices, 0) & 2) || (int16_t)NW(dig_count, 0) <= 0)
         return;
+    if (snd_dig)
+        snd_dig(NULL, 0, dig_rate);
     DSET(0x049B, dig_mix(D(0x04A1), 0x400));
     DSETB(0x0499, 1);
     dig_irq();

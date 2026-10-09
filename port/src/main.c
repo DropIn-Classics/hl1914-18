@@ -346,8 +346,8 @@ static void snd_logged(uint16_t ch, uint16_t n, uint16_t vol, uint16_t times, in
  * renders through the queue (audio_fill), and sound.c makes the timer's
  * interrupts by the samples played (snd_samples = audio_samples).  A
  * write the game's side makes is stamped with the samples played at that
- * moment when they are further.  The Sound Blaster's bytes are not
- * played.  Without a device, as before: the chip gets the writes at
+ * moment when they are further.  The Sound Blaster's buffers are
+ * added (dig_queue, below).  Without a device, as before: the chip gets the writes at
  * once, nobody asks it for samples, and the interrupts run on the port's
  * clock of passes (the tests' way).
  *
@@ -393,6 +393,70 @@ static double audio_off, audio_t;
  * screen, so that the headless runs' sound stays the chip's alone */
 static int fx_on, volume = 10, muted, headphone;
 
+/* The Sound Blaster: the buffers sound.c's dig_irq starts (snd_dig), one
+ * behind the other as the card plays them, at dsp_rate's rate, read by
+ * the callback with a linear step to AUDIO_RATE and added to the chip's
+ * samples.  A queue that has run empty begins again AUDIO_LEAD samples
+ * behind the samples played, as the AdLib's writes do; dig_kick's halt
+ * (p NULL) drops what lies beyond the game's moment (AUDIO_LEAD ahead of
+ * the samples played), and the buffers mixed anew follow on.  The card's interrupt stays on the
+ * port's clock (sound.c), so the queue only joins the buffers. */
+#define DIG_SIZE 65536
+static uint8_t dig_q[DIG_SIZE];
+static uint32_t dig_head, dig_tail;     /* read and write, counted on */
+static uint32_t dig_pos, dig_step;      /* 16.16: within the byte at head */
+static uint64_t dig_begin;              /* the sample an empty queue starts at */
+static uint64_t dig_out;                /* the samples the callback made */
+static long dig_bytes, dig_halts;
+
+static void dig_queue(const uint8_t *p, int n, int rate)
+{
+    plat_audio_lock();
+    if (!p) {
+        /* the game's side is AUDIO_LEAD ahead of the samples played:
+         * what is due before that has been played on the card already */
+        uint32_t keep = dig_out >= dig_begin ? (uint32_t)(((uint64_t)AUDIO_LEAD * dig_step) >> 16) + 1 : 0;
+
+        if (dig_tail - dig_head > keep)
+            dig_tail = dig_head + keep;
+        dig_halts++;
+    } else {
+        int i;
+
+        if (dig_head == dig_tail) {
+            dig_begin = dig_out + AUDIO_LEAD;
+            dig_pos = 0;
+        }
+        dig_step = (uint32_t)(((uint64_t)rate << 16) / AUDIO_RATE);
+        for (i = 0; i < n && dig_tail - dig_head < DIG_SIZE; i++)
+            dig_q[dig_tail++ % DIG_SIZE] = p[i];
+        dig_bytes += n;
+    }
+    plat_audio_unlock();
+}
+
+/* the card's bytes on n samples, added to out (the callback's, locked) */
+static void dig_add(int16_t *out, int n)
+{
+    int i;
+
+    for (i = 0; i < n; i++, dig_out++) {
+        int a, b, v;
+
+        if (dig_head == dig_tail || dig_out < dig_begin)
+            continue;
+        a = dig_q[dig_head % DIG_SIZE] - 0x80;
+        b = dig_head + 1 != dig_tail ? dig_q[(dig_head + 1) % DIG_SIZE] - 0x80 : a;
+        v = out[i] + (int)((a * 0x10000 + (b - a) * (int)dig_pos) >> 8);
+        out[i] = (int16_t)(v > 32767 ? 32767 : v < -32768 ? -32768 : v);
+        dig_pos += dig_step;
+        dig_head += dig_pos >> 16;
+        dig_pos &= 0xFFFF;
+        if (dig_tail - dig_head > DIG_SIZE)     /* past the end: empty */
+            dig_head = dig_tail;
+    }
+}
+
 static void audio_fill(int16_t *out, int frames, void *user)
 {
     static int16_t mono[1024];
@@ -403,6 +467,7 @@ static void audio_fill(int16_t *out, int frames, void *user)
     for (; frames > 0; frames -= n, out += 2 * n) {
         n = frames > 1024 ? 1024 : frames;
         oplq_render(&adlib_q, mono, n);
+        dig_add(mono, n);
         for (i = 0; i < n; i++)
             out[2 * i] = out[2 * i + 1] = mono[i];
     }
@@ -484,6 +549,7 @@ static void audio_start(void)
         return;
     }
     audio_on = 1;
+    snd_dig = dig_queue;
     snd_rate = AUDIO_RATE;
     snd_samples = audio_samples;
     if (opl_at) {
@@ -501,6 +567,8 @@ static void audio_end(void)
             (unsigned long long)oplq_played(&adlib_q), audio_writes, adlib_q.late, adlib_q.early,
             oplq_pending(&adlib_q));
     plat_audio_unlock();
+    if (dig_bytes)
+        fprintf(stderr, "Audio: %ld Sound Blaster bytes, %ld halts.\n", dig_bytes, dig_halts);
     if (opl_at)
         fclose(opl_at);
 }

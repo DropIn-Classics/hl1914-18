@@ -126,6 +126,7 @@ static int in_menu;             /* before a battle (play_start): the keys come b
 static ClockLine *clk;
 static long clk_n, clk_at;
 static int have_clock;
+static int have_g;              /* the log has G lines (logs from debian/window12 on) */
 static FILE *inputs, *rounds, *ends;
 typedef struct { uint32_t v; int r; } Fight;
 static Fight *fights;           /* play_seeds: a fight's pictures' seed and calls of rand_next */
@@ -266,6 +267,8 @@ const char *play_clock(const char *path)
         c.v = (uint32_t)v;
         if (kind == 'K')
             by_k = 1;
+        if (kind == 'G')
+            have_g = 1;
         if (!(clk_n & 4095)) {
             p = realloc(clk, (size_t)(clk_n + 4096) * sizeof *clk);
             if (!p) {
@@ -395,10 +398,12 @@ static void live_key(uint8_t code)
  * driver (mouse_motion) when the clock gets there, and -micelog writes
  * where that put the mouse as such a line (when it moved it or changed
  * its buttons), so that -mice and the runner's -mice play the window's
- * mouse again.  A motion's mickeys not yet a pixel are not in the line:
- * the driver keeps them, -mice does not (presumably never a difference
- * where the battle's pointer goes to the middle after each direction;
- * not checked). */
+ * mouse again.  A motion's mickeys not yet a pixel are not in the line,
+ * but every position they help make is: the driver keeps them for the next
+ * motion, whose line then has where it put the mouse, and -mice puts the
+ * mouse there at the same time.  So the positions and buttons the game
+ * reads are the window's at every time; only the driver's own rest,
+ * which is not the game's memory, differs (debian/window12). */
 typedef struct { double t; int rel, x, y, b; } MouseEv;
 
 static MouseEv *mice;
@@ -703,6 +708,9 @@ static void own_wait_press(void)
     }
 }
 
+static void clock_frame(void);
+static long fight_g;     /* clock_frame: the frames of a fight so far */
+
 /* fight_pictures' times on the port's own clock (pics_hook): its seed
  * (clock_seed(0); with play_seeds the original's number instead; the
  * calls of rand_next are its own, volley_end), its loading, its frames
@@ -716,9 +724,10 @@ static void pics_clock(int at)
     case PICS_SEED:
         ev_fights++;
         ev_fframes = 0;
+        fight_g = 0;
         if (have_clock) {
-            /* the log's S and R come after attacks_run and the frames
-             * take no time here (no key ends them): rand_words are
+            /* the log's S and R come after attacks_run (the frames
+             * take the log's other lines, clock_frame): rand_words are
              * given back at the end; with play_seeds the pictures are
              * started with the original's number, so that rand_words
              * in their frames are its too */
@@ -738,6 +747,8 @@ static void pics_clock(int at)
             own_busy(T_PIC_LOAD);
         break;
     case PICS_FRAME:
+        if (have_clock)
+            clock_frame();
         ev_dump('g', ev_fights * 1000 + ++ev_fframes);
         if (!have_clock)
             own_busy(T_PIC_FRAME);
@@ -844,61 +855,103 @@ static Far rec_of(uint16_t side)
     return far_at(S_DATA, b ? 0x00B6 : 0x00A6);
 }
 
-/* the log's lines from where the clock stands up to line `to`: the
- * timer's routine, the keys, and with `round` what the pictures and waits
- * of a round's end did; else a place of the pass among them is one the
- * port did not come to */
-static void clock_run(long to, int round)
+/* a line of the log: the timer's routine, a key, and with `round` what
+ * the pictures and waits of a round's end did; else a place of the pass
+ * is one the port did not come to */
+static void clock_line(long i, int round)
 {
     Far k = far_at(S_DATA, 0x00BE);
+
+    switch (clk[i].kind) {
+    case 'T':
+        tick(clk[i].t);
+        break;
+    case 'K':
+        if (in_battle && keys_at < keys_n) {
+            key_irq(keys[keys_at].code[key_byte++]);
+            if (key_byte >= keys[keys_at].n) {
+                keys_at++;
+                key_byte = 0;
+            }
+        }
+        break;
+    case 'S':
+        seed_set(clk[i].v);
+        break;
+    case 'R':
+        if (round)
+            rand_next();
+        break;
+    case 'W':
+        pwb(far_at(S_DATA, 0x00A6), 4, 0);
+        fww(k.seg, (uint16_t)(k.off + 4), 0);
+        break;
+    case 'X':
+        fww(k.seg, (uint16_t)(k.off + 4), 0);
+        break;
+    case 'Y':
+        pwb(far_at(S_DATA, 0x00B6), 4, 0);
+        pwb(far_at(S_DATA, 0x00A6), 4, 0);
+        fww(k.seg, (uint16_t)(k.off + 4), 0);
+        break;
+    case 'E':
+        pwb(far_at(S_DATA, 0x00A6), 4, 0);
+        fww(k.seg, (uint16_t)(k.off + 4), 0);
+        break;
+    case 'L':
+    case 'B':
+    case 'M':
+    case 'F':
+    case 'Q':
+    case 'G':
+    case '.':
+        break;
+    default:
+        play_misses++;
+    }
+}
+
+/* the log's lines from where the clock stands up to line `to` */
+static void clock_run(long to, int round)
+{
     long i;
 
     for (i = clk_at; i < to; i++)
-        switch (clk[i].kind) {
-        case 'T':
-            tick(clk[i].t);
+        clock_line(i, round);
+}
+
+/* a frame of a fight's pictures ended (S2532:156D, the log's G lines):
+ * the log's lines up to the frame's G line (the timer's routine, the keys,
+ * the waits' and the pictures' clearing of the key) are run then and taken
+ * out of the log ('.'), so that a key ends the frames where it ended the
+ * original's and is kept or cleared after them as there; the seed and
+ * rand_next stay for the round's end.  A fight's X line after frames of this
+ * fight is the next fight's */
+static void clock_frame(void)
+{
+    long i, g = -1;
+
+    /* an older log: the frames take no time, as before */
+    if (!have_g)
+        return;
+    for (i = clk_at; i < clk_n && clk[i].kind != 'P'; i++) {
+        if (clk[i].kind == 'G') {
+            g = i;
             break;
-        case 'K':
-            if (in_battle && keys_at < keys_n) {
-                key_irq(keys[keys_at].code[key_byte++]);
-                if (key_byte >= keys[keys_at].n) {
-                    keys_at++;
-                    key_byte = 0;
-                }
-            }
-            break;
-        case 'S':
-            seed_set(clk[i].v);
-            break;
-        case 'R':
-            if (round)
-                rand_next();
-            break;
-        case 'W':
-            pwb(far_at(S_DATA, 0x00A6), 4, 0);
-            fww(k.seg, (uint16_t)(k.off + 4), 0);
-            break;
-        case 'X':
-            fww(k.seg, (uint16_t)(k.off + 4), 0);
-            break;
-        case 'Y':
-            pwb(far_at(S_DATA, 0x00B6), 4, 0);
-            pwb(far_at(S_DATA, 0x00A6), 4, 0);
-            fww(k.seg, (uint16_t)(k.off + 4), 0);
-            break;
-        case 'E':
-            pwb(far_at(S_DATA, 0x00A6), 4, 0);
-            fww(k.seg, (uint16_t)(k.off + 4), 0);
-            break;
-        case 'L':
-        case 'B':
-        case 'M':
-        case 'F':
-        case 'Q':
-            break;
-        default:
-            play_misses++;
         }
+        if (clk[i].kind == 'X' && fight_g)
+            break;
+    }
+    if (g < 0) {
+        play_misses++;
+        return;
+    }
+    for (i = clk_at; i <= g; i++)
+        if (!strchr("SR", clk[i].kind)) {
+            clock_line(i, 0);
+            clk[i].kind = '.';
+        }
+    fight_g++;
 }
 
 /* the original's clock run on to the next line of the kind in the side's

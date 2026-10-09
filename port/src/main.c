@@ -959,7 +959,7 @@ static LauncherItem setup_sound[] = {
     { LI_CHOICE, "Headphone mix", "headphone", no_yes, &headphone, 0,
       "Blends the sides a little, for headphones" },
 };
-#define KEY_HELP "The game's own key works too; this key is not itself any more"
+#define KEY_HELP "The game's own key still works beside it"
 static LauncherItem setup_keys[] = {
     { LI_HEAD, "Player A", NULL, NULL, NULL, 0, NULL },
     { LI_KEY, "Up", "key_a_up", NULL, &player_key[K_AUP], 0, "The keypad's 7 9 1 3 stay the diagonals" },

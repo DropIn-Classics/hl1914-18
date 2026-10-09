@@ -6015,6 +6015,14 @@ emulation error (2026-10-02).
   DOS has 6000h paragraphs, less than INTRO's 72038h bytes; `big_alloc`
   takes the largest block, enough for every scene (THEEND's 365 KB
   stream fits).
+- The seam is built (win/seqhook): `start_game` plays INTRO on HL.EXE's
+  image and loads it again before `start_setup`; `menu_game` plays EXTRO
+  where it sees the last battle won. Only with a window and no `-map`;
+  `-nointro` drops the intro. `play_start` clears `stopped`, so a window
+  closed in the intro is looked at before the menu's `play_start`; the
+  outro gets `play_start(play_now())` because the battle's clock mode
+  is still on there. Not run live here: whether a key from the intro
+  reaches the menu, and the outro after a real campaign's end.
 - Comparison tooling used (build/seq, not committed): logs of
   `S09B5:000C`/`S033D:1A47` (INTRO) and `S0514:000A` (EXTRO), the port's
   `-seqlog`, breakpoints as `INTRO.EXE+09B5:000C#N` (run.py passes
@@ -6023,7 +6031,7 @@ emulation error (2026-10-02).
 
 ## Next
 
-- Intro/outro: the launcher wiring above (lead); the sound of both
+- Intro/outro: the sound of both
   checked against the original's OPL stream; the player's live check.
 
 0. The sound (the bullet "The sound" above): the runner's REP STOS is

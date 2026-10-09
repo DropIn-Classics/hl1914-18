@@ -2488,8 +2488,8 @@ emulation error (2026-10-02).
           and the picture drawn over it, the other half shows the other
           side's view on the site. Its picture is the far pointer 30h
           bytes into the list S331F:0167 points to (picture 0Ch, the
-          hints said 30h). `view_cover` is in orders.c for now; it
-          belongs in draw.c (Debian's file, not changed here).
+          hints said 30h). `view_cover` was in orders.c at first;
+          it is in draw.c since branch `debian/draw-tidy`, unchanged.
         - `site_picture(x, y, place, work)`: x 0 for CAh, A0h for CBh,
           y 0; the second of its three files is not used, the third is
           music (`music_start(it, 0, FFh)`), the frames are drawn in the
@@ -6297,3 +6297,17 @@ results and limits are listed above. The DAT, map and text tools adapt
 offline parsing techniques; the sound tool is project-specific. These are
 not port parsers, and none has been checked against History Line's original
 loading routines. `tools/test_file_formats.py` uses synthetic data only.
+
+## debian/draw-tidy (2026-10-09)
+
+- `view_cover` (`S131D:1426`) moved from orders.c to draw.c beside
+  `view_dim`, its body unchanged, declared in hl.h.
+- win/fightpanel's `fight_panel` waits were read against the listing:
+  `fade_in` at 1AC8 only with pictures, `wait_frames(6)` after each
+  step's `page_flip`/`page_copy` in both loops, `wait_frames(0Ch)` after
+  the first loop on both paths, then `wait_input(96h)` and `fade_out`
+  with pictures, `wait_input(46h)` at the end without. The port's
+  `orders_hook` calls stand at those places (wait_frames(n) sent as n+1
+  retraces, as elsewhere in round_hook); nothing was changed. Not
+  checked: that `T_PANEL` and `T_MARK` match the original's times
+  (taken over from win/fightpanel as they are).

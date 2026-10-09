@@ -206,6 +206,7 @@ extern void (*screen_hook)(int kind);
 /* draw.c */
 void view_draw(uint16_t field, uint16_t side);
 void view_dim(uint16_t side);
+void view_cover(uint16_t side);
 void game_text_at(uint16_t x, uint16_t y, uint16_t n, uint8_t base);
 void num_draw(int16_t value, uint16_t x, uint16_t y);
 void marks_draw(uint16_t field, uint16_t side);

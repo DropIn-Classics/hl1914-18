@@ -184,23 +184,6 @@ static void order_into_site(Far unit, uint16_t m)
     }
 }
 
-/* S131D:1426 (view_cover(side)): the 9 by 7 fields of the side's view as
- * view_dim places them, each drawn over with picture 0Ch of the list at
- * S331F:0167 in colours DDh on.  A drawing routine; here until draw.c
- * has it. */
-static void view_cover(uint16_t side)
-{
-    Far pic = pfar(far_add(far_at(S_GAME, 0x0167), 0x30), 0);
-    uint16_t x = side ? 0xA0 : 0, col, row;
-
-    for (col = 0; col < 9; col++, x = (uint16_t)(x + 0x10)) {
-        uint16_t y = col & 1 ? 0x0C : 0;
-
-        for (row = 0; row < 7; row++, y = (uint16_t)(y + 0x18))
-            pic_draw(x, y, pic, 0xDD);
-    }
-}
-
 /* order 4 (S02E6:11B1): side m takes the site; a is the other side */
 static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, uint8_t *result)
 {

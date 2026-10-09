@@ -1388,6 +1388,22 @@ void view_dim(uint16_t side)
     }
 }
 
+/* S131D:1426 (view_cover(side)): the 9 by 7 fields of the side's view as
+ * view_dim places them, each drawn over with picture 0Ch of the list at
+ * S331F:0167 in colours DDh on. */
+void view_cover(uint16_t side)
+{
+    Far pic = pfar(far_add(far_at(S_GAME, 0x0167), 0x30), 0);
+    uint16_t x = side ? 0xA0 : 0, col, row;
+
+    for (col = 0; col < 9; col++, x = (uint16_t)(x + 0x10)) {
+        uint16_t y = col & 1 ? 0x0C : 0;
+
+        for (row = 0; row < 7; row++, y = (uint16_t)(y + 0x18))
+            pic_draw(x, y, pic, 0xDD);
+    }
+}
+
 /* S1571:00BE: the text of number n (the table of word offsets S331F:17BA
  * points to) at x, y in colours `base` on, a line 6 lower */
 void game_text_at(uint16_t x, uint16_t y, uint16_t n, uint8_t base)

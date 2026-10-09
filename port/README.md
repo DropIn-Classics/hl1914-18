@@ -3928,7 +3928,7 @@ anything the game needs before the first release.
   draws what the original draws: the other side's view on the site
   (`view_to_field`, `view_draw`, the site's field marked with 30h while
   `marks_draw` draws), the taker's view covered (`view_cover`,
-  `S131D:1426`, in orders.c until draw.c has it), `page_flip`,
+  `S131D:1426`, in draw.c since `debian/draw-tidy`), `page_flip`,
   `page_copy`, `wait_frames(1Eh)`, `fade_in` after a fight in this
   `attacks_run` else `fade_back` (with the fights' pictures off
   `fade_back` only without a fight), `take_picture` 1, `event_picture`

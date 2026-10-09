@@ -70,8 +70,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "audiofx.h"
 #include "cdimage.h"
+#include "frame.h"
 #include "hl.h"
+#include "hud.h"
 #include "inno.h"
 #include "launcher.h"
 #include "opl.h"
@@ -385,10 +388,15 @@ static long audio_writes;
 static uint64_t audio_ms;       /* the virtual device's time, moved on here */
 static double audio_off, audio_t;
 
+/* the player's sound settings (setup_run); fx_on only after the setup
+ * screen, so that the headless runs' sound stays the chip's alone */
+static int fx_on, volume = 10, muted, headphone;
+
 static void audio_fill(int16_t *out, int frames, void *user)
 {
     static int16_t mono[1024];
-    int i, n;
+    int16_t *buf = out;
+    int all = frames, i, n;
 
     (void)user;
     for (; frames > 0; frames -= n, out += 2 * n) {
@@ -397,6 +405,8 @@ static void audio_fill(int16_t *out, int frames, void *user)
         for (i = 0; i < n; i++)
             out[2 * i] = out[2 * i + 1] = mono[i];
     }
+    if (fx_on)
+        audiofx_process(buf, all, muted ? 0.0f : volume / 10.0f);
 }
 
 /* sound.c's snd_samples */
@@ -464,6 +474,7 @@ static void audio_start(void)
      * window's build at startup: opl_render read address 0) */
     opl_init(&adlib, AUDIO_RATE);
     oplq_init(&adlib_q, &adlib);
+    audiofx_init(AUDIO_RATE);
     if (!plat_audio_start(AUDIO_RATE, audio_fill, NULL)) {
         if (count_rate > 0) {
             snd_rate = (int)count_rate;
@@ -880,6 +891,103 @@ static int menu_game(unsigned long passes, double start, double until, int clock
     return ok;
 }
 
+/* The setup screen (launcher.h, doskit/docs/LAUNCHER.md), in the window
+ * before the game: the menu with "Start the game" and pages of the
+ * port's settings, kept in history-line.cfg in the data folder.  The
+ * original has no setup program or settings file of its own (HL14-18.EXE
+ * takes no options; its sound is the AdLib only), so these are the
+ * port's: whether the launcher's INTRO.EXE and EXTRO.EXE are played,
+ * the volume with the keypad's + - * in play (docs/PLAYER-SETTINGS.md),
+ * the headphone mix and full screen. */
+static const char *const no_yes[] = { "No", "Yes", NULL };
+static const char *const play_skip[] = { "Play", "Skip", NULL };
+static const char *const steps[] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", NULL };
+static int skip_intro, skip_extro, fullscreen;
+
+static LauncherItem setup_menu[] = {
+    { LI_ACTION, "Start the game", NULL, NULL, NULL, 1, NULL },
+    { LI_HEAD, "", NULL, NULL, NULL, 0, NULL },
+    { LI_PAGE, "Game", NULL, NULL, NULL, 1, NULL },
+    { LI_PAGE, "Sound", NULL, NULL, NULL, 2, NULL },
+    { LI_PAGE, "Display", NULL, NULL, NULL, 3, NULL },
+};
+static LauncherItem setup_game[] = {
+    { LI_CHOICE, "Intro", "intro", play_skip, &skip_intro, 0,
+      "The launcher's INTRO.EXE before the game's menu" },
+    { LI_CHOICE, "Outro", "extro", play_skip, &skip_extro, 0,
+      "The launcher's EXTRO.EXE after the last battle is won" },
+};
+static LauncherItem setup_sound[] = {
+    { LI_CHOICE, "Volume", "volume", steps, &volume, 0,
+      "In play the keypad's + and - change it, * mutes" },
+    { LI_CHOICE, "Headphone mix", "headphone", no_yes, &headphone, 0,
+      "Blends the sides a little, for headphones" },
+};
+static LauncherItem setup_display[] = {
+    { LI_CHOICE, "Full screen", "fullscreen", no_yes, &fullscreen, 0, NULL },
+};
+static LauncherPage setup_pages[] = {
+    { "Setup", setup_menu, (int)(sizeof setup_menu / sizeof *setup_menu) },
+    { "Game", setup_game, (int)(sizeof setup_game / sizeof *setup_game) },
+    { "Sound", setup_sound, (int)(sizeof setup_sound / sizeof *setup_sound) },
+    { "Display", setup_display, (int)(sizeof setup_display / sizeof *setup_display) },
+};
+#define SETUP_PAGES (int)(sizeof setup_pages / sizeof *setup_pages)
+
+static void setup_apply(void)
+{
+    plat_audio_lock();
+    audiofx_set(0, 0, 0, headphone);
+    plat_audio_unlock();
+    if (plat_fullscreen() != fullscreen)
+        plat_set_fullscreen(fullscreen);
+}
+
+static void setup_changed(const LauncherItem *item)
+{
+    (void)item;
+    setup_apply();
+}
+
+/* frame.h's hud: the keypad's + - * in play */
+static void hud_control(int c)
+{
+    if (c == PLAT_VOLUME_UP || c == PLAT_VOLUME_DOWN) {
+        if (c == PLAT_VOLUME_UP && volume < 10)
+            volume++;
+        else if (c == PLAT_VOLUME_DOWN && volume > 0)
+            volume--;
+        muted = 0;
+    } else if (c == PLAT_MUTE)
+        muted = !muted;
+    else
+        return;
+    if (muted)
+        hud_show("MUTE", 0, 0, 140);
+    else
+        hud_show("VOLUME", volume, 10, 140);
+}
+
+/* the setup screen; 1 to start the game, 0 to quit */
+static int setup_run(void)
+{
+    char cfg[SYS_PATH], data[SYS_PATH];
+    int r;
+
+    sys_data_dir(data, sizeof data);
+    sys_mkdir(data);
+    sys_join(cfg, sizeof cfg, data, "history-line.cfg");
+    launcher_load(cfg, setup_pages, SETUP_PAGES);
+    fx_on = 1;
+    setup_apply();
+    r = launcher_run(&app, NULL, setup_pages, SETUP_PAGES, setup_changed);
+    launcher_save(cfg, "history-line's settings (the setup screen writes them)", setup_pages, SETUP_PAGES);
+    if (r != 1)
+        return 0;
+    frame_set_hud(hud_draw, hud_control);
+    return 1;
+}
+
 int main(int argc, char **argv)
 {
     const char *given = NULL, *gog = NULL, *ram = NULL, *keys = NULL, *clock_file = NULL, *why = NULL;
@@ -1064,6 +1172,11 @@ int main(int argc, char **argv)
         /* the launcher's intro and outro around the game, for the player
          * in the window only (scripted runs keep their times) */
         seqs = plat_has_window() && map < 0;
+        if (plat_has_window() && !seq && !setup_run()) {
+            audio_end();
+            plat_shutdown();
+            return 0;
+        }
     }
     if (seq) {
         ok = seq_game(game, seq, start, line, sizeof line);
@@ -1074,9 +1187,9 @@ int main(int argc, char **argv)
     }
     if (!play && map < 0)
         map = 0;
-    ok = start_game(game, map, seeded ? (uint32_t)seed : bios_now(), seqs && !nointro, line, sizeof line);
+    ok = start_game(game, map, seeded ? (uint32_t)seed : bios_now(), seqs && !nointro && !skip_intro, line, sizeof line);
     if (ok && play && map < 0)
-        ok = menu_game(passes, start, until, clock_file != NULL || seeds_file != NULL, seqs, line, sizeof line);
+        ok = menu_game(passes, start, until, clock_file != NULL || seeds_file != NULL, seqs && !skip_extro, line, sizeof line);
     else if (ok && play) {
         fprintf(stderr, "%s\n", line);
         ok = play_game(passes, start, until, clock_file != NULL || seeds_file != NULL, line, sizeof line);

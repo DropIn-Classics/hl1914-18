@@ -4158,3 +4158,26 @@ window and headless programs build (MSVC), `orders_test` builds with
 the cc wrapper.
 Not checked: the music by ear; the pause key; the original's clock
 (`-clock`) through a newspaper; the live window (the player checks).
+
+2026-10-09 (win/launcher): the setup screen. In the window, before the
+game, `main.c` (`setup_run`) shows doskit's launcher (`launcher.h`,
+doskit/docs/LAUNCHER.md) with the port's pages only: the menu ("Start
+the game", then the pages Game, Sound, Display; Quit is the kit's), Game
+(Intro and Outro: Play or Skip, the launcher's INTRO.EXE and EXTRO.EXE;
+`-nointro` still skips the intro), Sound (Volume 0 to 10, Headphone mix)
+and Display (Full screen). The values are kept in `history-line.cfg` in
+the data folder. Volume and headphone go through `audiofx.h` at the end
+of `audio_fill`, and in play the keypad's + and - change the volume, *
+mutes, shown with `hud.h` (doskit/docs/PLAYER-SETTINGS.md); `hud.c` is
+now built. The original has no setup program or settings file of its
+own (HL14-18.EXE takes no options, the sound is the AdLib only), so
+there is nothing of it to compare; its side and difficulty are chosen
+in the game's own menu and are not offered here (they live in the
+program's memory). Headless and scripted runs never show the setup
+screen and leave the sound as before (`fx_on` 0). Built with MSVC (both
+programs), the window started; `check.py` all ok. Not checked: the
+screen by eye, the settings file's round trip, the volume keys, the
+headphone mix and full screen in the window (the player checks), and
+whether the game itself reads the keypad's + - * (frame.c keeps them
+from it once the hud is set). Not offered: the player's keys and the
+controller's buttons (the game's own keys are not yet written down).

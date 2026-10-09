@@ -6350,3 +6350,21 @@ loading routines. `tools/test_file_formats.py` uses synthetic data only.
   retraces, as elsewhere in round_hook); nothing was changed. Not
   checked: that `T_PANEL` and `T_MARK` match the original's times
   (taken over from win/fightpanel as they are).
+
+## win/launcher: the setup screen (2026-10-09, Windows)
+
+- The port now runs doskit's launcher before the game in the window
+  (`setup_run` in main.c): pages Game (intro/outro), Sound (volume,
+  headphone mix), Display (full screen); settings in
+  `history-line.cfg` in the data folder. Only pages and items are the
+  port's; nothing of launcher.c was copied or overridden, and the kit
+  needed no change.
+- The original has no setup or config of its own to compare with: the
+  game folder holds no settings file of the game (only GOG's
+  `goglog.ini`, `unins000.ini`), HL14-18.EXE takes no options. Side and
+  difficulty are the game's menu's, in its memory; offering defaults for
+  them would mean writing that memory before the menu, left out.
+- Next for the setup screen: a Keys page and a Controller page
+  (PLAYER-SETTINGS.md) need the game's key table read from the INT 9
+  handler (`key_install`, S27FE:056C) first; and whether the game uses
+  the keypad's + - * (taken by the volume hud) is not checked.

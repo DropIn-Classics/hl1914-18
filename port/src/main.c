@@ -657,7 +657,12 @@ static int play_game(unsigned long passes, double start, double until, int clock
     if (nopics)
         SETB(no_fight_pics, 0, 1);
     for (;;) {
+        int over;
+
         play_sync();
+        /* game_loop tests whether the battle goes on before a pass begins
+         * (S066A:0EE9), where the pokes are made */
+        over = !(NW(game_state, 0) & 2);
         /* the pokes when the first pass begins, as the original's runs
          * get theirs: behind what the clock's log has before it (with
          * -map and a log the timer's calls from the program's start) */
@@ -674,7 +679,7 @@ static int play_game(unsigned long passes, double start, double until, int clock
                 ok = 0;
         if (play_passes >= passes || (until > 0 && play_now() >= until))
             break;
-        if (!(NW(game_state, 0) & 2)) {
+        if (over) {
             /* what follows the loop; a dump of the pass after the one
              * after the last is the memory then (S066A:4728) */
             uint16_t r = play_after();

@@ -1,0 +1,5 @@
+# m57_won: game_state gets 10h (a human has won) and loses 2 (the battle goes on) when
+# the first pass begins, so that the loop is left and picture D0h follows without a round
+# played (battle_score does nothing in round 0).  Not the game's own doing: a poke, for
+# the pictures behind the loop on the port's own clock.  The byte was C3h there in m57_menu.
+game_state D1

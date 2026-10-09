@@ -112,6 +112,7 @@ static const double t_ev_load[] = {
     0.34,   /* EV_LOAD_MEDAL: CEh, CFh, 0.88 s */
     0.34,   /* EV_LOAD_MEDAL2: CEh's second stream, the gap of 2.44 s between them */
     2.53,   /* EV_LOAD_MEDAL3: CEh's picture on its background, the last frame to S066A:4728 (9.96 s) */
+    1.11,   /* EV_WON_END: D0h's music_fade(0Ah), presumably (not checked what in it takes the time); its last frame to battle_score 2.74 s in m57_won and m57_medal, 2.725 in m54_end, of which the port counted 1.63 */
 };
 #define T_SETUP 2.75        /* the menu's return (S066A:0390) to the loop's first pass (back walk: 20.18 to 22.93 s) */
 
@@ -1419,8 +1420,22 @@ uint16_t play_after(void)
         for (i = clk_at; i < clk_n && clk[i].kind != 'M'; i++)
             ;
         if (i < clk_n) {
+            long j;
+
             clock_run(i, 0);
             clk_at = i;
+            /* the menu behind it (menu_game) is on the port's own clock
+             * again, from the original's time at S066A:4728 on and at its
+             * timer's next call; its keys by their times, those before
+             * being the battle's */
+            now = clk[i].t;
+            for (j = i; j < clk_n && clk[j].kind != 'T'; j++)
+                ;
+            tick_at = j < clk_n ? clk[j].t : now + TICK;
+            in_menu = 1;
+            while (keys_at < keys_n && keys[keys_at].t < now)
+                keys_at++;
+            key_byte = 0;
         } else
             play_misses++;
     }

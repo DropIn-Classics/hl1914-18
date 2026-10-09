@@ -841,6 +841,58 @@ button) does not win there either; the original was not run with it.
 Not done: the SDL window by hand, the sounds, the older logs made again
 with G lines.
 
+2026-10-09 (`debian/window13`): a battle's end on both clocks, the two
+gaps the window's notes left. `sh port/tests/endclock_test.sh dumps`
+runs the original three times, `sh port/tests/endclock_test.sh` the
+port and compares.
+- The battle on the original's clock inside a menu walk (`m57_menu`:
+  map 57's code typed, START, `m57_win`'s keys 8 s earlier and its pokes,
+  the best score's name, the best scores left; the original to 95 s, its
+  second START at 94 s begins a battle at 97.9 s). The port's menu
+  after such a battle got no keys: `play_begin` had cleared `in_menu`
+  and the keys came only with the log's K lines, so the name's screen
+  waited for ever; and the port's own clock still stood where the menu
+  had been left (22.9 s). `play_after` now hands the clock back: the
+  menu goes on on the port's own clock from the log's time at
+  `S066A:4728` (75.78 s) and at its timer's next call, its keys by their
+  times. Result: the inputs (696 parts), the game's state and the
+  computer's the same at every pass (1, 50, 200, 347 to 350), both waits
+  and all 13 frames of CDh, both pages included; the menu then asks for
+  the name, shows the scores and leaves at the second START (95.11 s).
+  The scores' file differs in the name's second byte: the original's has
+  the cursor `]` behind the A, the port's a 0. text_input writes it
+  every 17th of its passes, which are the port's own here; the known
+  matter of `name57` (docs/HANDOFF.md), not changed.
+- D0h and CFh on the port's own clock (`m57_won`, `m57_medal`: no keys,
+  pokes in `tests/keys/*.pokes` end the battle with its first pass,
+  `m57_medal`'s with a round and a score so that a best score follows;
+  not the game's own doing). The port tested whether the battle goes on
+  after its pokes and so left before pass 1, where the original (poked
+  at `S066A:0EE9`) played pass 1 and left after it: `main.c`'s
+  `play_game` now tests the state from before its pokes. On both clocks
+  the game's state and the computer's are the same at every pass and
+  every tenth frame (7 of D0h, 20 of D0h and CFh), both pages included
+  (on the own clock but for the setup's bytes that `-map` leaves
+  unwritten; `play_cmp.py` now takes those from the first pass when no
+  round's end was dumped). The time on the own clock, by the BIOS's
+  count of ticks from the first pass: CFh began 20 ticks (1.1 s) early,
+  because behind D0h's last frame the original takes 2.74 s to
+  battle_score (2.725 s in `m54_end`) and the port counted 1.63 s; the
+  missing part is presumably `music_fade(0Ah)`, which the port leaves
+  out (`EV_WON_END`, 1.11 s, counted now; what in it takes the time not
+  checked). Now every tenth frame lies within 2 ticks of the original's
+  and `S066A:4728` within 1 (`m57_won` 301 against 302, `m57_medal` 733
+  against 732).
+- Rerun after the change: `play_test.sh` `m57_win` (and `rounds`),
+  `m57_last`, `m54_end`, `m8_site`, `m8_cattack`, `loop_test.sh`,
+  `menu_test.sh end57 live57`, `save_test.sh`, `fkeys_test.sh`,
+  `options_test.sh m48_joymenu` (their originals' dumps made again): the
+  same as before.
+Not reached: CEh on the own clock (the first view's word 22h is neither
+0Fh nor 11h in these pokes; its frames are CFh's code with another
+side), D0h or CFh on the own clock by play rather than pokes. Not done:
+the SDL window by hand, the sounds.
+
 2026-10-08, the field menu's information (`unit_info`, `unit_values`,
 `info_rect` and `battle_info` in `src/draw.c`, the original's
 `S131D:0483`, `0148`, `0008` and `0EE5`; `state_field` of `src/loop.c`

@@ -256,9 +256,10 @@ int fight_pictures(const FightPics *a);
  * retraces (EV_RETRACES; 0 returned on the original's clock, where a
  * frame's wait ends with its log), after a fade_in or fade_out (EV_FADE)
  * and a pal_level (EV_LEVEL), and for the loading of the files n
- * (EV_BUSY with an EV_LOAD_) */
+ * (EV_BUSY with an EV_LOAD_) or the music's fade left out behind D0h
+ * (EV_BUSY with EV_WON_END) */
 enum { EV_RELEASE, EV_FRAME, EV_RETRACES, EV_FADE, EV_LEVEL, EV_BUSY };
-enum { EV_LOAD_WON, EV_LOAD_WIPED, EV_LOAD_MEDAL, EV_LOAD_MEDAL2, EV_LOAD_MEDAL3 };
+enum { EV_LOAD_WON, EV_LOAD_WIPED, EV_LOAD_MEDAL, EV_LOAD_MEDAL2, EV_LOAD_MEDAL3, EV_WON_END };
 extern int (*event_hook)(int at, int n);
 extern int event_frame;
 int16_t event_picture(Far place, Far work, uint16_t kind, uint16_t arg);

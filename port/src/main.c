@@ -870,7 +870,8 @@ static int play_game(unsigned long passes, double start, double until, int clock
 
 /* The program from the menu on, as game_loop goes round from S066A:0349:
  * the menu (menu.c) with the key script's keys on the port's own clock
- * from `start` seconds on, what game_loop does when it returns
+ * from `start` seconds on (after the title screens from where they
+ * ended), what game_loop does when it returns
  * (S066A:0390), the battle's setup and the battle (play_game), what
  * follows it, and the menu again; until the menu ends the program, the
  * key script has nothing left for it, `until` is reached or a battle
@@ -887,7 +888,12 @@ static int menu_game(unsigned long passes, double start, double until, int clock
     const char *why = NULL;
     char sub[200];
 
-    play_start(start);
+    /* after the title screens (start_title) the menu goes on on their
+     * clock, as the extro does: begun again at `start`, the keys the
+     * player pressed during the title (live_key keeps them by their
+     * times) would come to the menu a second time, a Space or Enter that
+     * ended a wait as the menu's fire */
+    play_start(start_title ? play_now() : start);
     sub[0] = 0;
     for (;;) {
         SETW(game_state, 0, (NW(game_state, 0) | 1) & 0xFFEF);

@@ -6462,3 +6462,28 @@ loading routines. `tools/test_file_formats.py` uses synthetic data only.
   controller is keys.
 - Not checked: the title screens and both pages in the window (the
   player live-checks), a byte comparison of the logo's pictures.
+
+## win/titlefix: the logo's sparkle, the title's keys (2026-10-09, Windows)
+
+- S2AAF:0000 (pic_draw's 'U' way, the kind of all of BB.DAT's pictures)
+  takes the save place like S2A76:0002: `under_save` of the rectangle it
+  draws, cut by S2AAF:0107 when DATA:00E8 is set (the cut way at S2AAF:0279).
+  The port's `pic_blit_u` and `pic_cut_u` (draw.c) leave it out, as the
+  hint of S2A6B:0008 says; draw.c was out of this branch's reach, so
+  title.c does the save itself (`title_save`). It belongs into draw.c
+  (`pic_draw_save` passing the save place to `pic_blit_u`), after which
+  `title_save` goes. No other caller of a 'U' picture with a save place
+  was looked for.
+- S28A5:000C sets DATA:00E8 (the screen's cut) to FFFFh at its start and
+  end and leaves it so; the port's title did not. What DATA:00E8 was
+  before and whether later code depends on it staying FFFFh was not
+  checked (the port now leaves it FFFFh as the original does).
+- The key leak was the port's: `live_key` keeps the window's keys as a
+  timed script and `play_start` rewinds to the first key at or after its
+  start. Any later `play_start` to an earlier time in the window replays
+  keys the same way; menu_game after the title now continues the clock
+  (main.c). Whether the menu's first pictures in the window were also
+  held back before the fix (play_start set `now` back but not `pic_at`)
+  was not checked.
+- Not checked: the window by eye (the player live-checks), the first
+  frames of the logo against the original pixel for pixel.

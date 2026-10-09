@@ -1,7 +1,7 @@
 /* orders_test.c - the orders a round's end carries out (orders_run)
  * against the original.
  *
- *     orders_test SS:BP DI ENTRY.ram EXIT.ram [...]
+ *     orders_test [-vin IN] [-vram PREFIX] SS:BP DI ENTRY.ram EXIT.ram [...]
  *
  * Each set of four is one pass of attacks_run's loop over the units in
  * HL.EXE (S02E6:0E9C to 19B8): SS and BP of attacks_run's frame and DI
@@ -13,18 +13,93 @@
  * original has another value; a byte only the original wrote is counted
  * apart and listed, since the original also draws, plays music and loads
  * the libraries again when a site is taken, which the port leaves out.
- * What differs elsewhere is listed.  port/tests/orders_test.sh builds
- * this.
+ * What differs elsewhere is listed.  Whether a fight came before in
+ * this attacks_run (the port's orders_fought) is [BP-0Eh] of the frame.
+ * With -vram the video memory (planes interleaved, as dosrun's -vram) and
+ * the DAC (as its -dac) are written where a site taken (order 4) waits
+ * wait_frames(1Eh) (PREFIX_wait.vram, .dac; the original's S02E6:12F0)
+ * and behind its fade (PREFIX_fade; 1343).  -vin loads IN.vram and
+ * IN.dac (dosrun's -vram and -dac at the loop's entry) into the VGA
+ * first, in the unchained 256-colour mode the game sets.  port/tests/orders_test.sh
+ * builds this.
  */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "hl.h"
+#include "vga.h"
 
 #define RAM 0xA0000u
 #define MAP_BLOCK 0x1806u
 
 static uint8_t entry[RAM], leave[RAM];
+static const char *vram_prefix;
+
+static void dac_dump(const char *path)
+{
+    FILE *f = fopen(path, "wb");
+    int i;
+
+    if (!f)
+        return;
+    vga_outb(0x3C7, 0);
+    for (i = 0; i < 0x300; i++)
+        fputc(vga_inb(0x3C9), f);
+    fclose(f);
+}
+
+static void vram_dump(const char *what)
+{
+    char path[512];
+
+    snprintf(path, sizeof path, "%s_%s.vram", vram_prefix, what);
+    vga_write_planes(path);
+    snprintf(path, sizeof path, "%s_%s.dac", vram_prefix, what);
+    dac_dump(path);
+}
+
+/* the original's video memory and colours at the loop's entry */
+static int vram_load(const char *in)
+{
+    char path[512];
+    FILE *f;
+    long a;
+    int c;
+
+    vga_set_mode(0x13);
+    vga_outw(0x3C4, 0x0604);    /* chain-4 off */
+    vga_outw(0x3D4, 0x0014);
+    vga_outw(0x3D4, 0xE317);
+    snprintf(path, sizeof path, "%s.vram", in);
+    if (!(f = fopen(path, "rb")))
+        return 0;
+    for (a = 0; a < 4L * 0x10000; a++) {
+        if ((c = fgetc(f)) == EOF)
+            break;
+        vga_outw(0x3C4, (uint16_t)((1 << (a & 3)) << 8 | 2));
+        vga_write((uint16_t)(a >> 2), (uint8_t)c);
+    }
+    fclose(f);
+    vga_outw(0x3C4, 0x0F02);
+    snprintf(path, sizeof path, "%s.dac", in);
+    if (!(f = fopen(path, "rb")))
+        return 0;
+    vga_outb(0x3C8, 0);
+    for (a = 0; a < 0x300 && (c = fgetc(f)) != EOF; a++)
+        vga_outb(0x3C9, (uint8_t)c);
+    fclose(f);
+    return 1;
+}
+
+/* order 4's places: its wait after the view is drawn, its fade (fade_in
+ * or the wait behind fade_back) */
+static void take_hook(int at, int n)
+{
+    if (at == ORDERS_WAIT && n == 0x1F)
+        vram_dump("wait");
+    else if (at == ORDERS_FADE || (at == ORDERS_WAIT && n == 0x60))
+        vram_dump("fade");
+}
 
 static int load(const char *path, uint8_t *to)
 {
@@ -46,9 +121,22 @@ static int load(const char *path, uint8_t *to)
 int main(int argc, char **argv)
 {
     int i, bad = 0, calls = 0;
+    const char *vin = NULL;
 
+    if (argc > 2 && !strcmp(argv[1], "-vin")) {
+        vin = argv[2];
+        argv += 2;
+        argc -= 2;
+    }
+    if (argc > 2 && !strcmp(argv[1], "-vram")) {
+        vram_prefix = argv[2];
+        orders_hook = take_hook;
+        argv += 2;
+        argc -= 2;
+    }
+    hl_game_dir = getenv("DOSKIT_GAME") ? getenv("DOSKIT_GAME") : "../game";
     if (argc < 5 || (argc - 1) % 4) {
-        fprintf(stderr, "usage: orders_test SS:BP DI ENTRY.ram EXIT.ram ...\n");
+        fprintf(stderr, "usage: orders_test [-vin IN] [-vram PREFIX] SS:BP DI ENTRY.ram EXIT.ram ...\n");
         return 2;
     }
     for (i = 1; i < argc; i += 4) {
@@ -64,8 +152,17 @@ int main(int argc, char **argv)
             return 2;
         memset(mem, 0, MEM_SIZE);
         memcpy(mem, entry, RAM);
+        if (vin && !vram_load(vin))
+            return 2;
         m = frw((uint16_t)ss, (uint16_t)(bp - 2));
         map = far_at((uint16_t)ss, (uint16_t)(bp - 6));
+        orders_fought = frb((uint16_t)ss, (uint16_t)(bp - 0x0E)) != 0;
+        /* attacks_run's far arguments, as order 4 passes them: the
+         * libraries [BP+6], fade_back's buffer [BP+12h], the work buffer
+         * [BP+16h] */
+        game_mem.libs = far_at((uint16_t)ss, (uint16_t)(bp + 6));
+        game_mem.save_buf = far_at((uint16_t)ss, (uint16_t)(bp + 0x12));
+        game_mem.work = far_at((uint16_t)ss, (uint16_t)(bp + 0x16));
         printf("%s: side %u, orders", argv[i + 3], m);
         for (u = 0; u <= 0xF0; u++)
             if (!(NW(unit_flags, u * UNIT_SIZE) & 0x8000) && NB(units, u * UNIT_SIZE + 0x13))

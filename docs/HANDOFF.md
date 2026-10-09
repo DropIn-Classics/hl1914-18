@@ -2512,6 +2512,45 @@ emulation error (2026-10-02).
         a fight (the `fade_in` path) and with the fights' pictures off
         are written, not run.
       - Music slower during fades (the player's report, live window):
+      - The dark fade of a site taken (2026-10-09, Windows, branch
+        `win/darkfade`). Order 4 brings the colours back with `fade_in`
+        (S02E6:1318) when the fights' pictures are on and a fight came
+        before in the same `attacks_run` ([BP-0Eh], S02E6:08F5), else
+        with `fade_back` (131F); with the pictures off `fade_back`
+        (1335) only without a fight before, nothing after one
+        (`src/HL.hints` at S02E6:1305). `order_take` had all three
+        already; no key script reached the first or the third. Found:
+        - In the original with both sides the computer's (`m24_both`,
+          `m30_both`, the `mNN_both` setup of `loop_dumps.py`): m30
+          with the pictures off takes a site right after a fight at
+          1450.355 s (11B1 to 1343 in 0.512 s, no fade). With the
+          pictures on m30 takes none up to 1800 s; with `no_fight_pics`
+          poked to 0 at `attacks_run`'s 7th call (`S02E6:000F#7`) it
+          takes one after a fight: the fight's end 08F5 1654.305,
+          11B1 1654.318, `wait_frames(1Eh)` 1654.390 to 1654.830,
+          `fade_in` to 1343 at 1655.352. m24 with pictures: the grey
+          path (11B1 173.351, 12E7 173.930, 1343 175.754).
+        - After a fight the view takes 0.073 s to draw (11B1 to 12E7),
+          not T_VIEW's 0.58: the port's clock (play.c) counted nothing
+          there; now `T_TAKE_VIEW` 0.085 s (08F5 to 12E7). The port's
+          `fade_in` is 0.5207 s against 0.5223.
+        - Compared with `orders_test` from the original's dumps at the
+          orders loop's entry (S02E6:0E9C, memory, video memory, DAC)
+          and its exit (19B8): video memory and the DAC at 12F0 and
+          1343 are the same on the dark path (m30) and the grey path
+          (m24). orders_test had no `game_mem` (its `fade_back` read
+          address 0) and no `fought`; it takes them from attacks_run's
+          frame now. Still different on both paths: 4 bytes,
+          `lib_pal`+10h/11h and `lib_rnd`+10h/11h (S331F), written by
+          `libs_start` after the picture; not looked into.
+        Not checked: the dark path on the port's own clock in a full
+        play (no key script for one person reaches it; the both-sides
+        computer runs cannot be played by the port with pictures, they
+        draw from rand_words), the pictures-off path after a fight
+        compared in video memory (seen in the original only), a live run.
+        The scan of every key script for a site taken after a fight
+        was stopped for lack of memory after the m0 scripts and
+        m8_site/m8_long (all without a fight before).
         not measured live (a window run with `-keys` does not run in
         real time; it needs a player). Read from the code: in the live
         window `screen_wait` (play.c) shows a fade's steps at real time

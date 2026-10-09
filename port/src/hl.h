@@ -417,6 +417,7 @@ extern uint16_t loop_end_texts[2];
  * ORDERS_WAIT, ORDERS_INPUT for wait_input(n) */
 enum { ORDERS_FIGHT, ORDERS_BLAST, ORDERS_FOUGHT, ORDERS_TAKEN, ORDERS_WAIT, ORDERS_FADE, ORDERS_TAKEN_BACK, ORDERS_MARK, ORDERS_INPUT };
 extern void (*orders_hook)(int at, int n);
+extern int orders_fought;
 void timer_fire(uint16_t kind, uint16_t timer);
 const char *loop_pass(const SideIn in[2]);
 void loop_reset(void);

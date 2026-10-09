@@ -2987,12 +2987,36 @@ name S0CB6:0036 wait_input
 name S0CB6:0DA9 wait_press
 ; start_setup(far pointer): called once at the program's start (from
 ; S066A:0294 on; when, against the menu, was not looked at). Sets the screen's record behind DATA:0092 to
-; 320 by 200, makes two file names (file_name with 0Ah and with 5) and
-; loads and shows them (L2BAA, S28A5:000C: not read), then sets the far
-; pointer to the table of keys S331F:0292 at S331F:02D3 and copies twelve
-; of its entries to S331F:02C7. The port does the last part
-; (start_setup in port/src/battle.c).
+; 320 by 200, makes two file names of S37FE:000E ("BB"; file_name with
+; 0Ah and with 5, the first copied to its stack) and shows them
+; (title_show), then sets the far pointer to the table of keys S331F:0292
+; at S331F:02D3 and copies twelve of its entries to S331F:02C7 (none of
+; the routines read for this reads 02C7 to 02D2 again; not searched
+; further). Then the logo screens: wait_span(0, 1F4h), fade_out,
+; HLLOGO.IFF (S37FE:0011) by lbm_show, fade_in, wait_span(0, 1F4h),
+; fade_out; returns 0. Run (2026-10-09): entered at 0.551 s of HL.EXE,
+; the waits begin at 1.654 and 9.724 s, the fade_outs after them at
+; 8.531 and 16.605 s (6.88 s each, no key); Space at 4.0 s ends the
+; first at 4.013 s; a key during the animation is lost (the wait clears
+; the count first). The port: battle.c (the keys' table) and
+; port/src/title.c (the logo screens).
 name S1650:0003 start_setup
+; title_show(far place, far iff name, far dat name, far work): with place
+; 0:0 its own 1000h paragraphs (mem_alloc) and S2CC5:0004 twice at the
+; end (that way not read further); else the .DAT loaded to place and the
+; .IFF shown behind it; then pal_level(FFh, DATA:04E3), page_copy and
+; S28A5:0131: 43h frames of the table at S28A5:01AD (6 bytes: x, y, the
+; picture's offset in the .DAT), each pic_draw at x + 3, y - 1 with the
+; save place 0:1, page_flip and unders_restore. Waits for no key.
+; Translated (port/src/title.c).
+name S28A5:000C title_show
+; wait_span(min, max): clears the keys' count (word 4 behind DATA:00BE),
+; the sticks' buttons (byte 4 behind DATA:00A6 and 00B6), the mouse's
+; button counts (words 30h, 34h behind DATA:00C2) and the timer's count
+; (word 22Eh behind DATA:0092); waits until that count reaches min
+; (signed), clears it and waits until one of the counts is not 0 or it is
+; above max (unsigned). Translated (port/src/title.c).
+name S0CB6:18F1 wait_span
 ; fade_grey(far palette): makes of the 300h bytes of colours a grey of
 ; each ((2 * first + second + third) / 4, into the buffer behind
 ; S3303:0028) and changes the screen's colours to it in 20h and then 40h

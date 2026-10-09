@@ -212,6 +212,7 @@
     X(S0CB6, wait_press, 0x0DA9) \
     X(S0CB6, field_menu, 0x0EAA) \
     X(S0CB6, far_copy, 0x187F) \
+    X(S0CB6, wait_span, 0x18F1) \
     X(S0E56, view_tables, 0x000B) \
     X(S0E56, shp_load, 0x0079) \
     X(S0E56, map_load, 0x0329) \
@@ -379,6 +380,7 @@
     X(S27FE, pit_del, 0x07E8) \
     X(S27FE, pit_period, 0x0882) \
     X(S2892, num_text, 0x0001) \
+    X(S28A5, title_show, 0x000C) \
     X(S28D9, screen_clear, 0x000C) \
     X(S28DC, page_copy, 0x000A) \
     X(S28E0, fade_in, 0x0004) \

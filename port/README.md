@@ -4181,3 +4181,48 @@ headphone mix and full screen in the window (the player checks), and
 whether the game itself reads the keypad's + - * (frame.c keeps them
 from it once the hud is set). Not offered: the player's keys and the
 controller's buttons (the game's own keys are not yet written down).
+
+2026-10-09 (win/titlesetup): the title screens, a flatter setup, the
+player's keys and a controller.
+- HL.EXE's own logo screens at its start (the end of S1650:0003,
+  `start_setup`): BB.DAT and BB.IFF, the publisher's animated logo
+  (S28A5:000C, `title_show`: 43h frames by a table in HL.EXE's image,
+  read from there), then HLLOGO.IFF faded in; each waits at most 1F4h of
+  the timer's counts for a key, a stick's button or a click
+  (S0CB6:18F1, `wait_span`), then fades out. `src/title.c`, called from
+  `start_setup` through the hook `start_title` (the standalone tests that
+  link battle.c need none of it). Shown in the window when the setup's
+  "Intro and title screen" is Play (the same choice as the intro, which
+  comes before it, as HL14-18.EXE runs INTRO.EXE before HL.EXE), and
+  headless with `-title`; never in the comparisons. The port did not
+  show them before (the "bytes behind the pages" above are theirs).
+  Compared on the runner (`run.py -log S0CB6:18F1 -log fade_out`): the
+  original's two waits last 6.877 and 6.881 s without a key, the port's
+  first 6.870 s (headless, `-title`, a temporary log); Space at 4.0 s
+  ends the original's first wait at 4.013 s, the port's at 4.009 s; in
+  both a key during the animation is lost (the wait clears the count
+  first). Not compared: the pictures byte for byte (no video memory
+  dump of the logo was taken), the port's second wait (only start to
+  end), and the window by eye.
+- The setup's menu: Full screen is now a choice in the menu itself (one
+  setting is all that group had; doskit/docs/LAUNCHER.md); the Display
+  page is gone. The Game page's first item is "Intro and title screen"
+  (the settings file's name stays `intro`).
+- Keyboard page: the game's keys, read from HL.EXE (comment in
+  `main.c`): the first side's arrows and Space (the keypad's 7 9 1 3 and
+  Enter stay as they are), the second side's D, C, X, V and Ctrl (F and
+  Alt stay), and F1 (confirm the mode change), F2 (music), F3 (sounds),
+  F9 (fights' pictures; their meaning is the manual's, page 51). An
+  `LI_KEY` each (`key_...`), the game's key the default; the player's key
+  goes to the game as the game's through `frame_set_keymap`, the game's
+  key keeps working. Controller page: an `LI_CHOICE` per button
+  (`pad_<button>`) of nothing, those actions (as the player's key), Esc,
+  Enter, Space, Y, N; the defaults D-pad = the first side's arrows, A
+  fire, X F1, B and Back Esc, Start Enter; set by `pad_set_keys` when the
+  game is started. All of it in `main.c` with the kit's parts; nothing
+  of input.c, joy.c or menu.c changed. Not checked: any of it in the
+  window (the player checks: the pages, a remapped key and a button in
+  play, the settings file's round trip), and whether a key mapped onto
+  an E0 key (the arrows) reaches the game's table of held keys as the
+  game's own arrow does (frame.c writes the E0 byte; the game's INT 9
+  translation passes it to `key_irq`, which takes `code & 7Fh`).

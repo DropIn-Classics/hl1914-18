@@ -302,6 +302,9 @@ Far mem_alloc(uint32_t size);
 typedef struct { Far block, save_buf, gfx, lists_end, work, p, libs, pics; } GameMem;
 extern GameMem game_mem;
 int start_setup(void);
+/* start_setup's logo screens (S1650:0003), NULL: left out; title.c */
+extern void (*start_title)(void);
+void title_screens(void);
 int menu_result(uint16_t map);
 void scores_load(Far buf, Far work, int16_t map, Far name);
 int battle_setup(void);

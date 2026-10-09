@@ -225,6 +225,40 @@ if os.environ.get('STEPS'):
         for q in s[len(s) // (2 * n)::max(1, len(s) // n)][:n]:
             extra += [q, q + 1]
     print('computer_queue gave 1 in %d passes, computer_step the end in %d' % (len(queued), len(ended)))
+if os.environ.get('SCRIPT'):
+    # the script play (phase 1): a run logs where computer_input has read
+    # a code that is not the script's end (1E4B:0061, AL the code, DI the
+    # side) and where computer_turn gets back from computer_step
+    # (1C74:014E); of the passes in which a side only played a code
+    # (computer_step not called in its part) SCRIPT for each code seen,
+    # spread over the run, are dumped, each with the pass after it
+    slog = os.path.join(out, 'script.txt')
+    if not os.path.exists(slog):
+        open(slog, 'w').write(run(['-log', 'S066A:0EE9', '-log', 'S066A:0FC3',
+                                   '-log', 'S1C74:014E', '-log', 'S1E4B:0061']))
+    codes, p, stepped = {}, 0, False
+    for line in open(slog):
+        m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=\S+ hit=\d+ regs (.*)', line)
+        if not m:
+            continue
+        regs = dict(re.findall(r'([A-Z]+)=([0-9A-F]+)', m.group(2)))
+        if m.group(1) == '066A:0EE9':
+            p += 1
+        elif m.group(1) == '066A:0FC3':
+            stepped = False
+        elif m.group(1) == '1C74:014E':
+            stepped = True
+        elif not stepped:
+            codes.setdefault(int(regs['AX'], 16) & 0xFF, []).append(p)
+    if p != passes:
+        sys.exit('script.txt: %d passes, log.txt %d' % (p, passes))
+    n = int(os.environ['SCRIPT'])
+    for c in sorted(codes):
+        s = sorted(set(codes[c]))
+        for q in s[len(s) // (2 * n)::max(1, len(s) // n)][:n]:
+            extra += [q, q + 1]
+    print('codes played alone (code: passes): %s'
+          % ', '.join('%X: %d' % (c, len(codes[c])) for c in sorted(codes)))
 chosen = sorted(set([1, 50, 200, 400] + [p + 1 for p in fights] + [p for p in fights]
                     + [passes - 1] + extra))
 chosen = [p for p in chosen if 1 <= p < passes]

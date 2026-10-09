@@ -3741,6 +3741,29 @@ anything the game needs before the first release.
   (phase 1) on its own (it runs in the same passes but was not chosen
   for), `play_test.sh`, the fights' pictures on, other maps; which
   side queued in a chosen pass was not recorded.
+- The script play (phase 1) in the pass (2026-10-09, Windows; branch
+  `win/computer4`): `SCRIPT=3 python3 tests/loop_dumps.py m24_both.keys
+  600` (and `m30_both`) logs in another run (`script.txt`) the code
+  `computer_input` reads (`S1E4B:0061`, AL) and whether `computer_step`
+  ran in the side's part (`S1C74:014E`), and dumps three passes for
+  each code a side only played (no step in its part), each with the
+  pass after. Played alone: map 24 the codes 1 (153 passes), 2 (161),
+  80h (274), 82h (55), 83h (138); map 30 1 (154), 2 (165), 80h (192),
+  82h (12), 83h (116). `loop_test` now also sets the computer's input
+  word (`computer_out`) after every pass beside the word the
+  original's pass took (DI at `S066A:1243`, `inputs.txt`): 0 of 15,516
+  side-passes different on map 24 and 0 of 17,404 on map 30; the game's
+  state and the computer's 0 bytes different at all 75 and 58 passes
+  compared (with the earlier STEPS and fights' passes). The port needed
+  no change. Not covered: the codes 3 to 9, 81h and 84h played alone
+  (3 to 5 never alone, presumably only in passes with a step, not
+  checked; 81h, 84h and the diagonals
+  never, in these two runs: the words seen are 1, 2, 4, 8, 10h, 11h,
+  14h, 18h); `play_test.sh`, the fights' pictures on, other maps. The
+  word check counts a pass where the original did not reach `S066A:1243`
+  as word 0 (not told apart). Built with the cc wrapper (it does not
+  fail on a compile error: a stale `build/loop_test.exe` then runs, so
+  it is removed before building).
 - The bar of the computer's thinking (2026-10-09, Mac; branch
   `mac/thinkbar`): `computer_progress` (`S1C74:0354`, `src/plan.c`) and
   the bar `computer_part` draws with it (`src/loop.c`, `bar_draw` in

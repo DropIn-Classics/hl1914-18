@@ -262,6 +262,7 @@
     X(S131D, panel_whole, 0x1F0D) \
     X(S131D, panel_sound, 0x1FF0) \
     X(S1571, game_text_at, 0x00BE) \
+    X(S1571, bar_draw, 0x01F2) \
     X(S1571, file_name, 0x02CD) \
     X(S15C5, unit_add, 0x0005) \
     X(S15C5, unit_find, 0x01A7) \
@@ -302,6 +303,7 @@
     X(S1A39, site_picture, 0x1906) \
     X(S1C74, computer_turn, 0x000B) \
     X(S1C74, computer_reset, 0x01B4) \
+    X(S1C74, computer_progress, 0x0354) \
     X(S1CC6, computer_queue, 0x0000) \
     X(S1CC6, computer_assess, 0x0A35) \
     X(S1E4B, computer_input, 0x0001) \
@@ -376,7 +378,9 @@
     X(S28DC, page_copy, 0x000A) \
     X(S28E0, fade_in, 0x0004) \
     X(S28E0, fade_out, 0x002B) \
+    X(S28E5, rect_fill, 0x0004) \
     X(S28F5, ground_store, 0x0006) \
+    X(S28FA, line_fill, 0x0000) \
     X(S2904, pointer_erase, 0x000E) \
     X(S292E, pixel_put, 0x000A) \
     X(S2945, retrace_wait, 0x000A) \

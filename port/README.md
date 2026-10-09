@@ -3614,7 +3614,9 @@ anything the game needs before the first release.
   `step_site_menu`, which these passes do not reach (the first two were
   reached on no map, docs/HANDOFF.md). Not verified: the bar the
   original draws while the computer thinks (`S1C74:0354`, read as
-  counting only; not translated).
+  counting only; not translated). (It was translated on `debian/window`
+  and is compared since `mac/thinkbar`: "The bar of the computer's
+  thinking" below.)
 - The computer as the first side (2026-10-09, Windows; branch
   `win/computer`): `tests/keys/m24_quiet.keys` and `m30_quiet.keys`
   play the maps 24 and 30, where side 0 is the computer's, with a human
@@ -3641,6 +3643,34 @@ anything the game needs before the first release.
   original's runs did not do: words 4 and 6 are given back at their end
   (docs/HANDOFF.md). Not covered: both sides the computer's; not run
   with `-replay`.
+- The bar of the computer's thinking (2026-10-09, Mac; branch
+  `mac/thinkbar`): `computer_progress` (`S1C74:0354`, `src/plan.c`) and
+  the bar `computer_part` draws with it (`src/loop.c`, `bar_draw` in
+  `src/draw.c`) were there since "The last drawing of a battle", where
+  `bar_draw` alone was compared with the value from the original's
+  stack. Now set beside the original where `game_loop` calls them:
+  `tests/thinkbar_dumps.py` makes the dumps (`build/thinkbar/`, 52 runs)
+  and `thinkbar_test.args`, and `sh tests/load_test.sh $(cat
+  ../build/thinkbar/thinkbar_test.args)` compares two modes new in
+  `tests/load_test.c`: `progress`, the routine from its entry to its
+  RETF (`S1C74:0519`) with AX, and `think`, `game_loop` from the call of
+  `computer_progress` (`S066A:11C1`) to behind `bar_draw`
+  (`S066A:1212`) with the video memory and the DAC, the two words
+  `game_loop` keeps in its frame written as the original does. 13 calls
+  in each mode: `m8_d5r` 1, 86, 188 and 487 and `m0_hq` 1, 64, 329 and
+  768 (the computer the second side, the bar at x B7h; values 0, 36h,
+  45h, 2Bh and 0, 17h, 55h, 4Bh), `m24_quiet` 1, 31, 279, 611 and 751
+  (the computer first, x 17h; 0, 5, 5Dh, 5Dh, 4Bh). 26 calls, 0
+  different: the same value, no byte of memory different but the stack
+  below the call (35 to 67 bytes) and at most 5 of the timer's
+  (`beside`), no byte of video memory (the original changes 202 at each
+  call) and none of the DAC. `computer_progress` changed no byte, the
+  `think` part 4 to 7. Nothing in `src/` changed. Not verified: the line
+  in `loop.c` itself (the test has a copy of the call, since
+  `computer_part` is static and `loop.c` was not to be touched); the
+  window, by eye; `attack_pick` 2 and the two ways out of the range 0 to
+  63h, which no call reached; other dumps of `load_test.sh` were not
+  rerun (`build/n2/` has none on this machine).
 - The fights' rarer paths (2026-10-08, Linux; key scripts
   `tests/keys/m8_long.keys` and `m0_carry.keys`, made as
   `tests/side_dumps.sh` checks): `m8_long` is `m8_site` up to 375 s, then

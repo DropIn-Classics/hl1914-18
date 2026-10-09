@@ -48,6 +48,43 @@ static void wait_span(int16_t min, uint16_t max)
         play_tick();
 }
 
+/* What S2AAF:0000 (pic_draw's way for a picture of kind 'U', all of
+ * BB.DAT's) does with a save place before it draws: with the screen's cut
+ * on (DATA:00E8) the picture's rectangle (x, y moved by its words 0Ah and
+ * 0Ch, width 0Eh, height 10h) cut by S2AAF:0107 to DATA:00EC-00F2 (left,
+ * top, right, bottom), nothing when it lies outside, and what the screen
+ * has there kept by under_save, which unders_restore puts back.  The
+ * port's pic_blit_u (draw.c) leaves the save place out, so title.c does
+ * this step itself before pic_draw_save. */
+static void title_save(uint16_t x, uint16_t y, Far pic, Far save)
+{
+    int16_t sx = (int16_t)(x + pw(pic, 0x0A)), sy = (int16_t)(y + pw(pic, 0x0C));
+    int16_t w = (int16_t)pw(pic, 0x0E), h = (int16_t)pw(pic, 0x10);
+    int16_t l = (int16_t)frw(S_DATA, 0x00EC), t = (int16_t)frw(S_DATA, 0x00EE);
+    int16_t r = (int16_t)frw(S_DATA, 0x00F0), b = (int16_t)frw(S_DATA, 0x00F2);
+    Far scr;
+
+    if (sx < l) {
+        if ((w = (int16_t)(w - (l - sx))) <= 0)
+            return;
+        sx = l;
+    } else if (sx > r)
+        return;
+    if (sy < t) {
+        if ((h = (int16_t)(h - (t - sy))) <= 0)
+            return;
+        sy = t;
+    } else if (sy > b)
+        return;
+    if (sy + h > b && !(h = (int16_t)(b - sy)))
+        return;
+    if (sx + w > r && !(w = (int16_t)(r - sx)))
+        return;
+    scr.seg = NW(screen_seg, 0);
+    scr.off = (uint16_t)(((uint16_t)sx >> 2) + frw(S_DATA, (uint16_t)(0x00F8 + 2 * sy)));
+    under_save((uint16_t)w, (uint16_t)h, scr, save);
+}
+
 /* page_flip waits for a retrace's beginning */
 static void title_flip(void)
 {
@@ -55,8 +92,10 @@ static void title_flip(void)
     play_retraces(1);
 }
 
-/* S28A5:000C with a place (the way S1650:0003 calls it): the file
- * `name`.DAT loaded to `place`, `name`.IFF shown behind it, its colours
+/* S28A5:000C with a place (the way S1650:0003 calls it): the screen's
+ * cut (DATA:00E8) set to FFFFh at its beginning and again at its end, so
+ * that the frames above the screen's top (y FFFDh) are cut, not drawn
+ * from a wrapped place; the file `name`.DAT loaded to `place`, `name`.IFF shown behind it, its colours
  * set at once (pal_level FFh of DATA:04E3), then the 43h frames of the
  * table at S28A5:01AD (6 bytes each: x, y, the picture's offset in the
  * .DAT) each drawn at x + 3, y - 1 with what it covers kept (save place
@@ -70,6 +109,7 @@ static void title_show(Far place, Far name, Far work)
     int32_t size = file_load_size(place, file_name(1, -1, name, 5), work);
     uint16_t i, t, cs = HL_S28A5 + HL_BASE;
 
+    fww(S_DATA, 0x00E8, 0xFFFF);
     place = far_add(place, (uint32_t)size);
     lbm_show(place, file_name(1, -1, name, 0x0A), work);
     title_flip();
@@ -77,13 +117,17 @@ static void title_show(Far place, Far name, Far work)
     play_level();
     page_copy();
     for (i = 0, t = 0x01AD; i < 0x43; i++, t = (uint16_t)(t + 6)) {
-        pic_draw_save((uint16_t)(frw(cs, t) + 3), (uint16_t)(frw(cs, (uint16_t)(t + 2)) - 1),
-                      ptr_norm(far_add(pics, frw(cs, (uint16_t)(t + 4)))), at(0, 1), 0);
+        uint16_t x = (uint16_t)(frw(cs, t) + 3), y = (uint16_t)(frw(cs, (uint16_t)(t + 2)) - 1);
+        Far pic = ptr_norm(far_add(pics, frw(cs, (uint16_t)(t + 4))));
+
+        title_save(x, y, pic, at(0, 1));
+        pic_draw_save(x, y, pic, at(0, 1), 0);
         title_flip();
         unders_restore();
     }
     title_flip();
     unders_restore();
+    fww(S_DATA, 0x00E8, 0xFFFF);
 }
 
 /* the end of S1650:0003, after the keys' table: the publisher's logo

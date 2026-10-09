@@ -4254,3 +4254,41 @@ player's keys and a controller.
   an E0 key (the arrows) reaches the game's table of held keys as the
   game's own arrow does (frame.c writes the E0 byte; the game's INT 9
   translation passes it to `key_irq`, which takes `code & 7Fh`).
+
+2026-10-09 (win/titlefix): two faults of the title screens the player
+found.
+- The publisher's logo: its sparkle was drawn shifted and left a trail
+  of itself. Two things of the original's were missing. S28A5:000C
+  (`title_show`) sets the screen's cut (DATA:00E8) to FFFFh at its
+  beginning and end; without it the frames above the top (y FFFDh - 1)
+  went the uncut way and were drawn from a wrapped place. And BB.DAT's
+  pictures are of kind 'U', whose blitter S2AAF:0000 keeps what it
+  covers (`under_save` of the cut rectangle, in the uncut way and in
+  the cut way at S2AAF:0279) for `unders_restore`; the port's `pic_blit_u`
+  takes no save place, so nothing was put back. `src/title.c` now sets
+  the cut and does that save itself (`title_save`, the cut of
+  S2AAF:0107) before each frame. Compared: the original under the
+  runner (`run.py -until 1.8 -shotevery 0.1 HL.EXE`) against the port
+  headless (`-title`, DK_SHOTS every second picture from 30 to 130):
+  the original's shots at 1.2, 1.4, 1.5, 1.6 and 1.7 s (the sparkle at
+  the top right corner and the logo after it) each have a
+  pixel-identical picture among the port's, and the trail is gone. The
+  original's shots at 0.7 to 1.1 and 1.3 s (the sparkle on its way
+  along the edges) fell between the port's sampled pictures and were
+  not matched; not compared by eye in the window.
+- A key that ended a wait (Space or Enter) started a map: not the
+  game's doing but the port's clock. The window's keys are kept as a
+  key script by their times (`live_key`), and `menu_game` began the
+  menu's clock again at `-start` (0), so every key of the intro's and
+  the title's time came a second time, to the menu, Space and Enter as
+  its fire. After the title screens the menu now goes on on their
+  clock (`play_start(play_now())`, as the extro already did), so those
+  keys are passed over. In the original the key is eaten by the wait
+  itself and by `inputs_release(1, 0)` before the menu (S066A:0349),
+  which the port does too. Checked headless (`-title -menulog`, DK_KEYS):
+  Space at both waits, Enter at both, Space during HLLOGO's fade-in and
+  then at its wait: no act of the menu, it stays at the main menu;
+  before the fix the first two went into a battle. A Space in the menu
+  after the title is still the menu's (act 1). With `-title` and a
+  `-start` in a scripted run the menu now begins where the title ended,
+  not at `-start`.

@@ -297,10 +297,15 @@
     X(S1A39, event_picture, 0x0001) \
     X(S1A39, first_frame, 0x02C5) \
     X(S1A39, res_load, 0x034C) \
+    X(S1A39, newspaper, 0x059D) \
     X(S1A39, pic_won, 0x0A7F) \
     X(S1A39, pic_medal, 0x0D1A) \
     X(S1A39, pic_wiped, 0x1262) \
+    X(S1A39, pic_ship, 0x149D) \
     X(S1A39, site_picture, 0x1906) \
+    X(S1A39, pic_zeppelin, 0x1A11) \
+    X(S1A39, pic_richt, 0x1DD5) \
+    X(S1A39, paper_names, 0x22D3) \
     X(S1C74, computer_turn, 0x000B) \
     X(S1C74, computer_reset, 0x01B4) \
     X(S1C74, computer_progress, 0x0354) \
@@ -425,6 +430,22 @@
     X(S2CA0, tpwm_unpack, 0x0008) \
     X(S2CBE, mem_alloc, 0x000E) \
     X(S2CF7, mem_same, 0x0006) \
+    X(S2D47, fill, 0x0008) \
+    X(S2D47, font_load, 0x0038) \
+    X(S2D47, text_load, 0x02BD) \
+    X(S2D47, paper_picture, 0x0356) \
+    X(S2D47, paper_line, 0x0473) \
+    X(S2D47, paper_lf, 0x0CF6) \
+    X(S2D47, paper_size, 0x0D65) \
+    X(S2D47, paper_init, 0x0DD2) \
+    X(S2D47, paper_restore, 0x1159) \
+    X(S2D47, paper_step, 0x1208) \
+    X(S2D47, paper_show, 0x1695) \
+    X(S2D47, paper_clear, 0x1785) \
+    X(S2D47, glyph, 0x185C) \
+    X(S2D47, plib_open, 0x1AB4) \
+    X(S2F11, glyph_put, 0x00E9) \
+    X(S2F11, plane_put, 0x01F4) \
     X(S2F39, snd_init, 0x000B) \
     X(S2F39, snd_end, 0x0092) \
     X(S2F39, sfx_load, 0x00FD) \

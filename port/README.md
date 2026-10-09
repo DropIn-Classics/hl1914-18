@@ -3970,3 +3970,42 @@ original (the same code, its six steps back), the port's own-clock
 times at the steps (no original run of m8_d5r's log on this machine
 to compare `rounds` with), `orders_test.sh` and `fight_test.sh`
 (their dumps are not here), the live window (the player checks).
+
+2026-10-09 (Windows, branch `win/papers`): the newspapers. After a
+battle on a map below 30h against the computer the port shows the
+map's newspaper as the original does (`src/events.c`: `event_picture`'s
+kinds 0 to 2Fh, HL.EXE's `S1A39:059D` twice, two pages): the three
+fonts, the background, palette, tune, text and pictures of a page
+loaded as the original loads them (`font_load`, `paper_text`,
+`lbm_show`, `file_load_size`, `lib_load`), the text set a line at a
+time into a buffer of four planes, two pixels a byte, and scrolled up
+through a window a row a frame of 8 timer counts, with the pictures
+the text names rising from below (HL.EXE's `S2D47`, `paper_*`, and
+`S2F11`'s two drawing routines, `glyph_put` and `plane_put`), the
+tune started and faded. The three pictures some pages begin with are
+translated too (`pic_ship` CCh, `pic_zeppelin` C9h, `pic_richt` C8h:
+sprites by `sprite_draw` over streams, their sounds). The port's own
+clock counts the original's times measured in `m0_paper`: a page's
+loading 1.01 s (`EV_LOAD_PAPER`), its end after `music_fade(14h)` 2.11 s
+(`EV_PAPER_END`); the frames count the timer's calls. A frame of
+these has no line in the original's log (`EV_PAPER`): on the original's
+clock the port runs them without waiting. `-evdump PREFIX` writes
+memory and video memory at the frames 1, 11, 21 ... of the newspapers
+and their pictures (`PREFIXnNNNN`); `play_dumps.py` dumps the
+original's there (`S1A39:08F9`, and `169A`, `1BED`, `1D0F`, `1FCF`,
+`221B` for the pictures).
+Checked: `tests/keys/m0_paper.keys` (map 0, the battle left at once by
+Esc and `z`): the original's run and the port's
+(`build/history-line-headless -map 0 -keys tests/keys/m0_paper.keys
+-start 36.496061 -seed 0x28B -until 270 -evdump DIR/q`, the start and
+seed from the original's `clock.txt`) both show 1,827 frames; at all
+183 dumped both pages of video memory are the same, as are the window's
+record (`S3812:0D14`) and the fonts (`S3B76`); behind the pages
+(offsets 7E84h on) the original has what it put there before the
+battle's first pass, the port nothing. The BIOS's ticks at those
+frames: the port 6 to 12 ticks early throughout (12 at the first; the
+difference lies before `event_picture`). `check.py` all ok; the window
+and headless programs build (MSVC), `orders_test` builds with the cc
+wrapper.
+Not checked: the music by ear; the pause key; the original's clock
+(`-clock`) through a newspaper; the live window (the player checks).

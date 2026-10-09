@@ -1,0 +1,5 @@
+# Map 10 against the computer, left at once: Esc and the key at scancode
+# 2Ch (the runner's z) end the battle and its newspaper follows, which
+# has the ship, picture CCh, before its second page (event_picture).
+55.00 esc
+56.00 z

@@ -1,0 +1,6 @@
+# Map 31 against the computer, left at once: Esc and the key at scancode
+# 2Ch (the runner's z) end the battle and its newspaper follows, which
+# begins with the zeppelin, picture C9h (event_picture; map 31 shares
+# map 7's newspaper, and a script named m0... would play map 0).
+55.00 esc
+56.00 z

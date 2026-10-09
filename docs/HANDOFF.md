@@ -2456,6 +2456,39 @@ emulation error (2026-10-02).
           `-poke` with every run of the battle, and a time from which
           calls are taken). Learned: a dump at the poke's own address
           (same hit) already holds the poked bytes.
+      - The map black after a round end (2026-10-09, Windows, branch
+        `win/blackmap`): played live with the fights' pictures on, a
+        round end whose fights showed no pictures but took a site left
+        both views black, the panels right. `fade_grey` (or `fade_out`)
+        ran at the round end's start (S066A:3CC5); order 4
+        (`order_take`, S02E6:11B1) set `site_taken` and `take_picture`,
+        so `game_loop` left out its own `fade_back` / `fade_in`, the
+        original's order 4 having shown the site and brought the
+        colours back itself; the port's order 4 does only the data, so
+        nothing did. With pictures shown their end brings the colours
+        back (why the tests never saw it). Seen with temporary logging
+        of the DAC's colours 0 to 40h (removed): `m0_carry` with
+        `-nopics` at its 4th round end, `m8_site` and `m0_hq` with the
+        pictures on, each a grey fade with a site taken and no
+        pictures. The fix in `state_done` (loop.c) remembers which fade
+        ran, `fight_pictures` sets `pics_shown` once its pictures are on
+        the screen, and with no pictures shown the counterpart comes
+        after the redraw. Still missing: the original's presentation of
+        the site taken in order 4 (view drawn, flip, waits, its fade);
+        the port shows nothing there. A dark fade with `take_picture` and
+        no pictures shown was not met in a run (the branch is written,
+        not seen).
+      - Music slower during fades (the player's report, live window):
+        not measured live (a window run with `-keys` does not run in
+        real time; it needs a player). Read from the code: in the live
+        window `screen_wait` (play.c) shows a fade's steps at real time
+        but does not move the port's clock on, so `snd_clock` makes no
+        music interrupts during the fade; `own_fade` / `own_retraces`
+        make them afterwards at once. The audio thread
+        (plat_win32.c) waits on waveOut's event and only shares a
+        short critical section, so starving it is not the likely
+        cause (presumably; not checked). If so the fix is in play.c's
+        live clock (snd_clock during screen_wait), not in doskit.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

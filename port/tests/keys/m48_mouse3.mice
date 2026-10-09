@@ -1,0 +1,41 @@
+# the mouse for m48_mouse3.keys ("T X,Y,B": the driver's place and the
+# buttons held, 1 left, 2 right, 4 the third).  The middle is 160,100 and
+# the step 40.
+# the pointer to the middle in both programs
+26.00 160,100,0
+# the third button alone, and let go
+27.00 160,100,4
+27.50 160,100,0
+# a move right with the third held, then let go
+28.00 160,100,4
+28.50 210,100,4
+29.00 160,100,0
+# the third with the first (the side's button?), the first let go with
+# the third held and a move in the ten calls after it
+30.00 160,100,5
+30.50 160,100,4
+30.60 230,100,4
+31.00 160,100,0
+# the third with the second, and a move
+32.00 160,100,6
+32.50 160,150,6
+33.00 160,100,0
+# all three (the first and the second together give nothing), a move
+34.00 160,100,7
+34.50 100,100,7
+35.00 160,100,0
+# the first held, the third pressed and let go beside it
+36.00 160,100,1
+36.30 160,100,5
+36.60 160,100,1
+37.00 160,100,0
+# the first and the second, the first let go with the second and the
+# third held (ten calls without the mouse), a move in them
+38.00 160,100,3
+38.30 160,100,6
+38.40 230,100,6
+39.00 160,100,0
+# the third held from 43 over F8 at 44, a move behind it
+43.00 160,100,4
+45.00 160,40,4
+46.00 160,100,0

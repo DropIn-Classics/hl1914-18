@@ -8,11 +8,14 @@
 #     sh port/tests/options_test.sh map [TAG]     the port begun with -map
 #     sh port/tests/options_test.sh own [TAG]     the port on its own clock
 #
-# TAG is m48_mouse, m48_joy, m48_joy0 (a stick there from the program's
-# start), m48_joymenu (that stick moved in the menu and held left while
-# the battle is set up), m48_ftext (the texts of F5 to F8, with the
-# video memory) or m48_joyown (taps of the sticks, for `own`); without
-# one all that the way of running has are run.
+# TAG is m48_mouse, m48_mouse3 (the mouse's third button), m48_joy,
+# m48_joy0 (a stick there from the program's start), m48_joymenu (that
+# stick moved in the menu and held left while the battle is set up),
+# m48_joyptr (the same with the mouse's pointer moved while the stick is
+# held: what the pass after the stick's letting go reads), m48_ftext
+# (the texts of F5 to F8, with the video memory), m48_joyown (taps of
+# the sticks, for `own`) or m48_joyhold (sticks held longer, for `own`);
+# without one all that the way of running has are run.
 # Both programs go through the menu by keys to map 48 and get the keys of
 # port/tests/keys/TAG.keys with the mouse of TAG.mice and the sticks of
 # TAG.joy beside it (the runner's -mice and -joys, the port's -mice and
@@ -50,32 +53,43 @@ case $1 in
 dumps|map|own) MODE=$1; shift ;;
 esac
 case $MODE in
-dumps) TAGS=${1:-m48_mouse m48_joy m48_joy0 m48_joymenu m48_ftext m48_joyown} ;;
+dumps) TAGS=${1:-m48_mouse m48_mouse3 m48_joy m48_joy0 m48_joymenu m48_joyptr m48_ftext m48_joyown m48_joyhold} ;;
 map) TAGS=${1:-m48_joy m48_joy0} ;;
-own) TAGS=${1:-m48_joyown} ;;
-*) TAGS=${1:-m48_mouse m48_joy m48_joy0 m48_joymenu m48_ftext} ;;
+own) TAGS=${1:-m48_joyown m48_joyhold} ;;
+*) TAGS=${1:-m48_mouse m48_mouse3 m48_joy m48_joy0 m48_joymenu m48_joyptr m48_ftext} ;;
 esac
 dump_times() {
     {
         awk '/^[0-9]/ { print $1 + 1 }' "tests/keys/$1.keys"
         [ "$1" = m48_ftext ] && awk '/^[0-9]/ { print $1 + 0.3 }' "tests/keys/$1.keys"
         for f in "tests/keys/$1.mice" "tests/keys/$1.joy"; do
+            [ "$1" = m48_joyhold ] && continue
             [ -f "$f" ] && awk '/^[0-9]/ && $1 > 0 { print $1 + 0.5 }' "$f"
         done
+        # the held sticks: only behind the lines that put a stick back
+        # to rest, so that no dump falls into a hold (on the port's own
+        # clock the two passes would be at other reads of it)
+        [ "$1" = m48_joyhold ] && awk '$1 > 0 && ($2 == "0,570,570,0" || $2 == "1,600,500,0") { print $1 + 0.5 }' "tests/keys/$1.joy"
     } | sort -n
 }
 # the original's first pass begun at or after each of a tag's times
 dump_passes() {
-    for t in $(dump_times "$1"); do
-        awk -v t="$t" '$2 == "P" && $1 >= t { print $3; exit }' "../build/play/$1/clock.txt"
-    done | uniq
+    {
+        for t in $(dump_times "$1"); do
+            awk -v t="$t" '$2 == "P" && $1 >= t { print $3; exit }' "../build/play/$1/clock.txt"
+        done
+        # the passes around the stick's letting go (the tenth is the
+        # first that asks the mouse)
+        case $1 in m48_joymenu|m48_joyptr) echo 9; echo 10; echo 11 ;; esac
+    } | sort -n -u
 }
 if [ "$MODE" = dumps ]; then
     for T in $TAGS; do
         D=../build/play/$T
         UNTIL=64
         [ "$T" = m48_joy0 ] || [ "$T" = m48_joymenu ] && UNTIL=40
-        [ "$T" = m48_ftext ] || [ "$T" = m48_joyown ] && UNTIL=50
+        [ "$T" = m48_ftext ] || [ "$T" = m48_joyown ] || [ "$T" = m48_mouse3 ] || [ "$T" = m48_joyhold ] && UNTIL=50
+        [ "$T" = m48_joyptr ] && UNTIL=30
         V=
         [ "$T" = m48_ftext ] && V=1
         rm -rf "$D"

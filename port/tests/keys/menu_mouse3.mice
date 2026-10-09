@@ -1,0 +1,17 @@
+# the mouse of menu_dumps.py's walk mouse3 ("T X,Y,B": the driver's
+# place and the buttons held, 1 left, 2 right, 4 the third).  98,73 is
+# where the menu puts the pointer on its MISC page with LOAD chosen (see
+# menu_mouseask.mice).
+# the third button at the question, alone
+19.00 98,73,4
+19.40 98,73,0
+# the first: the question is left
+21.00 98,73,1
+21.20 98,73,0
+# at the question again: the third held, the second beside it
+26.00 98,73,4
+26.50 98,73,6
+26.70 98,73,0
+# the menu is back on MISC with LOAD the item: the third button there
+28.00 98,73,4
+28.20 98,73,0

@@ -2835,7 +2835,9 @@ name S27FE:0320 input_record
 ; input_mouse: the mouse's part of a record: its distance from the middle
 ; (A0h, 64h) beyond the word at DATA:0420 gives a direction, the word at
 ; DATA:0444 the button. Translated (port/src/input.c) and compared with a
-; scripted mouse, F7 and F8 (port/tests/options_test.sh m48_mouse).
+; scripted mouse, F7 and F8 (port/tests/options_test.sh m48_mouse). The
+; third button's word (DATA:0446) is not asked here: held, it changed
+; nothing a side read (seen in a run, m48_mouse3).
 name S27FE:03D4 input_mouse
 ; mouse_center: puts the mouse back to the middle (INT 33h, 4) unless a
 ; button is held.

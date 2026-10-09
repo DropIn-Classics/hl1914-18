@@ -1,0 +1,13 @@
+# the stick for m48_joyptr.keys: m48_joymenu.joy's up to the battle's
+# first passes (there from the program's start, down and up in the menu,
+# held left from 20.0 to 23.6 s; the battle's first pass is near 23.13)
+0 0,560,590,0
+9.20 0,560,1150,0
+9.40 0,560,590,0
+9.60 0,560,100,0
+9.80 0,560,590,0
+20.00 0,100,590,0
+23.60 0,560,590,0
+# in the battle: down
+25.00 0,560,1150,0
+25.40 0,560,590,0

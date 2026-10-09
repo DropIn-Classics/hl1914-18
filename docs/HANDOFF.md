@@ -151,6 +151,18 @@ clock (`m57_won`, `m57_medal`, by pokes; 1.11 s behind D0h were
 missing, now counted). The bullet "A battle's end on both clocks" says
 what was learned; `sh port/tests/endclock_test.sh` runs it.
 
+On the branch `mac/options4` (2026-10-09) the three small remainders of
+those notes are run and set beside the original: sticks held longer
+than a tap on the port's own clock (`m48_joyhold`: the same input words
+in the same order, three of twelve holds read for one pass more or
+less, the game's state the same at every time compared), the mouse's
+third button (in a battle, `m48_mouse3`, and at the saved game's
+question and in the menu, the walk `mouse3`: it does nothing by itself
+in either program) and why the tenth pass of `m48_joymenu` reads 8
+(the mouse's pointer, where the driver's reset left it; `m48_joyptr`
+moves it and the pass reads that). Nothing of the port's source
+changed; the tests only (the bullet "The joysticks' three remainders").
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -4222,6 +4234,90 @@ emulation error (2026-10-02).
     starting, not the player's menu; whoever wants inputs that early
     gives the port `-start` 0.84 s earlier, which moves every time of
     the walks compared so far (not tried).
+- The joysticks' three remainders (2026-10-09, Mac, branch
+  `mac/options4`; the tags `m48_joyhold`, `m48_mouse3`, `m48_joyptr` of
+  `options_test.sh`, the walk `mouse3` of `menu_dumps.py`/
+  `menu_test.sh`; port/README.md has the counts). Nothing of the port's
+  source changed. Seen in runs of the original and of the port beside
+  it:
+  - The tenth pass of `m48_joymenu` is the mouse's. `game_loop` opens
+    the mouse again behind the menu and the driver's reset leaves the
+    pointer at 319, 99 (`DATA:0424`, 0426 in the dump of pass 1, in
+    both programs), right of the middle (160, 100) by more than the
+    step. A side's part asks the keys and the mouse only when its stick
+    gives nothing, so while the stick was held left the pointer stayed
+    there (still 319, 99 at pass 9); the first call of the timer's
+    routine after the stick's letting go at 23.60 s asked the mouse,
+    which gave "right" (8) once and went to the middle (160, 100 in the
+    dump of pass 10, which began at 23.62 s; the five bytes found,
+    `DATA:03BC`, have "right" there and nothing at pass 11). Checked by
+    moving the pointer: `m48_joyptr` is the same walk with the pointer
+    put at 160, 40 at 23.30 s, while the stick is held: pass 9 has it
+    there, pass 10 reads "up" (1) and has the middle again, in both
+    programs. With a stick at rest from the start (`m48_joy0`) that
+    "right" is given before the first pass and never read by a side's
+    part (the pointer is in the middle in its first dump; what clears
+    the record between was not looked for).
+  - The mouse's third button is word 32h of the mouse's record
+    (`DATA:0446`, FFFFh while held; `mouse_read`) and nothing else:
+    `input_mouse` and `mouse_center` ask the words of the first two
+    only. In a battle (`m48_mouse3`) the third alone gives nothing; a
+    move with it held gives its direction once and the pointer goes
+    back to the middle, as with no button; with the first it is the
+    side's button, and the first let go with the third held is not the
+    case of the second held (no ten calls without the mouse: a move
+    0.1 s later gave its direction at once); with the second it is the
+    second alone (a move gives its direction pass after pass, the
+    pointer not put back); all three give nothing, as the first and
+    second together. F8 with the third held and a move behind it as
+    without. At the saved game's question the third button held for
+    0.4 s leaves it standing (the question stood from 17.03 to 21.33 s
+    with the third at 19.0 and the first at 21.0; a second time from
+    23.10 to 26.84 with the third from 26.0 and the second beside it
+    from 26.5), and in the menu, on the MISC page with the pointer on
+    LOAD, it chooses nothing (nothing came in between 23.10 and the
+    Esc at 30.05 s). The port's question does not say when it was
+    left; that the third button did not leave it there either follows
+    from what came in (the first button at 21.0 on LOAD would have
+    chosen it again) and from the screens outside the loop, the same
+    in number and bytes.
+  - Sticks held longer than a tap on the port's own clock
+    (`m48_joyhold`: holds of 0.3, 0.5 and 1 s). The timer's routine
+    reads the sticks every 0.0549 s and a pass takes as long, so a hold
+    is read by one pass more or less by where in such a period it
+    began: of the twelve holds nine were read by the same number of
+    passes in both programs and three by one more or less (the first
+    stick's up of 1 s 18 passes in the original and 19 in the port,
+    its left with the button of 0.5 s 10 and 9, the second stick's
+    button of 1 s 19 and 18). The input words are the same in the same
+    order, and the game's state was the same at each of the 13 times
+    compared, all with the sticks at rest (why the pass more of "up"
+    moved nothing was not looked into; presumably the map's edge). It
+    need not be: a first script, not kept, had the second stick's left
+    of 0.5 s read by 9 passes in the original and 10 in the port, and
+    from there on 4 bytes of the game's state differed (`S331F:4DC3`,
+    4DCF to 4DD5; presumably that side's cursor one field further, not
+    checked). The four holds of 0.5 s begun a quarter of a period apart
+    were all read by 9 passes in both, so the original's own one more
+    or less was not shown by them; it is taken from the 18 and 19 of
+    the two programs' holds of 1 s.
+  - What else differs in DATA 0380 up to 045C on the own clock with
+    holds, all of it the counts': the counts of gaps stand further
+    apart than a step (2 from the first pass here, with two sticks
+    there from the start; they run on from the menu, and a count
+    stands still while its direction is held, so a hold read once more
+    moves it by one); and a count of holds keeps what its hold left
+    until its count of gaps has gone round, when both become 0, so half
+    a second after a hold one program can still have it and the other
+    not (seen for the first side's left and the second side's button,
+    with that side's record's byte 7 beside it, which is cleared with
+    the button's count). Byte 5 of a record (a second press within 19h
+    calls) depends on those, as said before; a second press was not
+    run here either.
+  - Not done: a second press on the own clock, a button held from
+    before the saved game's question, the third button in the window
+    (`plat_sdl.c`; not looked at whether it passes one on), a real
+    mouse or stick; macOS only.
 - The program's end and the briefing (2026-10-08, Mac).
   - `S066A:4739`, reached when 1 is clear in `game_state` behind the
     menu or a battle (EXIT TO DOS sets 100h and clears 1 and 2):

@@ -1,0 +1,4 @@
+# map 48, two human sides: the joysticks held longer than a tap on the
+# port's own clock (options_test.sh own), with m48_joyhold.joy beside it.
+# F5 at 44 switches the first side's stick off; see port/README.md
+44.00 f5

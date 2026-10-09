@@ -1,0 +1,7 @@
+# map 48, two human sides: as m48_joymenu (a joystick held left from the
+# menu into the battle's first passes), with the mouse's pointer put
+# above the middle while the stick is held (m48_joyptr.mice): what the
+# first side reads in the pass after the stick is let go is the mouse's.
+# F5 at 26 switches the stick off and at 27 on again; see port/README.md
+26.00 f5
+27.00 f5

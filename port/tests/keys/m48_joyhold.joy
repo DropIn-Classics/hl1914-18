@@ -1,0 +1,38 @@
+# the sticks for m48_joyhold.keys (the format is m48_joy.joy's), for a
+# play on the port's own clock: every move and press is held for 0.3 to
+# 1 s, many reads of the timer's routine (one every 0.0549 s).  Both
+# sticks are there from the program's start.  A line that puts a stick
+# back to rest is written exactly as the first two here: options_test.sh
+# dumps half a second after those only (never in the middle of a hold)
+0 0,570,570,0
+0 1,600,500,0
+# the first stick: left 0.3 s
+26.000 0,100,570,0
+26.300 0,570,570,0
+# right, left, right, left, 0.5 s each (9.1 of the reads' periods), each
+# begun a quarter of such a period later within it than the one before
+27.000 0,1100,570,0
+27.500 0,570,570,0
+28.222 0,100,570,0
+28.722 0,570,570,0
+29.443 0,1100,570,0
+29.943 0,570,570,0
+30.665 0,100,570,0
+31.165 0,570,570,0
+# up 1 s, down 1 s
+32.000 0,570,100,0
+33.000 0,570,570,0
+33.800 0,570,1100,0
+34.800 0,570,570,0
+# its button 1 s, then left with the button 0.5 s
+35.600 0,570,570,1
+36.600 0,570,570,0
+37.400 0,100,570,1
+37.900 0,570,570,0
+# the second stick: left 0.5 s, down 1 s, its button 1 s
+38.800 1,100,500,0
+39.300 1,600,500,0
+40.000 1,600,1000,0
+41.000 1,600,500,0
+41.800 1,600,500,1
+42.800 1,600,500,0

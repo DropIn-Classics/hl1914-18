@@ -1,0 +1,5 @@
+# the mouse for m48_joyptr.keys ("T X,Y,B"): while the stick is still
+# held left in the battle's first passes (the mouse is not asked then)
+# the pointer is put above the middle (160,100; the step is 40) from
+# where the driver's reset left it (319,99, right of the middle)
+23.30 160,40,0

@@ -25,7 +25,16 @@ pointer (043A up to 0442) is told apart; with `own` (the port on its own
 clock) the dumps are those of rounds.txt, the original's pass and the
 port's of each time, and the sides' counts of gaps are told apart where
 they are one step apart (they go round with every fourth call of the
-timer's routine, and the two passes do not begin at the same moment).
+timer's routine, and the two passes do not begin at the same moment) or
+further (they run on from the menu, whose time is not the original's in
+the port, and a count stands still while its direction is held, so a
+hold read once more or less moves it); and what each side's parts read
+is listed hold by hold for both programs, the input word and for how
+many passes in a row (a count of holds that one of the two still has
+from the last hold and the other has at 0 already is told apart too, with
+bytes 6 and 7 of the record when it is the button's): the words must be the same in the same order, the
+passes are counted apart where they differ (a hold is read every 0.0549
+s, once more or less by where in such a period it began).
 Exit status 0 when no byte differs.
 """
 import os, re, sys
@@ -68,7 +77,7 @@ if mode == 'own':
              (l.split() for l in open(os.path.join(out, 'rounds.txt')))]
 else:
     pairs = [(int(p), 'q%04d.ram' % int(p)) for p in open(os.path.join(out, 'passes.txt')).read().split()]
-bad = n = steps = 0
+bad = n = steps = far = left = 0
 GAPS = [b + 4 * i for b in (0x03D4, 0x0400) for i in range(5)]
 for p, port in pairs:
     q = os.path.join(out, port)
@@ -89,7 +98,23 @@ for p, port in pairs:
         g = [o for o in d if o in GAPS and (x[data + o] - y[data + o]) % 11 in (1, 10)]
         if g:
             steps += 1
-            d = [o for o in d if o not in g]
+        # further apart: their phase from the menu, and the holds read
+        # once more or less
+        if [o for o in d if o in GAPS and o not in g]:
+            far += 1
+        d = [o for o in d if o not in GAPS]
+        # a count of holds stays as its hold left it until its count of
+        # gaps has gone round, and then both are 0: left over in one of
+        # the two and 0 already in the other by that count's phase; and
+        # with the button's so, bytes 6 and 7 of the side's record (how
+        # far a second press has come, cleared with it)
+        h = [o for o in d if o + 2 in GAPS and (x[data + o:data + o + 2] == b'\0\0' or y[data + o:data + o + 2] == b'\0\0')]
+        for count, rec in ((0x03E2, 0x03C8), (0x040E, 0x03F4)):
+            if count in h:
+                h += [o for o in d if o in (rec + 6, rec + 7)]
+        if h:
+            left += 1
+            d = [o for o in d if o not in h]
     n += 1
     if d:
         bad += 1
@@ -98,5 +123,28 @@ for p, port in pairs:
 print('%s: DATA 0380 to 045C (the pointer\'s place from pass %s%s) at %d passes: %s%s'
       % (tag, placed, ', the pointer\'s range told apart' if skip else '', n,
          'different at %d' % bad if bad else 'the same at every one',
-         '; the counts of gaps a step apart at %d of them' % steps if mode == 'own' else ''))
+         '; the counts of gaps a step apart at %d of them, further at %d, a count of holds left over in one at %d'
+         % (steps, far, left) if mode == 'own' else ''))
+if mode == 'own':
+    # what each side read, hold by hold: [first pass, input word, passes]
+    def holds(name):
+        runs, last = {'0': [], '1': []}, {}
+        for line in open(os.path.join(out, name)):
+            f = line.split()
+            if last.get(f[1]) == f[3]:
+                runs[f[1]][-1][2] += 1
+            else:
+                runs[f[1]].append([int(f[0]), f[3], 1])
+                last[f[1]] = f[3]
+        return {s: [r for r in v if r[1] not in ('0', '-')] for s, v in runs.items()}
+    a, b = holds('inputs.txt'), holds('own_inputs.txt')
+    for s in '01':
+        words = [r[1] for r in a[s]] == [r[1] for r in b[s]]
+        apart = [(x, y) for x, y in zip(a[s], b[s]) if x[2] != y[2]]
+        print('side %s: %d holds read by the original, %d by the port, the input words %s; the passes of %d differ'
+              % (s, len(a[s]), len(b[s]), 'the same in the same order' if words else 'DIFFERENT', len(apart)))
+        print('  input word x passes, the original: ' + ' '.join('%sx%d' % (r[1], r[2]) for r in a[s]))
+        print('  input word x passes, the port:     ' + ' '.join('%sx%d' % (r[1], r[2]) for r in b[s]))
+        if not words or any(abs(x[2] - y[2]) > 1 for x, y in apart):
+            bad += 1
 sys.exit(1 if bad else 0)

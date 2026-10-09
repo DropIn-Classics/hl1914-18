@@ -36,7 +36,8 @@
 # the runner's -joys and the port's): its directions and buttons walk the
 # menu and leave the saved game's question.  joyask has the sticks'
 # other buttons at the question, mouseask the mouse's (tests/keys/
-# menu_mouseask.mice, -mice in both programs).
+# menu_mouseask.mice, -mice in both programs), mouse3 the mouse's third
+# button at the question and in the menu.
 set -e
 # awk reads the clock's times as numbers only with a decimal point
 export LC_ALL=C
@@ -45,7 +46,7 @@ GAME=${DOSKIT_GAME:-../game}
 sh build.sh
 LIVE=
 [ "$1" = live ] && { LIVE=1; shift; }
-[ $# -gt 0 ] || set -- back code57 end57 exit joy57 joyask joyload live57 livename57 livetwice57 mouseask name57 noload pages start0 start24 twice57
+[ $# -gt 0 ] || set -- back code57 end57 exit joy57 joyask joyload live57 livename57 livetwice57 mouse3 mouseask name57 noload pages start0 start24 twice57
 r=0
 for w in "$@"; do
     D=../build/menu/$w

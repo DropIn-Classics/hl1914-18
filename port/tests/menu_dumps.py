@@ -66,6 +66,13 @@ the menu N times.  The walks (default: all):
              again (the key pressed twice, see code57) and its second
              button; LOAD again, the pointer moved with no button and
              both buttons; Esc (the main menu), then as code57
+    mouse3   the mouse's third button (keys/menu_mouse3.mice): the keys
+             to MISC and LOAD; at the saved game's question the third
+             button alone (the question stays), then the first (left);
+             LOAD again, the third held and the second beside it (left
+             at the second); the third in the menu with LOAD the item
+             (nothing); Esc, then as code57 a tenth later (the cursor
+             of text_input, see joy57 below)
 
 A walk WALK with a file port/tests/keys/menu_WALK.joy gets that sticks'
 script (the runner's -joys; menu_test.sh gives it to the port's -joys),
@@ -176,6 +183,8 @@ WALKS = {
     'mouseask': ([(10, 'down'), (11, 'down'), (12, 'down'), (13, 'down'), (14, 'space'), (16, 'down'), (17, 'space'),
                   (21, 'space'), (22, 'space'), (26, 'space'), (27, 'space'), (33, 'esc')] + code57(35),
                  1, 51, [9, 20, 25, 31.5, 34]),
+    'mouse3': ([(10, 'down'), (11, 'down'), (12, 'down'), (13, 'down'), (14, 'space'), (16, 'down'), (17, 'space'),
+                (23, 'space'), (24, 'space'), (30, 'esc')] + code57(32.1), 1, 48, [9, 22.5, 27.5, 29, 31]),
 }
 # a walk with a battle played to its end: a key script (port/tests/keys/
 # KEYS.keys, its times moved by the seconds given; a key codeN is the N-th

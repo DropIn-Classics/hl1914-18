@@ -1993,6 +1993,84 @@ anything the game needs before the first release.
   source is unchanged; `menu_test.sh joyload joy57` and
   `options_test.sh m48_joy0` were run again, the same); macOS only.
 
+- The joysticks' three remainders (2026-10-09, macOS, `mac/options4`):
+  what the two points above still listed, each set beside the original.
+  Nothing of the port's source changed; `tests/options_test.sh` has the
+  tags `m48_mouse3`, `m48_joyptr` and (for `own`) `m48_joyhold`, and
+  dumps passes 9 to 11 of `m48_joymenu` too; `tests/menu_dumps.py` and
+  `tests/menu_test.sh` have the walk `mouse3`; `tests/options_cmp.py`
+  `own` lists what each side read hold by hold and tells the counts
+  apart as said below.
+  - The mouse's third button in a battle (`sh port/tests/
+    options_test.sh dumps m48_mouse3`, `sh port/tests/options_test.sh
+    m48_mouse3`; `tests/keys/m48_mouse3.mice`, `.keys`; on the
+    original's clock): the third alone, a move with it held, with the
+    first and the first let go beside it, with the second and a move,
+    all three, pressed and let go beside the first held, the first let
+    go with the second and third held, held over F8. 978 parts read
+    the same input, the game's state the same at each of the 32 passes
+    compared, DATA 0380 up to 045C the same at every one (the mouse's
+    record with the third button's word, 0446, among them; the
+    pointer's place from the script's first line on). In both the
+    third button changes that word and nothing else.
+  - The third button at the saved game's question and in the menu
+    (`python3 port/tests/menu_dumps.py mouse3`, `sh port/tests/
+    menu_test.sh mouse3`; `tests/keys/menu_mouse3.mice`; the menu on
+    the port's own clock as in every walk): at the question the third
+    alone (it stays), the first (left); LOAD again, the third held and
+    the second beside it (left at the second); in the menu the third
+    with the pointer on LOAD (nothing); Esc, the code, START. 14
+    things came in, the same in both and in the same order (the times
+    at most 0.05 s apart), no byte differs in the memory at the menu's
+    return and at the four screens outside the loop, nor in the two
+    pages of video memory at the five passes kept and at those
+    screens. The code's Enter is at 37.1 s: at 37.0 the original's
+    last pass of `text_input` had the cursor and the port's not (504
+    bytes of the two pages, one of the block), as in `joy57`.
+  - The tenth pass of `m48_joymenu` (`sh port/tests/options_test.sh
+    dumps m48_joymenu m48_joyptr` one tag at a time, `sh
+    port/tests/options_test.sh m48_joymenu`, `... m48_joyptr`): with
+    the passes 9, 10 and 11 dumped the pointer is at 319, 99 up to pass
+    9 and in the middle from pass 10 on in both programs, the first
+    side's five bytes "right" at pass 10: the mouse, asked for the
+    first time when the stick gives nothing. `m48_joyptr` puts the
+    pointer above the middle while the stick is held
+    (`tests/keys/m48_joyptr.mice`): pass 10 reads "up" in both. 614 and
+    250 parts read the same input, the game's state the same at each
+    of the 16 and 12 passes compared, DATA 0380 up to 045C the same at
+    every one.
+  - Sticks held longer than a tap on the port's own clock (`sh
+    port/tests/options_test.sh dumps m48_joyhold`, `sh
+    port/tests/options_test.sh own m48_joyhold`; `tests/keys/
+    m48_joyhold.joy`, `.keys`): both sticks there from the start; the
+    first left 0.3 s, right and left four times 0.5 s, up and down 1 s,
+    its button 1 s, left with the button 0.5 s; the second left 0.5 s,
+    down 1 s, its button 1 s. Compared at the first pass of each at or
+    after half a second behind each line that puts a stick back to
+    rest and a second behind the key (13 times). The twelve holds give
+    the same input words in the same order in both; nine are read by
+    the same number of passes, three by one more or less (up 18 and
+    19, left with the button 10 and 9, the second button 19 and 18:
+    the original's and the port's). The game's state is the same at
+    all 13 times (`play_cmp.py` `at`: 0 bytes, with the passes' counted
+    apart) and DATA 0380 up to 045C too, with told apart by
+    `options_cmp.py`: the ten counts of gaps (a step apart at 10 of
+    the times, further at all 13) and a count of holds that one
+    program still has from the last hold and the other has at 0 (at 2
+    times, once with byte 7 of the second side's record). A hold read
+    once more can move the cursor a field further (a first script did
+    so for the second side; docs/HANDOFF.md, "The joysticks' three
+    remainders"): the play then differs as two plays of the original
+    begun 0.03 s apart would, which was not shown with the original
+    alone.
+  Run again on the tree with `origin/master` (`2f94d5c`) merged:
+  `options_test.sh` (all three ways, every tag), `menu_test.sh` (18
+  walks), `fkeys_test.sh`: as before; `check.py`. Not run again: the
+  other tests. Not compared: a second press of a button on the own
+  clock, a button held from before the saved game's question, the
+  third button and the sticks in the window, a real mouse or stick;
+  macOS only.
+
 - Saving and loading (2026-10-08, macOS): `sh port/tests/save_test.sh
   dumps` runs the original twice through its menu by keys
   (`tests/play_dumps.py` with `WALK` and `STATE`): `m48_save` (the code

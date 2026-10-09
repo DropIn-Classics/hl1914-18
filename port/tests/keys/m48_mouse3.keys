@@ -1,0 +1,4 @@
+# map 48, two human sides: the mouse's third button (the middle one, 4 in
+# m48_mouse3.mice beside this) as the first side's input.  F8 steps the
+# mouse's speed with the third button held; see port/README.md
+44.00 f8

@@ -3915,6 +3915,30 @@ anything the game needs before the first release.
   window (the player checks), a site taken after a fight (`fade_in`
   path) or with the fights' pictures off, the site's music as sound.
 - The bar of the computer's thinking (2026-10-09, Mac; branch
+- The site taken's dark fade (2026-10-09, Windows; branch
+  `win/darkfade`): order 4 after a fight with the fights' pictures on
+  brings the colours back with `fade_in` (S02E6:1318) instead of
+  `fade_back`; `order_take` had it, no run had reached it. Reached in
+  the original with both sides the computer's on map 30 and
+  `no_fight_pics` poked to 0 at `attacks_run`'s 7th call (a fight,
+  then a site taken in the same unit's turn, 1654.3 s). `orders_test`
+  now takes `orders_fought` ([BP-0Eh], was a static of orders.c) and
+  `game_mem`'s libraries, save buffer and work buffer from
+  attacks_run's frame, with `-vin IN` loads the original's video
+  memory and DAC at the loop's entry and with `-vram PREFIX` writes
+  the port's at order 4's `wait_frames(1Eh)` and behind its fade.
+  Compared with the original's (dosrun -vram/-dac at S02E6:12F0 and
+  1343): the same in all 256 KB and 768 bytes at both places, for the
+  dark path (m30) and the grey path (m24_both with pictures, the
+  `fade_back` DAC differed before only because the test had no
+  `game_mem`). The game's state behind the loop differs in 4 bytes on
+  both paths (`lib_pal`+10h/11h, `lib_rnd`+10h/11h, from `libs_start`;
+  not looked into). Times: after a fight the original draws the view
+  in 0.073 s; play.c's clock now counts `T_TAKE_VIEW` (0.085 s, from
+  the fight's end) there instead of nothing; `fade_in` 0.5207 s
+  against 0.5223. Not checked: a full play of the port reaching it
+  (own clock, play_test), the pictures-off case after a fight in video
+  memory, a live run.
   `mac/thinkbar`): `computer_progress` (`S1C74:0354`, `src/plan.c`) and
   the bar `computer_part` draws with it (`src/loop.c`, `bar_draw` in
   `src/draw.c`) were there since "The last drawing of a battle", where

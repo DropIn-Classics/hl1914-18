@@ -3764,6 +3764,31 @@ anything the game needs before the first release.
   as word 0 (not told apart). Built with the cc wrapper (it does not
   fail on a compile error: a stale `build/loop_test.exe` then runs, so
   it is removed before building).
+- The paths no battle reached (2026-10-09, Windows; branch
+  `win/computer5`): `python3 tests/computer_dumps.py late second_p22
+  second_p0 second_p11` plays three quiet battles changed by a poke
+  (`POKED` there says which bytes and why) and dumps the calls;
+  `sh tests/computer_test.sh -f ../build/computer/late_test.args`: 9
+  calls, 0 different. `plan_approach` in `computer_queue`'s state 5 (6
+  calls, its states 0 to 2, two units, map 22 with byte 4 of kind 12h's
+  `kind_worth` 2); `computer_plan`'s state 6 (2 calls, `plan_ride` in
+  its states 0 and 5, map 0 with 4 in word 6 of a unit of no side);
+  `computer_assess`'s state 0 with `plan_to_site` (1 call, map 11 at
+  918 s, 4 in word 6 of the unit in the computer's carrier 41h and that
+  carrier's plan 0; the carrier got the plan 0Ah, worth 190h). The
+  repair step (kind 6) in the passes: `tests/keys/m26_quiet.keys` (map
+  26, the computer the first side, as `m30_quiet`), `PASSES="4004 4010
+  4020 4027 4040" STEPS=3 python3 tests/loop_dumps.py m26_quiet.keys
+  400`, then `tests/loop_test.sh`: the game's state and the computer's
+  the same at all 36 passes compared, 0 of 5,343 input words
+  different; the 17 calls of `step_site_menu` fall in the passes 4004
+  to 4026. Not reachable, so not compared: `computer_plan`'s state 2,
+  the step of kind 5 and `step_site_menu`'s state 6
+  (docs/HANDOFF.md). The port needed no change. Not covered: these
+  paths in an unpoked battle (none gives them), which branch of
+  `plan_approach`'s state 2 the calls took (not looked at), `plan_ride`'s states 1 to 4 for a unit to
+  fetch, `play_test.sh` on `m26_quiet`; whether the repair's text was
+  shown the same was not looked at beyond the bytes.
 - The bar of the computer's thinking (2026-10-09, Mac; branch
   `mac/thinkbar`): `computer_progress` (`S1C74:0354`, `src/plan.c`) and
   the bar `computer_part` draws with it (`src/loop.c`, `bar_draw` in

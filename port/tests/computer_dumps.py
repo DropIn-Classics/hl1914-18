@@ -51,7 +51,8 @@ first call and is compared with that at the next stretch's first call
 (turns_test.args, kind `turns:N`).  With `late` the paths that only come
 up late or on other maps are dumped from quiet battles (LATE: the code,
 the time, and the places a call has to go through): stage 1 and 2 in
-one, late_test.args.  No game data is kept in this file.
+one, late_test.args.  Three of them are battles changed by a poke
+(POKED), for paths no battle reaches by itself.  No game data is kept in this file.
 """
 import os, random, re, struct, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
@@ -125,6 +126,32 @@ LATE = {
     'first_q45': (45, 260, {'step': [(2, 4)]}),
     # computer_plan's state 4, an aim of the kind 2
     'second_q22': (22, 120, {'plan': ['2138:05D6']}),
+    # the paths no battle reaches by itself, reached by a poke (POKED):
+    # plan_approach (the plan 7 at computer_queue's state 5)
+    'second_p22': (22, 140, {'queue': ['1CC6:0680']}),
+    # computer_plan's state 6, an aim of the kind 4 (a unit to fetch)
+    'second_p0': (0, 70, {'plan': ['2138:0DCD']}),
+    # computer_assess's state 0 with plan_to_site
+    'second_p11': (11, 925, {'assess': ['1CC6:0AD6']}),
+}
+# Pokes for LATE's battles (as run.py takes them: where, what, the bytes)
+# and the time from which their calls are taken.  No battle gives these
+# paths: on the 48 maps for one player no kind that takes sites (1 in
+# word 2 of kind_worth) has both 20h there and followers (byte 4), so no
+# plan 7 is made, and no kind of unit has 4 in its word 6 (word 11h of
+# unit_dat), so nothing is listed to fetch nor carried there.
+# - map 22: byte 4 of kind 12h's kind_worth (that kind has 20h and 1)
+#   from 0 to 2;
+# - map 0: 4 set in word 6 of unit 1Ch, of no side (2 in unit_flags), 340h
+#   at the start;
+# - map 11: 4 set in word 6 of unit 24h (341h), in carrier 41h of the
+#   computer's side at its assessment at 918 s, and the carrier's plan
+#   (9, a repair, which skips the test) made 0.
+POKED = {
+    'second_p22': ([('S066A:0EE9#1', 'S39B6:0070', '02')], 0.0),
+    'second_p0': ([('S066A:0EE9#1', 'S331F:1B7A', '4403')], 0.0),
+    'second_p11': ([('S1CC6:0A54#43', 'S331F:1C4A', '4503'),
+                    ('S1CC6:0A54#43', 'S39B6:0BFC', '00')], 918.0),
 }
 
 
@@ -227,7 +254,10 @@ def run(name, out, until, opts):
     st = '%s/st_%s' % (D, out)
     subprocess.run(['rm', '-rf', st])
     cmd = [sys.executable, 'doskit/tools/run.py', '-state', st, '-until', str(until),
-           '-keys', '%s/%s.keys' % (D, name), '-mice', '%s/%s.mice' % (D, name)] + opts + ['HL.EXE']
+           '-keys', '%s/%s.keys' % (D, name), '-mice', '%s/%s.mice' % (D, name)] + opts
+    for at, target, data in POKED.get(name, ([], 0))[0]:
+        cmd += ['-poke', at, target, data]
+    cmd += ['HL.EXE']
     with open('%s/%s.log' % (D, out), 'w') as f:
         subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, timeout=7200)
     subprocess.run(['rm', '-rf', st])
@@ -543,7 +573,7 @@ def late_main(args):
                 continue
             found = plan_calls(name, [what])[what]
             for target in targets:
-                mark, since = target, 0.0
+                mark, since = target, POKED.get(name, ([], 0.0))[1]
                 if isinstance(target, tuple):
                     mark, other, place = target
                     since = min([c[0] for c in plan_calls(name, [other])[other] if place in c[5]] or [1e9])

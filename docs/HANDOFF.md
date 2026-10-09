@@ -2410,6 +2410,52 @@ emulation error (2026-10-02).
         played in these runs (no word 12h or 5, 6, 9, 0Ah in
         `inputs.txt`). Next: a map or state where they come up (not
         searched), and both sides in `play_test.sh`.
+      - The paths no battle reached (2026-10-09, Windows, branch
+        `win/computer5`): each is reached and compared or shown not to
+        be reachable. Why no battle reaches them, read from memory at
+        a battle's start on all 48 maps for one player (`kind_worth`
+        and `unit_dat` there; scratch `build/c5/`) and the 24 maps for
+        two with both sides the computer's for 1200 s (`plan_approach`,
+        `computer_plan`'s state 4, `plan_to_site` and the step of kind 5
+        never; the step of kind 6 on ten of them):
+        - `plan_approach` (the plan 7): `computer_plan`'s state 4 gives
+          the plan 7 to as many units as byte 4 of the site taker's
+          `kind_worth` says. The only kind that takes sites (1 in word
+          2) and has 20h there on these maps is 12h on map 22, and its
+          byte 4 is 0: state 4 runs and gives no plan. (On the maps
+          for two players kind 1 has 21h and 2 in byte 4, but no unit
+          of kind 1 stood on map 57, the one looked at.) Reached with
+          byte 4 poked to 2 (`S39B6:0070`) on map 22.
+        - `computer_plan`'s state 6 and `plan_to_site` need a unit with
+          4 in its word 6. Word 6 is only written by `unit_add`, from
+          word 11h of the kind in `unit_dat`, and no kind 0 to 32h has 4
+          there (no write to `S331F:18A2` in the listing, only tests;
+          writes through other pointers not looked for beyond
+          `unit_add`). Reached by pokes: state 6 on map 0 with 4 set
+          in word 6 of unit 1Ch, of no side; `plan_to_site` on map 11
+          with 4 set in word 6 of unit 24h, which sits in the
+          computer's carrier 41h at its assessment at 918 s, and that
+          carrier's plan 9 made 0 (with the plan 9 and a way to a site
+          the carrier is skipped before the test).
+        - `computer_plan`'s state 2 is unreachable: state 1 only picks
+          an aim whose byte 5 is the kind at hand (1 to 5) and goes to
+          state 2 for a kind other than 1 to 4; the aims are written by
+          `computer_assess` (kinds 1, 3, 4) and state 3 (kind 2) only,
+          and the count goes back to 0 at state 0Ch.
+        - The step of kind 5 is unreachable: the nine calls of
+          `step_add` put the kinds 1, 2, 6, 4, 2, 7, 3, 1, 1 into
+          `step_draft` (the byte stored before each call, read in the
+          listing), and nothing else writes `computer_steps` but its
+          emptying. `cursor_script`, the handler's body, runs inside
+          the other steps and is compared there.
+        - `step_site_menu` (kind 6) was compared on single calls before
+          (`late`, map 26); now also in the passes of map 26
+          (`m26_quiet`, 17 calls at 290 s). Its state 6 is the table's
+          seventh entry, never reached: state 5 sets byte 47h to 0.
+        - `computer_dumps.py late` takes pokes now (`POKED`, run.py's
+          `-poke` with every run of the battle, and a time from which
+          calls are taken). Learned: a dump at the poke's own address
+          (same hit) already holds the poked bytes.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h
@@ -5773,9 +5819,9 @@ emulation error (2026-10-02).
    with stage 2 where it stands (the bullets of 2026-10-04 above):
    - the computer's player (`win/computer`: the first side compared on
      the maps 24 and 30; `win/computer2`: both sides, `loop_test` on the
-     same maps): next both sides in `play_test.sh`, and the
-     paths no map reached (`plan_to_site`, `plan_approach`,
-     `computer_plan`'s states 2 and 6, the step of kind 5);
+     same maps): next both sides in `play_test.sh`; the paths no map
+     reached are compared with pokes or shown unreachable
+     (`win/computer5`);
    - a battle's end in the window (`debian/window5`): the pictures CDh
      to D0h are translated and compared; next there the music they
      start (the sound's owner), `event_picture`'s other kinds (C8h,

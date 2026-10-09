@@ -841,6 +841,75 @@ button) does not win there either; the original was not run with it.
 Not done: the SDL window by hand, the sounds, the older logs made again
 with G lines.
 
+2026-10-09 (`debian/window14`): the battle's end by play on the port's
+own clock, no pokes, set beside the original's (`sh
+port/tests/endclock_test.sh dumps` runs the original, without it the
+port; the original's runs with the runner rebuilt at doskit as this
+branch has it). Both scripts made by `tests/keys/make_two.py`, every
+cursor step a tap of 0.06 s, every gesture with its direction let go
+0.03 s after the button (docs/HANDOFF.md, "The end by play on the own
+clock"):
+- `m54_hq` (map 54, 350 s), `m54_end`'s battle with a step of its own
+  where `m54_end`'s longer gestures stepped the cursor:
+    1E45/0.03 2E47/0.03 2f51 2f51.8 2R56/0.06 2R57/0.06 2R58/0.06
+    2R59/0.06 2R60/0.06 2R61/0.06 2L62/0.06 2u63/0.06 2u64/0.06
+    2u65/0.06 2u66/0.06 2m68/0.03 2u70/0.06 2d71/0.06 2a73 2a75
+    2E77/0.03 1E79/0.03 2f83 2f83.8 1E88/0.03 2E90/0.03 2f94 2f94.8
+    2m99/0.03 2u102/0.06 2a104 2a106 2E108/0.03 1E110/0.03 2f114
+    2f114.8 1E119/0.03 2E121/0.03 2f125 2f125.8 2m130/0.03
+    2u132/0.06 2R133/0.06 2a135 2a137 2E139/0.03 1E141/0.03 2f145
+    2f145.8 1E150/0.03 2E152/0.03 2f156 2f156.8 2m161/0.03
+    2u163/0.06 2R164/0.06 2d164.9/0.06 2a166 2a168 2E170/0.03
+    1E172/0.03 2f176 2f176.8 1R181/0.06 1u182/0.06 1u183/0.06
+    1m185/0.03 1u187/0.06 1a188 1a190 1E192/0.03 2E194/0.03 2f198
+    2f198.8 2m203/0.03 2u205/0.06 2u206/0.06 2a208 2a210 2E212/0.03
+    1E214/0.03 2f218 2f218.8 1E223/0.03 2E225/0.03 2f229 2f229.8
+    2m234/0.03 2u236/0.06 2L237/0.06 2a239 2a241 2E243/0.03
+    1E245/0.03 2f249 2f249.8 1E254/0.03 2E256/0.03 2f260 2f260.8
+    2m265/0.03 2d268/0.06 2L268.9/0.06 2u269.8/0.06 2a270 2a272
+    2E274/0.03 1E276/0.03 2f280 2f280.8 1a300  1a305 1a305
+  The second side takes the first side's headquarters in round 14, the
+  texts 3Dh and 3Ch, pictures D0h with 1 and CFh with 2 on both clocks.
+- `m57_hq` (map 57, 360 s): the second side moves its unit off (7,10),
+  the first side's cavalry walks from (8,1) into the second side's
+  headquarters (7,11) in round 15:
+    1E45 2E46.5 2f50 2f50.8 2u54/0.06 2u55/0.06 2m57/0.03 2u59/0.06
+    2a63 2a65 2E68/0.03 1E70/0.03 2f74 2f74.8 1R79/0.06 1u80/0.06
+    1m82/0.03 1R84/0.06 1d85/0.06 1d86/0.06 1d87/0.06 1a89 1a91
+    1E93/0.03 2E95/0.03 2f98 2f98.8 2m100/0.03 2L101.5/0.06 2a102.5
+    2a103.5 1E103/0.03 2E104.5/0.03 2f108 2f108.8 1m113/0.03
+    1d115/0.06 1d116/0.06 1a120 1a122 1E124/0.03 2E126/0.03 2f129
+    2f129.8 1E134/0.03 2E135.5/0.03 2f139 2f139.8 1m144/0.03
+    1L146/0.06 1L147/0.06 1a149 1a150.5 1E152/0.03 2E153.5/0.03
+    2f157 2f157.8 2E163/0.03 1E164.5/0.03 2f168 2f168.8 1m173/0.03
+    1d175/0.06 1u176/0.06 1a177 1a178.5 1E180/0.03 2E181.5/0.03
+    2f185 2f185.8 1E190/0.03 2E191.5/0.03 2f195 2f195.8 1m200/0.03
+    1d202/0.06 1a205 1a206.5 1E208/0.03 2E209.5/0.03 2f213 2f213.8
+    2E218/0.03 1E219.5/0.03 2f223 2f223.8 1m228/0.03 1d230/0.06
+    1u231/0.06 1a233 1a234.5 1E236/0.03 2E237.5/0.03 2f241 2f241.8
+    2E246/0.03 1E247.5/0.03 2f251 2f251.8 1m256/0.03 1d258/0.06
+    1a261 1a262.5 1E264/0.03 2E265.5/0.03 2f269 2f269.8 1a285 1a290
+  Texts 3Ch and 3Dh, pictures D0h with 0 and CEh with 2 on both clocks.
+- Compared (`play_test.sh TAG` on the original's clock, `rounds` on the
+  port's own): the inputs, the game's state and the computer's the same
+  at every pass compared on the original's clock; on the own clock the
+  same at every round's end and the pass after it (14 and 15 rounds;
+  the passes' counts apart, the port's passes being shorter: 3,896
+  against 3,854, 3,654 against 3,616) and at every tenth frame of the
+  pictures, both pages of video memory included (20 of 20 frames each).
+  Time, by the BIOS's count of ticks: the first frame comes 8 and 7
+  ticks later in the port (the battle's drift over its rounds, the
+  matter of `debian/window11`); from the first frame on every tenth
+  frame lies within 3 ticks of the original's and `S066A:4728` within
+  3 (`m54_hq` +3, `m57_hq` -1). `endclock_test.sh` now measures the
+  pictures from their first frame (for `m57_won` and `m57_medal` too:
+  within 1 and 2 ticks, `S066A:4728` +0 and +2) and the battle's drift
+  apart.
+- Nothing of the port's source changed; the tests and the key scripts.
+Not reached: 15h, CDh with CEh, a score not above the best on the own
+clock. Not done: the SDL window by hand, the sounds. Not run here after
+the change: the other `play_test.sh` scripts (no source changed).
+
 2026-10-09 (`debian/window13`): a battle's end on both clocks, the two
 gaps the window's notes left. `sh port/tests/endclock_test.sh dumps`
 runs the original three times, `sh port/tests/endclock_test.sh` the

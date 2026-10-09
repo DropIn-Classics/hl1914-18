@@ -31,7 +31,10 @@ this file.
 m60_fights.keys was made with steps of /0.06 and gestures of /0.03 (the
 direction let go 0.03 s after the button), which the port's own clock and
 the original's sample alike (docs/HANDOFF.md, "A battle ended by fights
-alone").
+alone").  m54_hq.keys and m57_hq.keys were made the same way for the
+battle's end on both clocks (port/README.md gives their arguments): a
+gesture's direction let go 0.03 s after the button does not step the
+cursor, so where m54_end's 0.2 s did, m54_hq has a step of its own.
 """
 import sys
 

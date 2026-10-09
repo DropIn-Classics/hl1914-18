@@ -2383,6 +2383,18 @@ emulation error (2026-10-02).
         MSVC's cl (vcvars64, `/MT`, `advapi32.lib shell32.lib
         winhttp.lib`); `loop_dumps.py` now writes `loop_test.args` with
         `/` and LF, which `sh` needs.
+      - The queue (8) and run (2) phases compared in the pass
+        (2026-10-09, Windows, branch `win/computer3`): `loop_dumps.py`
+        with `STEPS=N` picks passes in which `computer_queue` gave 1
+        and in which `computer_step` gave the list's end (a second run,
+        `turns.txt`). On maps 24 and 30 (both sides the computer's,
+        600 s) a step is queued about every 50 to 80 passes; 12 such
+        passes and the ones after each were the same on each map
+        (port/README.md). The cc wrapper was rewritten for this run in
+        ignored `build/ccw/cc` (same idea as above). Next: the script
+        play (phase 1, `computer_input` alone while a script plays):
+        choose passes inside a played script, with the codes 81h, 84h
+        and the diagonals still never seen.
   - A side's part in a site (2026-10-07, Linux): building, repairing
     and moving out are not routines of their own but parts of
     `game_loop` (repairing `S066A:3156` to `32A9`; building sets 4600h

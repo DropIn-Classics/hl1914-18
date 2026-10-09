@@ -49,7 +49,9 @@ at the first pass (start.ram) and at the beginning of chosen passes
 NOPICS=1 in the environment
 sets no_fight_pics (S37FF:0115) at the first pass, into build/loop/TAG_nopics/.
 Existing dumps are kept; PASSES in the environment (numbers apart by
-spaces) adds passes to dump.  Everything goes to build/loop/ (ignored); no
+spaces) adds passes to dump; STEPS=N adds N passes in which the computer
+queued a step and N in which its list ran out, and the pass after each
+(a second run logs them into turns.txt).  Everything goes to build/loop/ (ignored); no
 game data is kept in this file.
 """
 import os, re, subprocess, sys
@@ -195,6 +197,34 @@ with open(os.path.join(out, 'inputs.txt'), 'w') as f:
         f.write('%d %d %X %X %X %d %d %d %d %d %d %X\n' % (tuple(r[:8]) + tuple(r[9:13])))
 
 extra = [int(x) for x in os.environ.get('PASSES', '').split()]
+if os.environ.get('STEPS'):
+    # the queue (8) and run (2) phases of computer_turn: a second run logs
+    # where computer_turn gets back to from computer_queue (1C74:010F) and
+    # computer_step (1C74:014E), AX the result; of the passes in which
+    # computer_queue gave 1 (a step queued, its run begun in the same pass)
+    # and of those in which computer_step gave not 0 (the list's end, back
+    # to the queue) STEPS each, spread over the run, are dumped, each
+    # with the pass after it
+    tlog = os.path.join(out, 'turns.txt')
+    if not os.path.exists(tlog):
+        open(tlog, 'w').write(run(['-log', 'S066A:0EE9', '-log', 'S1C74:010F',
+                                   '-log', 'S1C74:014E']))
+    queued, ended, p = set(), set(), 0
+    for line in open(tlog):
+        m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=\S+ hit=\d+ regs .*?AX=([0-9A-F]+)', line)
+        if not m:
+            continue
+        if m.group(1) == '066A:0EE9':
+            p += 1
+        elif int(m.group(2), 16) != 0:
+            (queued if m.group(1) == '1C74:010F' else ended).add(p)
+    if p != passes:
+        sys.exit('turns.txt: %d passes, log.txt %d' % (p, passes))
+    n = int(os.environ['STEPS'])
+    for s in (sorted(queued), sorted(ended)):
+        for q in s[len(s) // (2 * n)::max(1, len(s) // n)][:n]:
+            extra += [q, q + 1]
+    print('computer_queue gave 1 in %d passes, computer_step the end in %d' % (len(queued), len(ended)))
 chosen = sorted(set([1, 50, 200, 400] + [p + 1 for p in fights] + [p for p in fights]
                     + [passes - 1] + extra))
 chosen = [p for p in chosen if 1 <= p < passes]

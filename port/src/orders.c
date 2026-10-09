@@ -184,6 +184,23 @@ static void order_into_site(Far unit, uint16_t m)
     }
 }
 
+/* S131D:1426 (view_cover(side)): the 9 by 7 fields of the side's view as
+ * view_dim places them, each drawn over with picture 0Ch of the list at
+ * S331F:0167 in colours DDh on.  A drawing routine; here until draw.c
+ * has it. */
+static void view_cover(uint16_t side)
+{
+    Far pic = pfar(far_add(far_at(S_GAME, 0x0167), 0x30), 0);
+    uint16_t x = side ? 0xA0 : 0, col, row;
+
+    for (col = 0; col < 9; col++, x = (uint16_t)(x + 0x10)) {
+        uint16_t y = col & 1 ? 0x0C : 0;
+
+        for (row = 0; row < 7; row++, y = (uint16_t)(y + 0x18))
+            pic_draw(x, y, pic, 0xDD);
+    }
+}
+
 /* order 4 (S02E6:11B1): side m takes the site; a is the other side */
 static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, uint8_t *result)
 {
@@ -196,13 +213,45 @@ static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, ui
     fww(S_site_taken, A_site_taken, 1);
     if (orders_hook)
         orders_hook(ORDERS_TAKEN, fought);
+    /* S02E6:1249 to 1373: the other side's view on the site, its field
+     * marked with 30h while the marks are drawn and the mark taken off
+     * again, the taker's view covered, shown, wait_frames(1Eh); the
+     * colours back (fade_in after a fight in this attacks_run, else
+     * fade_back; with the fights' pictures off fade_back only without a
+     * fight before), then the site's picture over the taker's half
+     * (event_picture CAh for the first side, CBh for the second, at the
+     * work buffer plus 1064h) and the battle's libraries loaded again
+     * over it (libs_start, as after a fight's pictures) */
     view_to_field(a, field);
-    /* the site's field is marked with 30h while the view is drawn and
-     * the mark taken off again */
+    view_draw(NW(views, a * VIEW_SIZE + 2), a);
     f = (int16_t)((int16_t)field >> 1);
     at = (uint16_t)(f % w + ((f / w) << 6));
+    SETB(field_bits, at, NB(field_bits, at) | 0x30);
+    marks_draw(NW(views, a * VIEW_SIZE + 2), a);
     SETB(field_bits, at, NB(field_bits, at) & 0xCF);
+    view_cover(m);
+    page_flip();
+    page_copy();
+    if (orders_hook)
+        orders_hook(ORDERS_WAIT, 0x1F);
+    if (!NB(no_fight_pics, 0) && fought) {
+        fade_in();
+        if (orders_hook)
+            orders_hook(ORDERS_FADE, 0);
+    } else if (!NB(no_fight_pics, 0) || !fought) {
+        fade_back(game_mem.save_buf);
+        if (orders_hook)
+            orders_hook(ORDERS_WAIT, 0x60);
+    }
     fwb(S_take_picture, A_take_picture, 1);
+    event_picture(far_add(game_mem.work, 0x1064), game_mem.work, m ? 0xCB : 0xCA, 0);
+    {
+        Far p = game_mem.libs;
+
+        libs_start(&p);
+    }
+    if (orders_hook)
+        orders_hook(ORDERS_TAKEN_BACK, 0);
 
     for (i = 0; i < 7; i++)
         pwb(rec, (uint16_t)(m * 7 + i), pb(rec, (uint16_t)(a * 7 + i)));

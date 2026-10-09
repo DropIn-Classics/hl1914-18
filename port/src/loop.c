@@ -769,23 +769,18 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
         if ((side_word(0) & 2 && side_word(1) & 2) || (key && key == key_entry(0x0C))) {
             uint16_t f0 = NW(views, 0), f1 = NW(views, VIEW_SIZE);
             uint16_t a = NB(attack_pick, 0) & 2 ? 0 : 1;
-            uint8_t res, faded;
+            uint8_t res;
 
             key = 0;
             /* S066A:3CC5: the screen goes grey, or with a fight's
              * pictures dark */
-            faded = 0;
-            pics_shown = 0;
             if (!NB(sides, a * SIDE_SIZE + 0x15)) {
                 fade_grey(game_mem.save_buf);
-                faded = 1;
                 SETW(site_taken, 0, 0);
             } else {
                 SETW(site_taken, 0, 1);
-                if (!NB(no_fight_pics, 0)) {
+                if (!NB(no_fight_pics, 0))
                     fade_out();
-                    faded = 2;
-                }
             }
             SETB(take_picture, 0, 0);
             if (loop_hook)
@@ -821,16 +816,6 @@ static void state_done(Far view, uint16_t side, uint16_t di, const SideIn *in)
                     fade_in();
             } else
                 fade_back(game_mem.save_buf);
-            /* the original's order 4 shows the site taken and brings the
-             * colours back itself (S02E6:11B1, not translated); the port's
-             * does not, so where neither that nor a fight's pictures did,
-             * the counterpart of the fade above comes here */
-            if (!pics_shown) {
-                if (faded == 1 && NW(site_taken, 0))
-                    fade_back(game_mem.save_buf);
-                else if (faded == 2 && NB(take_picture, 0))
-                    fade_in();
-            }
             if (!(res & 0x80)) {
                 Far won = view_of(res), lost = view_of(res & 1 ? 0 : 1);
 

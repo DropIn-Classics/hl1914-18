@@ -2477,7 +2477,40 @@ emulation error (2026-10-02).
         the site taken in order 4 (view drawn, flip, waits, its fade);
         the port shows nothing there. A dark fade with `take_picture` and
         no pictures shown was not met in a run (the branch is written,
-        not seen).
+        not seen). (Done, the next item; the fallback is gone again.)
+      - The site taken's presentation (2026-10-09, Windows, branch
+        `win/sitepic`): order 4 draws and fades as the original
+        (`order_take`, port/README.md), `event_picture` CAh/CBh is
+        `site_picture` (events.c `pic_site`, using `vdif` and `res_load`
+        as the other pictures do). Learned:
+        - `view_cover` is called with [BP-2], the side that takes the
+          site (the hints said the loser): the taker's half is covered
+          and the picture drawn over it, the other half shows the other
+          side's view on the site. Its picture is the far pointer 30h
+          bytes into the list S331F:0167 points to (picture 0Ch, the
+          hints said 30h). `view_cover` is in orders.c for now; it
+          belongs in draw.c (Debian's file, not changed here).
+        - `site_picture(x, y, place, work)`: x 0 for CAh, A0h for CBh,
+          y 0; the second of its three files is not used, the third is
+          music (`music_start(it, 0, FFh)`), the frames are drawn in the
+          game's colours (no palette taken), then `wait_frames(C8h)` and
+          `music_fade(14h)`. The music is played in the port (the other
+          event pictures still leave theirs out).
+        - Times in the original (m0_s4, round 4, run's seconds): order
+          4 at 128.036, `event_picture` 130.452, `site_picture` 130.623,
+          its files loaded 130.957, 18 frames to 132.493,
+          `wait_frames(C8h)` to 135.361, the round's end 139.430. The
+          1.84 s once measured for the frames were the loading and the
+          frames together.
+        - The original's frames of a site picture can be dumped at
+          `S1A39:198C` (each frame's start, `play_dumps.py` `sNNNN`).
+        - Found, not looked into: `S331F:1838` (`fight_rec` + 1Ch) is
+          FFFFh in the port from the start of a round end (before
+          `attacks_run`) and 0 again at the next pass; the original has
+          0 there during the site's picture.
+        Next: the player's live check of the picture; a site taken after
+        a fight (the `fade_in` path) and with the fights' pictures off
+        are written, not run.
       - Music slower during fades (the player's report, live window):
         not measured live (a window run with `-keys` does not run in
         real time; it needs a player). Read from the code: in the live

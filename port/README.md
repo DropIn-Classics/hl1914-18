@@ -3789,6 +3789,21 @@ anything the game needs before the first release.
   `plan_approach`'s state 2 the calls took (not looked at), `plan_ride`'s states 1 to 4 for a unit to
   fetch, `play_test.sh` on `m26_quiet`; whether the repair's text was
   shown the same was not looked at beyond the bytes.
+- The colours back after a round end without pictures (2026-10-09,
+  Windows; branch `win/blackmap`): `state_done` (loop.c) remembers the
+  fade it made (grey or dark) and, when no fight's pictures were shown
+  (`pics_shown`, set in `fight_pictures`), after the redraw makes the
+  counterpart (`fade_back`, `fade_in`) that order 4's own presentation
+  would have made (not translated). Checked with temporary DAC logging:
+  `m0_carry -nopics` (4th round end), `m8_site`, `m0_hq` (pictures on)
+  dark before, the game's colours after. The pictures-shown path is
+  unchanged: base and fixed headless builds give the same `-rounds`,
+  RAM and VRAM at passes 3000 and 6000 on `m8_site`, `m0_carry`,
+  `m0_hq`; `loop_test.sh` on `m8_site`, `m0_carry`, `m24_both`,
+  `m30_both` the same; `play_test.sh` `m57_site`, `m8_long` the same,
+  `m60_fights_nopics`, `m0_s4` DIFFERENT as on origin/master. Not
+  covered: the dark fade with no pictures (never met), a live run (the
+  player checks), the site taken's own picture (still not shown).
 - The bar of the computer's thinking (2026-10-09, Mac; branch
   `mac/thinkbar`): `computer_progress` (`S1C74:0354`, `src/plan.c`) and
   the bar `computer_part` draws with it (`src/loop.c`, `bar_draw` in

@@ -249,6 +249,9 @@ void latch_copy(uint16_t w, uint16_t h, Far src, Far dst);
 void unders_restore(void);
 void under_save(uint16_t w, uint16_t h, Far src, Far save);
 int fight_pictures(const FightPics *a);
+/* set once a fight's pictures are on the screen (their end brings the
+ * colours back); the round end clears it */
+extern uint8_t pics_shown;
 
 /* events.c: the pictures of events behind a battle (event_picture's
  * kinds CDh to D0h); event_hook keeps their time (play.c): at

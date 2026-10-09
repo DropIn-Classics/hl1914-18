@@ -1,0 +1,23 @@
+# the stick for m48_joymenu.keys (the format is m48_joy.joy's): there
+# from the program's start, a little off 570 in both axes, and moved in
+# the menu before the battle (the menu's first pass is at 8.1 s, its
+# keys from 10 to 19, the battle's first pass near 23)
+0 0,560,590,0
+# in the menu: down (the next item) and up again (not in the first
+# 0.9 s of the menu: the port's first pass is that much behind its
+# -start, see docs/HANDOFF.md)
+9.20 0,560,1150,0
+9.40 0,560,590,0
+9.60 0,560,100,0
+9.80 0,560,590,0
+# behind START, while the battle is set up: held left into the battle's
+# first passes
+20.00 0,100,590,0
+23.60 0,560,590,0
+# in the battle: down, the button, right and up at once
+25.00 0,560,1150,0
+25.60 0,560,590,0
+26.00 0,560,590,1
+26.30 0,560,590,0
+27.00 0,1100,100,0
+27.60 0,560,590,0

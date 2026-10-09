@@ -9,9 +9,10 @@
 #     sh port/tests/options_test.sh own [TAG]     the port on its own clock
 #
 # TAG is m48_mouse, m48_joy, m48_joy0 (a stick there from the program's
-# start), m48_ftext (the texts of F5 to F8, with the video memory) or
-# m48_joyown (taps of the sticks, for `own`); without one all that the
-# way of running has are run.
+# start), m48_joymenu (that stick moved in the menu and held left while
+# the battle is set up), m48_ftext (the texts of F5 to F8, with the
+# video memory) or m48_joyown (taps of the sticks, for `own`); without
+# one all that the way of running has are run.
 # Both programs go through the menu by keys to map 48 and get the keys of
 # port/tests/keys/TAG.keys with the mouse of TAG.mice and the sticks of
 # TAG.joy beside it (the runner's -mice and -joys, the port's -mice and
@@ -49,10 +50,10 @@ case $1 in
 dumps|map|own) MODE=$1; shift ;;
 esac
 case $MODE in
-dumps) TAGS=${1:-m48_mouse m48_joy m48_joy0 m48_ftext m48_joyown} ;;
+dumps) TAGS=${1:-m48_mouse m48_joy m48_joy0 m48_joymenu m48_ftext m48_joyown} ;;
 map) TAGS=${1:-m48_joy m48_joy0} ;;
 own) TAGS=${1:-m48_joyown} ;;
-*) TAGS=${1:-m48_mouse m48_joy m48_joy0 m48_ftext} ;;
+*) TAGS=${1:-m48_mouse m48_joy m48_joy0 m48_joymenu m48_ftext} ;;
 esac
 dump_times() {
     {
@@ -73,7 +74,7 @@ if [ "$MODE" = dumps ]; then
     for T in $TAGS; do
         D=../build/play/$T
         UNTIL=64
-        [ "$T" = m48_joy0 ] && UNTIL=40
+        [ "$T" = m48_joy0 ] || [ "$T" = m48_joymenu ] && UNTIL=40
         [ "$T" = m48_ftext ] || [ "$T" = m48_joyown ] && UNTIL=50
         V=
         [ "$T" = m48_ftext ] && V=1

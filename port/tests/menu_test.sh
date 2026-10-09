@@ -34,7 +34,9 @@
 # into the port's -saves folder) and win a second.
 # The walks joy57 and joyload have a joystick (tests/keys/menu_WALK.joy,
 # the runner's -joys and the port's): its directions and buttons walk the
-# menu and leave the saved game's question.
+# menu and leave the saved game's question.  joyask has the sticks'
+# other buttons at the question, mouseask the mouse's (tests/keys/
+# menu_mouseask.mice, -mice in both programs).
 set -e
 # awk reads the clock's times as numbers only with a decimal point
 export LC_ALL=C
@@ -43,7 +45,7 @@ GAME=${DOSKIT_GAME:-../game}
 sh build.sh
 LIVE=
 [ "$1" = live ] && { LIVE=1; shift; }
-[ $# -gt 0 ] || set -- back code57 end57 exit joy57 joyload live57 livename57 livetwice57 name57 noload pages start0 start24 twice57
+[ $# -gt 0 ] || set -- back code57 end57 exit joy57 joyask joyload live57 livename57 livetwice57 mouseask name57 noload pages start0 start24 twice57
 r=0
 for w in "$@"; do
     D=../build/menu/$w
@@ -64,6 +66,8 @@ for w in "$@"; do
     [ -f "$D/pokes.txt" ] && V="$V $(cat "$D/pokes.txt") -evdump $D/port_"
     # the walk's joysticks (the runner's -joys script), if it has any
     [ -f "tests/keys/menu_$w.joy" ] && V="$V -joys tests/keys/menu_$w.joy"
+    # and its mouse (the runner's -mice script)
+    [ -f "tests/keys/menu_$w.mice" ] && V="$V -mice tests/keys/menu_$w.mice"
     # shellcheck disable=SC2086
     build/history-line-headless -game "$GAME" -keys "$D/keys.txt" -start "$(cat "$D/start.txt")" -seed 0 \
         -until "$until" -menulog "$D/port.log" -menudump "$n" "$D/port.ram" $V -saves "$D/port_saves" -ram "$D/port_end.ram" > "$D/port.txt" 2>&1 || true

@@ -133,6 +133,16 @@ pages different). The port changed in two small places for it
 `main.c`'s pokes made when the first pass begins); the bullet "The
 joysticks' leftovers" says what was learned and what is still not run.
 
+On the branch `mac/options3` (2026-10-09) the two gaps those notes left
+are run and set beside the original: the other buttons at the saved
+game's question (a stick's second, both at once, the second stick's;
+the mouse's first, second, both, and the pointer moved alone: two new
+walks of the menu, the same) and a stick moved in the menu and held
+while the battle is set up, the battle played on the original's clock
+(`m48_joymenu`: the same). Nothing of the port's source changed; the
+tests only. Found by the way: the port's menu has its first pass 0.84 s
+behind its `-start` (the bullet "The joysticks' two gaps").
+
 On the branch `debian/screen` (2026-10-08) the `doskit` submodule points
 at `953c83b` on doskit's branch `debian/vga-start` (its master `5e2524b`
 merged in, plus the VGA's and the BIOS data area's starting state), until
@@ -4063,7 +4073,8 @@ emulation error (2026-10-02).
     first button (the passes of the menu's loop go on 0.4 s after it,
     the MISC page again), as the reading of `mac/menuload` expected;
     right and left do nothing there. The second button at the question
-    was not run (it came while the menu was back and chose LOAD).
+    was not run here (it came while the menu was back and chose LOAD);
+    it is in the next bullet.
   - `text_input`'s cursor (the `]`) comes and goes by the passes, so
     what the page holds when Enter ends it is a matter of the clock:
     with Enter at 15.0 s the original's page had it and the port's on
@@ -4107,6 +4118,56 @@ emulation error (2026-10-02).
   - Not done: listed in port/README.md at the same point; first of all
     a stick in the window (`plat_sdl.c`), which is the only way a
     player's stick reaches these routines.
+- The joysticks' two gaps (2026-10-09, Mac, branch `mac/options3`; the
+  walks `joyask` and `mouseask` of `menu_dumps.py`/`menu_test.sh`, the
+  tag `m48_joymenu` of `options_test.sh`; port/README.md has the
+  counts). Nothing of the port's source changed. Seen in runs of the
+  original and of the port beside it:
+  - The saved game's question (`S167A:192E`) is left by every button
+    tried: the first stick's second button, both its buttons at once,
+    the second stick's second button (the second side's byte 4; both
+    sticks there from the program's start), the mouse's first button,
+    its second, both at once. Each time the passes of the menu's loop
+    go on 0.3 to 0.4 s after the press, on the MISC page with LOAD
+    still the item (the stick's first button or the key then asked
+    again). The pointer moved at the question with no button held does
+    not leave it (the question stood from 26.0 to 30.3 s with the move
+    at 29.0 and the buttons at 30.0). So the reading of `mac/menuload`
+    holds: a side's button or one of the mouse's two words. Not tried:
+    the mouse's third button, a button held from before the question.
+  - A `-mice` line puts the pointer where it says, also in the menu, and
+    there the item under the pointer becomes the chosen one: the first
+    try let the button go at the question's own place (290, 181) when
+    the menu was back, and the key after it chose another item in the
+    original. The walk clicks at 98, 73 instead, where the menu puts
+    the pointer on the MISC page with LOAD chosen (the mouse's record,
+    `DATA:0424`, in a dump of the original at such a pass).
+  - A stick moved in the menu before a battle on the original's clock
+    (`m48_joymenu`: down and up in the menu at 9.2 and 9.6 s, which the
+    original's menu takes as two changes of the item; held left from
+    20.0 s, behind START while the battle is set up, to 23.6, into the
+    battle; then down, the button, right and up at once, F5 off and
+    on). The battle's first nine passes read "left" (4) for the first
+    side in both; the tenth reads 8 in both (not looked into;
+    presumably the mouse's direction when the stick gives nothing
+    again). Nothing in the setup between the menu and the first pass
+    was seen to ask the stick: the first pass begins at 23.13 s as in
+    `m48_joy0`, whose stick is at rest there.
+  - Found by the way, not changed: the port's menu has its first pass
+    0.84 s behind its `-start` (`play_start` sets the clock when
+    `menu_run` begins; the fade and `wait_frames(5)` follow, and what
+    came in is cleared before the loop), while the tests give as
+    `-start` the time of the original's first pass (its `menu_run`
+    began 1.36 s before that pass in one run: `S167A:0005` at 6.69 s,
+    the first `S167A:130B` at 8.05). So a key or a stick in the first
+    0.84 s of the original's menu is taken there and not by the port:
+    a stick's down at 8.6 s was (the original at 8.62 s, the port
+    nothing; tried in the port: taken from 8.7 on, at 8.91 s), and the
+    walk then went to map 0. Every walk's first input is at 9.2 s or
+    later, so no comparison so far reaches it. It is the tests' way of
+    starting, not the player's menu; whoever wants inputs that early
+    gives the port `-start` 0.84 s earlier, which moves every time of
+    the walks compared so far (not tried).
 - The program's end and the briefing (2026-10-08, Mac).
   - `S066A:4739`, reached when 1 is clear in `game_state` behind the
     menu or a battle (EXIT TO DOS sets 100h and clears 1 and 2):

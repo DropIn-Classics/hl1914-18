@@ -1,0 +1,35 @@
+# the joysticks of menu_dumps.py's walk joyask ("T N,X,Y,B", the format
+# of m48_joy.joy): both there from the program's start, 570 their middle
+0 0,570,570,0
+0 1,570,570,0
+# the first stick down four times: MISC
+10.00 0,570,1100,0
+10.20 0,570,570,0
+11.00 0,570,1100,0
+11.20 0,570,570,0
+12.00 0,570,1100,0
+12.20 0,570,570,0
+13.00 0,570,1100,0
+13.20 0,570,570,0
+# its first button chooses it
+14.00 0,570,570,1
+14.20 0,570,570,0
+# down: LOAD, and the button: the saved game's question
+16.00 0,570,1100,0
+16.20 0,570,570,0
+17.00 0,570,570,1
+17.20 0,570,570,0
+# the second button at the question
+19.00 0,570,570,2
+19.20 0,570,570,0
+# LOAD again; both buttons at once at the question
+21.00 0,570,570,1
+21.20 0,570,570,0
+23.00 0,570,570,3
+23.20 0,570,570,0
+# LOAD again; the second stick's second button at the question
+25.00 0,570,570,1
+25.20 0,570,570,0
+27.00 1,570,570,2
+27.20 1,570,570,0
+# (Esc at 30 by the keys: the main menu; then the code and START)

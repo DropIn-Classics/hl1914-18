@@ -23,7 +23,6 @@
 #define SCW(o, v) fww(S_SPR, (uint16_t)(o), (uint16_t)(v))
 
 void (*pics_hook)(int at);
-uint8_t pics_shown;
 
 static void set_far(uint16_t seg, uint16_t off, Far p)
 {
@@ -1094,7 +1093,6 @@ int fight_pictures(const FightPics *a)
         return 2;
     page_copy();
     page_flip();
-    pics_shown = 1;
     if (pics_hook)
         pics_hook(PICS_LOADED);
     {

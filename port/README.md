@@ -3804,6 +3804,49 @@ anything the game needs before the first release.
   `m60_fights_nopics`, `m0_s4` DIFFERENT as on origin/master. Not
   covered: the dark fade with no pictures (never met), a live run (the
   player checks), the site taken's own picture (still not shown).
+- The site taken's presentation (2026-10-09, Windows; branch
+  `win/sitepic`): order 4 (`order_take`, `S02E6:11B1` to `1373`) now
+  draws what the original draws: the other side's view on the site
+  (`view_to_field`, `view_draw`, the site's field marked with 30h while
+  `marks_draw` draws), the taker's view covered (`view_cover`,
+  `S131D:1426`, in orders.c until draw.c has it), `page_flip`,
+  `page_copy`, `wait_frames(1Eh)`, `fade_in` after a fight in this
+  `attacks_run` else `fade_back` (with the fights' pictures off
+  `fade_back` only without a fight), `take_picture` 1, `event_picture`
+  CAh or CBh at the work buffer plus 1064h and `libs_start` again.
+  `event_picture` CAh/CBh is `site_picture` (`S1A39:1906`, events.c
+  `pic_site`): three files (the table at `S3812:086C`), the third
+  started as music, the first stream's frames over the taker's half at
+  x 0 or A0h, 6 timer counts each, `wait_frames(C8h)`,
+  `music_fade(14h)`. The colours that `state_done` brought back for it
+  since `win/blackmap` (`pics_shown`) are gone again: order 4 does it.
+  The port's own clock (play.c) now waits where order 4 waits
+  (`ORDERS_WAIT`, `ORDERS_FADE`, `ORDERS_TAKEN_BACK`; the picture's
+  frames, waits and `inputs_release` through `site_hook`), and the
+  site's files take 0.333 s (`EV_LOAD_SITE`, measured in the
+  original's log: `S1A39:1906` to `195B`) instead of the 1.84 s that
+  stood for the frames. Compared on `m0_s4` (two depots taken, rounds
+  4 and 7): `play_dumps.py` dumps the original at every tenth frame of
+  the sites' pictures (`S1A39:198C`, `sNNNN`) and `-evdump` the port
+  there; frames 1, 11, 21 and 31 (CBh over the right half for the
+  computer's site in round 4, CAh over the left for the first side's
+  in round 7) the same in both pages of
+  video memory on both clocks (1442 bytes behind the pages differ, the
+  same at every frame). At those frames `S331F:1838` (`fight_rec` + 1Ch)
+  is FFFFh in the port and 0 in the original; the port has FFFFh there
+  from the round end's start, before `attacks_run`, and 0 again at the
+  next pass: not caused by this change, not looked into. Round end with
+  the site taken, `attacks_run` to the round's end: original 11.42 and
+  11.39 s, port 11.35 and 11.34 (11.34 before). `play_test.sh m0_s4`
+  DIFFERENT as before (the one input part of pass 1059, on master too;
+  the differences "elsewhere" after the site taken down from 204 to
+  123); `rounds` the same up to round 7 as before; `m57_site` both
+  clocks and `loop_test.sh` (`m8_site`, a site taken in pass 6215) the
+  same. `orders_test.sh` and `loop_test.sh` link events.c now;
+  `orders_test.sh` and `fight_test.sh` were not run (their dumps,
+  `build/n2`, are not on this machine). Not checked: a live run in the
+  window (the player checks), a site taken after a fight (`fade_in`
+  path) or with the fights' pictures off, the site's music as sound.
 - The bar of the computer's thinking (2026-10-09, Mac; branch
   `mac/thinkbar`): `computer_progress` (`S1C74:0354`, `src/plan.c`) and
   the bar `computer_part` draws with it (`src/loop.c`, `bar_draw` in

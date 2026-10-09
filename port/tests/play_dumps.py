@@ -47,6 +47,8 @@ maps from 48 on are for two human sides) up to UNTIL emulated seconds
     063F:0009  battle_score; 063F:0277, 027E  it chooses picture CEh, CFh
     1A39:0BE6, 0EF6, 10AF, 1359  a frame of a picture behind the loop
                begins (port/src/events.c)
+    1A39:198C  a frame of a site's picture (site_picture, attacks_run's
+               order 4) begins
     066A:4728  what follows the loop is done
 
 and writes into build/play/TAG/ (ignored):
@@ -73,7 +75,9 @@ and writes into build/play/TAG/ (ignored):
                 behind the loop, counted over all of them (the port's
                 -evdump); and gFNNN.ram at the frames 1, 11, 21 ... of
                 the F-th fight's pictures (at S2532:156D, the port's
-                -evdump too)
+                -evdump too); and sNNNN.ram at the frames 1, 11, 21 ...
+                of the sites' pictures, counted over all of them (the
+                port's -evdump too)
     passes.txt  their numbers
     ends.txt    a line for each time the battle's end showed its texts
                 and waited: pass, side, the first side's text and the
@@ -187,11 +191,12 @@ R5 = ('0CB6:084D', '0CB6:09C5', '0CB6:0BDA')
 WAITS = ('0CB6:0075', '0CB6:00C1', '0CB6:00E2')
 PRESS = ('0CB6:0DE4', '0CB6:0E30', '0CB6:0E51')
 FRAMES = ('1A39:0BE6', '1A39:0EF6', '1A39:10AF', '1A39:1359')
+SITE = '1A39:198C'      # a frame of site_picture
 RELEASE = ('167A:2FEF', '167A:30B2')
 LOGS = ('27FE:008C', '066A:0EE9', '066A:0FC3', '066A:1003', '0CB6:05F1', '0CB6:0658', '0CB6:0750',
         '066A:10D6', '2C95:0024', '2C95:004A', '02E6:000F', '27FE:04F4', '2C9A:0008',
         '2532:0137', '2532:156D', '066A:45E8', '066A:42FC', '10AF:009F',
-        '1A39:0001', '063F:0009', '063F:0277', '063F:027E', '066A:4728', '0CB6:0DA9') + R8 + R5 + WAITS + PRESS + RELEASE + FRAMES
+        '1A39:0001', '063F:0009', '063F:0277', '063F:027E', '066A:4728', '0CB6:0DA9') + R8 + R5 + WAITS + PRESS + RELEASE + FRAMES + (SITE,)
 if menu_keys:
     LOGS += ('167A:130B',)      # a pass of the menu's loop
 
@@ -231,6 +236,7 @@ waits = 0           # wait_press's entries
 frames = []         # the pictures' frames: (address, its hit there)
 local = {}
 fights = []         # the fights' pictures: the frames each has run
+sites = 0           # the sites' pictures' frames
 for line in open(log):
     m = re.match(r'log HL\.EXE\+(\w{4}:\w{4}) t=(\S+) hit=\d+ regs (.*)', line)
     if not m:
@@ -276,6 +282,8 @@ for line in open(log):
         local[at] = local.get(at, 0) + 1
         frames.append((at, local[at]))
         clock.append('%s F' % t)
+    elif at == SITE:
+        sites += 1
     elif at in RELEASE:
         clock.append('%s Y' % t)
     elif at in PRESS:
@@ -356,6 +364,7 @@ if after:
     ends_at.append(('S066A:4728', 'p%04d' % (passes + 2)))
 ends_at += [('S0CB6:0DA9#%d' % (n + 1), 'e%d' % (n + 1)) for n in range(waits)]
 ends_at += [('S%s#%d' % f, 'f%04d' % (n + 1)) for n, f in enumerate(frames) if n % 10 == 0]
+ends_at += [('S%s#%d' % (SITE, n), 's%04d' % n) for n in range(1, sites + 1, 10)]
 ends_at += [('S2532:156D#%d' % (sum(fights[:i]) + k), 'g%d%03d' % (i + 1, k))
             for i, n in enumerate(fights) for k in range(1, n + 1, 10)]
 

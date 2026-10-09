@@ -100,8 +100,7 @@
 #define T_PIC_BACK 0.69     /* pictures_load and the view after a fight's pictures */
 #define T_PICS_END 0.83     /* after the last fight with pictures, to game_loop's fade_in */
 #define T_ROUND_END 0.31    /* attacks_run's end to the round's, without pictures or with a site */
-#define T_SITE_FRAMES 1.84  /* site_picture's frames (their number is in its stream) */
-#define T_SITE_BACK 3.04    /* after it: S2F39:1058 and the battle's pictures loaded again */
+#define T_SITE_BACK 3.04    /* after site_picture: S2F39:1058 and the battle's pictures loaded again */
 #define T_AFTER 0.42      /* the loop's end to event_picture behind its fade_out (music_fade(4), unders_restore; m57_win: 1.125 s against 0.70) */
 /* the pictures behind the loop: their loading and first drawing, from
  * inputs_release's end to the first frame less what the port counts
@@ -113,6 +112,7 @@ static const double t_ev_load[] = {
     0.34,   /* EV_LOAD_MEDAL2: CEh's second stream, the gap of 2.44 s between them */
     2.53,   /* EV_LOAD_MEDAL3: CEh's picture on its background, the last frame to S066A:4728 (9.96 s) */
     1.11,   /* EV_WON_END: D0h's music_fade(0Ah), presumably (not checked what in it takes the time); its last frame to battle_score 2.74 s in m57_won and m57_medal, 2.725 in m54_end, of which the port counted 1.63 */
+    0.333,  /* EV_LOAD_SITE: site_picture's files, S1A39:1906 to 195B in m0_s4 (round 4) */
 };
 #define T_SETUP 2.75        /* the menu's return (S066A:0390) to the loop's first pass (back walk: 20.18 to 22.93 s) */
 
@@ -497,7 +497,9 @@ static long ev_ends, ev_frames, ev_fights, ev_fframes;
  * behind the loop, the first and the 11th and so on, counted over all of
  * them (PREFIXfNNNN.ram, .vram), and at the frames 1, 11, 21 ... of
  * the F-th fight's pictures, where fight_frames tests the key
- * (PREFIXgFNNN.ram, .vram), as play_dumps.py makes the original's */
+ * (PREFIXgFNNN.ram, .vram), as play_dumps.py makes the original's; and
+ * at the frames 1, 11, 21 ... of the sites' pictures of order 4, counted
+ * over all of them (PREFIXsNNNN.ram, .vram; the original's at S1A39:198C) */
 void play_evdump(const char *prefix)
 {
     ev_prefix = prefix;
@@ -507,10 +509,10 @@ static void ev_dump(char kind, long n)
 {
     char path[1024];
 
-    if (!ev_prefix || (kind == 'f' && n % 10 != 1) || (kind == 'g' && n % 1000 % 10 != 1))
+    if (!ev_prefix || ((kind == 'f' || kind == 's') && n % 10 != 1) || (kind == 'g' && n % 1000 % 10 != 1))
         return;
-    snprintf(path, sizeof path, kind == 'e' ? "%se%ld.ram" : kind == 'f' ? "%sf%04ld.ram" : "%sg%04ld.ram",
-             ev_prefix, n);
+    snprintf(path, sizeof path, kind == 'e' ? "%se%ld.ram" : kind == 'f' ? "%sf%04ld.ram" :
+             kind == 's' ? "%ss%04ld.ram" : "%sg%04ld.ram", ev_prefix, n);
     if (rm_write(path) != 0)
         fprintf(stderr, "%s: not written\n", path);
     strcpy(path + strlen(path) - 4, ".vram");
@@ -766,6 +768,45 @@ static void pics_clock(int at)
     }
 }
 
+/* the site's picture of order 4 (events.c's site_picture) on the port's
+ * own clock: event_picture's inputs_release(1, 0) (S167A:2F83: the key
+ * and both sides' buttons cleared, 6 retraces, again while one came),
+ * the frames' and the waits' retraces; on the original's clock nothing
+ * (the waits end at once, the log's calls come later).  -evdump dumps
+ * its frames. */
+static long site_frames;
+
+static int site_hook(int at, int n)
+{
+    int i;
+
+    if (at == EV_FRAME)
+        ev_dump('s', ++site_frames);
+    if (have_clock)
+        return at != EV_RETRACES;
+    switch (at) {
+    case EV_RELEASE:
+        press_clear();
+        pwb(far_at(S_DATA, 0x00B6), 4, 0);
+        own_retraces(6);
+        do {
+            i = pressed() || pb(far_at(S_DATA, 0x00B6), 4);
+            press_clear();
+            pwb(far_at(S_DATA, 0x00B6), 4, 0);
+            own_retraces(6);
+        } while (i);
+        return !stopped;
+    case EV_RETRACES:
+        own_retraces(n);
+        return !stopped;
+    case EV_BUSY:
+        own_busy(t_ev_load[n]);
+        return 1;
+    default:
+        return 1;
+    }
+}
+
 /* attacks_run's waits and pictures (orders_hook), on the port's own clock */
 static void round_hook(int at, int n)
 {
@@ -810,31 +851,20 @@ static void round_hook(int at, int n)
             own_wait_input(0x50);   /* S02E6:0D3C */
         break;
     case ORDERS_TAKEN:
-        /* order 4, S02E6:1233 to 17C3 */
+        /* order 4, S02E6:1233 on: the view drawn (orders.c draws it
+         * after this); its waits and fades come as ORDERS_WAIT and
+         * ORDERS_FADE, the site's picture through site_hook */
         if (first)
             own_busy(T_VIEW);
         first = 0;
-        own_retraces(31);
-        if (!NB(no_fight_pics, 0)) {
-            if (n)
-                own_fade();
-            else
-                own_retraces(0x60);     /* fade_back */
-        } else if (!n)
-            own_retraces(0x60);
-        /* event_picture: inputs_release(1, 0), S167A:2F83 */
-        press_clear();
-        pwb(far_at(S_DATA, 0x00B6), 4, 0);
-        own_retraces(6);
-        do {
-            i = pressed() || pb(far_at(S_DATA, 0x00B6), 4);
-            press_clear();
-            pwb(far_at(S_DATA, 0x00B6), 4, 0);
-            own_retraces(6);
-        } while (i);
-        /* site_picture, S1A39:1906 */
-        own_busy(T_SITE_FRAMES);
-        own_retraces(201);
+        break;
+    case ORDERS_WAIT:
+        own_retraces(n);
+        break;
+    case ORDERS_FADE:
+        own_fade();
+        break;
+    case ORDERS_TAKEN_BACK:
         own_busy(T_SITE_BACK);
         own_retraces(51);           /* S02E6:17B4, wait_frames(32h) */
         break;
@@ -1190,6 +1220,7 @@ void play_begin(double start)
 {
     loop_hook = hook;
     orders_hook = round_hook;
+    event_hook = site_hook;     /* after_hook makes it ev_hook behind the loop */
     pics_hook = pics_clock;
     loop_reset();
     play_passes = play_misses = 0;

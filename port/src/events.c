@@ -2,10 +2,11 @@
  * behind a battle's loop: D0h, a human side has won; CDh, the other side
  * was left without units; CEh and CFh, a new best score (battle_score).
  * Each is a few files loaded behind `place` (S1A39:034C), streams of
- * frames drawn into the VGA's planes (S2982:0002) and fades.  The other
- * kinds (a site taken, the newspapers of the maps for one player) are not
- * translated.  The music the pictures start and fade (music_start,
- * music_fade) is left out; their sounds go to sound.c.
+ * frames drawn into the VGA's planes (S2982:0002) and fades; CAh and CBh,
+ * a site taken (attacks_run's order 4), over the taker's half of the
+ * screen.  The other kinds (the newspapers of the maps for one player)
+ * are not translated.  The music the pictures start and fade (music_start,
+ * music_fade) is left out but for the site's; their sounds go to sound.c.
  *
  * The waits and the loading go to event_hook, which keeps the time
  * (play.c): the port's own clock, or the original's log.
@@ -252,6 +253,33 @@ static Far first_frame(Far a, Far pal)
     return a;
 }
 
+/* S1A39:1906 (site_picture(x, y, place, work); CAh with x 0, CBh with
+ * A0h, y 0): its three files loaded (the table at S3812:086C), the third
+ * started as music (music_start(it, 0, FFh)), then the frames of the
+ * first stream at x, y in the game's colours, 6 counts each, until it
+ * ends; wait_frames(C8h) and music_fade(14h).  The second file is not
+ * used here. */
+static int16_t pic_site(Far place, Far work, uint16_t x, uint16_t y)
+{
+    Far a;
+
+    if (res_load(place, work, 0x086C, 3) < 0)
+        return -1;
+    hook(EV_BUSY, EV_LOAD_SITE);
+    a = loaded(0x086C);
+    music_start(loaded(0x08B4), 0, 0xFF);
+    while (!is_end(a)) {
+        frame_begin();
+        a = vdif(a, x, y);
+        flip();
+        page_copy();
+        frame_end(6);
+    }
+    wait_frames(0xC8);
+    music_fade(0x14);
+    return 0;
+}
+
 /* S1A39:0A7F (D0h): a side has won.  Two streams (the second the side's,
  * from its beginning again when it ends; the first from frame 15h on) for
  * 46h frames of 0Ch counts, the last 20 of them going down to black */
@@ -456,6 +484,10 @@ int16_t event_picture(Far place, Far work, uint16_t kind, uint16_t arg)
     hook(EV_RELEASE, 0);
     event_frame = -1;
     switch (kind) {
+    case 0xCA:
+    case 0xCB:
+        res = pic_site(place, work, kind == 0xCB ? 0xA0 : 0, 0);
+        break;
     case 0xCD:
         res = pic_wiped(place, work);
         break;

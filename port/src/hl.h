@@ -249,9 +249,6 @@ void latch_copy(uint16_t w, uint16_t h, Far src, Far dst);
 void unders_restore(void);
 void under_save(uint16_t w, uint16_t h, Far src, Far save);
 int fight_pictures(const FightPics *a);
-/* set once a fight's pictures are on the screen (their end brings the
- * colours back); the round end clears it */
-extern uint8_t pics_shown;
 
 /* events.c: the pictures of events behind a battle (event_picture's
  * kinds CDh to D0h); event_hook keeps their time (play.c): at
@@ -262,7 +259,7 @@ extern uint8_t pics_shown;
  * (EV_BUSY with an EV_LOAD_) or the music's fade left out behind D0h
  * (EV_BUSY with EV_WON_END) */
 enum { EV_RELEASE, EV_FRAME, EV_RETRACES, EV_FADE, EV_LEVEL, EV_BUSY };
-enum { EV_LOAD_WON, EV_LOAD_WIPED, EV_LOAD_MEDAL, EV_LOAD_MEDAL2, EV_LOAD_MEDAL3, EV_WON_END };
+enum { EV_LOAD_WON, EV_LOAD_WIPED, EV_LOAD_MEDAL, EV_LOAD_MEDAL2, EV_LOAD_MEDAL3, EV_WON_END, EV_LOAD_SITE };
 extern int (*event_hook)(int at, int n);
 extern int event_frame;
 int16_t event_picture(Far place, Far work, uint16_t kind, uint16_t arg);
@@ -389,8 +386,10 @@ extern uint16_t loop_end_texts[2];
  * spends there showing what the port does not draw: a fight is about to
  * be worked out (n: its pictures are on); a turn of the blasts' loop of a
  * fight without pictures; a fight is over (n: pictures); a site is taken
- * (n: a fight came before in this attacks_run) */
-enum { ORDERS_FIGHT, ORDERS_BLAST, ORDERS_FOUGHT, ORDERS_TAKEN };
+ * (n: a fight came before in this attacks_run); order 4's waits of n
+ * retraces and its fade_in; its site picture over and the libraries
+ * loaded again (ORDERS_TAKEN_BACK) */
+enum { ORDERS_FIGHT, ORDERS_BLAST, ORDERS_FOUGHT, ORDERS_TAKEN, ORDERS_WAIT, ORDERS_FADE, ORDERS_TAKEN_BACK };
 extern void (*orders_hook)(int at, int n);
 void timer_fire(uint16_t kind, uint16_t timer);
 const char *loop_pass(const SideIn in[2]);

@@ -38,6 +38,8 @@ the menu N times.  The walks (default: all):
              taken), the backspace twice, a letter, Enter; then MISC and
              the best scores of the map just won (one score, three
              EMPTY), left, START: the menu's second return
+    name5x   as name57 with a name of five letters typed straight (QWERT)
+             and Enter at the same time: the name is closed properly
     twice57  begun with the best scores' file name57's run wrote (SEEDS
              below; name57 must have been made first): map 57's code,
              MISC, the best scores (the one there), START, the battle
@@ -173,6 +175,12 @@ WALKS = {
                              (84.825, 'enter'), (91, 'space'), (95, 'down'), (96, 'down'), (97, 'down'), (98, 'down'),
                              (99, 'space'), (101, 'space'), (104, 'space'), (106, 'esc'), (108, 'space')],
                2, 116, [93, 100, 105, 107]),
+    # name57 with a name of five letters and no backspace: the name is closed by text_input's
+    # 0, no `]` (the port's deviation that takes the cursor off a shorter name changes nothing here)
+    'name5x': (code57(10) + [(79.5, 'q'), (80, 'w'), (80.5, 'e'), (81, 'r'), (81.5, 't'),
+                             (84.825, 'enter'), (91, 'space'), (95, 'down'), (96, 'down'), (97, 'down'), (98, 'down'),
+                             (99, 'space'), (101, 'space'), (104, 'space'), (106, 'esc'), (108, 'space')],
+               2, 116, [93, 100, 105, 107]),
     # (name57's Enter at 84.705: text_input shows the other page every pass and the port's passes are not
     # the original's, so which page has the pointer afterwards depends on both counts; with Enter in these
     # 10 ms both are odd, 799 and 873 with the code's; twice57's first START takes the second press as
@@ -209,12 +217,12 @@ WALKS = {
 #   name57, twice57   m57_win's battle too (twice57's a second later:
 #            its START comes 9 s after end57's)
 BATTLES = {'end57': ('m57_win', -8, 'm57_win', 57), 'live57': ('menu57_win', 0, 'm57_win', 57),
-           'name57': ('m57_win', -8, 'm57_win', 57), 'twice57': ('m57_win', 1.04, 'm57_win', 57),
+           'name57': ('m57_win', -8, 'm57_win', 57), 'name5x': ('m57_win', -8, 'm57_win', 57), 'twice57': ('m57_win', 1.04, 'm57_win', 57),
            'livename57': ('menu57_name', 0, 'm57_win', 57), 'livetwice57': ('menu57_twice', 0, 'm57_win', 57)}
 # walks that begin with the files another walk's first run wrote
 SEEDS = {'twice57': 'name57', 'livetwice57': 'name57'}
 # walks whose battle's end is not dumped again (end57 and live57 have it)
-NOENDS = ('name57', 'twice57', 'livename57', 'livetwice57')
+NOENDS = ('name57', 'name5x', 'twice57', 'livename57', 'livetwice57')
 # the end's waits (wait_press) and the frames of the pictures behind the
 # loop, as play_dumps.py has them
 PRESS = 'S0CB6:0DA9'

@@ -325,6 +325,7 @@ uint32_t defence_sum(void);
 /* save.c */
 uint16_t save_game(Far buf);
 int16_t load_game(Far buf);
+int save_valid(const uint8_t *file, size_t size);
 
 /* orders.c */
 void orders_run(uint16_t m, uint16_t a, Far map, uint8_t *result);

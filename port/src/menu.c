@@ -769,8 +769,23 @@ static void winner_name(void)
     play_fade();
     tune_start(m.music_hi);
     text_input(0x64, 0xAE, far_add(m.texts, 0x80), 5, 1, m.pic[1]);
-    for (i = 0; i < 5; i++)
-        pwb(m.scores, (uint16_t)(0x10 + which * 6 + i), pb(m.texts, (uint16_t)(0x81 + i)));
+    /* deviation (win/origfixes): the name is copied up to its first byte
+     * that is not a capital, and zeros behind it.  The original copies
+     * the five bytes as they are, so with Enter pressed while text_input's
+     * cursor showed, a name of fewer than five letters was kept with a
+     * `]` behind it (walk name57, docs/HANDOFF.md).  A name of five
+     * letters is copied as before. */
+    {
+        int end = 0;
+
+        for (i = 0; i < 5; i++) {
+            uint8_t ch = pb(m.texts, (uint16_t)(0x81 + i));
+
+            if (ch < 'A' || ch > 'Z')
+                end = 1;
+            pwb(m.scores, (uint16_t)(0x10 + which * 6 + i), end ? 0 : ch);
+        }
+    }
     pww(m.scores, (uint16_t)(4 * which), NW(score, 0));
     pww(m.scores, (uint16_t)(4 * which + 2), NW(score, 2));
     /* S2BB9:000A: the 28h bytes written to the file whose name the last
@@ -985,6 +1000,13 @@ static void saved_game(void)
         name = file_name(2, -1, num_text((int32_t)(int16_t)NW(game_state, 6), num, 2, 4), 5);
         fww(err.seg, err.off, 0);
         file = host_load(name, &size);
+        /* deviation (win/origfixes): a damaged file is refused like a
+         * missing one (save_valid, save.c); the original only asked
+         * whether the file could be opened */
+        if (file && !save_valid(file, size)) {
+            free(file);
+            file = NULL;
+        }
         if (file) {
             free(file);
             SETW(game_state, 0, NW(game_state, 0) | 0x200);

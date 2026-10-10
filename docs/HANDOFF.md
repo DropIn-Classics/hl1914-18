@@ -7053,3 +7053,41 @@ same path is presumed, not checked); `side_points` is cut to 2710h on entering a
 a five-letter name (finding 4). Not reviewed: HL14-18.EXE beyond its
 two calls, EXTRO's and INTRO's own code beyond the Esc, the fights'
 arithmetic, the computer player's choices.
+
+## win/origfixes: two bugs of the original fixed (2026-10-10, Windows)
+
+The user picked findings 2 and 4 of the review above to fix; finding 1
+(the first-round win) was dropped as contrived, the dead branches stay,
+the Esc was already handled. Both fixes are deliberate deviations,
+marked "deviation (win/origfixes)" in the code and described in
+port/README.md ("Deliberate deviations from the original").
+
+- Damaged saved games: `save_valid` (port/src/save.c) wants exactly the
+  length save_game writes (header 1Bh and the 24 blocks: 35,411 bytes,
+  the size of m48_save's file) and 0, 7 at the start; `saved_game`
+  (menu.c) refuses anything else like a missing file, with SAVED GAME
+  NOT FOUND, and the menu stays. The original shows nothing for a failed
+  load (game_loop ignores load_game's result), so the menu's own text
+  for a missing file was the only one to reuse. `load_game` is
+  unchanged, so whole files load byte for byte as before (m48_load
+  compared at every pass). save_test.sh's four damaged walks now check
+  that the port begins no battle; the original's dumps of them stay.
+  A file of the right length with damaged blocks still loads (not
+  detectable from the format; the original has no checksum).
+- The best score's name: `winner_name` (menu.c) copies the name up to
+  its first byte that is not a capital and zeros behind; `text_input`
+  is unchanged (it also reads the codes). menu_cmp.py compares a best
+  scores' file with that applied to the original's names the walk
+  wrote. New walk `name5x` (menu_dumps.py): five letters, the file
+  unchanged by the fix. In this machine's fresh dumps twice57's Enter
+  also caught the cursor (NEW]), unlike the earlier note's 0: the
+  cursor's phase depends on the passes, as noted above.
+- Observed, not explained: in name57 the video memory at the best
+  scores' screens was the same in the fixed port and the original,
+  although the original's name had the `]`; whether scores_show draws
+  the `]` (or the screens dumped come before it) was not checked.
+- The `live` memory compares of livename57/livetwice57 fail on this
+  machine with and without the change (16 DIFFERENT on master's code):
+  not looked into.
+- The cc wrapper for the .sh tests is still `build/ccw/cc` in this
+  worktree (ignored).

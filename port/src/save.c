@@ -34,13 +34,15 @@ static void pww(Far p, uint16_t o, uint16_t v)
  * sites, the carriers, the units, unit_dat, and of the computer's player
  * two tables of nine bytes a unit and three of a record a side, then the
  * two words at S331F:02B5 */
+static const uint16_t first_len[7] = {0x1806, 0x1806, 0xF2, 0xF2, 0x82, 0x82, 0x320};
+static const struct { uint8_t comp; uint16_t off; uint32_t len; } fixed[] = {
+    {0, 0x4CA4, 0x8F}, {0, 0x4D92, 0x31}, {0, 0x4DC3, 0x31}, {0, 0x4C9E, 6}, {0, 0x3B5A, 0x1104},
+    {0, 0x3A0E, 0x1C * 0x0A}, {0, 0x38F6, 0x1C * 0x0A}, {0, 0x38BE, 0x1C * 2}, {0, 0x3116, 0x1C * 0x46},
+    {0, 0x189C, 0x1A * 0xF1}, {0, 0x09BD, 0x45 * 0x33}, {1, 0x0132, 9 * 0xF1}, {1, 0x09AB, 9 * 0xF1},
+    {1, 0x12FD, 0x0C * 2}, {1, 0x126B, 0x49 * 2}, {1, 0x1224, 0x20 * 2}, {0, 0x02B5, 2 * 2}};
+
 static void save_blocks(Far list, Far buf)
 {
-    static const struct { uint8_t comp; uint16_t off; uint32_t len; } fixed[] = {
-        {0, 0x4CA4, 0x8F}, {0, 0x4D92, 0x31}, {0, 0x4DC3, 0x31}, {0, 0x4C9E, 6}, {0, 0x3B5A, 0x1104},
-        {0, 0x3A0E, 0x1C * 0x0A}, {0, 0x38F6, 0x1C * 0x0A}, {0, 0x38BE, 0x1C * 2}, {0, 0x3116, 0x1C * 0x46},
-        {0, 0x189C, 0x1A * 0xF1}, {0, 0x09BD, 0x45 * 0x33}, {1, 0x0132, 9 * 0xF1}, {1, 0x09AB, 9 * 0xF1},
-        {1, 0x12FD, 0x0C * 2}, {1, 0x126B, 0x49 * 2}, {1, 0x1224, 0x20 * 2}, {0, 0x02B5, 2 * 2}};
     Far first[7];
     uint16_t i, o = 0;
 
@@ -54,7 +56,7 @@ static void save_blocks(Far list, Far buf)
     for (i = 0; i < 7; i++, o = (uint16_t)(o + 8)) {
         pww(list, o, first[i].off);
         pww(list, (uint16_t)(o + 2), first[i].seg);
-        pww(list, (uint16_t)(o + 4), i < 2 ? 0x1806 : i < 4 ? 0xF2 : i < 6 ? 0x82 : 0x320);
+        pww(list, (uint16_t)(o + 4), first_len[i]);
         pww(list, (uint16_t)(o + 6), 0);
     }
     for (i = 0; i < sizeof fixed / sizeof fixed[0]; i++, o = (uint16_t)(o + 8)) {
@@ -63,6 +65,26 @@ static void save_blocks(Far list, Far buf)
         pww(list, (uint16_t)(o + 4), (uint16_t)fixed[i].len);
         pww(list, (uint16_t)(o + 6), (uint16_t)(fixed[i].len >> 16));
     }
+}
+
+/* Deviation from the original (win/origfixes): whether a saved game's
+ * file is whole, that is as long as save_game writes it (the header and
+ * every block of save_blocks' list) and beginning with 0 and 7.  The
+ * original's load_game tests only the two bytes, in its buffer and not
+ * in what was read, so an empty or cut file starts a battle of the
+ * menu's setup mixed with what the file held, without a word; the port's
+ * menu (saved_game) asks this first and shows SAVED GAME NOT FOUND for a
+ * damaged file as for a missing one.  A whole file is loaded as before. */
+int save_valid(const uint8_t *file, size_t size)
+{
+    size_t whole = HEAD;
+    unsigned i;
+
+    for (i = 0; i < 7; i++)
+        whole += first_len[i];
+    for (i = 0; i < sizeof fixed / sizeof fixed[0]; i++)
+        whole += fixed[i].len;
+    return size == whole && file[0] == 0 && file[1] == 7;
 }
 
 /* block i of the list: where it is in the memory image and how long */

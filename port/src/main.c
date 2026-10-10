@@ -1039,11 +1039,9 @@ static LauncherItem setup_game[] = {
 };
 static LauncherItem setup_sound[] = {
     { LI_CHOICE, "Volume", "volume", steps, &volume, 0,
-      "In play the keypad's + and - change it, * mutes" },
+      "0 is silent; in play the keypad's + and - change it, * mutes until quit" },
     { LI_CHOICE, "Headphone mix", "headphone", no_yes, &headphone, 0,
       "Blends the sides a little, for headphones" },
-    { LI_CHOICE, "Muted", "muted", no_yes, &muted, 0,
-      "In play the keypad's * switches it" },
 };
 #define KEY_HELP "The game's own key still works beside it"
 static LauncherItem setup_keys[] = {
@@ -1143,10 +1141,12 @@ static void setup_changed(const LauncherItem *item)
 
 /* history-line.cfg's path, set by setup_run; the hud's keys save to it */
 static char setup_cfg[SYS_PATH];
-#define SETUP_COMMENT "history-line's settings (the setup screen and the keypad's + - * write them)"
+#define SETUP_COMMENT "history-line's settings (the setup screen and the keypad's + - write them)"
 
-/* frame.h's hud: the keypad's + - * in play, kept in history-line.cfg at
- * once so the setup screen shows them after a restart */
+/* frame.h's hud: the keypad's + - * in play. The volume is kept in
+ * history-line.cfg at once so the setup screen shows it after a restart;
+ * mute is only a flag in the port, not a setting (doskit's
+ * PLAYER-SETTINGS.md; volume 0 is silent), and lasts this session only */
 static void hud_control(int c)
 {
     if (c == PLAT_VOLUME_UP || c == PLAT_VOLUME_DOWN) {
@@ -1155,12 +1155,12 @@ static void hud_control(int c)
         else if (c == PLAT_VOLUME_DOWN && volume > 0)
             volume--;
         muted = 0;
+        if (setup_cfg[0])
+            launcher_save(setup_cfg, SETUP_COMMENT, setup_pages, SETUP_PAGES);
     } else if (c == PLAT_MUTE)
         muted = !muted;
     else
         return;
-    if (setup_cfg[0])
-        launcher_save(setup_cfg, SETUP_COMMENT, setup_pages, SETUP_PAGES);
     if (muted)
         hud_show("MUTE", 0, 0, 140);
     else

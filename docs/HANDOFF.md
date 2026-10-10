@@ -7097,7 +7097,11 @@ port/README.md ("Deliberate deviations from the original").
 
 - 2026-10-10 (win/volsave): in-play volume and mute were not persisted;
   `hud_control` (port/src/main.c) now calls `launcher_save` after each
-  change, with the cfg path kept from `setup_run`; mute is saved as the
-  Sound page's "Muted" item. LAUNCHER.md prescribes no pattern for this
+  change, with the cfg path kept from `setup_run` (mute too, as a Sound
+  item; withdrawn by win/volfix below). LAUNCHER.md prescribes no pattern for this
   (it says nothing of settings changed outside the screen); not tested
   in the window here.
+
+- 2026-10-10 (win/volfix): correction of win/volsave. There is no mute
+  item: volume 0 is silent, and mute is not persisted (doskit). Only the
+  keypad's + and - save to history-line.cfg; * mutes for the session.

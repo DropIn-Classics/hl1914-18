@@ -1390,6 +1390,14 @@ anything the game needs before the first release.
 
 ## Checked
 
+- The F1 prompt (2026-10-10, Windows, branch `win/f1prompt`). It is
+  shown once when both sides have ended their halves (loop.c's `told`,
+  the original's `[BP-28h]`); a later text in that line (F2 to F9's)
+  leaves the line empty when its time is over, in the original as well.
+  Compared on map 8 with the original's screenshots and the port's
+  `-keys` video memory: without input the prompt stays until F1; after
+  F2 it does not come back, in both. No change to the code.
+
 - Two saves in a row (2026-10-10, Windows, branch `win/savecrash`).
   The window's play ended the battle at the second save's question: the
   wait for the digit (play.c, LOOP_SAVE) and the quit question's

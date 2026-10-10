@@ -6722,3 +6722,29 @@ loading routines. `tools/test_file_formats.py` uses synthetic data only.
   compared beyond the dumped passes.
 - Not checked: the window by eye on Windows (the player live-checks),
   the quit question's wait live.
+
+## win/f1prompt: the F1 prompt that disappears (2026-10-10, Windows)
+
+- Reported: the `F1 : MODE CHANGE` line (text 52h) likes to disappear.
+  Read in game_loop (src/HL.hints at `game_loop`): state 5's part shows
+  52h (and 3Fh for the second side) at `S066A:409E` only while
+  `[BP-28h]` is 0 and sets it to 1 at `S066A:40C3`; it becomes 0 again
+  only when a half ends (text 34h) or after a round's attacks. So the
+  original draws the prompt once, and any later text in that line (F2
+  to F9's, cleared by timer kind 1 after 19h passes) leaves the line
+  empty. loop.c's `told` is that word, set and cleared at the same
+  places; no change to the port.
+- Compared on map 8 (the m8 setup of loop_dumps.py, the half ended by
+  the click of m8_site.keys at 45 s): the original by run.py with a
+  screenshot every 0.5 s, the port by `-keys` with `-start 31.102486
+  -seed 0x229` (build/play/m8_long/clock.txt) and the video memory
+  dumped at chosen times. F1 pair at 70 s only: the prompt stays from
+  46 s to 70 s in both (the original's 40C3 hit once). Arrows at 50 s,
+  F2 at 55 s and 58 s, Space at 62 s: in both the prompt stays through
+  the arrows, `MUSIC IS OFF` replaces it, the line is empty about 1.5 s
+  later, `MUSIC IS ON`, empty again, and the prompt does not come back
+  before the F1 pair. Compared by eye on the screenshots and the
+  rendered video memory, not byte for byte; the scripts were in build/
+  (not kept).
+- Not checked: the window's live play (the player live-checks), a
+  second human side, the mouse's part in it.

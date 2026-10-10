@@ -4351,3 +4351,16 @@ found.
   after the title is still the menu's (act 1). With `-title` and a
   `-start` in a scripted run the menu now begins where the title ended,
   not at `-start`.
+
+2026-10-10 (`debian/border`): the cursor's border inside a site or
+carrier on a place with no function. The port draws what the original
+draws: the border (cursor picture 5) on every place, empty or not, and
+on a gesture with nothing on offer; no change. `m8_border.keys`
+(`make_m8.py e45 g55 s64 d66 d67 d68 d69 d70 d71 u73 u74 r76 o79 L82
+l85`: the factory entered, its seven empty places walked, button and
+down, button and up on an empty place, leave), `play_dumps.py`
+`VRAM=1`, `PASSES="560 580 590 610 640 680 720 768 772 780 816 822 830
+870 900"`: `play_test.sh m8_border` the inputs, the game's state and the
+computer's the same at every pass compared, both pages of video memory
+the same at all of them. Not checked: the same by the mouse, a carrier
+in this script, the window by eye.

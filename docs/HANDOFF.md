@@ -6748,3 +6748,29 @@ loading routines. `tools/test_file_formats.py` uses synthetic data only.
   (not kept).
 - Not checked: the window's live play (the player live-checks), a
   second human side, the mouse's part in it.
+
+## debian/border: the border on a functionless place (2026-10-10)
+
+- Reported from live play: inside a site or carrier the cursor's border
+  shows on a place with no function. The original draws it there too.
+  `game_loop` draws each side's cursor at a pass's end (`S066A:441F`) as
+  the picture of the view's byte 1Bh, in every state but 4, without
+  looking at the place. In state 2 byte 1Bh is 5 (the border) in step
+  0Ah, and in step 0Bh with the button it becomes 1, 8, 7 or 4 only for a
+  direction whose bit of word 1Ch is set (`S066A:3335`); an empty place
+  or a gesture with nothing on offer keeps the border. The place's panel
+  (`S066A:296E` to `2DB8`, read whole) only draws text 2 for an empty
+  place and has no cursor of its own. Both named in `src/HL.hints`.
+- Proof: `m8_border.keys` (map 8: the factory entered, all seven places,
+  all empty, walked down and up, the button with down and with up on an
+  empty place, left, leave). `play_test.sh m8_border` at passes 560 to
+  900 (`VRAM=1`): inputs, game state and the computer's the same at
+  every pass, both pages of video memory 0 bytes different at all of
+  them; byte 1Bh is 5 in the original's memory at every one of those
+  inside the site (580 to 900), the place 2 to 6, word 1Ch 60Eh or 2.
+  The port needed no change.
+- Not checked: the mouse on an empty place (the earlier `m8_mouse` and
+  `m0_cmouse` comparisons cover the site's and carrier's screens by the
+  mouse, not this case), a carrier with empty places by keys in this
+  run, the window by eye (the user live-checks). If what was seen was
+  something else than the cursor picture 5, it is not found here.

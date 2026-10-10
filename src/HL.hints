@@ -908,6 +908,19 @@ code S066A:0006
 ; line, the allocation of 445C0h bytes, the screen, the menu and the loads
 ; of a battle come before the loop (read in part, see docs/HANDOFF.md).
 name S066A:000D game_loop
+; The F1 prompt (text 52h, `F1 : MODE CHANGE`, in the first side's line;
+; 3Fh in the second's) is no routine of its own: game_loop's state 5 part
+; (S066A:3BC9 to 418B), with the other view in state 5 too and the key
+; neither F1 (entry 0Ch) nor D, shows it at S066A:409E only while the word
+; [BP-28h] is 0, and sets that word to 1 (S066A:40C3). The word is 0 from
+; game_loop's start (after S066A:002C) and set to 0 again only where a
+; side's half ends (the two branches that show text 34h, after S066A:3C22
+; and S066A:3F88) and after a round's attacks (before S066A:3F56). So the
+; prompt is drawn once: whatever later shows a text in that line (F2 to
+; F9's texts, cleared by timer kind 1 after 19h passes) leaves it empty
+; until the next half ends. Seen in runs (map 8, docs/HANDOFF.md,
+; win/f1prompt): the prompt stays from 46 s on without input; F2 at 55 s
+; replaces it, and the line stays empty after that text's time.
 ; Saving: in a run, a click (the F1 prompt), D and a digit wrote the file
 ; 03.DAT into the state folder. The D key (entry 1Ah of the key table) is
 ; compared at S066A:3FA7, reached while the other side's state byte is 5 and

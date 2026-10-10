@@ -4040,6 +4040,24 @@ anything the game needs before the first release.
   against 0.5223. Not checked: a full play of the port reaching it
   (own clock, play_test), the pictures-off case after a fight in video
   memory, a live run.
+- The site taken's 4 bytes and the random stream (2026-10-10, Windows;
+  branch `win/librnd`): the bytes were the segments of the library
+  lists' far pointers in `lib_pal` and `lib_rnd`, wrong only in
+  `orders_test`, which had attacks_run's [BP+6] (work buffer) and
+  [BP+16h] (the libraries' place) the wrong way round; fixed there.
+  `order_take` drew the site's picture at the work buffer plus 1064h,
+  the original at the libraries' place plus 1064h; fixed (orders.c).
+  orders_test also compares `rand_words` now: 0 bytes different in the
+  game's state on the dark and the grey path, video memory and DAC
+  still the original's at both places. loop_test lists the passes in
+  which a site was taken and takes up to 30,000 passes; on
+  `m30_both_take` (m30_both.keys to 1500 s, pictures off; dumps in
+  build/loop, the key file not committed) the site taken in pass 19869
+  happens in the port too and the game's state, the computer's and
+  `rand_words` are the same at every dumped pass up to 20463, the
+  computer's input word in all 40,924 side-passes. Not checked: a take
+  with the fights' pictures on in loop_test, the passes between the
+  dumps, a live run.
   `mac/thinkbar`): `computer_progress` (`S1C74:0354`, `src/plan.c`) and
   the bar `computer_part` draws with it (`src/loop.c`, `bar_draw` in
   `src/draw.c`) were there since "The last drawing of a battle", where

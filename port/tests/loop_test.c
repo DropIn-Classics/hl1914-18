@@ -16,7 +16,8 @@
  * the interrupts' data) is counted apart.  With -replay the computer's
  * side is not played by computer_turn but replayed from INPUTS.txt (its
  * input word, its text, 80h in game_state's word 2, 8 in its side's
- * word), and what the computer's player keeps is only counted.
+ * word), and what the computer's player keeps is only counted.  The
+ * passes in which the port took a site (order 4) are listed at the end.
  * port/tests/loop_test.sh builds this.
  */
 #include <stdio.h>
@@ -25,7 +26,7 @@
 #include "hl.h"
 
 #define RAM 0xA0000u
-#define MAXP 20000
+#define MAXP 30000
 #define SIDE_SIZE 0x17u     /* a record of `sides` */
 
 static uint8_t want[RAM];
@@ -121,6 +122,18 @@ static void pics_keep(int at)
     }
 }
 
+/* the passes in which a site was taken (order 4, orders_hook's
+ * ORDERS_TAKEN), listed at the end */
+static int pass_now, taken[64];
+static unsigned n_taken;
+
+static void taken_note(int at, int n)
+{
+    (void)n;
+    if (at == ORDERS_TAKEN && n_taken < 64)
+        taken[n_taken++] = pass_now;
+}
+
 int main(int argc, char **argv)
 {
     FILE *f;
@@ -133,6 +146,7 @@ int main(int argc, char **argv)
      * port/, so ../game unless $DOSKIT_GAME names another folder */
     hl_game_dir = getenv("DOSKIT_GAME") ? getenv("DOSKIT_GAME") : "../game";
     pics_hook = pics_keep;
+    orders_hook = taken_note;
     if (argc > 1 && !strcmp(argv[1], "-replay")) {
         loop_replay = 1;
         argc--;
@@ -203,6 +217,7 @@ int main(int argc, char **argv)
                 printf("pass %d: no input logged\n", done);
                 return 2;
             }
+            pass_now = done;
             why = loop_pass(in[done]);
             if (why) {
                 printf("pass %d: not translated: %s\n", done, why);
@@ -245,6 +260,14 @@ int main(int argc, char **argv)
         printf("the computer's input word: %u of %u side-passes different\n", keys_bad, played);
     if (keys_bad)
         bad = 1;
+    if (n_taken) {
+        unsigned k;
+
+        printf("sites taken in passes");
+        for (k = 0; k < n_taken; k++)
+            printf(" %d", taken[k]);
+        printf("\n");
+    }
     printf("%s\n", bad ? "DIFFERENT" : loop_replay ? "the game's state the same at every pass compared"
            : "the game's state and the computer's the same at every pass compared");
     return bad;

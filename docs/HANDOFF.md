@@ -2551,6 +2551,47 @@ emulation error (2026-10-02).
         The scan of every key script for a site taken after a fight
         was stopped for lack of memory after the m0 scripts and
         m8_site/m8_long (all without a fight before).
+      - The 4 bytes behind the site taken (2026-10-10, Windows, branch
+        `win/librnd`). `lib_pal`+10h/11h and `lib_rnd`+10h/11h are the
+        segments of the far pointers to the two libraries' lists that
+        `lib_load` writes into their records (0Eh offset, 10h
+        segment), so they are places in memory, not random-number
+        state ("rnd" is a library of pictures, `LIB\rnd.LIB`; the
+        random numbers are `rand_words`, DATA:0AF1). In the original
+        they stay the same over order 4 (60FE:0006 and 62E2:0004 in
+        the dark path's dumps): `libs_start` loads to the same place as
+        at the battle's start. In orders_test they were 55Fh lower
+        (5B9F, 5D83) because the test took attacks_run's [BP+6] as the
+        libraries' place and [BP+16h] as the work buffer; game_loop
+        (S066A:3D1C) passes [BP-18h] (work) as [BP+6] and [BP-14h] (the
+        free end before `libs_start`) as [BP+16h]. The port's own
+        battle (`battle_begin` sets `game_mem`) and loop_test (from
+        game_loop's frame) had the right places and were not affected.
+        Read on the way: order 4 draws the site's picture with
+        `event_picture(libs + 1064h, libs, ...)`, not at the work
+        buffer as order_take had it; fixed (the libraries are loaded
+        over it again right after, so only bytes outside the game's
+        state changed: loop_test's "elsewhere" count at pass 19870 of
+        m30_both_take 224 before, 218 after). orders_test now also
+        compares `rand_words`; the dark path (dentry/dexit) and the
+        grey path (gentry/gexit) give 0 different bytes in the game's
+        state, and the video memory and DAC at 12F0 and 1343 are still
+        the original's.
+        The random stream after a take: `loop_dumps.py
+        m30_both_take.keys 1500` (a copy of m30_both.keys, pictures
+        off, not committed) logged 20,464 passes, attacks_run in 2943,
+        5324, 8639, 10886, 14477, 16627 and 19869; the original took a
+        site in 19869 (`take_picture` 1 in p19870). loop_test (now
+        listing the passes in which the port took a site, and with
+        room for 30,000 passes instead of 20,000) runs all of it: the
+        site taken in pass 19869 in the port too, the game's state and
+        the computer's (rand_words among it) the same at every dumped
+        pass, 19870 and 20463 after the take included, and the
+        computer's input word the same in all 40,924 side-passes.
+        Not checked: a take with the fights' pictures on in loop_test
+        (those runs draw from rand_words in the pictures and are kept
+        apart by pics_keep), passes between 19870 and 20463 one by one
+        (only the dumped ones are compared), a live run.
         not measured live (a window run with `-keys` does not run in
         real time; it needs a player). Read from the code: in the live
         window `screen_wait` (play.c) shows a fade's steps at real time

@@ -8,7 +8,8 @@
  * (the other side) at the loop's first entry, dosrun's -ram dump there and
  * the one at S02E6:19B8.  The side that moved is read from [BP-2], its map
  * from [BP-6].  Memory after orders_run is compared with the second dump
- * in the game's state (from segment S3306 up to DATA and the two maps).  A
+ * in the game's state (from segment S3306 up to DATA, the two maps and the
+ * random numbers' four words, rand_words at DATA:0AF1).  A
  * byte there counts as different when orders_run wrote it and the
  * original has another value; a byte only the original wrote is counted
  * apart and listed, since the original also draws, plays music and loads
@@ -141,7 +142,7 @@ int main(int argc, char **argv)
     }
     for (i = 1; i < argc; i += 4) {
         unsigned ss, bp, di, d_state = 0, d_apart = 0, d_else = 0, changed = 0, u;
-        uint32_t a, lo_state, hi_state, zone[2];
+        uint32_t a, lo_state, hi_state, rand_lo, zone[2];
         uint16_t m;
         uint8_t result = 0xFF;
         Far map, p;
@@ -157,12 +158,12 @@ int main(int argc, char **argv)
         m = frw((uint16_t)ss, (uint16_t)(bp - 2));
         map = far_at((uint16_t)ss, (uint16_t)(bp - 6));
         orders_fought = frb((uint16_t)ss, (uint16_t)(bp - 0x0E)) != 0;
-        /* attacks_run's far arguments, as order 4 passes them: the
-         * libraries [BP+6], fade_back's buffer [BP+12h], the work buffer
-         * [BP+16h] */
-        game_mem.libs = far_at((uint16_t)ss, (uint16_t)(bp + 6));
+        /* attacks_run's far arguments, as game_loop passes them: the work
+         * buffer [BP+6] (game_loop's [BP-18h]), fade_back's buffer
+         * [BP+12h] ([BP-0Ch]), the libraries' place [BP+16h] ([BP-14h]) */
+        game_mem.work = far_at((uint16_t)ss, (uint16_t)(bp + 6));
         game_mem.save_buf = far_at((uint16_t)ss, (uint16_t)(bp + 0x12));
-        game_mem.work = far_at((uint16_t)ss, (uint16_t)(bp + 0x16));
+        game_mem.libs = far_at((uint16_t)ss, (uint16_t)(bp + 0x16));
         printf("%s: side %u, orders", argv[i + 3], m);
         for (u = 0; u <= 0xF0; u++)
             if (!(NW(unit_flags, u * UNIT_SIZE) & 0x8000) && NB(units, u * UNIT_SIZE + 0x13))
@@ -172,12 +173,13 @@ int main(int argc, char **argv)
             printf("; result %u", result);
         lo_state = (uint32_t)(HL_S3306 + HL_BASE) << 4;
         hi_state = (uint32_t)(HL_DATA + HL_BASE) << 4;
+        rand_lo = lin(S_rand_words, A_rand_words);
         p = far_at(S_map_ptr, A_map_ptr);
         zone[0] = lin(p.seg, p.off);
         p = far_at(S_map2_ptr, A_map2_ptr);
         zone[1] = lin(p.seg, p.off);
         for (a = 0; a < RAM; a++) {
-            int state = a >= lo_state && a < hi_state;
+            int state = (a >= lo_state && a < hi_state) || (a >= rand_lo && a < rand_lo + 8);
             changed += mem[a] != entry[a];
             if (mem[a] == leave[a])
                 continue;

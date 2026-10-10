@@ -546,8 +546,8 @@ newspapers of the maps for one player), the flags 2 and 4 of
 `10AF`, `1359`) and wait_press's entry (`Q`, `S0CB6:0DA9`) and the port
 runs the log up to them; on its own clock the frames count the timer's
 calls as the original does, and the loading takes what the runner took
-(`t_ev_load` in `play.c`: D0h 0.70 s, CDh 0.76, CEh/CFh 0.34, 0.34 and
-2.53, and 0.42 s before inputs_release; measured in `m54_end`,
+(`t_ev_load` in `play.c`: D0h 0.70 s, CDh 0.76, CEh/CFh 0.34, 0.34,
+0.46 and 2.07 behind `music_fade(14h)`, and 0.42 s before inputs_release; measured in `m54_end`,
 `m57_last` and `m57_win`). `-evdump PREFIX` writes the memory and video
 memory at each end's wait (`PREFIXeN`) and at the frames 1, 11, 21 ...
 of the pictures (`PREFIXfNNNN`); `play_dumps.py` dumps the original's
@@ -1372,6 +1372,15 @@ it; open, docs/HANDOFF.md); CFh's tune every write the same at the same
 tick, D0h's but its first tick on three voices. `oplwav_cmp` fails on
 that walk for those first ticks and a level window (the original's
 interrupt 72 ms behind): told, not judged. Not listened to; CEh not run.
+
+2026-10-10 (Windows, branch `win/cffade`): CFh's fade on time. The
+2.53 s counted at `EV_LOAD_MEDAL3` is split as the original spends it:
+0.46 s at the third part's loading, 2.07 s at a new `EV_MEDAL_END`
+behind `music_fade(14h)` (the call `pic_medal` ends with, S1A39:0D1A's
+listing; its wait for the fade). Checked on the `medal` walk with
+`-muslog` against the original's log (`oplwav_dumps.py medal`): CFh's
+`music_fade` at 69.093 s against 69.095 (before: 71.162); the other
+calls unchanged (33.294, 44.881, 48.490). Not listened to; CEh not run.
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)

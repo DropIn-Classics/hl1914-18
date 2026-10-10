@@ -111,7 +111,7 @@ static const double t_ev_load[] = {
     0.76,   /* EV_LOAD_WIPED: CDh, 1.295 s */
     0.34,   /* EV_LOAD_MEDAL: CEh, CFh, 0.88 s */
     0.34,   /* EV_LOAD_MEDAL2: CEh's second stream, the gap of 2.44 s between them */
-    2.53,   /* EV_LOAD_MEDAL3: CEh's picture on its background, the last frame to S066A:4728 (9.96 s) */
+    0.46,   /* EV_LOAD_MEDAL3: CEh's picture on its background, the last frame to S066A:4728 (9.96 s) less EV_MEDAL_END */
     1.11,   /* EV_WON_END: D0h's music_fade(0Ah), presumably (not checked what in it takes the time); its last frame to battle_score 2.74 s in m57_won and m57_medal, 2.725 in m54_end, of which the port counted 1.63 */
     0.333,  /* EV_LOAD_SITE: site_picture's files, S1A39:1906 to 195B in m0_s4 (round 4) */
     1.01,   /* EV_LOAD_PAPER: a newspaper's files, S1A39:059D to its first frame 1.558 s in m0_paper (both pages) */
@@ -119,6 +119,7 @@ static const double t_ev_load[] = {
     0.66,   /* EV_LOAD_SHIP: CCh's files: the port's first frame 12 ticks further ahead than at page 0's last in m34_paper */
     1.04,   /* EV_LOAD_ZEPPELIN: C9h's files: the port's first frame 19 ticks early in m31_paper against 12 before event_picture in m0_paper (the same battle's end by Esc), an estimate */
     0.55,   /* EV_LOAD_RICHT: C8h's files: the port's first frame 22 ticks early in m22_paper against 12 before event_picture in m0_paper (the same battle's end by Esc), an estimate */
+    2.07,   /* EV_MEDAL_END: CEh's and CFh's music_fade(14h), the call the picture ends with (S1A39:0D1A's listing); CFh's fade 2.067 s late in m57_medal when this was counted in EV_LOAD_MEDAL3 */
 };
 #define T_SETUP 2.75        /* the menu's return (S066A:0390) to the loop's first pass (back walk: 20.18 to 22.93 s) */
 

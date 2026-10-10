@@ -119,10 +119,28 @@ def battle_pre():
     return pre
 
 
+def medal_pre():
+    # map 57's end (m57_medal: D0h, then CFh), as play_dumps.py starts it:
+    # the menu's CODE row, the map's code from CODES.DAT, START, the pokes
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import tpwmfiles
+    game = os.environ.get('DOSKIT_GAME') or os.path.join(ROOT, 'game')
+    rec = tpwmfiles.unpack(open(os.path.join(game, 'CODES.DAT'), 'rb').read())[57 * 10:][:5]
+    pre = ['-mouse', '21', '150,73,1', '-mouse', '21.2', '150,73,0']
+    for i, b in enumerate(rec):
+        pre += ['-key', str(22 + i * 0.5), chr(b - 0x11 + ord('a'))]
+    pre += ['-key', '25', 'enter', '-mouse', '27', '150,48,1', '-mouse', '27.2', '150,48,0']
+    pre += ['-keys', os.path.join(HERE, 'keys', 'm57_medal.keys'), '-until', '90']
+    pre += subprocess.run(['python3', os.path.join(HERE, 'play_pokes.py'), 'm57_medal'],
+                          capture_output=True, text=True).stdout.split()
+    return pre
+
+
 WALKS = {
     'menu': lambda: keys_pre(os.path.join(ROOT, 'build', 'menu', 'pages', 'keys.txt'), 'menu_dumps.py pages', 66),
     'brief': lambda: keys_pre(os.path.join(ROOT, 'build', 'briefing', 'm4', 'keys.txt'), 'briefing_dumps.py m4', 60),
     'battle': battle_pre,
+    'medal': medal_pre,
 }
 
 

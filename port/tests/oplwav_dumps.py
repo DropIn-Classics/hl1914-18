@@ -2,7 +2,7 @@
 """Makes what port/tests/oplwav_test.sh sets beside the port's rendered
 AdLib sound: the original's, as the runner's chip played it.
 
-    python3 port/tests/oplwav_dumps.py [menu] [brief] [battle]
+    python3 port/tests/oplwav_dumps.py [menu] [brief] [battle] [medal]
 
 HL.EXE is run once on each walk of opl_dumps.py (the same keys) with
 -oplwav (build/oplwav/WALK/orig.wav: the runner's OPL2, doskit's

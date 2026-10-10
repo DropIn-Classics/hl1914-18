@@ -1042,6 +1042,8 @@ static LauncherItem setup_sound[] = {
       "In play the keypad's + and - change it, * mutes" },
     { LI_CHOICE, "Headphone mix", "headphone", no_yes, &headphone, 0,
       "Blends the sides a little, for headphones" },
+    { LI_CHOICE, "Muted", "muted", no_yes, &muted, 0,
+      "In play the keypad's * switches it" },
 };
 #define KEY_HELP "The game's own key still works beside it"
 static LauncherItem setup_keys[] = {
@@ -1139,7 +1141,12 @@ static void setup_changed(const LauncherItem *item)
     setup_apply();
 }
 
-/* frame.h's hud: the keypad's + - * in play */
+/* history-line.cfg's path, set by setup_run; the hud's keys save to it */
+static char setup_cfg[SYS_PATH];
+#define SETUP_COMMENT "history-line's settings (the setup screen and the keypad's + - * write them)"
+
+/* frame.h's hud: the keypad's + - * in play, kept in history-line.cfg at
+ * once so the setup screen shows them after a restart */
 static void hud_control(int c)
 {
     if (c == PLAT_VOLUME_UP || c == PLAT_VOLUME_DOWN) {
@@ -1152,6 +1159,8 @@ static void hud_control(int c)
         muted = !muted;
     else
         return;
+    if (setup_cfg[0])
+        launcher_save(setup_cfg, SETUP_COMMENT, setup_pages, SETUP_PAGES);
     if (muted)
         hud_show("MUTE", 0, 0, 140);
     else
@@ -1161,18 +1170,18 @@ static void hud_control(int c)
 /* the setup screen; 1 to start the game, 0 to quit */
 static int setup_run(void)
 {
-    char cfg[SYS_PATH], data[SYS_PATH];
+    char data[SYS_PATH];
     int r;
 
     sys_data_dir(data, sizeof data);
     sys_mkdir(data);
-    sys_join(cfg, sizeof cfg, data, "history-line.cfg");
+    sys_join(setup_cfg, sizeof setup_cfg, data, "history-line.cfg");
     setup_init();
-    launcher_load(cfg, setup_pages, SETUP_PAGES);
+    launcher_load(setup_cfg, setup_pages, SETUP_PAGES);
     fx_on = 1;
     setup_apply();
     r = launcher_run(&app, NULL, setup_pages, SETUP_PAGES, setup_changed);
-    launcher_save(cfg, "history-line's settings (the setup screen writes them)", setup_pages, SETUP_PAGES);
+    launcher_save(setup_cfg, SETUP_COMMENT, setup_pages, SETUP_PAGES);
     if (r != 1)
         return 0;
     setup_keys_apply();

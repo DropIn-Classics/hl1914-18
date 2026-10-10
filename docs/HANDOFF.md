@@ -7094,3 +7094,10 @@ port/README.md ("Deliberate deviations from the original").
   not looked into.
 - The cc wrapper for the .sh tests is still `build/ccw/cc` in this
   worktree (ignored).
+
+- 2026-10-10 (win/volsave): in-play volume and mute were not persisted;
+  `hud_control` (port/src/main.c) now calls `launcher_save` after each
+  change, with the cfg path kept from `setup_run`; mute is saved as the
+  Sound page's "Muted" item. LAUNCHER.md prescribes no pattern for this
+  (it says nothing of settings changed outside the screen); not tested
+  in the window here.

@@ -6774,3 +6774,33 @@ loading routines. `tools/test_file_formats.py` uses synthetic data only.
   mouse, not this case), a carrier with empty places by keys in this
   run, the window by eye (the user live-checks). If what was seen was
   something else than the cursor picture 5, it is not found here.
+
+## win/cheat: debug keys for the outro, the newspapers' scroll (2026-10-10, Windows)
+
+- The campaign's last map: CODES.DAT unpacked (TPWM, 2D0h bytes, 72
+  records of 10 bytes, one a map) has bit 1 of byte 8, the bit
+  `battle_score` (`S063F:0198`) turns into 20h in `game_state`, on maps
+  23 (17h) and 47 (2Fh) alone; byte 7 (the step to the next map) is 0
+  there and on 71, 1 on all others. So the two campaigns are 0 to 23
+  and 24 to 47; winning 23 or 47 ends HL.EXE with 7Bh, the outro.
+  Named in `src/HL.hints` at `S063F:0198`.
+- Port-only DEBUG keys (play.c `live_key`, loop.c `cheat_win`), for the
+  player to reach the outro: F12 wins the battle, F11 wins it as map 22
+  (or 46), so `battle_score` moves on to 23 (47). Live play only; the
+  keys go to neither the game nor `-keylog`. `battle_score` returns at
+  once in round 0 (as the original), so they move the map on only
+  after the first round's end. Checked headless with DK_KEYS on map 22
+  (F11 ends the battle, the win's picture; with `round_count` poked to
+  1 `-ends` has D0h and then 16h, map 22's newspaper as map 23 less
+  one); not checked: the window, the menu then offering map 23, the
+  outro after it (the player will).
+- The newspapers' scroll timing matches the original: the loop waits
+  retraces until 8 timer counts have passed since the frame's start, so
+  frames are 7 or 8 retraces; by the port's clock 0.11017 s a frame on
+  average against 0.10985 s measured in the original (m0_paper, 994
+  frames, 51.781 s to 160.971 s; the HANDOFF's earlier "frames of
+  0.1255 s" does not fit those numbers: 109.19 s / 994 is 0.10985 s).
+  What may look jerky live is the 7/8 alternation (the original's) and
+  the window showing 70 Hz pictures unsynchronized on a 60 Hz display
+  (doskit's frame.c); nothing changed. Not checked: a DOSBox side by
+  side by eye.

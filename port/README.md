@@ -1390,6 +1390,40 @@ anything the game needs before the first release.
 
 ## Checked
 
+- DEBUG keys, the port's own (2026-10-10, Windows, branch `win/cheat`),
+  in the window's live play only: F12 wins the battle on the spot, F11
+  wins it as if it were the map before the campaign's last, so that the
+  menu then offers the last map (23 for the maps 0 to 23, 47 for 24 to
+  47; CODES.DAT's byte 8 bit 1, which makes `battle_score` set 20h and
+  the program end with 7Bh, the outro). The keys never reach the game
+  nor a `-keylog`, and a scripted run (-keys, -clock, -passes) never
+  comes there (play.c's `live_key`); one pressed outside a battle is
+  dropped when the next begins. loop.c's `cheat_win` does what a won
+  fight does (both views to state 7, the human's word 22h 0Fh, the
+  other's 10h); the end's texts, the pictures, the newspaper and the
+  score follow as after a real win. As in the original, `battle_score`
+  does nothing in round 0, so the map moves on only when a round has
+  ended: press F11 or F12 after the first round. For the outro: F11 in
+  a campaign battle after round 0, then on the last map F12 after round
+  0. Checked headless (DK_KEYS, map 22): F11 ends the battle with the
+  win's picture; with `round_count` poked to 1 (`-poke 38605 0100`)
+  `-ends` has the pictures D0h and 16h (map 22's newspaper, chosen as
+  the number before the one `battle_score` moved on to: 23). The menu
+  then offering map 23 and the outro by eye in the window are left to
+  the player.
+- The newspapers' scroll (2026-10-10, Windows, branch `win/cheat`):
+  its timing is the original's. A row a frame; a frame's count reset at
+  its start, then retraces waited until the timer's routine has counted
+  8 (TICK 3FFFh/1193182 s), as `S2D47`'s caller in `S1A39` does: frames
+  of 7 or 8 retraces (100 or 114 ms), 0.11017 s on average by the
+  port's clock against the original's 0.10985 s measured over m0_paper's
+  994 frames (the 6 to 12 BIOS ticks noted with the newspapers). The
+  uneven 7/8 retraces are the original's own; the window shows the
+  70 Hz pictures as they come (doskit's frame.c, not synchronized with
+  a 60 Hz display), which can add to the unevenness on such a screen;
+  that is the kit's and is not changed here. Not changed: nothing in
+  the newspaper code.
+
 - The F1 prompt (2026-10-10, Windows, branch `win/f1prompt`). It is
   shown once when both sides have ended their halves (loop.c's `told`,
   the original's `[BP-28h]`); a later text in that line (F2 to F9's)

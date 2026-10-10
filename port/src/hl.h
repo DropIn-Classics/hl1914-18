@@ -410,6 +410,11 @@ enum { LOOP_PART, LOOP_INPUT, LOOP_STEP, LOOP_THINK, LOOP_ROUND, LOOP_FOUGHT, LO
 extern int loop_abort;
 extern void (*loop_hook)(int at, uint16_t side);
 extern uint16_t loop_end_texts[2];
+/* DEBUG, the port's own and not the original's: set by the window's F12
+ * (1, win the battle) or F11 (2, win it as the map before the campaign's
+ * last) in live play only (play.c's live_key); taken by the next human
+ * side's part (loop.c, cheat_win) */
+extern int loop_cheat;
 /* where orders_hook is called in attacks_run, for the time the original
  * spends there showing what the port does not draw: a fight is about to
  * be worked out (n: its pictures are on); a turn of the blasts' loop of a

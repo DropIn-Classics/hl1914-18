@@ -59,7 +59,9 @@ int loop_replay;
  * record is the memory's and not written from SideIn; the routine may
  * change the SideIn of the pass under way. */
 int loop_abort;
+#ifndef PORT_VERSION  /* dev-only debug keys: absent from release builds */
 int loop_cheat;
+#endif
 void (*loop_hook)(int at, uint16_t side);
 
 static Far no_save(void)
@@ -1091,7 +1093,9 @@ static void setting_keys(void)
  * one before the campaign's last: CODES.DAT's records have bit 1 of byte
  * 8 (battle_score's 20h) on maps 23 (17h) and 47 (2Fh) alone, the ends of
  * the maps 0 to 23 and 24 to 47; battle_score then moves on to that last
- * map, which the menu offers next. */
+ * map, which the menu offers next.  Dev-only, absent from a release build
+ * (PORT_VERSION defined). */
+#ifndef PORT_VERSION
 static void cheat_win(uint16_t side)
 {
     uint16_t map = NW(map_number, 0);
@@ -1104,6 +1108,7 @@ static void cheat_win(uint16_t side)
     pww(view_of(side), 0x22, 0x0F);
     pww(view_of(side ? 0 : 1), 0x22, 0x10);
 }
+#endif
 
 /* one side's part of a pass (S066A:0F0C to 4399) */
 static void side_part(uint16_t side, const SideIn *in)
@@ -1115,8 +1120,10 @@ static void side_part(uint16_t side, const SideIn *in)
         loop_hook(LOOP_PART, side);
     if (in->key)
         key = in->key;
+#ifndef PORT_VERSION
     if (loop_cheat && !(side_word(side) & 2))
         cheat_win(side);
+#endif
     if (side_word(side) & 2) {
         uint16_t i;
 

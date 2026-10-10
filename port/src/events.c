@@ -8,8 +8,8 @@
  * player (S1A39:059D, two pages each, their text set and scrolled by
  * S2D47's routines, paper_*), three of whose pages begin with the
  * pictures C8h, C9h or CCh (sprites over a stream).  The music the
- * pictures start and fade (music_start, music_fade) is left out but for
- * the site's and the newspapers'; their sounds go to sound.c.
+ * pictures start and fade (music_start, music_fade) is started and faded
+ * where the original does (CDh has none); their sounds go to sound.c.
  *
  * The waits and the loading go to event_hook, which keeps the time
  * (play.c): the port's own clock, or the original's log.
@@ -305,7 +305,7 @@ static int16_t pic_won(Far place, Far work, uint16_t side)
     flip();
     page_copy();
     fade(1);
-    /* music_start(the fifth file, 0, FFh): left out */
+    music_start(loaded(0x00D2), 0, 0xFF);
     for (di = 0; di < 0x46; di++) {
         frame_begin();
         loop = vdif(loop, 0, 0);
@@ -321,7 +321,7 @@ static int16_t pic_won(Far place, Far work, uint16_t side)
     }
     pal_level(0xFF, pal);
     hook(EV_LEVEL, 0);
-    /* music_fade(0Ah): left out, its time counted */
+    music_fade(0x0A);
     hook(EV_BUSY, EV_WON_END);
     wait_frames(0x64);
     return 0;
@@ -343,7 +343,6 @@ static int16_t pic_medal(Far place, Far work, uint16_t which, uint16_t f)
     if (size == -1)
         return -1;
     tune = place;
-    (void)tune;
     place = far_add(place, (uint32_t)size);
     if (res_load(place, work, 0x0110, 5) < 0)
         return -1;
@@ -359,7 +358,7 @@ static int16_t pic_medal(Far place, Far work, uint16_t which, uint16_t f)
     flip();
     page_copy();
     fade(1);
-    /* music_start(tune, 14h, FFh): left out */
+    music_start(tune, 0x14, 0xFF);
     for (si = 0; si < 0x4B; si++) {
         frame_begin();
         loop = vdif(loop, 0, 0);
@@ -406,7 +405,7 @@ static int16_t pic_medal(Far place, Far work, uint16_t which, uint16_t f)
     fade(1);
     wait_frames(0x12C);
     fade(0);
-    /* music_fade(14h): left out */
+    music_fade(0x14);
     return 0;
 }
 

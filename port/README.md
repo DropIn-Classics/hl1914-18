@@ -1359,6 +1359,19 @@ behind leaves gaps); the window's program with a real device; Windows.
 a walk with digital effects in it would not pass that check. The walks
 `soundout_test.sh` makes have none (map 8's first fight pictures come
 after its 120 s), so it is not extended yet.
+
+2026-10-10 (Debian, branch `debian/pictunes`): the tunes of the
+pictures D0h (`music_start(0, FFh)` behind its `fade_in`,
+`music_fade(0Ah)` behind `pal_level`) and CEh/CFh (`music_start(14h,
+FFh)`, `music_fade(14h)` at the end) are played where the original
+calls them (`src/events.c`); CDh has none. Checked by the new walk
+`medal` of `oplwav_dumps.py` / `oplwav_test.sh` (map 57's end,
+`m57_medal`): the calls' times within 0.07 s of the original's but
+CFh's fade, 2.07 s late (its wait counted in `EV_LOAD_MEDAL3` before
+it; open, docs/HANDOFF.md); CFh's tune every write the same at the same
+tick, D0h's but its first tick on three voices. `oplwav_cmp` fails on
+that walk for those first ticks and a level window (the original's
+interrupt 72 ms behind): told, not judged. Not listened to; CEh not run.
 ## Build and run
 
     sh port/build.sh          # macOS, Linux (SDL2 for the window)

@@ -6804,3 +6804,67 @@ loading routines. `tools/test_file_formats.py` uses synthetic data only.
   the window showing 70 Hz pictures unsynchronized on a 60 Hz display
   (doskit's frame.c); nothing changed. Not checked: a DOSBox side by
   side by eye.
+
+## debian/pictunes: the tunes of the pictures behind a battle (2026-10-10)
+
+The listings of `pic_won` (S1A39:0A7F), `pic_medal` (0D1A) and
+`pic_wiped` (1262) read whole for calls of `music_start` (S2F39:0F87)
+and `music_fade` (1058): D0h `music_start(the fifth file of S3812:0042,
+i.e. the entry at 00D2h, 0, FFh)` behind `fade_in` and `music_fade(0Ah)`
+behind `pal_level`; CEh/CFh `music_start(the side's tune loaded first,
+14h, FFh)` behind `fade_in` and `music_fade(14h)` at the very end, behind
+the last `fade_out`; CDh calls neither (only `sfx_play`). The newspapers
+already had theirs. Translated in `port/src/events.c`.
+
+**For review (events.c is local's area)** — the only hunks there:
+- the file's head comment: "is left out but for the site's and the
+  newspapers'" becomes "is started and faded where the original does
+  (CDh has none)";
+- `pic_won`: the comment `music_start(the fifth file, 0, FFh): left out`
+  becomes `music_start(loaded(0x00D2), 0, 0xFF);`, the comment
+  `music_fade(0Ah): left out, its time counted` becomes
+  `music_fade(0x0A);` (the `hook(EV_BUSY, EV_WON_END)` behind it kept, as
+  the newspaper keeps `EV_PAPER_END` behind its fade);
+- `pic_medal`: `(void)tune;` dropped, the two comments become
+  `music_start(tune, 0x14, 0xFF);` and `music_fade(0x14);`.
+Nothing else changed. The port's `music_fade` runs its interrupts at once
+and with `snd_waited` NULL (battle) does not move the play clock, so the
+game's time is what the hooks count, as before.
+
+Compared (`python3 port/tests/oplwav_dumps.py medal`, a new walk: map
+57 by its code, `m57_medal.keys` and pokes, 90 s; the port on the
+original's start and seed from `build/play/m57_medal/clock.txt`;
+`oplwav_test.sh` runs it when `build/oplwav/medal.orig` is there).
+The calls (`-muslog` against the original's log), seconds:
+
+| call | original | port |
+|---|---|---|
+| D0h music_start(0, FFh) | 33.300 | 33.294 |
+| D0h music_fade(0Ah) | 44.952 | 44.881 |
+| CFh music_start(14h, FFh) | 48.494 | 48.490 |
+| CFh music_fade(14h) | 69.095 | 71.162 |
+
+The registers, tune by tune (`oplwav_cmp.py medal`): CFh's tune 18,900
+ticks, every write the same at the same tick, the fade's 100
+`fade_tick` writes too. D0h's 8,085 ticks: all the same but one write
+each on voices 4, 5, 6 at tick 0 (a start without a fade begins at the
+levels the tune before left; presumably what the battle walk's 35 first-
+tick writes are, not checked further). The walk FAILS `oplwav_cmp`:
+those tick-0 writes, the battle tune's tick 0 (the port starts by `-map`,
+no menu tune before it; unrelated to this change) and the levels of
+CFh's tune (windows -4.14 to +2.79 dB, limit 3): the original fell 72 ms
+behind for good at its tick 63 (its game side kept the interrupt
+waiting), the writes being the same.
+
+Open, found here, not fixed (needs a hunk outside the music calls):
+CFh's fade comes 2.07 s late in the port. `EV_LOAD_MEDAL3`'s 2.53 s
+(play.c, counted at the third part's loading) includes the original's
+fade wait at the end, so the port's clock reaches the fade after the
+time the original spent in it. Moving ~2.1 s of it behind `music_fade`
+(a new hook, as `EV_WON_END`) would put the fade in its place; the end
+time stays the same either way. Not done: events.c's other lines are
+local's.
+
+Not verified: by ear (the user's); CEh (side 0's tune; only CFh ran);
+the newspapers' tunes were not compared again; built and run on Debian
+only.

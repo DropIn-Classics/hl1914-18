@@ -6,7 +6,7 @@
 #
 #     python3 port/tests/menu_dumps.py pages
 #     python3 port/tests/briefing_dumps.py m4
-#     python3 port/tests/oplwav_dumps.py [menu] [brief] [battle]
+#     python3 port/tests/oplwav_dumps.py [menu] [brief] [battle] [medal]
 #     sh port/tests/oplwav_test.sh
 #
 # For each walk oplwav_dumps.py has run (build/oplwav/WALK.orig):
@@ -60,6 +60,15 @@ D=../build/menu/pages
 D=../build/briefing/m4
 [ -f "$D/keys.txt" ] && walk brief -keys "$D/keys.txt" -start "$(cat "$D/start.txt")" -seed 0 -until 60 -passes 1
 walk battle -map 8 -keys tests/keys/m8_site.keys -seed 0 -until 120
+# map 57's end, D0h and CFh with their tunes, on the original's start and
+# seed (play_dumps.py m57_medal.keys 90; its clock.txt)
+D=../build/play/m57_medal
+if [ -f "$D/clock.txt" ]; then
+    S=$(LC_ALL=C awk '$2 == "P" { print $1; exit }' "$D/clock.txt")
+    R=$(LC_ALL=C awk '$2 == "S" { v = $3 } $2 == "P" { print substr(v, 1, length(v) - 4); exit }' "$D/clock.txt")
+    # shellcheck disable=SC2046
+    walk medal -map 57 -keys tests/keys/m57_medal.keys -start "$S" -seed "0x$R" -until 90 $(python3 tests/play_pokes.py m57_medal port)
+fi
 
 m8() {
     n=$1

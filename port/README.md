@@ -4504,3 +4504,13 @@ Not checked: the refusal's screen against a picture (only that no
 battle begins; the text is the menu's own path for a missing file); a
 file of the right length with damaged blocks (it is loaded, as the
 original would); the window by hand (the player checks).
+
+2026-10-10 (win/volsave): the keypad's + - * in play are kept. Until now
+`launcher_save` ran only when the setup screen closed, so a volume or
+mute changed in play was lost with the process. `setup_run` now keeps the
+path of `history-line.cfg` in a static and `hud_control` writes the
+settings after each change; mute is a new Sound item ("Muted", No/Yes,
+key `muted`), so the setup screen and the keys agree after a restart.
+Built with MSVC, `check.py` all ok. Not checked: the round trip in the
+window (the player checks); no test, since the hud's keys only act in the
+window and the tests run headless.

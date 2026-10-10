@@ -1455,7 +1455,11 @@ port_read no longer shifts a negative int (UBSan; same value).
   `-ends` has the pictures D0h and 16h (map 22's newspaper, chosen as
   the number before the one `battle_score` moved on to: 23). The menu
   then offering map 23 and the outro by eye in the window are left to
-  the player.
+  the player. Dev builds only (2026-10-10, branch `win/nocheat`): the
+  keys, `loop_cheat` and `cheat_win` sit in `#ifndef PORT_VERSION`, so a
+  release build (build.bat/build.sh define PORT_VERSION only for a
+  tagged or versioned build) has none and passes F11 and F12 on to the
+  game like any other key.
 - The newspapers' scroll (2026-10-10, Windows, branch `win/cheat`):
   its timing is the original's. A row a frame; a frame's count reset at
   its start, then retraces waited until the timer's routine has counted

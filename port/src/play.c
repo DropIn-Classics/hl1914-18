@@ -370,12 +370,16 @@ static void live_key(uint8_t code)
 
     /* DEBUG, the port's own: F12 wins the battle, F11 wins it as the map
      * before the campaign's last (loop_cheat); neither reaches the game
-     * nor the -keylog, and only the window's play comes here */
+     * nor the -keylog, and only the window's play comes here.  Dev-only:
+     * a release build (PORT_VERSION defined) has no such keys and passes
+     * F11 and F12 on like any other */
+#ifndef PORT_VERSION
     if ((code & 0x7F) == 0x58 || (code & 0x7F) == 0x57) {
         if (!(code & 0x80))
             loop_cheat = code == 0x58 ? 1 : 2;
         return;
     }
+#endif
 
     if (!(keys_n & 255)) {
         k = realloc(keys, (size_t)(keys_n + 256) * sizeof *keys);
@@ -1253,7 +1257,9 @@ void play_begin(double start)
     play_passes = play_misses = 0;
     clk_at = fights_at = 0;
     key_byte = in_battle = in_menu = 0;
+#ifndef PORT_VERSION
     loop_cheat = 0;     /* an F11 or F12 from before the battle is dropped */
+#endif
     if (start < 0) {
         /* the clock goes on (play_start, the menu before); with the
          * original's clock for the battle the number its setup started

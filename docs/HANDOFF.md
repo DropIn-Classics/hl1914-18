@@ -6794,6 +6794,9 @@ loading routines. `tools/test_file_formats.py` uses synthetic data only.
   1 `-ends` has D0h and then 16h, map 22's newspaper as map 23 less
   one); not checked: the window, the menu then offering map 23, the
   outro after it (the player will).
+  They are dev-only: `#ifndef PORT_VERSION` around the keys, `loop_cheat`
+  and `cheat_win`, so a release build (PORT_VERSION defined by
+  build.bat/build.sh for a tagged or versioned build) ignores F11/F12.
 - The newspapers' scroll timing matches the original: the loop waits
   retraces until 8 timer counts have passed since the frame's start, so
   frames are 7 or 8 retraces; by the port's clock 0.11017 s a frame on

@@ -6688,3 +6688,37 @@ loading routines. `tools/test_file_formats.py` uses synthetic data only.
   was not checked.
 - Not checked: the window by eye (the player live-checks), the first
   frames of the logo against the original pixel for pixel.
+
+## win/savecrash: the second save ended the game (2026-10-10, Windows)
+
+- The player's report: in the window, D and a digit save; a second save
+  later closes the window without a message. The cause was the port's,
+  not save_game's: play.c's LOOP_SAVE (save_game's wait for the digit,
+  on the port's own clock) counted the timer's calls without input in a
+  `static` counter and set `loop_abort` after 400 (400 x 13.7 ms, 5.5 s);
+  game_loop's D branch then ends the battle ("the saved game's number:
+  no key came"), and the window closes. Live, the window's keys are
+  taken in the same timer call they come in (live_picture inside
+  own_to), so the counter never saw a key waiting and never began anew:
+  it ran on across saves, and the second save's wait ended once both
+  waits together came to 5.5 s. A first save whose digit came later
+  than 5.5 s ended the game too. LOOP_QUIT (the quit question) had the
+  same counter.
+- Fixed by `own_idle_tick` (play.c) for both waits: live a wait ends
+  only when the window was closed; from a key script after 400 calls in
+  a row without input, the count beginning anew with each wait and each
+  input taken.
+- Shown with the headless window (DK_KEYS from live_keys.py, DK_FRAMES):
+  map 48, D at 50 s, 3 at 54 s, D at 60 s, 4 at 64 s; before the fix the
+  play stopped at 61.53 s with only 03.DAT, after it both files and the
+  battle went on to 80 s. The headless `-keys` play did not show it
+  (the D's release came in during the wait and began the count anew).
+- The two saves on the original's clock (m48_save2.keys: D 3, ten
+  seconds later D 4): 03.DAT and 04.DAT byte for byte the original's;
+  memory at the passes dumped the same in the game's and the computer's
+  state. What save_game leaves behind (the list of blocks over the first
+  side's work buffer, the colours in save_buf) was not the cause; that
+  the original leaves the list there as well is read from the code, not
+  compared beyond the dumped passes.
+- Not checked: the window by eye on Windows (the player live-checks),
+  the quit question's wait live.

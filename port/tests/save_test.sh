@@ -10,6 +10,12 @@
 #   m48_save  the code of map 48 typed, START; both sides end their half,
 #             then D and 3 save the battle as number 3, and later D and
 #             Esc leave the saving (port/tests/keys/m48_save.keys)
+#   m48_save2 as m48_save, then ten seconds later D and 4 save it again
+#             as number 4 (port/tests/keys/m48_save2.keys); both files
+#             compared, and the window's play (DK_KEYS, live_keys.py) of
+#             the same keys with four seconds before each digit must
+#             write both and go on (the port once ended the battle at
+#             the second save's question there, docs/HANDOFF.md)
 #   m48_load  MISC, LOAD, 3: that battle loaded and played on: the second
 #             side goes back into its half and ends it again, the first
 #             F1 carries the round out (port/tests/keys/m48_load.keys)
@@ -53,6 +59,8 @@ if [ "$1" = dumps ]; then
     P=$(awk '$2 == "P" && $4 == 0 { if (p && $1 - p > 1) printf "%d %d %d %d ", n, $3, $3 + 1, $3 + 6; p = $1; n = $3 }' $B/m48_save/clock.txt)
     WALK=code STATE=$B/m48_save/state PASSES="$P" python3 tests/play_dumps.py m48_save.keys 64
     [ -f $B/m48_save/state/$N ] || { echo "the original wrote no $N"; exit 1; }
+    rm -rf $B/m48_save2
+    WALK=code STATE=$B/m48_save2/state python3 tests/play_dumps.py m48_save2.keys 72
     mkdir -p $B/m48_load/state
     cp $B/m48_save/state/$N $B/m48_load/state/
     WALK=load3 STATE=$B/m48_load/state PASSES="2 3 10 100" python3 tests/play_dumps.py m48_load.keys 60
@@ -68,13 +76,13 @@ if [ "$1" = dumps ]; then
 fi
 sh build.sh
 r=0
-for T in m48_save m48_load $BAD; do
+for T in m48_save m48_save2 m48_load $BAD; do
     D=$B/$T
     [ -f "$D/passes.txt" ] || { echo "no dumps of the original: sh port/tests/save_test.sh dumps"; exit 1; }
     rm -rf "$D/saves"
     mkdir -p "$D/saves"
     case $T in
-    m48_save) ;;
+    m48_save | m48_save2) ;;
     m48_load) cp $B/m48_save/saves/$N "$D/saves/" ;;
     *) damaged $T $B/m48_save/saves/$N "$D/saves" > /dev/null ;;
     esac
@@ -89,10 +97,25 @@ for T in m48_save m48_load $BAD; do
         > "$D/port.txt" 2>&1 || true
     tail -1 "$D/port.txt"
     python3 tests/play_cmp.py $T || r=1
-    if [ $T = m48_save ]; then
-        if cmp "$D/state/$N" "$D/saves/$N"; then
-            echo "the saved game $N: $(wc -c < "$D/saves/$N" | tr -d ' ') bytes, the same in both"
+    case $T in m48_save) F=$N ;; m48_save2) F="03.DAT 04.DAT" ;; *) F= ;; esac
+    for f in $F; do
+        if cmp "$D/state/$f" "$D/saves/$f"; then
+            echo "the saved game $f: $(wc -c < "$D/saves/$f" | tr -d ' ') bytes, the same in both"
         else
+            r=1
+        fi
+    done
+    if [ $T = m48_save2 ]; then
+        # the window's play, the digits four seconds after their D
+        sed -e 's/^52.00 3/54.00 3/' -e 's/^62.00 d/60.00 d/' "$D/keys.txt" > "$D/keys_slow.txt"
+        rm -rf "$D/live"
+        mkdir -p "$D/live"
+        DK_FRAMES=5600 DK_KEYS=$(python3 tests/live_keys.py "$D/keys_slow.txt" 0 0) \
+            build/history-line-headless -game "$GAME" -saves "$D/live" > "$D/live.txt" 2>&1 || true
+        if [ -f "$D/live/03.DAT" ] && [ -f "$D/live/04.DAT" ] && ! grep -q "no key came" "$D/live.txt"; then
+            echo "the window's play: both saved, the battle went on"
+        else
+            echo "the window's play: $(tail -1 "$D/live.txt")"
             r=1
         fi
     fi

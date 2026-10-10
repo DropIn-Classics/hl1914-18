@@ -1,0 +1,16 @@
+# map 48, two human sides: as m48_save.keys, each ends its half, then D
+# and 3 save the battle as number 3 and, ten seconds later (more than the
+# 400 timer calls the port once counted across the waits), D and 4 save
+# it again as number 4 (port/tests/save_test.sh, twice)
+45.00 space+
+45.30 left+
+45.70 space-
+45.90 left-
+46.50 lalt+
+46.80 x+
+47.20 lalt-
+47.40 x-
+50.00 d
+52.00 3
+62.00 d
+64.00 4

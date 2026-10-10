@@ -1390,6 +1390,18 @@ anything the game needs before the first release.
 
 ## Checked
 
+- Two saves in a row (2026-10-10, Windows, branch `win/savecrash`).
+  The window's play ended the battle at the second save's question: the
+  wait for the digit (play.c, LOOP_SAVE) and the quit question's
+  (LOOP_QUIT) gave up after 400 timer calls without input, counted
+  across waits and live as well; now live they end only when the window
+  is closed (`own_idle_tick`). `save_test.sh` has a run `m48_save2`:
+  D 3, ten seconds later D 4, both files byte for byte the original's
+  and memory compared on its clock, and the headless window's play of
+  the same keys with four seconds before each digit, which must write
+  both files and go on (before the fix it stopped at 61.53 s with
+  03.DAT only).
+
 - The snare in the battle's tune (2026-10-09, Debian, branch
   `debian/snare`; docs/HANDOFF.md has the numbers). The snare is
   channel 5, a melodic voice at feedback 7 (no rhythm mode). The

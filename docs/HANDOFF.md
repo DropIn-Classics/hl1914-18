@@ -6919,3 +6919,47 @@ declare wait() in <stdlib.h>, which is why Linux and Windows built.
 Not verified: no clang or Mac here; checked with check.py and the Windows
 build (seq.c without warnings under MSVC). Errors further on in other files
 on macOS would show only in CI.
+
+## debian/flagcorr: rc2's corrupted German flag on Windows (2026-10-10, Linux)
+
+Reported: the v1.0-rc2 Windows package shows the country screen's German
+flag corrupted; a local build.bat build does not; Mac and Linux packages
+are fine. Not found. What was ruled out, and how:
+
+- Build flags: the workflow runs `port\build.bat` itself, so the flags
+  are the same (`/O2 /MT /W4`); the only additions are `/DPORT_VERSION`
+  and `/DPORT_UPDATE_URL`, used only in `src/main.c`'s launcher text
+  (`updates`, `app`). No `_WIN32`/`_MSC_VER` in `port/src`. What does
+  differ is the compiler: the dev machine's VS2019 Build Tools against
+  `windows-latest`'s VS2022 (versions not read from a log: no `gh` here,
+  and `/nologo` hides the banner).
+- The flag path: `country` (menu.c, S167A:1D43) draws pictures 0 and 1
+  of MNUFAHN.LIB with `pic_unpack_draw` (S2A6F:0002) at x 0Bh and A1h,
+  i.e. `tpwm_unpack` to `m.p` and `pic_draw` (`pic_blit_u` or `pic_x`).
+  Read for UB the newer MSVC could exploit (signed overflow, shifts,
+  order of evaluation, uninitialised locals, aliasing): none seen. All
+  memory goes through `mem[]` byte accessors (rmem.h). Built with gcc
+  `-fsanitize=undefined,address` and run through the walks `start0` and
+  `start24` (both flags drawn): one report only, outside the path
+  (`joy.c` port_read, `~buttons << 4` on a negative int; fixed, same
+  value). An instrumented `tpwm_unpack` showed no back-reference before
+  its output buffer, so the flags do not depend on leftover memory.
+  `-O0` and `-O3` builds (with the release defines) give the same memory
+  at the menu's return and the same video memory for both walks.
+- The update check: its Windows thread (update.c `fetch_thread`) writes
+  only its own statics and a file in the data folder, and is started
+  only from the launcher; it never touches the game's memory or the VGA
+  state. Kit code, nothing to report.
+- Data: a release copies the game on its first start (gog_copy, inno or
+  CD unpack) where a dev build uses `game/`. The kit's file I/O is binary
+  (the text-mode fopens are config and cue files). MNUFAHN.LIB of the
+  Linux package's copy is the same as `game/`'s (sha256); the Windows
+  package's copy was not seen.
+
+Not verified (no Windows, MSVC, Wine or MinGW here): the release build
+itself. Next, on Windows: hash the release's `game\MNUFAHN.LIB` (data
+folder) against the GOG folder's; run the rc2 exe with the dev build's
+`-game` folder (data or code?); build build.bat with VS2022 and compare
+the screen. A video-memory compare at the country screen against the
+original needs a new ask point in menu_dumps.py (S167A:1D43's loop);
+the walks' dumps stop before it, so it was not compared.

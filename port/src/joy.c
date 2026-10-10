@@ -55,7 +55,7 @@ static void port_write(void)
 /* the port read `n` instructions after the read or write before */
 static uint8_t port_read(long n)
 {
-    uint8_t r = (uint8_t)(~port.buttons << 4);
+    uint8_t r = (uint8_t)(~(unsigned)port.buttons << 4);
     int i;
 
     if (port.clock >= 0)

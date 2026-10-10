@@ -1418,7 +1418,10 @@ and `latest.json`; `PORT_UPDATE_URL` names
 Git Bash on Windows with `DK_DATA_DIR` set to a scratch folder: without
 a terminal it removed nothing, `--yes` only `game`, `--yes --all` the
 folder. Not run: `uninstall.cmd` with its questions, the `.command` on a
-Mac, the workflow itself (it runs at the next push).
+Mac, the workflow itself (it runs at the next push). seq.c's timer
+wait (S033D:1856) is `timer_wait`, not `wait`: macOS's <stdlib.h>
+declares POSIX wait() and clang refused the static one (branch
+`win/macfix`); checked only with the Windows build, not on a Mac.
 
 (which packages were started from a download, on which systems)
 

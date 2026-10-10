@@ -150,8 +150,8 @@ static int key(void)
     return frb(S_DATA, 0x045C) == 0x01 ? -1 : 0;
 }
 
-/* S033D:1856 (wait(n)): the timer's count from 0 up to n; -1 for Esc */
-static int16_t wait(int16_t n)
+/* S033D:1856 (wait(n) in the hints; renamed here, POSIX has a wait()): the timer's count from 0 up to n; -1 for Esc */
+static int16_t timer_wait(int16_t n)
 {
     int16_t k;
 
@@ -166,7 +166,7 @@ static int16_t wait(int16_t n)
 }
 
 /* a wait whose Esc ends the program (the module's calls of 17E0) */
-#define WAIT(n) do { if (wait(n) < 0) { ended = 1; goto out; } } while (0)
+#define WAIT(n) do { if (timer_wait(n) < 0) { ended = 1; goto out; } } while (0)
 
 /* S2F39:1A0B with the tune playing: its beats so far */
 static void beat_wait(uint16_t beat)
@@ -319,7 +319,7 @@ static int16_t anim(uint16_t x, uint16_t y, Far rec, int16_t n, int16_t speed)
         a = stream_frame(a, x, y);
         flip();
         copy();
-        if (wait(speed))
+        if (timer_wait(speed))
             return -1;
         n--;
     }
@@ -556,7 +556,7 @@ static void lands(Far from, Far to, uint16_t k, int16_t speed)
             else
                 blend(to, from, 0x048E, d((uint16_t)(cr + 2)), db((uint16_t)(cr + 1)), db((uint16_t)(rec + 0x16 + si)));
         }
-        if (wait(speed) < 0) {
+        if (timer_wait(speed) < 0) {
             ended = 1;
             return;
         }
@@ -765,7 +765,7 @@ int intro_play(void)
             }
             if (frame == 0x87)
                 music_start(tune, 0x14, 0xFF);
-            r = wait(speed);
+            r = timer_wait(speed);
             if (r < 0) {
                 ended = 1;
                 goto out;
@@ -887,7 +887,7 @@ int intro_play(void)
                 pal2 = far_add(pal2, 0x300);
                 si++;
             }
-            r = wait(5);
+            r = timer_wait(5);
             if (r < 0) {
                 ended = 1;
                 goto out;
@@ -1031,7 +1031,7 @@ int intro_play(void)
                 goto out;
             }
             if (step == 0x64)
-                wait(0x12C);    /* its Esc is not looked at */
+                timer_wait(0x12C);    /* its Esc is not looked at */
             else if (step == 0x3E7)
                 break;
             else if (step > 0 && step < 0x64)
@@ -1039,7 +1039,7 @@ int intro_play(void)
             if (ended)
                 goto out;
             flip();
-            r = wait(6);
+            r = timer_wait(6);
             if (r < 0) {
                 paper_restore(w);
                 ended = 1;
@@ -1117,7 +1117,7 @@ static int text_wait(Far w)
     int16_t r;
 
     flip();
-    r = wait(6);
+    r = timer_wait(6);
     if (r < 0) {
         paper_restore(w);
         ended = 1;
@@ -1254,7 +1254,7 @@ int extro_play(void)
                     pal_blend(pal0, pal1, 0, 0x4F, 0x40, si);
                     retrace();
                 }
-                wait(0x12C);    /* its Esc is not looked at */
+                timer_wait(0x12C);    /* its Esc is not looked at */
                 if (ended)
                     goto out;
                 for (si = 0; si < 0x40; si++) {
@@ -1416,7 +1416,7 @@ int extro_play(void)
             a = stream_frame(a, 0, 0);
             flip();
             copy();
-            r = wait(8);
+            r = timer_wait(8);
             if (r < 0) {
                 ended = 1;
                 goto out;
@@ -1457,7 +1457,7 @@ int extro_play(void)
             if (code == 0x3E7)
                 break;
             flip();
-            r = wait(6);
+            r = timer_wait(6);
             if (r < 0) {
                 ended = 1;
                 goto out;

@@ -6868,3 +6868,23 @@ local's.
 Not verified: by ear (the user's); CEh (side 0's tune; only CFh ran);
 the newspapers' tunes were not compared again; built and run on Debian
 only.
+
+## win/cffade: CFh's fade on time (2026-10-10)
+
+pic_medal's listing ends `fade_out`, `music_fade(14h)`, return: the
+original's wait for the fade (its `music_fade` at 69.095 s, the fade's
+end S2F39:1122 at 71.196 in the `medal` walk) is after the call. The
+port counted it before, in `EV_LOAD_MEDAL3`'s 2.53 s. Split: 0.46 s
+stays there, 2.07 s go to a new `EV_MEDAL_END` (`hl.h`, appended to the
+enum; `play.c`'s `t_ev_load`), hooked in `events.c` behind
+`music_fade(0x14)`. The sum and so the picture's end time are the same.
+`-muslog` on the walk: CFh's fade 69.093 s against the original's
+69.095 (was 71.162); D0h's start and fade and CFh's start unchanged
+(33.294, 44.881, 48.490). The 2.07 is the measured lateness, not the
+fade's own 2.10 s (S2F39:1058 to 1122): what is left of the 2.53 after
+the fade was not looked into.
+
+Not verified: by ear (the user's); CEh (side 0) not run; oplwav_cmp
+and oplwav_test.sh not run again (the register writes are not moved by
+this, only the game's clock after the fade); built and run on Windows
+only.

@@ -406,6 +406,7 @@ static int16_t pic_medal(Far place, Far work, uint16_t which, uint16_t f)
     wait_frames(0x12C);
     fade(0);
     music_fade(0x14);
+    hook(EV_BUSY, EV_MEDAL_END);
     return 0;
 }
 

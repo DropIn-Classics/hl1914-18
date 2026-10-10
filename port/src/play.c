@@ -723,6 +723,30 @@ static void own_wait_press(void)
     }
 }
 
+/* a wait for a key on the port's own clock (the quit question,
+ * save_game's number): one call of the timer's routine; true, without
+ * it, when the wait cannot end: live when the window was closed, from a
+ * script after 400 calls in a row that brought neither key nor mouse.
+ * The count begins anew with each wait and with each input taken; it
+ * once ran on across waits and counted live too, so that a second save
+ * a few seconds after the first ended the game */
+static int own_idle_tick(void)
+{
+    static int idle;
+    static double last;
+    long k = keys_at, m = mice_at;
+
+    if (now - last > 2 * TICK)
+        idle = 0;
+    if (live ? stopped != NULL : keys_at >= keys_n && mice_at >= mice_n && ++idle > 400)
+        return 1;
+    own_tick();
+    last = now;
+    if (keys_at != k || mice_at != m)
+        idle = 0;
+    return 0;
+}
+
 static void clock_frame(void);
 static long fight_g;     /* clock_frame: the frames of a fight so far */
 
@@ -1125,13 +1149,8 @@ static void hook(int at, uint16_t side)
     case LOOP_QUIT: {
         /* the port's own clock only: the original's log has no lines
          * for this wait */
-        static int idle;
-
-        idle = keys_at >= keys_n && mice_at >= mice_n ? idle + 1 : 0;
-        if (have_clock || idle > 400)
+        if (have_clock || own_idle_tick())
             loop_abort = 1;
-        else
-            own_tick();
         break;
     }
     case LOOP_SAVE: {
@@ -1139,21 +1158,14 @@ static void hook(int at, uint16_t side)
          * next call of the timer's routine or key, a line a turn (the
          * wait has no line of its own); on the port's own a call of the
          * timer's routine */
-        static int idle;
-
         if (have_clock) {
             if (clk_at < clk_n && (clk[clk_at].kind == 'T' || clk[clk_at].kind == 'K')) {
                 clock_run(clk_at + 1, 0);
                 clk_at++;
             } else
                 loop_abort = 1;
-        } else {
-            idle = keys_at >= keys_n && mice_at >= mice_n ? idle + 1 : 0;
-            if (idle > 400)
-                loop_abort = 1;
-            else
-                own_tick();
-        }
+        } else if (own_idle_tick())
+            loop_abort = 1;
         break;
     }
     case LOOP_END: {

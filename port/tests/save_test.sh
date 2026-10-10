@@ -24,7 +24,12 @@
 #             MISC, LOAD and a digit with a damaged file there, made
 #             from m48_save's saved game: 00.DAT with 6 as its second
 #             byte, 09.DAT its first 7000h bytes, 01.DAT its first ten,
-#             02.DAT empty; then the F1 pair (port/tests/keys/load_*.keys)
+#             02.DAT empty; then the F1 pair (port/tests/keys/load_*.keys).
+#             The original starts a battle from each (docs/HANDOFF.md);
+#             the port deliberately refuses them (save_valid, save.c):
+#             it must show no battle and wait in the menu.  Only the
+#             port's run is checked; the original's dumps stay as the
+#             record of what the original does.
 #
 # The original's (play_dumps.py with WALK and STATE) write the saved game
 # into build/play/m48_save/state/ and load it from a copy of that; the
@@ -96,7 +101,19 @@ for T in m48_save m48_save2 m48_load $BAD; do
         -clock "$D/clock.txt" -saves "$D/saves" -inputs "$D/port_inputs.txt" -ends "$D/q_ends.txt" $DUMPS \
         > "$D/port.txt" 2>&1 || true
     tail -1 "$D/port.txt"
-    python3 tests/play_cmp.py $T || r=1
+    case $T in
+    load_*)
+        # deviation (win/origfixes): the port refuses a damaged file as
+        # SAVED GAME NOT FOUND and stays in the menu; the original's
+        # dumps are kept to show what it does instead (no comparison)
+        if grep -q "0 times through the menu, 0 battles.*the menu waits for input" "$D/port.txt"; then
+            echo "$T: refused, no battle begun"
+        else
+            echo "$T: the damaged file was not refused"
+            r=1
+        fi ;;
+    *) python3 tests/play_cmp.py $T || r=1 ;;
+    esac
     case $T in m48_save) F=$N ;; m48_save2) F="03.DAT 04.DAT" ;; *) F= ;; esac
     for f in $F; do
         if cmp "$D/state/$f" "$D/saves/$f"; then

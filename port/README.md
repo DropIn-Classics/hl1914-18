@@ -4449,8 +4449,54 @@ in this script, the window by eye.
 A review of HL.EXE found bugs the port reproduces on purpose, since it
 follows the original: a battle won before the first round's end files
 its best score under map 4 and does not advance the map (`battle.c`
-`battle_score`); a damaged saved game loads silently (`save.c`); the
-name's cursor `]` can end up in the best scores (`menu.c`). The
-intro's lost Esc is the one the port already does not copy. The ranked
-list with repros and fix proposals is in docs/HANDOFF.md; nothing in
-the port changed.
+`battle_score`). The intro's lost Esc and the two below are the ones
+the port does not copy. The ranked list with repros and fix proposals
+is in docs/HANDOFF.md.
+
+## Deliberate deviations from the original (win/origfixes, 2026-10-10)
+
+Two bugs of the original are fixed; each is marked "deviation
+(win/origfixes)" in the code.
+
+- A damaged saved game. The original's menu only asks whether the file
+  can be opened, and its `load_game` (S1273:0399) tests the header's 0
+  and 7 in its buffer, not in what was read: an empty, cut or wrong file
+  starts a battle of the menu's map mixed with what the file held, with
+  no word. The port's menu (`menu.c` `saved_game`) asks `save_valid`
+  (`save.c`) first: a file that is not exactly as long as `save_game`
+  writes it (1Bh bytes of header and the 24 blocks, 35,411 bytes) or
+  does not begin with 0 and 7 is refused with SAVED GAME NOT FOUND, the
+  menu's text for a missing file, and the menu stays. A whole file is
+  loaded as before.
+- The best score's name. `text_input` writes its cursor `]` into the
+  name behind the letters, and the original copies the five bytes as
+  they are, so Enter while the cursor shows kept a shorter name with a
+  `]` (walk `name57`: QWEU]). The port's `winner_name` (`menu.c`) copies
+  the name up to its first byte that is not a capital and zeros behind
+  it (the manual's names are letters). A name of five letters is the
+  same as before (walk `name5x`). `text_input` itself is unchanged.
+
+Checked (Windows, MSVC headless):
+- `save_test.sh`: m48_save, m48_save2 (and the window's play), m48_load
+  as before: the files byte for byte and every pass compared the same.
+  `load_bad`, `load_cut`, `load_head`, `load_none` (wrong second byte,
+  cut at 7000h, ten bytes, empty) now must leave the port in the menu
+  with no battle begun; all four do. The original's dumps of them are
+  kept, no longer compared.
+- `menu_test.sh name57 name5x twice57` and `live livename57
+  livetwice57`: `menu_cmp.py` compares a best scores' file with the
+  deviation applied to the original's (a name the walk wrote ended at
+  its first non-capital). name57 (QWEU]), twice57 (NEW], in this run's
+  dumps), livename57, livetwice57: the port's file is the original's
+  with the one `]` taken off; name5x (QWERT): the same file unchanged.
+  Memory and video memory at every compared point: no byte differs.
+  The `live` part's window-against-`-keys` memory compares (port.ram,
+  port_e*, port_f*) say DIFFERENT on this machine with and without the
+  change (checked on master's code for livename57): not this change's.
+  The other menu walks were not run (no dumps on this machine; they do
+  not reach the name or a saved game that exists).
+
+Not checked: the refusal's screen against a picture (only that no
+battle begins; the text is the menu's own path for a missing file); a
+file of the right length with damaged blocks (it is loaded, as the
+original would); the window by hand (the player checks).

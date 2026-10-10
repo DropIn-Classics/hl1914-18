@@ -31,7 +31,11 @@
 # The walks name57 and livename57 correct the winner's name with the
 # backspace and show the best scores of a map that has one; twice57 and
 # livetwice57 begin with that best score in the folder (seed/, copied
-# into the port's -saves folder) and win a second.
+# into the port's -saves folder) and win a second.  name5x is name57
+# with a name of five letters.  The port takes the cursor's `]` off a
+# shorter name before it is kept (a deliberate deviation, menu.c's
+# winner_name): menu_cmp.py compares the best scores' file with the
+# original's with that `]` taken off the name the walk wrote.
 # The walks joy57 and joyload have a joystick (tests/keys/menu_WALK.joy,
 # the runner's -joys and the port's): its directions and buttons walk the
 # menu and leave the saved game's question.  joyask has the sticks'
@@ -50,7 +54,7 @@ GAME=${DOSKIT_GAME:-../game}
 sh build.sh
 LIVE=
 [ "$1" = live ] && { LIVE=1; shift; }
-[ $# -gt 0 ] || set -- back code57 end57 exit heldask joy57 joyask joyload live57 livename57 livetwice57 mouse3 mouseask name57 noload pages start0 start24 twice57
+[ $# -gt 0 ] || set -- back code57 end57 exit heldask joy57 joyask joyload live57 livename57 livetwice57 mouse3 mouseask name57 name5x noload pages start0 start24 twice57
 r=0
 for w in "$@"; do
     D=../build/menu/$w

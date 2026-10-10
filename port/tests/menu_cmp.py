@@ -38,7 +38,11 @@ Compared:
     passes in game_state, bytes 19h to 63h, told apart with the count
     of passes, since the port's battle on its own clock takes another
     number of passes), and the files the original wrote (written/)
-    against the port's (port_saves/).
+    against the port's (port_saves/).  A best scores' file is compared
+    with the port's deliberate deviation applied to the original's: a
+    name it wrote (one not in the walk's seed/) ends at its first byte
+    that is not a capital, zeros behind it (the original keeps
+    text_input's cursor `]` there; menu.c's winner_name).
 
   * a pass's two pages exchanged are told apart: text_input shows the
     other page every pass, and the port's passes on its own clock are
@@ -217,13 +221,35 @@ for e in ends:
 # the files the original wrote (written/, kept from menu_dumps.py's first
 # run; a best score) against the port's (port_saves/, where a
 # folder's separator is _)
+def name_cut(data, seed):
+    """a best scores' file (28h bytes: four dwords, 10h on four names of
+    six bytes) with each name not in `seed` ended at its first byte that
+    is not a capital, as the port keeps it; how many bytes that changed"""
+    data, cut = bytearray(data), 0
+    for i in range(4):
+        at = 0x10 + 6 * i
+        if seed is not None and seed[at:at + 6] == data[at:at + 6]:
+            continue
+        end = False
+        for j in range(at, at + 5):
+            end = end or not 0x41 <= data[j] <= 0x5A
+            if end and data[j]:
+                data[j], cut = 0, cut + 1
+    return bytes(data), cut
+
+
 state = os.path.join(out, 'written')
 for d, _, names in os.walk(state):
     for name in sorted(names):
         rel = os.path.relpath(os.path.join(d, name), state)
         pf = os.path.join(out, 'port_saves', rel.replace(os.sep, '_'))
-        same = os.path.exists(pf) and open(pf, 'rb').read() == open(os.path.join(d, name), 'rb').read()
-        print('  the file %s written: %s' % (rel, 'the same' if same else 'DIFFERENT or not written by the port'))
+        want, cut = open(os.path.join(d, name), 'rb').read(), 0
+        if name.upper().endswith('.HI') and len(want) == 0x28:
+            sf = os.path.join(out, 'seed', rel.replace(os.sep, '_'))
+            want, cut = name_cut(want, open(sf, 'rb').read() if os.path.exists(sf) else None)
+        same = os.path.exists(pf) and open(pf, 'rb').read() == want
+        print('  the file %s written: %s%s' % (rel, 'the same' if same else 'DIFFERENT or not written by the port',
+              " (with the name's cursor taken off: %d bytes, the deviation)" % cut if cut else ''))
         bad += not same
 # video memory (byte 4 * offset + plane): the two pages' 200 lines of 80
 # bytes a plane at A000h and A400h; what lies behind them is told apart

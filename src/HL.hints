@@ -970,6 +970,11 @@ name S1273:0005 save_game
 ; file that ends inside a block gives the blocks before it and that
 ; block's beginning (file_read's result is not looked at), the rest
 ; stays the setup's. No text is shown in any of these cases.
+; REVIEW (win/origreview, finding 2, corrupted save): file_read's count
+; is never looked at and the 0/7 test reads the buffer, not the file, so
+; an empty or cut file loads silently as a mix of the setup's battle and
+; the file's blocks (seen in save_test.sh's load_none, load_cut,
+; load_head; the port copies it).
 name S1273:0399 load_game
 ; view_dim(side): the 9 by 7 fields of the side's view, as view_draw
 ; places them, each through mark_blit(x, y, 0, 5Fh, 90h): the view made
@@ -1938,6 +1943,16 @@ name S331F:4D2F score
 ; or CFh for event_picture. Read; seen once (m54_end: the score 0AE3h,
 ; picture CEh or CFh with 2; which of the two was not logged then).
 ; Translated but for the picture (port/src/battle.c).
+; REVIEW (win/origreview, finding 1, wrong gameplay): with round_count 0
+; (a battle won before the first round's end) battle_score returns before
+; word 0Fh of game_state (S331F:4CB3) becomes the map's number. That word
+; is also a wait count (4 written by game_loop at S066A:0AB2 and
+; S066A:3C5F, seen by -watch; attacks_run writes it after S02E6:0ABF); menu_run (S167A:07AB, 0862, scores_show)
+; takes it as the map for the best scores. Seen: m57_win's pokes, break at
+; S063F:0028 with round_count 0, word 0Fh 4, map_number 39h, score A0h;
+; the run wrote MAP.HI, not 57.HI; map_number not advanced, so the
+; next START plays the same map again and an end map (17h, 2Fh) would not
+; set 20h (the outro). The port's battle.c copies it.
 name S063F:0009 battle_score
 ; scores_load(far buf, far work, map, far name): four dwords 0 at buf,
 ; the six bytes at name four times from buf + 10h on, then the file
@@ -2403,6 +2418,11 @@ name S39B6:1315 computer_out
 ; of 9-byte records (S39B6:0132 or 09AB by attack_pick). All three are
 ; described below.
 name S1CC6:0A35 computer_assess
+; REVIEW (win/origreview, finding 6, dead code): state 2 of computer_plan,
+; step kind 5 and step_site_menu's state 6 are never reached (read, see
+; docs/HANDOFF.md), and game_loop calls attack_pick only with 1, so
+; unit_plans2 is never taken. What they were meant to add to the computer
+; player is not known.
 name S2138:000C computer_plan
 name S1CC6:0000 computer_queue
 ; ---- computer_assess, read in full (2026-10-07, Mac). It goes by byte 5
@@ -3528,6 +3548,11 @@ name S167A:3128 menu_code_set
 ; table of keys takes one off, Enter or the key of entry 0 ends. A 5Dh
 ; as cursor comes and goes every 10h passes; a pass lasts as long as its
 ; drawing, page_flip and page_copy.
+; REVIEW (win/origreview, finding 4, cosmetic): the cursor 5Dh is written
+; into the text behind the letters, so Enter while it shows leaves a `]`
+; in a name shorter than max; menu_run saves the name with it (walk
+; name57: four letters and `]` in MAP.HI). A name of max (5) letters
+; is closed by the scores' own 0 (seen: walk name5x, five letters and 0).
 name S167A:325C text_input
 ; scores_show(far scores, map, far codes, far frame): brings the four
 ; scores into 0 to 7EF4h (in the buffer), then draws the map's code, the

@@ -4443,3 +4443,14 @@ down, button and up on an empty place, leave), `play_dumps.py`
 computer's the same at every pass compared, both pages of video memory
 the same at all of them. Not checked: the same by the mouse, a carrier
 in this script, the window by eye.
+
+## Bugs of the original the port copies (win/origreview, 2026-10-10)
+
+A review of HL.EXE found bugs the port reproduces on purpose, since it
+follows the original: a battle won before the first round's end files
+its best score under map 4 and does not advance the map (`battle.c`
+`battle_score`); a damaged saved game loads silently (`save.c`); the
+name's cursor `]` can end up in the best scores (`menu.c`). The
+intro's lost Esc is the one the port already does not copy. The ranked
+list with repros and fix proposals is in docs/HANDOFF.md; nothing in
+the port changed.

@@ -6963,3 +6963,93 @@ folder) against the GOG folder's; run the rc2 exe with the dev build's
 the screen. A video-memory compare at the country screen against the
 original needs a new ask point in menu_dumps.py (S167A:1D43's loop);
 the walks' dumps stop before it, so it was not compared.
+
+## win/origreview: bugs of the original, ranked (2026-10-10, Windows)
+
+A review of HL.EXE (INTRO/EXTRO where cheap) for bugs of the original:
+the listing (`build/HL.asm`) and runs on the runner. No port source
+changed; each finding is commented at its routine in src/HL.hints
+("REVIEW (win/origreview, finding N)"). The user picks what is fixed.
+Severity: crash > wrong gameplay > cosmetic. Count: crash 1 (not
+confirmed), wrong gameplay 2, cosmetic 2, dead code 1.
+
+1. Wrong gameplay (confirmed by a run): a battle won before the first
+   round's end is not scored as won. `battle_score` (S063F:0009) returns
+   at once when `round_count` is 0, before it writes the map's number to
+   word 0Fh of `game_state` (S331F:4CB3). That word is also a wait count
+   (4, written by game_loop at S066A:0AB2 and S066A:3C5F, seen by
+   `-watch`; attacks_run writes it after S02E6:0ABF, read), and
+   `menu_run` reads it as the map of the best scores (S167A:07AB, the
+   code shown at S167A:0862, `scores_show`).
+   - Repro: `python3 port/tests/menu_dumps.py name57` (m57_win's pokes
+     leave the second side without units; the battle ends at the first
+     round's end). With `-break S063F:0028 -dump round_count 2 -dump
+     S331F:4CB3 2 -dump map_number 2 -dump score 4`: round_count 0,
+     word 0Fh 4, map_number 39h, score A0h at 75.78 s.
+   - Observed: the best score goes to `MAP.HI` (map 4's table, its
+     scores compared and overwritten), `map_number` stays 57, so the
+     next START plays the same map; on an end map (17h, 2Fh) 20h is not
+     set and the outro would not come (not run). Expected: map 57's
+     table, the next map.
+   - Not checked: whether a first-round win happens without pokes in
+     play (a side left without units, or its headquarters taken, in
+     round 1); presumably on small maps.
+   - Fix proposal: in `battle.c`'s `battle_score`, set word 0Fh to
+     `map_number` before the `round_count` test, or test `round_count`
+     only when 10h (a human won) is not set. Deviation: a first-round
+     victory scores and advances. Regresses: every comparison whose
+     battle ends in round 0 with a score (`end57`, `name57`, `twice57`,
+     their live walks, `m57_win`): their scores' file becomes 57.HI and
+     the menu's state differs; those tests would need the deviation
+     switched off or new references.
+2. Corrupted save (confirmed by the earlier runs of
+   port/tests/save_test.sh: `load_none`, `load_cut`, `load_head`,
+   `load_bad`): `load_game` (S1273:0399) never looks at `file_read`'s
+   count and tests the 0/7 header in the buffer, not in what was read.
+   An empty or cut file starts silently with a mix of the menu's setup
+   and the file's blocks; no text is shown.
+   - Fix proposal: in `save.c`, take the counts; a header short or not
+     0/7 gives FFFFh before anything is put back, and `game_loop` shows
+     `SAVED GAME NOT FOUND` (the menu's text for a missing file) instead
+     of starting. Deviation only for damaged files. Regresses: the four
+     save_test.sh walks above, which compare the original's behaviour
+     with damaged files; they would test the new result instead.
+3. Crash/hang (not confirmed, not reproduced here): two long runs with
+   random input (`build/n2/e7`, 200 to 300 s; `build/n2/w8`, three
+   hours) ended with a DOS memory block header overwritten (the
+   runner's `mcb_coalesce` looping, see "A runner fault" above). Whether
+   HL.EXE wrote over the header or the emulation did was never found,
+   and the scripts are gone. Real DOS would halt with "Memory
+   allocation error". Proposal: none until it is reproduced; a rerun of
+   random input with `-watch` on the overwritten header's paragraph is
+   the next step (hours of emulation).
+4. Cosmetic (confirmed, walk `name57`): `text_input` (S167A:325C)
+   writes its cursor `]` into the name behind the letters, so Enter
+   while the cursor shows saves a name of fewer than five letters with
+   a `]` behind it, and the best scores show it. A name of five letters
+   is closed properly (run `name5x` here: `name57`'s walk with five
+   letters and Enter at 84.825 s; the file had the five letters and the
+   0). Fix proposal: in `menu.c`'s text_input, clear the cursor byte
+   before it returns. Regresses: `name57`, `livename57` (their file has
+   the `]`).
+5. Cosmetic (confirmed, earlier runs): INTRO and EXTRO lose an Esc that
+   comes while the module computes: the timer routine (S02AF:00A0 /
+   S27FE:00A0) reads the key from the BIOS first (Esc at 20.00 and 70 s
+   in INTRO, 100 s in EXTRO, did nothing). The port already deviates
+   (it always takes the Esc; port/README.md); nothing more to do.
+6. Dead code (read, no run can reach it): `computer_plan`'s state 2,
+   the step of kind 5, `step_site_menu`'s state 6, and `attack_pick` 2
+   (`unit_plans2`; game_loop calls it with 1 only). What the computer
+   player would do with them is not known; making them run would invent
+   behaviour, so the proposal is to leave them.
+
+Looked at and not bugs: the 35 differing OPL writes are the port's
+against the original (its first tick and three notes), not the
+original's; building with a full unit table cannot happen
+(`build_list` runs after every build and offers nothing when
+`unit_find` has no free record; that the computer's builds take the
+same path is presumed, not checked); `side_points` is cut to 2710h on entering a site while
+`build_list` gets the old value, without effect (prices are bytes);
+a five-letter name (finding 4). Not reviewed: HL14-18.EXE beyond its
+two calls, EXTRO's and INTRO's own code beyond the Esc, the fights'
+arithmetic, the computer player's choices.

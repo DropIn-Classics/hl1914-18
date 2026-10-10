@@ -467,6 +467,16 @@ static void audio_fill(int16_t *out, int frames, void *user)
     for (; frames > 0; frames -= n, out += 2 * n) {
         n = frames > 1024 ? 1024 : frames;
         oplq_render(&adlib_q, mono, n);
+        /* the chip's samples twice over (+6 dB) before the card's bytes:
+         * the battle tune's mix came out 6.27 dB below DOSBox 0.74's
+         * (sb16, oplmode auto, oplrate and mixer 44100) with the card at
+         * full scale in both, so the music lay that much under the
+         * effects; peak 3419 of 32767 in that tune, room to spare */
+        for (i = 0; i < n; i++) {
+            int v = 2 * mono[i];
+
+            mono[i] = (int16_t)(v > 32767 ? 32767 : v < -32768 ? -32768 : v);
+        }
         dig_add(mono, n);
         for (i = 0; i < n; i++)
             out[2 * i] = out[2 * i + 1] = mono[i];

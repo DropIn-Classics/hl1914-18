@@ -203,8 +203,9 @@ static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, ui
      * fade_back; with the fights' pictures off fade_back only without a
      * fight before), then the site's picture over the taker's half
      * (event_picture CAh for the first side, CBh for the second, at the
-     * work buffer plus 1064h) and the battle's libraries loaded again
-     * over it (libs_start, as after a fight's pictures) */
+     * libraries' place plus 1064h, attacks_run's [BP+16h]) and the
+     * battle's libraries loaded again over it (libs_start, as after a
+     * fight's pictures) */
     view_to_field(a, field);
     view_draw(NW(views, a * VIEW_SIZE + 2), a);
     f = (int16_t)((int16_t)field >> 1);
@@ -227,7 +228,7 @@ static void order_take(Far unit, uint8_t no, uint16_t m, uint16_t a, Far map, ui
             orders_hook(ORDERS_WAIT, 0x60);
     }
     fwb(S_take_picture, A_take_picture, 1);
-    event_picture(far_add(game_mem.work, 0x1064), game_mem.work, m ? 0xCB : 0xCA, 0);
+    event_picture(far_add(game_mem.libs, 0x1064), game_mem.libs, m ? 0xCB : 0xCA, 0);
     {
         Far p = game_mem.libs;
 

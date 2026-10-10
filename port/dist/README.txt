@@ -78,8 +78,49 @@ files stay in the data folder.
 Keys
 ----
 
-Alt+Enter: full screen on and off. Print Screen: a screenshot.
-(the game's own keys)
+In the game (the manual has the rest):
+
+    Arrows, Space        player A: move the cursor, fire (the keypad's
+                         7 9 1 3 the diagonals, Enter fires too)
+    D C X V, Ctrl        player B: up, down, left, right, fire
+                         (F is up too, Alt fires too)
+    F1                   confirm mode: ends a side's half of the round
+    F2, F3               music, sounds on and off
+    F7, F8               the mouse on and off, its speed
+    F9                   the fights' pictures on and off
+    D                    in a battle, with both sides at the round's
+                         end: save it under a digit
+    Esc                  leave the battle (and confirm)
+
+Everywhere:
+
+    Alt+Enter            full screen on and off
+    Print Screen         a screenshot (a PNG file)
+    Keypad + and -       louder, softer; Keypad * mutes
+
+The setup screen (it comes first; arrows, Enter, Esc): full screen,
+the volume, the intro, the players' keys (Keyboard: choose one, press
+the new key; Backspace none, Esc keeps it; the game's own key still
+works beside it) and the controller's buttons. On the start screen F2
+turns the checks for new versions on or off, U installs one.
+
+Removing
+--------
+
+Everything history-line wrote is in the data folder named above: the copy
+of the game's files, your saves and the settings. The script beside
+this file removes it and asks before each step: first whether to remove
+the copied game files, then whether to remove the saves and settings
+too. Nothing is removed unless you answer yes.
+
+    Windows  double click uninstall.cmd (the key Y is yes)
+    macOS    double click uninstall.command, or in the Terminal:
+             sh uninstall.command
+    Linux    in a terminal, in this folder: sh uninstall.sh
+
+Then delete this folder yourself (on a Mac the app too, wherever you
+moved it); the script leaves it alone. Your GOG release is never
+touched.
 
 Licences
 --------

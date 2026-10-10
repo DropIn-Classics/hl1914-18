@@ -6888,3 +6888,20 @@ Not verified: by ear (the user's); CEh (side 0) not run; oplwav_cmp
 and oplwav_test.sh not run again (the register writes are not moved by
 this, only the game's clock after the fade); built and run on Windows
 only.
+
+## win/rc1: the packages complete for a first release (2026-10-10, Windows)
+
+What doskit/docs/RELEASE.md points 4-8 asked for and was missing:
+README.txt's keys (the placeholder replaced by the game's keys from
+`src/main.c`'s key tables and the battle keys of port/README.md, the
+keypad's volume keys, Alt+Enter, Print Screen, the setup screen's
+remapping and F2/U on the start screen) and its "Removing" section, the
+uninstall scripts beside it, and the workflow packing them (now
+doskit's template with the slug filled in, byte for byte). The
+repository and doskit moved to DropIn-Classics; `.gitmodules` names the
+new place (the old one redirects). `PORT_UPDATE_URL` is built from the
+repository's name, so it names `DropIn-Classics/hl1914-18`.
+Not verified: the workflow on a tag (nothing was tagged), the packages
+started from a download, `uninstall.cmd`'s and the `.command`'s
+questions; the D key is player B's up and, at the round's end, the
+save key, both from the port's notes, not tried for this README.

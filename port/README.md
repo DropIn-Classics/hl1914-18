@@ -1405,8 +1405,20 @@ the latest release's `latest.json`.
 
 `.github/workflows/build.yml` builds the packages doskit/docs/RELEASE.md
 prescribes; a pushed tag `vX.Y` makes a release of them. `dist/README.txt`
-is the players' README in each package: fill in the game's keys and
-anything the game needs before the first release.
+is the players' README in each package, with the game's keys (from the
+setup's key tables in `src/main.c` and the battle keys above) and the
+setup screen's; beside it `uninstall.cmd` (Windows), `uninstall.sh`
+(Linux) and, as `uninstall.command`, the Mac's, made from doskit's
+template (2026-10-10, branch `win/rc1`). The workflow is doskit's
+template with the slug filled in, so a tag `vX.Y` gives the three
+packages, each with README.txt, its uninstall script and the licences,
+and `latest.json`; `PORT_UPDATE_URL` names
+`DropIn-Classics/hl1914-18`, the Mac app is
+`io.github.dropin-classics.history-line`. `uninstall.sh` was run under
+Git Bash on Windows with `DK_DATA_DIR` set to a scratch folder: without
+a terminal it removed nothing, `--yes` only `game`, `--yes --all` the
+folder. Not run: `uninstall.cmd` with its questions, the `.command` on a
+Mac, the workflow itself (it runs at the next push).
 
 (which packages were started from a download, on which systems)
 

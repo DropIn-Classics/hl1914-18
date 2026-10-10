@@ -158,6 +158,10 @@ int main(int argc, char **argv)
             for (k = 0; k < n; k++) {
                 const unsigned char *p = data + (at + (unsigned)k) * 4;
                 int16_t l = (int16_t)le(p, 2), r = (int16_t)le(p + 2, 2);
+                /* main.c's audio_fill: the chip's sample twice over */
+                int c = 2 * piece[k];
+
+                piece[k] = (int16_t)(c > 32767 ? 32767 : c < -32768 ? -32768 : c);
 
                 if (l != r)
                     return fail("the two channels differ at a frame", (long long)at + k, l - r);

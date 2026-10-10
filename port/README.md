@@ -1198,6 +1198,13 @@ sample ("Checked").
   earlier test) everything is as before: the chip gets the writes at
   once, nobody asks it for samples, the interrupts run on the port's
   clock of passes.
+- The mix (`audio_fill`, `src/main.c`): the chip's samples are doubled
+  (+6.02 dB, clipped) before the Sound Blaster's bytes are added. The
+  battle tune's mix was 6.27 dB below DOSBox 0.74's (sb16, `oplmode`
+  auto, `oplemu` default, 44100 Hz) with the card at full scale in
+  both (docs/HANDOFF.md, the live gap). `tests/soundout_ref.c` renders
+  the chip with the same doubling, `tests/oplwav_cmp.py` takes the
+  port's file at 1/2 (`PORT_GAIN`); both pass.
 - `src/sound.c`: with a device (`snd_samples` set) `snd_clock` makes the
   timer's interrupts by the samples played, not by the time it is
   given. An interrupt is due at the sample the timer's periods since

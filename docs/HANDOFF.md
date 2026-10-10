@@ -5984,6 +5984,42 @@ emulation error (2026-10-02).
     - Not checked: what the user heard the original on (emulator,
       `oplemu`, card) and the port's window build by ear; a real
       OPL2; the menu and briefing tunes' drums against Nuked.
+- The live gap (2026-10-10, Debian, branch `debian/livegap`). The user
+  A/B-listened to the renders above: the port's and the emulators'
+  sound the same. Live on their PC, DOSBox's snares were clearer and
+  louder. Their DOSBox (GOG's `dosboxBI1HL.conf`, 0.74): `sbtype=sb16`,
+  `oplmode=auto`, `oplemu=default`, `oplrate` and the mixer's `rate`
+  44100.
+  - That setting, black box (Debian's DOSBox 0.74-3-5 unpacked under
+    `build/livegap/`, the replay `.COM` of the entry above, disk audio
+    driver): the tune's mix -30.75 dBFS, peak 6888, both sides the
+    same; the snare alone against it -16.53 dB. The earlier render
+    (sb2, opl2, 49716): -30.73 dBFS, -16.93 dB. `opl.c` at 49716:
+    -37.00 dBFS, peak 3419, -16.53 against -17.39 dB. (Each file cut to
+    its first and last sample above 200; so these differ by a few
+    tenths from the entry above.) So the user's setting changes the
+    snare by 0.4 dB and its octave above 16 kHz goes to the 8 kHz one
+    (Nyquist at 22 kHz); not the gap.
+  - The port's live chain at the shipped settings: volume 10 (gain
+    1.0), headphone off, no shelves, so `audiofx` is the 38 Hz DC
+    blocker alone; the chip renders at 44100, the device's rate, so
+    no resampling unless the device asks for another rate (SDL's then,
+    not measured). Not the gap either.
+  - What is left is the level: the port's music 6.27 dB below DOSBox
+    0.74's, with the Sound Blaster's bytes at full scale in both, so
+    the music under the effects by that much and quieter on the same
+    volume knob. Fixed in the port's mix (`audio_fill`, `main.c`): the
+    chip's samples twice over (+6.02 dB) before the card's bytes are
+    added, clipped at full scale. `opl.c` stays at its chip scale
+    (an operator 4096), the gain is the mix's choice. Map 8 with
+    `m8_site.keys`, 120 s, `DK_WAV`: -34.07 dBFS, peak 3497 before;
+    -28.05 dBFS, peak 6994, no sample clipped after.
+  - Not checked: the user's ear (they listen-test it live); a tune with
+    the card's effects loud and the music loud at the same time (its
+    sum can clip now where it could not; it clips in DOSBox too, not
+    measured there); DOSBox-X/Nuked is 2.5 dB below DOSBox 0.74, so
+    against it the port is now 2.3 dB louder; SDL's conversion when the
+    device is not at 44100.
 
 ## `HL14-18.EXE` stage 1
 

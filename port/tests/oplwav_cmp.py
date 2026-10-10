@@ -51,7 +51,8 @@ by.  For each pair:
   level.  Judged: the rate's step within RATE_DB in every window, the
   port's level against the original's within MEAN_DB on average and
   LEVEL_DB in every window (windows where the original is below QUIET
-  are left out, and must be below it in the port too).
+  are left out, and must be below it in the port too).  The port's file
+  is taken at 1/PORT_GAIN, the gain its mix gives the chip.
 """
 import math, os, subprocess, sys
 from collections import Counter
@@ -65,6 +66,7 @@ RATE_DB = 0.2
 MEAN_DB = 0.5
 LEVEL_DB = 3.0
 QUIET = 50            # of 32768
+PORT_GAIN = 2         # main.c's audio_fill: the chip's samples twice over
 
 SLOT = [0, 1, 2, 0, 1, 2, None, None, 3, 4, 5, 3, 4, 5, None, None, 6, 7, 8, 6, 7, 8]
 
@@ -289,7 +291,8 @@ def main():
         lo = levels(owav, [(int(x * 49716), int(y * 49716)) for x, y in ow])
         lr = levels(rwav, [(int(x * rate), int(y * rate)) for x, y in ow])
         lt = levels(twav, [(int(x * rate), int(y * rate)) for x, y in ow])
-        lp = levels(pwav, [(round((t0p + x * p) * rate), round((t0p + y * p) * rate)) for x, y in wins])
+        lp = [x / PORT_GAIN for x in
+              levels(pwav, [(round((t0p + x * p) * rate), round((t0p + y * p) * rate)) for x, y in wins])]
         quiet = [x < QUIET for x in lo]
         if any(q != (x < QUIET) for q, x in zip(quiet, lp)):
             print('    FAILED: a window is silent in one file only')

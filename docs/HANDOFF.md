@@ -6905,3 +6905,17 @@ Not verified: the workflow on a tag (nothing was tagged), the packages
 started from a download, `uninstall.cmd`'s and the `.command`'s
 questions; the D key is player B's up and, at the round's end, the
 save key, both from the port's notes, not tried for this README.
+
+## win/macfix: seq.c's wait() and POSIX (2026-10-10, Windows)
+
+macOS CI failed in port/src/seq.c: the module's `static int16_t wait(int16_t)`
+(S033D:1856) follows the non-static POSIX `wait(int *)` that macOS's
+<stdlib.h> declares; clang then took that prototype for every call, which
+gave the ~19 "int to pointer" errors behind the first. The function is now
+`timer_wait`, behaviour unchanged. No other static name in seq.c is a POSIX
+function from its headers (checked by listing them). glibc and MSVC do not
+declare wait() in <stdlib.h>, which is why Linux and Windows built.
+
+Not verified: no clang or Mac here; checked with check.py and the Windows
+build (seq.c without warnings under MSVC). Errors further on in other files
+on macOS would show only in CI.

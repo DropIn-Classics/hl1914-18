@@ -1425,6 +1425,14 @@ declares POSIX wait() and clang refused the static one (branch
 
 (which packages were started from a download, on which systems)
 
+## Country screen, Windows rc2 (2026-10-10)
+
+Investigated a corrupted German flag in the rc2 Windows package (not
+in a dev build): not reproduced; gcc with UBSan/ASan and -O0 against -O3
+through the walks `start0` and `start24` gave no difference and no UB in
+the flag path (docs/HANDOFF.md, debian/flagcorr). `src/joy.c`'s
+port_read no longer shifts a negative int (UBSan; same value).
+
 ## Checked
 
 - DEBUG keys, the port's own (2026-10-10, Windows, branch `win/cheat`),

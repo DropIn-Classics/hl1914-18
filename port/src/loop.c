@@ -59,6 +59,7 @@ int loop_replay;
  * record is the memory's and not written from SideIn; the routine may
  * change the SideIn of the pass under way. */
 int loop_abort;
+int loop_cheat;
 void (*loop_hook)(int at, uint16_t side);
 
 static Far no_save(void)
@@ -1082,6 +1083,28 @@ static void setting_keys(void)
     timer_set(6, 0x0A, 0);
 }
 
+/* DEBUG, the port's own (loop_cheat; never in a scripted run): the human
+ * `side` wins the battle as a won fight makes it (S066A:3D5E on: both
+ * views to state 7, the winner's word 22h 0Fh, the loser's 10h), so that
+ * state_end, the pictures, battle_score and the next map follow as after
+ * a real win.  With 2, below map 30h, the map's number is first made the
+ * one before the campaign's last: CODES.DAT's records have bit 1 of byte
+ * 8 (battle_score's 20h) on maps 23 (17h) and 47 (2Fh) alone, the ends of
+ * the maps 0 to 23 and 24 to 47; battle_score then moves on to that last
+ * map, which the menu offers next. */
+static void cheat_win(uint16_t side)
+{
+    uint16_t map = NW(map_number, 0);
+
+    if (loop_cheat == 2 && (int16_t)map < 0x30)
+        SETW(map_number, 0, map < 0x18 ? 0x16 : 0x2E);
+    loop_cheat = 0;
+    SETB(views, VIEW_SIZE + 0x17, 7);
+    SETB(views, 0x17, 7);
+    pww(view_of(side), 0x22, 0x0F);
+    pww(view_of(side ? 0 : 1), 0x22, 0x10);
+}
+
 /* one side's part of a pass (S066A:0F0C to 4399) */
 static void side_part(uint16_t side, const SideIn *in)
 {
@@ -1092,6 +1115,8 @@ static void side_part(uint16_t side, const SideIn *in)
         loop_hook(LOOP_PART, side);
     if (in->key)
         key = in->key;
+    if (loop_cheat && !(side_word(side) & 2))
+        cheat_win(side);
     if (side_word(side) & 2) {
         uint16_t i;
 

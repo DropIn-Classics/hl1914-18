@@ -170,7 +170,7 @@ comment CODE:0340 Passes the status argument to the exit helper when its checks 
 comment S066A:46F2 If S331F4CA4 bit 20h is set, the routine assigns 007Bh to its local return value.
 comment S066A:441F The cursors drawn at a pass's end: each side's picture of its view byte 1Bh (table S331F:0167) at words 10h, 12h, for every view state but 4. Inside a site or carrier (state 2) nothing tests the place: byte 1Bh stays 5 (the border) on an empty place and on a place whose gesture offers nothing.
 comment S066A:3335 State 2 step 0Bh with the button: byte 1Bh 5 (the border), then 1, 8, 7 or 4 only for a direction whose bit of word 1Ch (2, 100h, 80h, 10h) is set; a direction with no function leaves the border.
-comment S063F:0198 Sets S331F4CA4 bit 20h when byte [BX+8] bit 0 is set; record meaning not checked.
+comment S063F:0198 Sets S331F4CA4 bit 20h (the last map won: the outro) when byte [BX+8] bit 0 of the map's CODES.DAT record is set; that bit is set on maps 23 (17h) and 47 (2Fh) only, the ends of maps 0-23 and 24-47 (CODES.DAT unpacked, 72 records of 10 bytes).
 
 ; First instruction of each gap reached by a five-second deterministic run.
 ; Computed parser dispatch at CODE:0A15 indexes this 24-word near-target table.
